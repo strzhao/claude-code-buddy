@@ -1,7 +1,7 @@
 import AppKit
 import SpriteKit
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+public class AppDelegate: NSObject, NSApplicationDelegate {
     var window: BuddyWindow?
     var scene: BuddyScene?
     var sessionManager: SessionManager?
@@ -11,7 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
         setupMenuBar()
         setupSessionManager()
@@ -28,7 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    public func applicationWillTerminate(_ notification: Notification) {
         sessionManager?.stop()
         mouseTracker?.stop()
     }

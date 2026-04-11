@@ -1,0 +1,25 @@
+README.md
+  6509b217b516d5ff 1-160
+hooks/buddy-hook.sh
+  6509b217b516d5ff 4-6,8,12,15,18-19,23-41,43-49,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "e5bf28f7c9adcbd62e7299ec83326775a1ba8e1c",
+  "prompts": {
+    "6509b217b516d5ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "730750ed-ed6d-485b-ba20-f36fd11d4acc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 197,
+      "total_deletions": 39,
+      "accepted_lines": 196,
+      "overriden_lines": 0
+    }
+  }
+}

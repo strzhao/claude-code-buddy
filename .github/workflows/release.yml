@@ -1,0 +1,91 @@
+name: Build and Release macOS App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    name: Build ClaudeCodeBuddy.app
+    runs-on: macos-14
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build release (arm64)
+        run: swift build -c release --arch arm64
+
+      - name: Build release (x86_64)
+        run: swift build -c release --arch x86_64
+
+      - name: Create universal binary
+        run: |
+          lipo -create -output ClaudeCodeBuddy \
+            .build/arm64-apple-macosx/release/ClaudeCodeBuddy \
+            .build/x86_64-apple-macosx/release/ClaudeCodeBuddy
+
+      - name: Assemble .app bundle
+        run: |
+          APP="ClaudeCodeBuddy.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+
+          cp ClaudeCodeBuddy "$APP/Contents/MacOS/ClaudeCodeBuddy"
+          chmod +x "$APP/Contents/MacOS/ClaudeCodeBuddy"
+
+          cp Sources/ClaudeCodeBuddy/Resources/Info.plist "$APP/Contents/Info.plist"
+
+          # Copy sprite assets
+          cp -R Sources/ClaudeCodeBuddy/Assets "$APP/Contents/Resources/" || true
+
+          # Update version in Info.plist
+          TAG="${GITHUB_REF_NAME#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $TAG" "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TAG" "$APP/Contents/Info.plist"
+
+      - name: Ad-hoc code sign
+        run: codesign --force --deep --sign - ClaudeCodeBuddy.app
+
+      - name: Zip .app bundle
+        run: zip -r "ClaudeCodeBuddy-${{ github.ref_name }}.zip" ClaudeCodeBuddy.app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Claude Code Buddy ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: ClaudeCodeBuddy-${{ github.ref_name }}.zip
+          body: |
+            ## Claude Code Buddy ${{ github.ref_name }}
+
+            Dock 上方的像素猫咪，实时反映 Claude Code 工作状态。
+
+            ### 安装步骤
+
+            **1. 下载 App**
+            1. 下载下方的 `ClaudeCodeBuddy-${{ github.ref_name }}.zip`
+            2. 解压，将 `ClaudeCodeBuddy.app` 拖入 `Applications` 文件夹
+            3. 首次打开时，右键选择「打开」绕过 Gatekeeper 提示
+
+            **2. 安装 Hooks 插件**
+            在 Claude Code 中运行：
+            ```
+            /plugin marketplace add <owner>/claude-code-buddy
+            /plugin install claude-code-buddy-hooks
+            /reload-plugins
+            ```
+
+            **3. 启动 App，然后正常使用 Claude Code**
+            猫咪会自动出现在 Dock 上方。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

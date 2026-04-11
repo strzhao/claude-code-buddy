@@ -1,0 +1,15 @@
+{
+  "name": "claude-code-buddy",
+  "description": "Claude Code Buddy — Dock 上方的像素猫咪伴侣，实时反映 Claude Code 工作状态",
+  "plugins": [
+    {
+      "name": "claude-code-buddy-hooks",
+      "description": "自动注册 hooks，将 Claude Code 会话状态发送给 Buddy App",
+      "version": "1.0.0",
+      "source": {
+        "type": "subdirectory",
+        "path": "plugin"
+      }
+    }
+  ]
+}

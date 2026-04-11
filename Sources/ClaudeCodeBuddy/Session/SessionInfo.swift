@@ -6,6 +6,7 @@ struct SessionInfo {
     var color: SessionColor
     var cwd: String?
     var pid: Int?
+    var terminalId: String?
     var state: CatState
     var lastActivity: Date
 }

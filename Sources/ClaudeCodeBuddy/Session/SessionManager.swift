@@ -23,6 +23,9 @@ class SessionManager {
     /// Called whenever session list changes (create/remove/label update).
     var onSessionsChanged: (([SessionInfo]) -> Void)?
 
+    /// Called when a new session is created or PID becomes available, to sync tab title.
+    var onSessionNeedsTabTitle: ((SessionInfo) -> Void)?
+
     private var timeoutTimer: Timer?
 
     // MARK: - Timeout Config
@@ -163,7 +166,8 @@ class SessionManager {
                     label: label,
                     color: color,
                     cwd: message.cwd,
-                    pid: nil,
+                    pid: message.pid,
+                    terminalId: message.terminalId,
                     state: message.catState ?? .idle,
                     lastActivity: Date()
                 )
@@ -173,9 +177,21 @@ class SessionManager {
                     scene.addCat(info: info)
                 }
                 writeColorFile()
+                if info.terminalId != nil {
+                    onSessionNeedsTabTitle?(info)
+                }
             } else {
                 sessions[sessionId]?.lastActivity = Date()
                 enrichCwd(for: sessionId, from: message)
+                if sessions[sessionId]?.pid == nil, let pid = message.pid {
+                    sessions[sessionId]?.pid = pid
+                }
+                if sessions[sessionId]?.terminalId == nil, let tid = message.terminalId {
+                    sessions[sessionId]?.terminalId = tid
+                    if let updated = sessions[sessionId] {
+                        onSessionNeedsTabTitle?(updated)
+                    }
+                }
             }
 
             // Update state

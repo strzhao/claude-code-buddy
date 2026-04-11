@@ -21,6 +21,8 @@ struct HookMessage: Codable {
     let timestamp: TimeInterval
     let cwd: String?
     let label: String?
+    let pid: Int?
+    let terminalId: String?
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
@@ -29,6 +31,8 @@ struct HookMessage: Codable {
         case timestamp  = "timestamp"
         case cwd        = "cwd"
         case label      = "label"
+        case pid        = "pid"
+        case terminalId = "terminal_id"
     }
 
     // MARK: - State Mapping

@@ -7,14 +7,23 @@ class GhosttyAdapter: TerminalAdapter {
     }
 
     func activateTab(for session: SessionInfo) -> Bool {
-        // Try matching by ●label in tab title
+        guard let terminalId = session.terminalId else {
+            return activateGhosttyOnly()
+        }
+
         let script = """
         tell application "Ghostty"
           activate
           repeat with w in windows
             repeat with t in tabs of w
               set term to focused terminal of t
-              if name of term contains "●\(session.label)" then
+              if id of term is "\(terminalId)" then
+                delay 0.3
+                tell application "System Events"
+                  tell process "Ghostty"
+                    set frontmost to true
+                  end tell
+                end tell
                 focus term
                 return true
               end if
@@ -27,21 +36,48 @@ class GhosttyAdapter: TerminalAdapter {
         var error: NSDictionary?
         if let appleScript = NSAppleScript(source: script) {
             let result = appleScript.executeAndReturnError(&error)
-            if error == nil {
-                return result.booleanValue
+            if error == nil && result.booleanValue {
+                return true
             }
         }
 
-        // Fallback: activate by PID
-        if let pid = session.pid {
-            return activateByPID(pid)
-        }
-
-        return false
+        return activateGhosttyOnly()
     }
 
-    private func activateByPID(_ pid: Int) -> Bool {
-        guard let app = NSRunningApplication(processIdentifier: pid_t(pid)) else { return false }
-        return app.activate()
+    func setTabTitle(for session: SessionInfo) -> Bool {
+        guard let terminalId = session.terminalId else { return false }
+
+        let title = "●\(session.label)"
+        let script = """
+        tell application "Ghostty"
+          repeat with w in windows
+            repeat with t in tabs of w
+              set term to focused terminal of t
+              if id of term is "\(terminalId)" then
+                perform action "set_tab_title:\(title)" on term
+                return true
+              end if
+            end repeat
+          end repeat
+        end tell
+        return false
+        """
+
+        var error: NSDictionary?
+        if let appleScript = NSAppleScript(source: script) {
+            appleScript.executeAndReturnError(&error)
+        }
+        return error == nil
+    }
+
+    // MARK: - Private
+
+    private func activateGhosttyOnly() -> Bool {
+        if let app = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.mitchellh.ghostty"
+        ).first {
+            return app.activate()
+        }
+        return false
     }
 }

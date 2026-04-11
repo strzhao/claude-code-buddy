@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var scene: BuddyScene?
     var sessionManager: SessionManager?
     var statusItem: NSStatusItem?
+    var mouseTracker: MouseTracker?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
@@ -26,6 +27,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         sessionManager?.stop()
+        mouseTracker?.stop()
     }
 
     // MARK: - Window
@@ -47,6 +49,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         skView.presentScene(buddyScene)
 
         win.makeKeyAndOrderFront(nil)
+
+        // Setup mouse tracker
+        if let buddyWindow = window, let buddyScene = scene {
+            let tracker = MouseTracker(window: buddyWindow, scene: buddyScene)
+            tracker.start()
+            mouseTracker = tracker
+        }
 
         // Re-position when Dock or display changes
         NotificationCenter.default.addObserver(

@@ -94,6 +94,23 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     var activeCatCount: Int { cats.count }
 
+    func catAtPoint(_ point: CGPoint) -> String? {
+        let hitSize = CatSprite.hitboxSize
+        for (sessionId, cat) in cats {
+            let catPos = cat.node.position
+            let rect = CGRect(
+                x: catPos.x - hitSize.width / 2,
+                y: catPos.y - hitSize.height / 2,
+                width: hitSize.width,
+                height: hitSize.height
+            )
+            if rect.contains(point) {
+                return sessionId
+            }
+        }
+        return nil
+    }
+
     // MARK: - Private Helpers
 
     private func evictIdleCat() {

@@ -28,4 +28,8 @@ class BuddyWindow: NSWindow {
 
     // Allow the window to become key so we can receive events if needed later
     override var canBecomeKey: Bool { true }
+
+    func setInteractive(_ interactive: Bool) {
+        ignoresMouseEvents = !interactive
+    }
 }

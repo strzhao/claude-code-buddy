@@ -17,6 +17,18 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private var cats: [String: CatSprite] = [:]
     private let maxCats = 8
 
+    private lazy var tooltipNode: TooltipNode = {
+        let node = TooltipNode()
+        addChild(node)
+        return node
+    }()
+
+    private var cachedSessions: [SessionInfo] = []
+
+    func updateSessionsCache(_ sessions: [SessionInfo]) {
+        cachedSessions = sessions
+    }
+
     // MARK: Lifecycle
 
     override func didMove(to view: SKView) {
@@ -121,6 +133,18 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             // No idle cat — remove oldest (first in dict)
             removeCat(sessionId: id)
         }
+    }
+
+    // MARK: - Tooltip
+
+    func showTooltip(for sessionId: String) {
+        guard let cat = cats[sessionId],
+              let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
+        tooltipNode.show(info: info, at: cat.node.position, sceneSize: size)
+    }
+
+    func hideTooltip() {
+        tooltipNode.hide()
     }
 
     // MARK: - Scene Resize

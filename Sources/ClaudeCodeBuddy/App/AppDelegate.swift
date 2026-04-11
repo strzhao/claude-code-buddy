@@ -54,6 +54,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let buddyWindow = window, let buddyScene = scene {
             let tracker = MouseTracker(window: buddyWindow, scene: buddyScene)
             tracker.start()
+            tracker.onHover = { [weak self] sessionId in
+                if let sessionId = sessionId {
+                    self?.scene?.showTooltip(for: sessionId)
+                } else {
+                    self?.scene?.hideTooltip()
+                }
+            }
             mouseTracker = tracker
         }
 
@@ -116,6 +123,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let manager = SessionManager(scene: scene)
         manager.onSessionCountChanged = { [weak self] count in
             self?.updateSessionCount(count)
+        }
+        manager.onSessionsChanged = { [weak self] sessions in
+            self?.scene?.updateSessionsCache(sessions)
         }
         sessionManager = manager
         manager.start()

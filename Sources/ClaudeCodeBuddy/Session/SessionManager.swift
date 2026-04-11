@@ -67,6 +67,12 @@ class SessionManager {
 
     deinit { stop() }
 
+    // MARK: - Public Lookup
+
+    func sessionInfo(for sessionId: String) -> SessionInfo? {
+        return sessions[sessionId]
+    }
+
     // MARK: - Color Pool
 
     private func assignColor() -> SessionColor {

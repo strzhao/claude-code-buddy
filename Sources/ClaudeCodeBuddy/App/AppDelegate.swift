@@ -7,6 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var sessionManager: SessionManager?
     var statusItem: NSStatusItem?
     var mouseTracker: MouseTracker?
+    private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
@@ -59,6 +60,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.scene?.showTooltip(for: sessionId)
                 } else {
                     self?.scene?.hideTooltip()
+                }
+            }
+            tracker.onClick = { [weak self] sessionId in
+                guard let self = self,
+                      let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
+                for adapter in self.terminalAdapters {
+                    if adapter.activateTab(for: info) { break }
                 }
             }
             mouseTracker = tracker

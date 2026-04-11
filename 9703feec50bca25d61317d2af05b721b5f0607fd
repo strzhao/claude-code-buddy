@@ -1,0 +1,41 @@
+.githooks/pre-commit
+  b1386c671f8a446c 1-18
+Package.swift
+  b1386c671f8a446c 10-11,13,17-26
+.swiftlint.yml
+  b1386c671f8a446c 1-21
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  b1386c671f8a446c 4,14,31
+.autopilot/doctor-report.md
+  b1386c671f8a446c 1-71
+.github/workflows/ci.yml
+  b1386c671f8a446c 1-31
+Makefile
+  b1386c671f8a446c 1-23
+Sources/App/main.swift
+  b1386c671f8a446c 1-12
+CLAUDE.md
+  b1386c671f8a446c 3-56
+.gitignore
+  b1386c671f8a446c 1,3,5-6,9-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9703feec50bca25d61317d2af05b721b5f0607fd",
+  "prompts": {
+    "b1386c671f8a446c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d798660e-ed20-4c27-9c5e-b428794ecdf1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 598,
+      "total_deletions": 11,
+      "accepted_lines": 595,
+      "overriden_lines": 0
+    }
+  }
+}

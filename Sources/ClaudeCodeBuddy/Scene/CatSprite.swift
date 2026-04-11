@@ -310,15 +310,16 @@ class CatSprite {
         let target = originX + CGFloat.random(in: -maxRange...maxRange)
 
         // Flip sprite to face movement direction
+        // Default sprite faces LEFT, so xScale=1.0 → left, xScale=-1.0 → right
         let delta = target - node.position.x
         if delta < -0.5 {
-            node.xScale = -1.0
-            labelNode?.xScale = -1.0
-            shadowLabelNode?.xScale = -1.0
-        } else if delta > 0.5 {
             node.xScale = 1.0
             labelNode?.xScale = 1.0
             shadowLabelNode?.xScale = 1.0
+        } else if delta > 0.5 {
+            node.xScale = -1.0
+            labelNode?.xScale = -1.0
+            shadowLabelNode?.xScale = -1.0
         }
 
         let distance = abs(delta)
@@ -556,6 +557,13 @@ class CatSprite {
         // Walk to the nearest edge
         let edgeX: CGFloat = node.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
         let duration = Double(abs(edgeX - node.position.x)) / 120.0
+
+        // Flip sprite to face exit direction (default sprite faces LEFT)
+        if edgeX < node.position.x {
+            node.xScale = 1.0   // exiting left → face left
+        } else {
+            node.xScale = -1.0  // exiting right → face right
+        }
 
         // Play walk animation during exit
         if let frames = textures(for: "walk-a"), !frames.isEmpty {

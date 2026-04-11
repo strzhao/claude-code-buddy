@@ -13,7 +13,7 @@ enum CatState: String, CaseIterable {
 // MARK: - IdleSubState
 
 private enum IdleSubState {
-    case sleep, breathe, blink
+    case sleep, breathe, blink, clean
 }
 
 // MARK: - CatSprite
@@ -43,6 +43,10 @@ class CatSprite {
     var sessionColor: SessionColor?
     private var sessionTintFactor: CGFloat = 0.3
     private var alertOverlayNode: SKNode?
+    /// The X position when the cat was placed, used as anchor for random movement.
+    private var originX: CGFloat = 0
+    /// Tracks previous state for transition animations.
+    private var previousState: CatState?
 
     // MARK: Init
 
@@ -151,6 +155,8 @@ class CatSprite {
 
     func switchState(to newState: CatState) {
         guard newState != currentState else { return }
+        let oldState = currentState
+        previousState = oldState
         currentState = newState
 
         node.removeAllActions()
@@ -159,28 +165,63 @@ class CatSprite {
         node.xScale = 1.0
         node.yScale = 1.0
         node.zRotation = 0
+        // Snap back to origin X (random walk may have drifted)
+        if oldState == .toolUse && originX != 0 {
+            node.position.x = originX
+        }
 
-        switch newState {
+        // Determine transition animation before entering new state
+        let transition = transitionAnimation(from: oldState, to: newState)
+
+        if let transition = transition {
+            let enter = SKAction.run { [weak self] in
+                guard let self = self, self.currentState == newState else { return }
+                self.applyState(newState)
+            }
+            node.run(SKAction.sequence([transition, enter]), withKey: "transition")
+        } else {
+            applyState(newState)
+        }
+    }
+
+    // MARK: - Transition Animations
+
+    private func transitionAnimation(from: CatState, to: CatState) -> SKAction? {
+        switch (from, to) {
+        case (.idle, .thinking):
+            // Wake up: blink then stretch
+            guard let blinkFrames = textures(for: "idle-b") else { return nil }
+            let blink = SKAction.animate(with: blinkFrames, timePerFrame: 0.12)
+            return blink
+
+        case (.permissionRequest, .idle), (.permissionRequest, .thinking):
+            // Relief: jump
+            guard let jumpFrames = textures(for: "jump") else { return nil }
+            let jump = SKAction.animate(with: jumpFrames, timePerFrame: 0.12)
+            return jump
+
+        case (.toolUse, .idle), (.thinking, .idle):
+            // Settle down: clean once (grooming = wind-down)
+            guard let cleanFrames = textures(for: "clean") else { return nil }
+            let clean = SKAction.animate(with: cleanFrames, timePerFrame: 0.15)
+            return clean
+
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - State Application
+
+    private func applyState(_ state: CatState) {
+        switch state {
         case .idle:
             node.color = sessionColor?.nsColor ?? .orange
             node.colorBlendFactor = sessionTintFactor
-            // Play jump transition then enter idle loop
-            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
-                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.12)
-                let enterIdle = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.startIdleLoop()
-                }
-                node.run(SKAction.sequence([jumpAnim, enterIdle]), withKey: "animation")
-                node.texture = jumpFrames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                startIdleLoop()
-            }
+            startIdleLoop()
 
         case .thinking:
-            // Paw animation + gentle sway
+            // Paw animation + gentle sway + breathing
             if let frames = textures(for: "paw"), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
                 let loop = SKAction.repeatForever(animate)
@@ -196,22 +237,18 @@ class CatSprite {
             swayLeft.timingMode = .easeInEaseOut
             let sway = SKAction.repeatForever(SKAction.sequence([swayRight, swayLeft]))
             node.run(sway, withKey: "stateEffect")
+            startBreathing()
 
         case .toolUse:
-            // Walk-b animation (fast) + left-right micro-pace
-            if let frames = textures(for: "walk-b"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.08)
-                let loop = SKAction.repeatForever(animate)
-                node.run(loop, withKey: "animation")
+            // Start with standing pose, random walk handles walk animation
+            if let frames = textures(for: "idle-a"), !frames.isEmpty {
                 node.texture = frames[0]
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             }
-            // Micro-pace ±4px
-            let paceRight = SKAction.moveBy(x: 4, y: 0, duration: 0.2)
-            let paceLeft = SKAction.moveBy(x: -4, y: 0, duration: 0.2)
-            let pace = SKAction.repeatForever(SKAction.sequence([paceRight, paceLeft]))
-            node.run(pace, withKey: "stateEffect")
+            originX = node.position.x
+            startRandomWalk()
+            startBreathing()
 
         case .permissionRequest:
             // Scared animation (fast) + bounce + shake + red override + "!" badge
@@ -240,8 +277,105 @@ class CatSprite {
             let shake = SKAction.repeatForever(SKAction.sequence([shakeRight, shakeLeft, shakeBack]))
             node.run(shake, withKey: "shakeEffect")
 
-            // "!" alert badge
             addAlertOverlay()
+        }
+    }
+
+    // MARK: - Breathing (subtle scale oscillation for all active states)
+
+    private func startBreathing() {
+        let breatheIn = SKAction.scaleY(to: 1.02, duration: 1.0)
+        breatheIn.timingMode = .easeInEaseOut
+        let breatheOut = SKAction.scaleY(to: 1.0, duration: 1.0)
+        breatheOut.timingMode = .easeInEaseOut
+        let breathe = SKAction.repeatForever(SKAction.sequence([breatheIn, breatheOut]))
+        node.run(breathe, withKey: "breathing")
+    }
+
+    // MARK: - Organic Random Walk (toolUse)
+
+    /// Recursive random walk: pick a random target within range, move there
+    /// with variable speed, pause randomly, then pick next target.
+    private func startRandomWalk() {
+        doRandomWalkStep()
+    }
+
+    private func doRandomWalkStep() {
+        guard currentState == .toolUse else { return }
+
+        // Random target: ±60px from origin (wide range)
+        let maxRange: CGFloat = 60
+        let target = originX + CGFloat.random(in: -maxRange...maxRange)
+
+        // Flip sprite to face movement direction
+        let delta = target - node.position.x
+        if delta < -0.5 {
+            node.xScale = -1.0
+            labelNode?.xScale = -1.0
+            shadowLabelNode?.xScale = -1.0
+        } else if delta > 0.5 {
+            node.xScale = 1.0
+            labelNode?.xScale = 1.0
+            shadowLabelNode?.xScale = 1.0
+        }
+
+        let distance = abs(delta)
+
+        // Skip move if barely any distance, just pause
+        if distance < 2.0 {
+            let pause = SKAction.wait(forDuration: Double.random(in: 1.0...2.5))
+            let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
+            node.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
+            return
+        }
+
+        // --- Walk phase: play walk-b while moving ---
+        let speed: Double = Double.random(in: 25...40) // px/s, leisurely
+        let duration = max(0.3, Double(distance) / speed)
+
+        // Start walk animation
+        if let walkFrames = textures(for: "walk-b"), !walkFrames.isEmpty {
+            let animate = SKAction.animate(with: walkFrames, timePerFrame: 0.10)
+            node.run(SKAction.repeatForever(animate), withKey: "animation")
+            node.color = sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = sessionTintFactor
+        }
+
+        let move = SKAction.moveTo(x: target, duration: duration)
+        move.timingMode = .easeInEaseOut
+
+        // --- Pause phase: stop walk, show standing pose ---
+        let stopWalkAndPause = SKAction.run { [weak self] in
+            guard let self = self, self.currentState == .toolUse else { return }
+            self.node.removeAction(forKey: "animation")
+            // Standing pose: use paw or idle-a
+            let standAnim = Float.random(in: 0..<1) < 0.3 ? "paw" : "idle-a"
+            if let frames = self.textures(for: standAnim), !frames.isEmpty {
+                let animate = SKAction.animate(with: frames, timePerFrame: 0.25)
+                self.node.run(SKAction.repeatForever(animate), withKey: "animation")
+                self.node.color = self.sessionColor?.nsColor ?? .white
+                self.node.colorBlendFactor = self.sessionTintFactor
+            }
+        }
+
+        // Longer walks: mostly keep moving, occasional brief stop
+        let pauseDuration: Double
+        let roll = Float.random(in: 0..<1)
+        if roll < 0.15 {
+            pauseDuration = Double.random(in: 0.8...1.5)   // brief rest (15%)
+        } else {
+            pauseDuration = 0                                // keep moving (85%)
+        }
+        let pause = SKAction.wait(forDuration: pauseDuration)
+
+        let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
+
+        if pauseDuration > 0 {
+            let pause = SKAction.wait(forDuration: pauseDuration)
+            node.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
+        } else {
+            // No pause — walk continuously to next target
+            node.run(SKAction.sequence([move, next]), withKey: "randomWalk")
         }
     }
 
@@ -290,12 +424,13 @@ class CatSprite {
     }
 
     private func pickNextIdleSubState() -> IdleSubState {
-        // Weighted random: sleep 80%, breathe 10%, blink 10%
+        // Weighted random: sleep 70%, breathe 10%, blink 10%, clean 10%
         let roll = Float.random(in: 0..<1)
         switch roll {
-        case ..<0.80: return .sleep
-        case ..<0.90: return .breathe
-        default:      return .blink
+        case ..<0.70: return .sleep
+        case ..<0.80: return .breathe
+        case ..<0.90: return .blink
+        default:      return .clean
         }
     }
 
@@ -331,6 +466,24 @@ class CatSprite {
         case .blink:
             if let frames = textures(for: "idle-b"), !frames.isEmpty {
                 let duration = 2.0 / Double(frames.count)
+                let animate = SKAction.animate(with: frames, timePerFrame: duration)
+                let next = SKAction.run { [weak self] in
+                    guard let self = self, self.currentState == .idle else { return }
+                    self.idleSubState = self.pickNextIdleSubState()
+                    self.runIdleSubState()
+                }
+                node.run(SKAction.sequence([animate, next]), withKey: "idleLoop")
+                node.texture = frames[0]
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
+            } else {
+                idleSubState = .sleep
+                runIdleSubState()
+            }
+
+        case .clean:
+            if let frames = textures(for: "clean"), !frames.isEmpty {
+                let duration = 3.0 / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: duration)
                 let next = SKAction.run { [weak self] in
                     guard let self = self, self.currentState == .idle else { return }

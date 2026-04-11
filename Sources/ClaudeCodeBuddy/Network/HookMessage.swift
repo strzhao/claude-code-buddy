@@ -3,6 +3,7 @@ import Foundation
 // MARK: - Event
 
 enum HookEvent: String, Codable {
+    case sessionStart = "session_start"
     case thinking   = "thinking"
     case toolStart  = "tool_start"
     case toolEnd    = "tool_end"
@@ -30,6 +31,7 @@ struct HookMessage: Codable {
     /// Maps this hook event to a CatState (returns nil for session_end).
     var catState: CatState? {
         switch event {
+        case .sessionStart: return nil
         case .thinking:   return .thinking
         case .toolStart:  return .coding
         case .toolEnd:    return .thinking

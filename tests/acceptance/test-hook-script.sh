@@ -200,8 +200,17 @@ else
     fail "Stop did NOT produce event='idle' (got: '$json')"
 fi
 
-# ── Assertion 8: JSON contains required fields ────────────────────────────
-echo "[8] JSON message contains required fields (session_id, event, tool, timestamp)..."
+# ── Assertion 8: SessionStart → event "session_start" ────────────────────
+echo "[8] SessionStart hook maps to 'session_start' event..."
+json=$(capture_event_via_file "SessionStart" "sess-1")
+if echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['event']=='session_start'" 2>/dev/null; then
+    pass "SessionStart → event='session_start' (JSON: $json)"
+else
+    fail "SessionStart did NOT produce event='session_start' (got: '$json')"
+fi
+
+# ── Assertion 9: JSON contains required fields ────────────────────────────
+echo "[9] JSON message contains required fields (session_id, event, tool, timestamp)..."
 json=$(capture_event_via_file "Notification" "sess-check")
 if echo "$json" | python3 -c "
 import sys, json
@@ -215,8 +224,8 @@ else
     fail "JSON message missing required fields (got: '$json')"
 fi
 
-# ── Assertion 9: session_id is included in the message ───────────────────
-echo "[9] session_id field matches the SESSION_ID passed to hook..."
+# ── Assertion 10: session_id is included in the message ──────────────────
+echo "[10] session_id field matches the SESSION_ID passed to hook..."
 json=$(capture_event_via_file "Notification" "my-unique-session-42")
 if echo "$json" | python3 -c "
 import sys, json
@@ -228,8 +237,8 @@ else
     fail "session_id not correctly forwarded (got: '$json')"
 fi
 
-# ── Assertion 10: timestamp is a non-zero integer ────────────────────────
-echo "[10] timestamp field is a non-zero integer..."
+# ── Assertion 11: timestamp is a non-zero integer ────────────────────────
+echo "[11] timestamp field is a non-zero integer..."
 json=$(capture_event_via_file "Notification" "sess-ts")
 if echo "$json" | python3 -c "
 import sys, json

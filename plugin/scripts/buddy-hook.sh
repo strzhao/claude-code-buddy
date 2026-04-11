@@ -7,7 +7,7 @@
 #
 # Zero external dependencies — uses Python3 (macOS built-in).
 
-SOCKET_PATH="/tmp/claude-buddy.sock"
+SOCKET_PATH="${BUDDY_SOCKET_PATH:-/tmp/claude-buddy.sock}"
 
 # Exit silently if the socket doesn't exist (buddy app not running)
 [ -S "$SOCKET_PATH" ] || exit 0
@@ -26,6 +26,7 @@ try:
 
     # Map hook event to buddy event
     m = {
+        'SessionStart':    'session_start',
         'Notification':    'thinking',
         'UserPromptSubmit':'thinking',
         'PreToolUse':      'tool_start',

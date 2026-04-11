@@ -60,6 +60,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
 
         let cat = CatSprite(sessionId: sessionId)
+        cat.configure(color: info.color, labelText: info.label)
 
         // Random horizontal spawn position
         let spawnX = CGFloat.random(in: 48...(size.width - 48))
@@ -71,11 +72,11 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     }
 
     func updateCatLabel(sessionId: String, label: String) {
-        // Stub: will be implemented in 003-visual-layer
+        cats[sessionId]?.updateLabel(label)
     }
 
     func updateCatColor(sessionId: String, color: SessionColor) {
-        // Stub: will be implemented in 003-visual-layer
+        // Color is assigned at creation time and doesn't change during session lifetime
     }
 
     func removeCat(sessionId: String) {

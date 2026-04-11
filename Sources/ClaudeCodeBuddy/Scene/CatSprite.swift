@@ -34,6 +34,14 @@ class CatSprite {
     /// Current idle sub-state.
     private var idleSubState: IdleSubState = .breathe
 
+    // MARK: - Session Identity
+
+    static let hitboxSize = CGSize(width: 48, height: 64)
+    private var labelNode: SKLabelNode?
+    private var shadowLabelNode: SKLabelNode?
+    var sessionColor: SessionColor?
+    private var sessionTintFactor: CGFloat = 0.3
+
     // MARK: Init
 
     init(sessionId: String) {
@@ -98,6 +106,45 @@ class CatSprite {
         return textures
     }
 
+    // MARK: - Session Identity
+
+    func configure(color: SessionColor, labelText: String) {
+        sessionColor = color
+
+        // Apply tint to sprite
+        node.color = color.nsColor
+        node.colorBlendFactor = sessionTintFactor
+
+        // Create shadow label (behind, for glow effect)
+        let shadow = SKLabelNode(text: labelText)
+        shadow.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
+        shadow.fontSize = 11
+        shadow.fontColor = color.nsColor.withAlphaComponent(0.4)
+        shadow.position = CGPoint(x: 1, y: 27)
+        shadow.verticalAlignmentMode = .bottom
+        shadow.horizontalAlignmentMode = .center
+        shadow.zPosition = 9
+        node.addChild(shadow)
+        shadowLabelNode = shadow
+
+        // Create main label
+        let label = SKLabelNode(text: labelText)
+        label.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
+        label.fontSize = 11
+        label.fontColor = color.nsColor
+        label.position = CGPoint(x: 0, y: 28)
+        label.verticalAlignmentMode = .bottom
+        label.horizontalAlignmentMode = .center
+        label.zPosition = 10
+        node.addChild(label)
+        labelNode = label
+    }
+
+    func updateLabel(_ newLabel: String) {
+        labelNode?.text = newLabel
+        shadowLabelNode?.text = newLabel
+    }
+
     // MARK: - State Machine
 
     func switchState(to newState: CatState) {
@@ -108,29 +155,29 @@ class CatSprite {
 
         switch newState {
         case .idle:
-            node.color = .orange
+            node.color = sessionColor?.nsColor ?? .orange
             startIdleLoop()
 
         case .thinking:
-            node.color = .yellow
+            node.color = sessionColor?.nsColor ?? .yellow
             if let frames = textures(for: "scared"), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: 0.15)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
-                node.color = .white
-                node.colorBlendFactor = 0
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
             }
 
         case .coding:
-            node.color = .green
+            node.color = sessionColor?.nsColor ?? .green
             if let frames = textures(for: "clean"), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
-                node.color = .white
-                node.colorBlendFactor = 0
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
             }
         }
     }
@@ -174,8 +221,8 @@ class CatSprite {
                 }
                 node.run(SKAction.sequence([animate, returnToBreathe]), withKey: "idleLoop")
                 node.texture = frames[0]
-                node.color = .white
-                node.colorBlendFactor = 0
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
             } else {
                 // Fallback: treat like breathe
                 idleSubState = .breathe
@@ -194,8 +241,8 @@ class CatSprite {
                 }
                 node.run(SKAction.sequence([animate, returnToBreathe]), withKey: "idleLoop")
                 node.texture = frames[0]
-                node.color = .white
-                node.colorBlendFactor = 0
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
             } else {
                 idleSubState = .breathe
                 runIdleSubState()
@@ -215,8 +262,8 @@ class CatSprite {
                 }
                 node.run(SKAction.sequence([loopSleep, wait, returnToBreathe]), withKey: "idleLoop")
                 node.texture = frames[0]
-                node.color = .white
-                node.colorBlendFactor = 0
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
             } else {
                 idleSubState = .breathe
                 runIdleSubState()
@@ -230,8 +277,8 @@ class CatSprite {
         let action = looping ? SKAction.repeatForever(animate) : animate
         node.run(action, withKey: "idleLoop")
         node.texture = frames[0]
-        node.color = .white
-        node.colorBlendFactor = 0
+        node.color = sessionColor?.nsColor ?? .white
+        node.colorBlendFactor = sessionTintFactor
     }
 
     private func scheduleNextIdleTransition(after waitAction: SKAction) {
@@ -256,8 +303,8 @@ class CatSprite {
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "walkAnimation")
             node.texture = frames[0]
-            node.color = .white
-            node.colorBlendFactor = 0
+            node.color = sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = sessionTintFactor
         }
 
         // Drop down to ground level
@@ -284,8 +331,8 @@ class CatSprite {
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "walkAnimation")
             node.texture = frames[0]
-            node.color = .white
-            node.colorBlendFactor = 0
+            node.color = sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = sessionTintFactor
         }
 
         let walk = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))

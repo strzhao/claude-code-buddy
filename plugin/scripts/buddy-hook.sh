@@ -23,6 +23,7 @@ try:
     hook = d.get('hook_event_name', '')
     sid  = d.get('session_id', '')
     tool = d.get('tool_name', '')
+    cwd = d.get('cwd', '') or d.get('project_path', '')
 
     # Map hook event to buddy event
     m = {
@@ -40,10 +41,12 @@ try:
     print(f'SESSION_ID=\"{sid}\"')
     print(f'EVENT=\"{event}\"')
     print(f'TOOL_NAME={json.dumps(tool) if tool else \"null\"}')
+    print(f'CWD="{cwd}"')
 except:
     print('EVENT=\"idle\"')
     print('SESSION_ID=\"unknown\"')
     print('TOOL_NAME=null')
+    print('CWD=\"\"')
 " 2>/dev/null)"
 
 # Fallback session ID
@@ -57,7 +60,14 @@ if [ "$TOOL_NAME" = "null" ] || [ -z "$TOOL_NAME" ]; then
 else
     TOOL_JSON="\"${TOOL_NAME}\""
 fi
-JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}}"
+
+# Add cwd for session_start events
+if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
+    CWD_JSON=",\"cwd\":\"${CWD}\""
+else
+    CWD_JSON=""
+fi
+JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}}"
 
 python3 - "$SOCKET_PATH" "$JSON" 2>/dev/null <<'PYEOF'
 import socket, sys
@@ -74,5 +84,20 @@ try:
 except Exception:
     pass
 PYEOF
+
+# Inject Ghostty tab title on SessionStart (async, non-blocking)
+if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
+    LABEL="$(basename "$CWD")"
+    osascript -e "
+      tell application \"Ghostty\"
+        repeat with t in terminals of every tab of every window
+          if working directory of t is \"$CWD\" and name of t does not contain \"●\" then
+            perform action \"set_tab_title:●${LABEL}\" on t
+            return
+          end if
+        end repeat
+      end tell
+    " &>/dev/null &
+fi
 
 exit 0

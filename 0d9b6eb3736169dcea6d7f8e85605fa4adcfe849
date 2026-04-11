@@ -1,0 +1,34 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0d9b6eb3736169dcea6d7f8e85605fa4adcfe849",
+  "prompts": {
+    "a91295da20dea0df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd0ab88-ae41-434e-9349-1116bc38a45e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 707,
+      "total_deletions": 152,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "fc410034a2fe81e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07ddb668-9e56-438e-bcc4-dde433c62e33",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 809,
+      "total_deletions": 2,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}

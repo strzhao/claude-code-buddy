@@ -50,7 +50,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - Cat Management
 
-    func addCat(sessionId: String) {
+    func addCat(info: SessionInfo) {
+        let sessionId = info.sessionId
         guard cats[sessionId] == nil else { return }
 
         // Enforce max-cat rule: evict earliest idle cat
@@ -67,6 +68,14 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         addChild(cat.node)
         cats[sessionId] = cat
         cat.enterScene(sceneSize: size)
+    }
+
+    func updateCatLabel(sessionId: String, label: String) {
+        // Stub: will be implemented in 003-visual-layer
+    }
+
+    func updateCatColor(sessionId: String, color: SessionColor) {
+        // Stub: will be implemented in 003-visual-layer
     }
 
     func removeCat(sessionId: String) {

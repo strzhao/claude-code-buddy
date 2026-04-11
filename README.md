@@ -78,6 +78,7 @@ open ClaudeCodeBuddy.app
 ```json
 {
   "hooks": {
+    "SessionStart":  [{"matcher":"","hooks":[{"type":"command","command":"/路径/hooks/buddy-hook.sh","timeout":2}]}],
     "Notification":  [{"matcher":"","hooks":[{"type":"command","command":"/路径/hooks/buddy-hook.sh","timeout":2}]}],
     "PreToolUse":    [{"matcher":"","hooks":[{"type":"command","command":"/路径/hooks/buddy-hook.sh","timeout":2}]}],
     "PostToolUse":   [{"matcher":"","hooks":[{"type":"command","command":"/路径/hooks/buddy-hook.sh","timeout":2}]}],

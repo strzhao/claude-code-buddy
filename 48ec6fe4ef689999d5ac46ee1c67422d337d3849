@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/Terminal/GhosttyAdapter.swift
+  de91560f9dbe63b9 1-47
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  de91560f9dbe63b9 70-75
+Sources/ClaudeCodeBuddy/Terminal/TerminalAdapter.swift
+  de91560f9dbe63b9 1-6
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  de91560f9dbe63b9 10,65-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "48ec6fe4ef689999d5ac46ee1c67422d337d3849",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 69,
+      "total_deletions": 2,
+      "accepted_lines": 1214,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,25 @@
+hooks/buddy-hook.sh
+  de91560f9dbe63b9 26,44,49,63-70,88-102
+tests/acceptance/test-hook-cwd.sh
+  de91560f9dbe63b9 1-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "aa2d40a3972a7c2a14f87db6366f5c0300f0b050",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 218,
+      "total_deletions": 8,
+      "accepted_lines": 1353,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -51,7 +51,12 @@ except:
 TIMESTAMP=$(date +%s)
 
 # Build and send JSON message via Unix domain socket
-JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_NAME},\"timestamp\":${TIMESTAMP}}"
+if [ "$TOOL_NAME" = "null" ] || [ -z "$TOOL_NAME" ]; then
+    TOOL_JSON="null"
+else
+    TOOL_JSON="\"${TOOL_NAME}\""
+fi
+JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}}"
 
 python3 - "$SOCKET_PATH" "$JSON" 2>/dev/null <<'PYEOF'
 import socket, sys

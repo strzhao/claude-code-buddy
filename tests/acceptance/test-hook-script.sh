@@ -39,8 +39,8 @@ fi
 echo "[3] Hook exits silently when no socket is present..."
 rm -f "$SOCK"   # ensure socket is absent
 
-# Invoke with the Notification hook type and a dummy session id
-output=$(CLAUDE_HOOK_TYPE="Notification" SESSION_ID="test-silent" "$HOOK_SCRIPT" 2>&1)
+# Invoke with a Notification hook type via stdin JSON and a dummy session id
+output=$(echo '{"hook_event_name":"Notification","session_id":"test-silent"}' | "$HOOK_SCRIPT" 2>&1)
 exit_code=$?
 
 if [ $exit_code -eq 0 ] && [ -z "$output" ]; then
@@ -95,10 +95,15 @@ PYEOF
     local server_pid=$!
     sleep 0.3   # give server time to bind
 
-    # Run the hook
-    CLAUDE_HOOK_TYPE="$hook_type" \
-    SESSION_ID="$session_id" \
-    TOOL_NAME="$tool_name" \
+    # Build stdin JSON matching Claude Code's hook input format
+    local tool_json="null"
+    if [ -n "$tool_name" ]; then
+        tool_json="\"$tool_name\""
+    fi
+    local stdin_json="{\"hook_event_name\":\"$hook_type\",\"session_id\":\"$session_id\",\"tool_name\":$tool_json}"
+
+    # Run the hook with stdin JSON
+    echo "$stdin_json" | \
         "$HOOK_SCRIPT" 2>/dev/null
 
     # Collect server output
@@ -109,6 +114,8 @@ PYEOF
 }
 
 # Improved version that captures via temp file
+# Accepts up to 5 connections and returns the first message matching the expected session_id,
+# to avoid capturing stray messages from a real running Claude Code session.
 capture_event_via_file() {
     local hook_type="$1"
     local session_id="${2:-test-session}"
@@ -116,47 +123,66 @@ capture_event_via_file() {
     local tmpfile
     tmpfile=$(mktemp)
 
-    python3 - "$SOCK" "$tmpfile" <<'PYEOF' &
-import sys, socket, os, time
+    python3 - "$SOCK" "$tmpfile" "$session_id" <<'PYEOF' &
+import sys, socket, os, json
 
-sock_path = sys.argv[1]
-out_file  = sys.argv[2]
+sock_path   = sys.argv[1]
+out_file    = sys.argv[2]
+expected_id = sys.argv[3]
 
 try: os.unlink(sock_path)
 except: pass
 
 srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 srv.bind(sock_path)
-srv.listen(1)
-srv.settimeout(4)
-try:
-    conn, _ = srv.accept()
-    data = b""
-    conn.settimeout(2)
+srv.listen(5)
+srv.settimeout(5)
+
+for _ in range(5):  # accept up to 5 connections to filter out stray messages
     try:
-        while b"\n" not in data:
-            chunk = conn.recv(4096)
-            if not chunk:
+        conn, _ = srv.accept()
+        data = b""
+        conn.settimeout(2)
+        try:
+            while b"\n" not in data:
+                chunk = conn.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+        except socket.timeout:
+            pass
+        conn.close()
+        line = data.decode().strip()
+        if not line:
+            continue
+        # Check if this message is from our test (matches expected session_id)
+        try:
+            msg = json.loads(line)
+            if msg.get("session_id") == expected_id:
+                with open(out_file, "w") as f:
+                    f.write(line)
                 break
-            data += chunk
+        except json.JSONDecodeError:
+            # Non-JSON or malformed — skip and try next connection
+            continue
     except socket.timeout:
-        pass
-    conn.close()
-    with open(out_file, "w") as f:
-        f.write(data.decode().strip())
-except socket.timeout:
-    pass
-finally:
-    srv.close()
-    try: os.unlink(sock_path)
-    except: pass
+        break
+
+srv.close()
+try: os.unlink(sock_path)
+except: pass
 PYEOF
     local server_pid=$!
     sleep 0.4   # give server time to bind
 
-    CLAUDE_HOOK_TYPE="$hook_type" \
-    SESSION_ID="$session_id" \
-    TOOL_NAME="$tool_name" \
+    # Build stdin JSON matching Claude Code's hook input format
+    local tool_json="null"
+    if [ -n "$tool_name" ]; then
+        tool_json="\"$tool_name\""
+    fi
+    local stdin_json="{\"hook_event_name\":\"$hook_type\",\"session_id\":\"$session_id\",\"tool_name\":$tool_json}"
+
+    echo "$stdin_json" | \
         "$HOOK_SCRIPT" 2>/dev/null
 
     wait $server_pid 2>/dev/null

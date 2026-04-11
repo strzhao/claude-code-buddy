@@ -52,6 +52,7 @@ class SocketServer {
     // MARK: - Private Setup
 
     private func setupServer() {
+        NSLog("[SocketServer] setupServer() called")
         // Remove stale socket file so bind doesn't fail after a crash
         unlink(SocketServer.socketPath)
 
@@ -98,7 +99,7 @@ class SocketServer {
         }
 
         serverFD = fd
-        print("[SocketServer] Listening on \(SocketServer.socketPath)")
+        NSLog("[SocketServer] Listening on %@", SocketServer.socketPath)
 
         // Accept loop via DispatchSource
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
@@ -125,8 +126,12 @@ class SocketServer {
             }
         }
 
-        guard clientFD >= 0 else { return }
+        guard clientFD >= 0 else {
+            print("[SocketServer] accept() failed: \(String(cString: strerror(errno)))")
+            return
+        }
 
+        NSLog("[SocketServer] Accepted client fd=%d", clientFD)
         clientBuffers[clientFD] = Data()
 
         let clientSource = DispatchSource.makeReadSource(fileDescriptor: clientFD, queue: queue)
@@ -148,7 +153,12 @@ class SocketServer {
         let n = read(fd, &buf, buf.count)
 
         if n <= 0 {
-            // EOF or error — close client
+            NSLog("[SocketServer] Client fd=%d EOF/error, n=%d", fd, n)
+            // EOF or error — flush remaining buffer then close client
+            if let remaining = clientBuffers[fd], !remaining.isEmpty {
+                NSLog("[SocketServer] Flushing buffer (%d bytes) for fd=%d", remaining.count, fd)
+                handleLine(remaining)
+            }
             clientSources[fd]?.cancel()
             clientSources.removeValue(forKey: fd)
             return
@@ -171,12 +181,13 @@ class SocketServer {
         guard !data.isEmpty else { return }
         do {
             let msg = try JSONDecoder().decode(HookMessage.self, from: data)
+            NSLog("[SocketServer] Decoded message: event=%@, session=%@", "\(msg.event)", msg.sessionId)
             DispatchQueue.main.async { [weak self] in
                 self?.onMessage?(msg)
             }
         } catch {
             if let raw = String(data: data, encoding: .utf8) {
-                print("[SocketServer] JSON decode error: \(error) — raw: \(raw)")
+                NSLog("[SocketServer] JSON decode error: %@ — raw: %@", "\(error)", raw)
             }
         }
     }

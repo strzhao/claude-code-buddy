@@ -2,10 +2,9 @@
 # buddy-hook.sh — Claude Code hook script for Claude Code Buddy
 #
 # Reads hook context from stdin JSON (provided by Claude Code),
-# extracts session_id, hook_event_name, and tool_name,
-# then sends a one-line JSON message to /tmp/claude-buddy.sock.
+# builds a socket message, and sends it to /tmp/claude-buddy.sock.
 #
-# Zero external dependencies — uses Python3 (macOS built-in).
+# All JSON construction is done in Python to avoid shell escaping issues.
 
 SOCKET_PATH="${BUDDY_SOCKET_PATH:-/tmp/claude-buddy.sock}"
 
@@ -15,54 +14,12 @@ SOCKET_PATH="${BUDDY_SOCKET_PATH:-/tmp/claude-buddy.sock}"
 # Read the full stdin JSON from Claude Code
 HOOK_INPUT="$(cat)"
 
-# Parse all needed fields from stdin JSON using Python3
-eval "$(echo "$HOOK_INPUT" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    hook = d.get('hook_event_name', '')
-    sid  = d.get('session_id', '')
-    tool = d.get('tool_name', '')
-    cwd = d.get('cwd', '') or d.get('project_path', '')
-    # Extract tool description for PermissionRequest
-    tool_input = d.get('tool_input', {})
-    desc = tool_input.get('description', '') if isinstance(tool_input, dict) else ''
+# Get hook event name (needed to decide whether to fetch terminal ID)
+HOOK_EVENT_NAME="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('hook_event_name',''))" 2>/dev/null)"
 
-    # Map hook event to buddy event
-    m = {
-        'SessionStart':    'session_start',
-        'Notification':    'thinking',
-        'UserPromptSubmit':'thinking',
-        'PreToolUse':      'tool_start',
-        'PostToolUse':     'tool_end',
-        'PermissionRequest':'permission_request',
-        'Stop':            'idle',
-        'SessionEnd':      'session_end',
-    }
-    event = m.get(hook, 'idle')
-
-    print(f'HOOK_EVENT=\"{hook}\"')
-    print(f'SESSION_ID=\"{sid}\"')
-    print(f'EVENT=\"{event}\"')
-    print(f'TOOL_NAME={json.dumps(tool) if tool else "null"}')
-    print(f'CWD="{cwd}"')
-    print(f'TOOL_DESC={json.dumps(desc) if desc else "null"}')
-except:
-    print('EVENT=\"idle\"')
-    print('SESSION_ID=\"unknown\"')
-    print('TOOL_NAME=null')
-    print('CWD=\"\"')
-    print('TOOL_DESC=null')
-" 2>/dev/null)"
-
-# Fallback session ID
-[ -z "$SESSION_ID" ] && SESSION_ID="$$"
-
-TIMESTAMP=$(date +%s)
-
-# Get Ghostty terminal ID on session_start (the focused terminal is the one that just launched Claude)
+# Get Ghostty terminal ID on SessionStart
 TERMINAL_ID=""
-if [ "$EVENT" = "session_start" ]; then
+if [ "$HOOK_EVENT_NAME" = "SessionStart" ]; then
     TERMINAL_ID=$(osascript -e '
       tell application "Ghostty"
         set t to selected tab of front window
@@ -72,85 +29,89 @@ if [ "$EVENT" = "session_start" ]; then
     ' 2>/dev/null)
 fi
 
-# Build and send JSON message via Unix domain socket
-if [ "$TOOL_NAME" = "null" ] || [ -z "$TOOL_NAME" ]; then
-    TOOL_JSON="null"
-else
-    TOOL_JSON="\"${TOOL_NAME}\""
-fi
-
-# Add cwd for session_start events
-if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
-    CWD_JSON=",\"cwd\":\"${CWD}\""
-else
-    CWD_JSON=""
-fi
-
-# Add pid if found
-if [ -n "$CLAUDE_PID" ]; then
-    PID_JSON=",\"pid\":${CLAUDE_PID}"
-else
-    PID_JSON=""
-fi
-# Add terminal_id if found
-if [ -n "$TERMINAL_ID" ]; then
-    TID_JSON=",\"terminal_id\":\"${TERMINAL_ID}\""
-else
-    TID_JSON=""
-fi
-# Add description if found
-if [ "$TOOL_DESC" != "null" ] && [ -n "$TOOL_DESC" ]; then
-    DESC_JSON=",\"description\":${TOOL_DESC}"
-else
-    DESC_JSON=""
-fi
-JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}${PID_JSON}${TID_JSON}${DESC_JSON}}"
-
-python3 - "$SOCKET_PATH" "$JSON" 2>/dev/null <<'PYEOF'
-import socket, sys
+# Python does all JSON building, socket sending, and AI awareness output
+echo "$HOOK_INPUT" | python3 - "$SOCKET_PATH" "$TERMINAL_ID" <<'PYEOF'
+import sys, json, socket, time, subprocess, os
 
 sock_path = sys.argv[1]
-message   = sys.argv[2] + "\n"
+terminal_id = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
+
+try:
+    d = json.load(sys.stdin)
+except:
+    sys.exit(0)
+
+hook = d.get("hook_event_name", "")
+sid = d.get("session_id", "") or str(d.get("pid", "unknown"))
+tool = d.get("tool_name", "")
+cwd = d.get("cwd", "") or d.get("project_path", "")
+tool_input = d.get("tool_input", {})
+desc = tool_input.get("description", "") if isinstance(tool_input, dict) else ""
+
+event_map = {
+    "SessionStart":      "session_start",
+    "Notification":      "thinking",
+    "UserPromptSubmit":  "thinking",
+    "PreToolUse":        "tool_start",
+    "PostToolUse":       "tool_end",
+    "PermissionRequest": "permission_request",
+    "Stop":              "idle",
+    "SessionEnd":        "session_end",
+}
+event = event_map.get(hook, "idle")
+
+msg = {
+    "session_id": sid,
+    "event": event,
+    "timestamp": int(time.time()),
+}
+if tool:
+    msg["tool"] = tool
+if cwd and event == "session_start":
+    msg["cwd"] = cwd
+if terminal_id:
+    msg["terminal_id"] = terminal_id
+if desc:
+    msg["description"] = desc
+
+payload = json.dumps(msg, ensure_ascii=False) + "\n"
 
 try:
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.settimeout(0.5)
     s.connect(sock_path)
-    s.sendall(message.encode("utf-8"))
+    s.sendall(payload.encode("utf-8"))
     s.close()
-except Exception:
+except:
     pass
-PYEOF
 
-# Inject Ghostty tab title on SessionStart (async, non-blocking)
-if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
-    LABEL="$(basename "$CWD")"
-    osascript -e "
-      tell application \"Ghostty\"
+# AI awareness on SessionStart
+if hook == "SessionStart":
+    try:
+        colors = json.load(open("/tmp/claude-buddy-colors.json"))
+        info = colors.get(sid, {})
+        if info:
+            color_info = f"颜色 = {info['color']} (●)，标签 = \"{info['label']}\""
+            out_msg = f"你的 Claude Code Buddy session：{color_info}。如果当前任务有更好的描述名称，执行: buddy-label \"新名称\""
+            print(json.dumps({"message": out_msg}))
+    except:
+        pass
+
+# Inject Ghostty tab title on SessionStart
+if hook == "SessionStart" and cwd:
+    label = os.path.basename(cwd)
+    script = f'''
+      tell application "Ghostty"
         repeat with t in terminals of every tab of every window
-          if working directory of t is \"$CWD\" and name of t does not contain \"●\" then
-            perform action \"set_tab_title:●${LABEL}\" on t
+          if working directory of t is "{cwd}" and name of t does not contain "●" then
+            perform action "set_tab_title:●{label}" on t
             return
           end if
         end repeat
       end tell
-    " &>/dev/null &
-fi
-
-# AI awareness: output session identity info on SessionStart
-if [ "$HOOK_EVENT" = "SessionStart" ]; then
-    python3 -c "
-import json, sys
-try:
-    d = json.load(open('/tmp/claude-buddy-colors.json'))
-    info = d.get('$SESSION_ID', {})
-    if info:
-        color_info = '颜色 = {} (●)，标签 = \"{}\"'.format(info['color'], info['label'])
-        msg = '你的 Claude Code Buddy session：{}。如果当前任务有更好的描述名称，执行: buddy-label \"新名称\"'.format(color_info)
-        print(json.dumps({'message': msg}))
-except:
-    pass
-" 2>/dev/null
-fi
+    '''
+    subprocess.Popen(["osascript", "-e", script],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+PYEOF
 
 exit 0

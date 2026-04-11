@@ -1,0 +1,33 @@
+docs/superpowers/specs/2026-04-11-cat-sprite-upgrade-design.md
+  27fa9536b6c56a5b 1-147
+tests/acceptance/test-sprite-upgrade.acceptance.sh
+  27fa9536b6c56a5b 1-302
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  27fa9536b6c56a5b 2,12-17,30-32,34-35,42-43,53,67-69,71-77,79-86,89,94-98,107,110-134,136,138-143,145-152,156-225,227-232,237-244,251-261,263-264,269,275,278,281-289
+README.md
+  27fa9536b6c56a5b 122-125
+Scripts/slice-sprites.swift
+  27fa9536b6c56a5b 1-148
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  27fa9536b6c56a5b 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7fb87f5c9d530f3ec74fff372054ea6b6a22f9c1",
+  "prompts": {
+    "27fa9536b6c56a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f0b99675-f392-4cc1-a7e1-6795fa694d50",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 947,
+      "total_deletions": 102,
+      "accepted_lines": 907,
+      "overriden_lines": 2
+    }
+  }
+}

@@ -30,14 +30,14 @@ if [ "$HOOK_EVENT_NAME" = "SessionStart" ]; then
 fi
 
 # Python does all JSON building, socket sending, and AI awareness output
-echo "$HOOK_INPUT" | python3 - "$SOCKET_PATH" "$TERMINAL_ID" <<'PYEOF'
+HOOK_INPUT="$HOOK_INPUT" python3 - "$SOCKET_PATH" "$TERMINAL_ID" <<'PYEOF'
 import sys, json, socket, time, subprocess, os
 
 sock_path = sys.argv[1]
 terminal_id = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
 
 try:
-    d = json.load(sys.stdin)
+    d = json.loads(os.environ.get("HOOK_INPUT", "{}"))
 except:
     sys.exit(0)
 

@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  de91560f9dbe63b9 1-96
+Sources/ClaudeCodeBuddy/MenuBar/SessionRowView.swift
+  de91560f9dbe63b9 1-85
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  de91560f9dbe63b9 11-12,104-105,108-109,111-113,115-122,124-130,134,147-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9a08f0eef475f98d6a5ea291fe55c17acb0c898e",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 210,
+      "total_deletions": 16,
+      "accepted_lines": 1356,
+      "overriden_lines": 0
+    }
+  }
+}

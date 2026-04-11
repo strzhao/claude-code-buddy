@@ -8,6 +8,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var mouseTracker: MouseTracker?
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
+    private let popover = NSPopover()
+    private lazy var popoverController = SessionPopoverController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
@@ -99,29 +101,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 button.title = "🐱"
             }
+            button.action = #selector(togglePopover)
+            button.target = self
         }
 
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Claude Code Buddy", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
+        popover.contentViewController = popoverController
+        popover.behavior = .transient
 
-        let sessionItem = NSMenuItem(title: "Active Sessions: 0", action: nil, keyEquivalent: "")
-        sessionItem.isEnabled = false
-        sessionItem.tag = 100
-        menu.addItem(sessionItem)
+        popoverController.onQuit = {
+            NSApplication.shared.terminate(nil)
+        }
 
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        popoverController.onSessionClicked = { [weak self] session in
+            self?.popover.performClose(nil)
+            guard let adapters = self?.terminalAdapters else { return }
+            for adapter in adapters {
+                if adapter.activateTab(for: session) { break }
+            }
+        }
+    }
 
-        statusItem?.menu = menu
+    @objc func togglePopover(_ sender: Any?) {
+        guard let button = statusItem?.button else { return }
+        if popover.isShown {
+            popover.performClose(sender)
+        } else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
     }
 
     func updateSessionCount(_ count: Int) {
-        DispatchQueue.main.async { [weak self] in
-            if let item = self?.statusItem?.menu?.item(withTag: 100) {
-                item.title = "Active Sessions: \(count)"
-            }
-        }
+        // No-op: session count is now shown in the popover via updateSessions
     }
 
     // MARK: - Session Manager
@@ -134,6 +144,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         manager.onSessionsChanged = { [weak self] sessions in
             self?.scene?.updateSessionsCache(sessions)
+            DispatchQueue.main.async {
+                self?.popoverController.updateSessions(sessions)
+            }
         }
         sessionManager = manager
         manager.start()

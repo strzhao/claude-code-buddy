@@ -9,6 +9,7 @@ enum HookEvent: String, Codable {
     case toolEnd    = "tool_end"
     case idle       = "idle"
     case sessionEnd = "session_end"
+    case setLabel   = "set_label"
 }
 
 // MARK: - HookMessage
@@ -18,12 +19,16 @@ struct HookMessage: Codable {
     let event: HookEvent
     let tool: String?
     let timestamp: TimeInterval
+    let cwd: String?
+    let label: String?
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
         case event      = "event"
         case tool       = "tool"
         case timestamp  = "timestamp"
+        case cwd        = "cwd"
+        case label      = "label"
     }
 
     // MARK: - State Mapping
@@ -37,6 +42,7 @@ struct HookMessage: Codable {
         case .toolEnd:    return .thinking
         case .idle:       return .idle
         case .sessionEnd: return nil
+        case .setLabel:   return nil
         }
     }
 }

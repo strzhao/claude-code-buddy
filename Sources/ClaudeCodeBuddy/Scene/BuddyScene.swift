@@ -61,7 +61,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let cat = CatSprite(sessionId: sessionId)
 
         // Random horizontal spawn position
-        let spawnX = CGFloat.random(in: 40...(size.width - 40))
+        let spawnX = CGFloat.random(in: 48...(size.width - 48))
         cat.node.position = CGPoint(x: spawnX, y: size.height) // start above frame
 
         addChild(cat.node)

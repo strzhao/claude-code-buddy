@@ -119,3 +119,7 @@ Scripts/                     构建和资源生成脚本
 tests/                       验收测试
 .github/workflows/           CI/CD 自动发布
 ```
+
+## Credits
+
+- Cat sprites: "2D Pixel Art Cat Sprites" from itch.io (free for commercial/non-commercial use)

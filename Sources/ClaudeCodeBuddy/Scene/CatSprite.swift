@@ -4,15 +4,16 @@ import ImageIO
 // MARK: - CatState
 
 enum CatState: String, CaseIterable {
-    case idle     = "idle"
-    case thinking = "thinking"
-    case coding   = "coding"
+    case idle              = "idle"
+    case thinking          = "thinking"
+    case toolUse           = "tool_use"
+    case permissionRequest = "waiting"
 }
 
 // MARK: - IdleSubState
 
 private enum IdleSubState {
-    case breathe, blink, clean, sleep
+    case sleep, breathe, blink
 }
 
 // MARK: - CatSprite
@@ -41,6 +42,7 @@ class CatSprite {
     private var shadowLabelNode: SKLabelNode?
     var sessionColor: SessionColor?
     private var sessionTintFactor: CGFloat = 0.3
+    private var alertOverlayNode: SKNode?
 
     // MARK: Init
 
@@ -72,7 +74,7 @@ class CatSprite {
     // MARK: - Textures
 
     private func loadTextures() {
-        let animNames = ["idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b"]
+        let animNames = ["idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b", "jump"]
 
         for animName in animNames {
             var textures: [SKTexture] = []
@@ -152,34 +154,132 @@ class CatSprite {
         currentState = newState
 
         node.removeAllActions()
+        removeAlertOverlay()
+        // Reset transform from previous state effects
+        node.xScale = 1.0
+        node.yScale = 1.0
+        node.zRotation = 0
 
         switch newState {
         case .idle:
             node.color = sessionColor?.nsColor ?? .orange
-            startIdleLoop()
+            node.colorBlendFactor = sessionTintFactor
+            // Play jump transition then enter idle loop
+            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
+                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.12)
+                let enterIdle = SKAction.run { [weak self] in
+                    guard let self = self, self.currentState == .idle else { return }
+                    self.startIdleLoop()
+                }
+                node.run(SKAction.sequence([jumpAnim, enterIdle]), withKey: "animation")
+                node.texture = jumpFrames[0]
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
+            } else {
+                startIdleLoop()
+            }
 
         case .thinking:
-            node.color = sessionColor?.nsColor ?? .yellow
-            if let frames = textures(for: "scared"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.15)
+            // Paw animation + gentle sway
+            if let frames = textures(for: "paw"), !frames.isEmpty {
+                let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             }
+            // Gentle sway ±3°
+            let swayRight = SKAction.rotate(toAngle: .pi / 60, duration: 0.6)
+            swayRight.timingMode = .easeInEaseOut
+            let swayLeft = SKAction.rotate(toAngle: -.pi / 60, duration: 0.6)
+            swayLeft.timingMode = .easeInEaseOut
+            let sway = SKAction.repeatForever(SKAction.sequence([swayRight, swayLeft]))
+            node.run(sway, withKey: "stateEffect")
 
-        case .coding:
-            node.color = sessionColor?.nsColor ?? .green
-            if let frames = textures(for: "clean"), !frames.isEmpty {
+        case .toolUse:
+            // Walk-b animation (fast) + left-right micro-pace
+            if let frames = textures(for: "walk-b"), !frames.isEmpty {
+                let animate = SKAction.animate(with: frames, timePerFrame: 0.08)
+                let loop = SKAction.repeatForever(animate)
+                node.run(loop, withKey: "animation")
+                node.texture = frames[0]
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
+            }
+            // Micro-pace ±4px
+            let paceRight = SKAction.moveBy(x: 4, y: 0, duration: 0.2)
+            let paceLeft = SKAction.moveBy(x: -4, y: 0, duration: 0.2)
+            let pace = SKAction.repeatForever(SKAction.sequence([paceRight, paceLeft]))
+            node.run(pace, withKey: "stateEffect")
+
+        case .permissionRequest:
+            // Scared animation (fast) + bounce + shake + red override + "!" badge
+            if let frames = textures(for: "scared"), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
             }
+            // Red color override
+            node.color = NSColor(red: 1, green: 0.3, blue: 0, alpha: 1)
+            node.colorBlendFactor = 0.55
+
+            // Bounce scale pulse
+            let scaleUp = SKAction.scale(to: 1.15, duration: 0.175)
+            scaleUp.timingMode = .easeIn
+            let scaleDown = SKAction.scale(to: 1.0, duration: 0.175)
+            scaleDown.timingMode = .easeOut
+            let bounce = SKAction.repeatForever(SKAction.sequence([scaleUp, scaleDown]))
+            node.run(bounce, withKey: "stateEffect")
+
+            // Horizontal shake
+            let shakeRight = SKAction.moveBy(x: 3, y: 0, duration: 0.04)
+            let shakeLeft = SKAction.moveBy(x: -6, y: 0, duration: 0.04)
+            let shakeBack = SKAction.moveBy(x: 3, y: 0, duration: 0.04)
+            let shake = SKAction.repeatForever(SKAction.sequence([shakeRight, shakeLeft, shakeBack]))
+            node.run(shake, withKey: "shakeEffect")
+
+            // "!" alert badge
+            addAlertOverlay()
         }
+    }
+
+    // MARK: - Alert Overlay
+
+    private func addAlertOverlay() {
+        let overlay = SKNode()
+        overlay.zPosition = 15
+
+        let circle = SKShapeNode(circleOfRadius: 8)
+        circle.fillColor = NSColor(red: 0.95, green: 0.2, blue: 0.1, alpha: 1)
+        circle.strokeColor = .white
+        circle.lineWidth = 1.0
+        circle.position = CGPoint(x: 18, y: 22)
+        overlay.addChild(circle)
+
+        let label = SKLabelNode(text: "!")
+        label.fontName = NSFont.boldSystemFont(ofSize: 12).fontName
+        label.fontSize = 12
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: 18, y: 22)
+        overlay.addChild(label)
+
+        // Pulse the badge
+        let fadeOut = SKAction.fadeAlpha(to: 0.3, duration: 0.25)
+        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.25)
+        let pulse = SKAction.repeatForever(SKAction.sequence([fadeOut, fadeIn]))
+        overlay.run(pulse)
+
+        node.addChild(overlay)
+        alertOverlayNode = overlay
+    }
+
+    private func removeAlertOverlay() {
+        alertOverlayNode?.removeFromParent()
+        alertOverlayNode = nil
     }
 
     // MARK: - Idle State Machine
@@ -190,13 +290,12 @@ class CatSprite {
     }
 
     private func pickNextIdleSubState() -> IdleSubState {
-        // Weighted random: breathe 70%, blink 15%, clean 10%, sleep 5%
+        // Weighted random: sleep 80%, breathe 10%, blink 10%
         let roll = Float.random(in: 0..<1)
         switch roll {
-        case ..<0.70: return .breathe
-        case ..<0.85: return .blink
-        case ..<0.95: return .clean
-        default:      return .sleep
+        case ..<0.80: return .sleep
+        case ..<0.90: return .breathe
+        default:      return .blink
         }
     }
 
@@ -205,67 +304,45 @@ class CatSprite {
         guard currentState == .idle else { return }
 
         switch idleSubState {
-        case .breathe:
-            playIdleAnimation(animName: "idle-a", looping: true)
-            scheduleNextIdleTransition(after: SKAction.wait(forDuration: 4, withRange: 2))
-
-        case .blink:
-            // Play idle-b once (~2s), then return to breathe
-            if let frames = textures(for: "idle-b"), !frames.isEmpty {
-                let duration = 2.0 / Double(frames.count)
-                let animate = SKAction.animate(with: frames, timePerFrame: duration)
-                let returnToBreathe = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = .breathe
-                    self.runIdleSubState()
-                }
-                node.run(SKAction.sequence([animate, returnToBreathe]), withKey: "idleLoop")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                // Fallback: treat like breathe
-                idleSubState = .breathe
-                runIdleSubState()
-            }
-
-        case .clean:
-            // Play clean textures once (~3s), then return to breathe
-            if let frames = textures(for: "clean"), !frames.isEmpty {
-                let duration = 3.0 / Double(frames.count)
-                let animate = SKAction.animate(with: frames, timePerFrame: duration)
-                let returnToBreathe = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = .breathe
-                    self.runIdleSubState()
-                }
-                node.run(SKAction.sequence([animate, returnToBreathe]), withKey: "idleLoop")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                idleSubState = .breathe
-                runIdleSubState()
-            }
-
         case .sleep:
-            // Play sleep textures, wait ~5s, then return to breathe
             if let frames = textures(for: "sleep"), !frames.isEmpty {
                 let animDuration = 1.0 / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: animDuration)
                 let loopSleep = SKAction.repeat(animate, count: 3)
                 let wait = SKAction.wait(forDuration: 5, withRange: 2)
-                let returnToBreathe = SKAction.run { [weak self] in
+                let next = SKAction.run { [weak self] in
                     guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = .breathe
+                    self.idleSubState = self.pickNextIdleSubState()
                     self.runIdleSubState()
                 }
-                node.run(SKAction.sequence([loopSleep, wait, returnToBreathe]), withKey: "idleLoop")
+                node.run(SKAction.sequence([loopSleep, wait, next]), withKey: "idleLoop")
                 node.texture = frames[0]
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             } else {
                 idleSubState = .breathe
+                runIdleSubState()
+            }
+
+        case .breathe:
+            playIdleAnimation(animName: "idle-a", looping: true)
+            scheduleNextIdleTransition(after: SKAction.wait(forDuration: 4, withRange: 2))
+
+        case .blink:
+            if let frames = textures(for: "idle-b"), !frames.isEmpty {
+                let duration = 2.0 / Double(frames.count)
+                let animate = SKAction.animate(with: frames, timePerFrame: duration)
+                let next = SKAction.run { [weak self] in
+                    guard let self = self, self.currentState == .idle else { return }
+                    self.idleSubState = self.pickNextIdleSubState()
+                    self.runIdleSubState()
+                }
+                node.run(SKAction.sequence([animate, next]), withKey: "idleLoop")
+                node.texture = frames[0]
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
+            } else {
+                idleSubState = .sleep
                 runIdleSubState()
             }
         }

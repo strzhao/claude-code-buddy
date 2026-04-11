@@ -1,0 +1,27 @@
+tests/acceptance/test-hook-script.sh
+  27fa9536b6c56a5b 42-43,98-106,117-118,126-127,129-131,138-141,143-163,165-167,169-173,178-185
+plugin/scripts/buddy-hook.sh
+  27fa9536b6c56a5b 54-59
+hooks/buddy-hook.sh
+  27fa9536b6c56a5b 54-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "041160b390882a448ced87dabc06585791912abc",
+  "prompts": {
+    "27fa9536b6c56a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f0b99675-f392-4cc1-a7e1-6795fa694d50",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 77,
+      "total_deletions": 40,
+      "accepted_lines": 71,
+      "overriden_lines": 0
+    }
+  }
+}

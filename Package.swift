@@ -7,13 +7,23 @@ let package = Package(
         .macOS(.v14)
     ],
     targets: [
-        .executableTarget(
-            name: "ClaudeCodeBuddy",
+        .target(
+            name: "BuddyCore",
             path: "Sources/ClaudeCodeBuddy",
-            exclude: ["Resources"],
+            exclude: ["Resources", "App/main.swift"],
             resources: [
                 .copy("Assets")
             ]
+        ),
+        .executableTarget(
+            name: "ClaudeCodeBuddy",
+            dependencies: ["BuddyCore"],
+            path: "Sources/App"
+        ),
+        .testTarget(
+            name: "BuddyCoreTests",
+            dependencies: ["BuddyCore"],
+            path: "Tests/BuddyCoreTests"
         )
     ],
     swiftLanguageVersions: [.v5]

@@ -1,6 +1,31 @@
+# Build
 .build/
-.superpowers/
+DerivedData/
 ClaudeCodeBuddy.app/
+
+# Xcode
 *.xcodeproj
 *.xcworkspace
-DerivedData/
+xcuserdata/
+
+# Sensitive files
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.cer
+credentials.json
+secrets.json
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Tools
+.superpowers/
+
+# Test artifacts
+test-results/
+

@@ -24,6 +24,9 @@ try:
     sid  = d.get('session_id', '')
     tool = d.get('tool_name', '')
     cwd = d.get('cwd', '') or d.get('project_path', '')
+    # Extract tool description for PermissionRequest
+    tool_input = d.get('tool_input', {})
+    desc = tool_input.get('description', '') if isinstance(tool_input, dict) else ''
 
     # Map hook event to buddy event
     m = {
@@ -41,13 +44,15 @@ try:
     print(f'HOOK_EVENT=\"{hook}\"')
     print(f'SESSION_ID=\"{sid}\"')
     print(f'EVENT=\"{event}\"')
-    print(f'TOOL_NAME={json.dumps(tool) if tool else \"null\"}')
+    print(f'TOOL_NAME={json.dumps(tool) if tool else "null"}')
     print(f'CWD="{cwd}"')
+    print(f'TOOL_DESC={json.dumps(desc) if desc else "null"}')
 except:
     print('EVENT=\"idle\"')
     print('SESSION_ID=\"unknown\"')
     print('TOOL_NAME=null')
     print('CWD=\"\"')
+    print('TOOL_DESC=null')
 " 2>/dev/null)"
 
 # Fallback session ID
@@ -93,7 +98,13 @@ if [ -n "$TERMINAL_ID" ]; then
 else
     TID_JSON=""
 fi
-JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}${PID_JSON}${TID_JSON}}"
+# Add description if found
+if [ "$TOOL_DESC" != "null" ] && [ -n "$TOOL_DESC" ]; then
+    DESC_JSON=",\"description\":${TOOL_DESC}"
+else
+    DESC_JSON=""
+fi
+JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}${PID_JSON}${TID_JSON}${DESC_JSON}}"
 
 python3 - "$SOCKET_PATH" "$JSON" 2>/dev/null <<'PYEOF'
 import socket, sys

@@ -99,9 +99,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
-    func updateCatState(sessionId: String, state: CatState) {
+    func updateCatState(sessionId: String, state: CatState, toolDescription: String? = nil) {
         guard let cat = cats[sessionId] else { return }
-        cat.switchState(to: state)
+        cat.switchState(to: state, toolDescription: toolDescription)
     }
 
     var activeCatCount: Int { cats.count }
@@ -140,7 +140,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func showTooltip(for sessionId: String) {
         guard let cat = cats[sessionId],
               let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
-        tooltipNode.show(info: info, at: cat.node.position, sceneSize: size)
+        // Don't show tooltip if cat is already showing label (waiting state)
+        guard cat.currentState != .permissionRequest else { return }
+        tooltipNode.show(label: info.label, color: info.color, at: cat.node.position, sceneSize: size)
     }
 
     func hideTooltip() {

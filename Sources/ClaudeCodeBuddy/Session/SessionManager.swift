@@ -169,7 +169,8 @@ class SessionManager {
                     pid: message.pid,
                     terminalId: message.terminalId,
                     state: message.catState ?? .idle,
-                    lastActivity: Date()
+                    lastActivity: Date(),
+                    toolDescription: message.description
                 )
                 sessions[sessionId] = info
 
@@ -197,7 +198,10 @@ class SessionManager {
             // Update state
             if let catState = message.catState {
                 sessions[sessionId]?.state = catState
-                scene.updateCatState(sessionId: sessionId, state: catState)
+                // Pass description for permission request display
+                let desc = message.description ?? message.tool
+                sessions[sessionId]?.toolDescription = desc
+                scene.updateCatState(sessionId: sessionId, state: catState, toolDescription: desc)
             }
         }
 

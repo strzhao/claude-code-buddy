@@ -9,4 +9,5 @@ struct SessionInfo {
     var terminalId: String?
     var state: CatState
     var lastActivity: Date
+    var toolDescription: String?
 }

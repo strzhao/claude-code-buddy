@@ -165,6 +165,8 @@ class CatSprite {
         node.xScale = 1.0
         node.yScale = 1.0
         node.zRotation = 0
+        labelNode?.xScale = 1.0
+        shadowLabelNode?.xScale = 1.0
         // Snap back to origin X (random walk may have drifted)
         if oldState == .toolUse && originX != 0 {
             node.position.x = originX

@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  de91560f9dbe63b9 37-44,109-147,158,162,168-169,173,179-180,224-225,244-245,265-266,280-281,306-307,334-335
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  de91560f9dbe63b9 63,75,79
+tests/acceptance/test-visual-layer.sh
+  de91560f9dbe63b9 1-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "886622b2a5160a9bdf7d4f2d11a8fe5279cfb26c",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 257,
+      "total_deletions": 31,
+      "accepted_lines": 1334,
+      "overriden_lines": 2
+    }
+  }
+}

@@ -32,6 +32,7 @@ try:
         'UserPromptSubmit':'thinking',
         'PreToolUse':      'tool_start',
         'PostToolUse':     'tool_end',
+        'PermissionRequest':'permission_request',
         'Stop':            'idle',
         'SessionEnd':      'session_end',
     }

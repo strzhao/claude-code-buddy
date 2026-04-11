@@ -10,6 +10,7 @@ enum HookEvent: String, Codable {
     case idle       = "idle"
     case sessionEnd = "session_end"
     case setLabel   = "set_label"
+    case permissionRequest = "permission_request"
 }
 
 // MARK: - HookMessage
@@ -42,11 +43,12 @@ struct HookMessage: Codable {
         switch event {
         case .sessionStart: return nil
         case .thinking:   return .thinking
-        case .toolStart:  return .coding
+        case .toolStart:  return .toolUse
         case .toolEnd:    return .thinking
         case .idle:       return .idle
         case .sessionEnd: return nil
         case .setLabel:   return nil
+        case .permissionRequest: return .permissionRequest
         }
     }
 }

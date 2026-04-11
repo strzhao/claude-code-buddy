@@ -4,56 +4,96 @@ class SessionRowView: NSView {
 
     var onClick: (() -> Void)?
 
+    private let hoverBackground = NSView()
+
     init(session: SessionInfo) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 44))
+        super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 56))
 
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 44).isActive = true
+        heightAnchor.constraint(equalToConstant: 56).isActive = true
+        wantsLayer = true
 
-        // Color dot
+        // Hover background (rounded, inset)
+        hoverBackground.wantsLayer = true
+        hoverBackground.layer?.cornerRadius = 6
+        hoverBackground.translatesAutoresizingMaskIntoConstraints = false
+        hoverBackground.isHidden = true
+        addSubview(hoverBackground)
+
+        // Color dot with glow
         let dot = NSView(frame: .zero)
-        dot.wantsLayer = true
+        dot.wantsLayer = true  // Must be set before accessing layer properties
         dot.layer?.backgroundColor = session.color.nsColor.cgColor
         dot.layer?.cornerRadius = 5
+        dot.layer?.shadowColor = session.color.nsColor.cgColor
+        dot.layer?.shadowRadius = 3
+        dot.layer?.shadowOpacity = 0.4
+        dot.layer?.shadowOffset = .zero
         dot.translatesAutoresizingMaskIntoConstraints = false
         addSubview(dot)
 
         // Label
         let label = NSTextField(labelWithString: session.label)
-        label.font = .boldSystemFont(ofSize: 12)
+        label.font = .boldSystemFont(ofSize: 13)
+        label.lineBreakMode = .byTruncatingTail
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
 
-        // State badge
+        // State badge with semantic color
         let state = NSTextField(labelWithString: session.state.rawValue)
         state.font = .systemFont(ofSize: 10)
-        state.textColor = .secondaryLabelColor
+        switch session.state {
+        case .idle:              state.textColor = .tertiaryLabelColor
+        case .thinking:          state.textColor = .systemBlue
+        case .toolUse:           state.textColor = .systemGreen
+        case .permissionRequest: state.textColor = .systemOrange
+        }
+        state.setContentCompressionResistancePriority(.required, for: .horizontal)
+        state.setContentHuggingPriority(.required, for: .horizontal)
         state.translatesAutoresizingMaskIntoConstraints = false
         addSubview(state)
 
-        // CWD
-        let cwd = NSTextField(labelWithString: session.cwd ?? "—")
-        cwd.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
+        // CWD with ~ abbreviation
+        let displayCwd: String
+        if let cwd = session.cwd {
+            displayCwd = cwd.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        } else {
+            displayCwd = "—"
+        }
+        let cwd = NSTextField(labelWithString: displayCwd)
+        cwd.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
         cwd.textColor = .tertiaryLabelColor
         cwd.lineBreakMode = .byTruncatingMiddle
         cwd.translatesAutoresizingMaskIntoConstraints = false
         addSubview(cwd)
 
         NSLayoutConstraint.activate([
-            dot.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            // Hover background
+            hoverBackground.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+            hoverBackground.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            hoverBackground.topAnchor.constraint(equalTo: topAnchor, constant: 1),
+            hoverBackground.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
+
+            // Color dot
+            dot.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             dot.centerYAnchor.constraint(equalTo: centerYAnchor),
             dot.widthAnchor.constraint(equalToConstant: 10),
             dot.heightAnchor.constraint(equalToConstant: 10),
 
-            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 8),
-            label.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            // Label (first line, left)
+            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 10),
+            label.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: state.leadingAnchor, constant: -8),
 
-            state.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            state.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            // State badge (first line, right, baseline-aligned)
+            state.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            state.firstBaselineAnchor.constraint(equalTo: label.firstBaselineAnchor),
 
+            // CWD (second line)
             cwd.leadingAnchor.constraint(equalTo: label.leadingAnchor),
-            cwd.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            cwd.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 2),
+            cwd.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            cwd.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 3),
         ])
 
         // Click gesture
@@ -75,11 +115,11 @@ class SessionRowView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.5, alpha: 0.1).cgColor
+        hoverBackground.layer?.backgroundColor = NSColor(white: 0.5, alpha: 0.08).cgColor
+        hoverBackground.isHidden = false
     }
 
     override func mouseExited(with event: NSEvent) {
-        layer?.backgroundColor = nil
+        hoverBackground.isHidden = true
     }
 }

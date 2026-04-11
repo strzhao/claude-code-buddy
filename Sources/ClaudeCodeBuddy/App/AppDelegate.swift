@@ -107,6 +107,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         popover.contentViewController = popoverController
         popover.behavior = .transient
+        popover.contentSize = NSSize(width: 320, height: 360)
 
         popoverController.onQuit = {
             NSApplication.shared.terminate(nil)

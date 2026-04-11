@@ -80,7 +80,7 @@ jobs:
             **2. 安装 Hooks 插件**
             在 Claude Code 中运行：
             ```
-            /plugin marketplace add <owner>/claude-code-buddy
+            /plugin marketplace add strzhao/claude-code-buddy
             /plugin install claude-code-buddy-hooks
             /reload-plugins
             ```

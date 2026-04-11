@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Claude Code Buddy 的 hooks 插件 —— 将 Claude Code 会话状态发送给 Buddy App，让 Dock 上的猫咪动起来",
   "author": {
-    "name": "stringzhao"
+    "name": "strzhao"
   },
-  "repository": "https://github.com/stringzhao/claude-code-buddy",
+  "repository": "https://github.com/strzhao/claude-code-buddy",
   "license": "MIT",
   "keywords": ["buddy", "cat", "dock", "status", "hooks"]
 }

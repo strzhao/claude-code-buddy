@@ -19,7 +19,7 @@ macOS 桌面伴侣 —— Dock 上方的像素猫咪，实时反映 Claude Code 
 在 Claude Code 中依次运行：
 
 ```
-/plugin marketplace add <owner>/claude-code-buddy
+/plugin marketplace add strzhao/claude-code-buddy
 /plugin install claude-code-buddy-hooks
 /reload-plugins
 ```
@@ -57,7 +57,7 @@ Claude Code ──► Plugin Hooks ──► Unix Socket ──► Buddy App ─
 <summary>从源码构建</summary>
 
 ```bash
-git clone https://github.com/<owner>/claude-code-buddy.git
+git clone https://github.com/strzhao/claude-code-buddy.git
 cd claude-code-buddy
 
 # 开发模式

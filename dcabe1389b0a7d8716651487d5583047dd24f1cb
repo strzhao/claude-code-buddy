@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  de91560f9dbe63b9 6,14-15,17-18,23-24,35-37,48-50,70-98,100-128,136-148,151-172,177,183,190-192,194,196,200-202,204-210
+tests/acceptance/test-session-manager.sh
+  de91560f9dbe63b9 1-364
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  de91560f9dbe63b9 53-54,73-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "dcabe1389b0a7d8716651487d5583047dd24f1cb",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 575,
+      "total_deletions": 31,
+      "accepted_lines": 1583,
+      "overriden_lines": 2
+    }
+  }
+}

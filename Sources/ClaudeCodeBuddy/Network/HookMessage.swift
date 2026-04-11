@@ -24,6 +24,7 @@ struct HookMessage: Codable {
     let label: String?
     let pid: Int?
     let terminalId: String?
+    let description: String?
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
@@ -34,6 +35,7 @@ struct HookMessage: Codable {
         case label      = "label"
         case pid        = "pid"
         case terminalId = "terminal_id"
+        case description = "description"
     }
 
     // MARK: - State Mapping

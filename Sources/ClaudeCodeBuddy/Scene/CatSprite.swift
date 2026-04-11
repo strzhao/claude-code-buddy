@@ -126,10 +126,11 @@ class CatSprite {
         shadow.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
         shadow.fontSize = 11
         shadow.fontColor = color.nsColor.withAlphaComponent(0.4)
-        shadow.position = CGPoint(x: 1, y: 27)
+        shadow.position = CGPoint(x: 1, y: 1)
         shadow.verticalAlignmentMode = .bottom
         shadow.horizontalAlignmentMode = .center
         shadow.zPosition = 9
+        shadow.isHidden = true
         node.addChild(shadow)
         shadowLabelNode = shadow
 
@@ -138,10 +139,11 @@ class CatSprite {
         label.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
         label.fontSize = 11
         label.fontColor = color.nsColor
-        label.position = CGPoint(x: 0, y: 28)
+        label.position = CGPoint(x: 0, y: 2)
         label.verticalAlignmentMode = .bottom
         label.horizontalAlignmentMode = .center
         label.zPosition = 10
+        label.isHidden = true
         node.addChild(label)
         labelNode = label
     }
@@ -151,9 +153,22 @@ class CatSprite {
         shadowLabelNode?.text = newLabel
     }
 
+    func showLabel(text: String? = nil) {
+        if let text = text {
+            updateLabel(text)
+        }
+        labelNode?.isHidden = false
+        shadowLabelNode?.isHidden = false
+    }
+
+    func hideLabel() {
+        labelNode?.isHidden = true
+        shadowLabelNode?.isHidden = true
+    }
+
     // MARK: - State Machine
 
-    func switchState(to newState: CatState) {
+    func switchState(to newState: CatState, toolDescription: String? = nil) {
         guard newState != currentState else { return }
         let oldState = currentState
         previousState = oldState
@@ -161,6 +176,7 @@ class CatSprite {
 
         node.removeAllActions()
         removeAlertOverlay()
+        hideLabel()
         // Reset transform from previous state effects
         node.xScale = 1.0
         node.yScale = 1.0
@@ -178,11 +194,11 @@ class CatSprite {
         if let transition = transition {
             let enter = SKAction.run { [weak self] in
                 guard let self = self, self.currentState == newState else { return }
-                self.applyState(newState)
+                self.applyState(newState, toolDescription: toolDescription)
             }
             node.run(SKAction.sequence([transition, enter]), withKey: "transition")
         } else {
-            applyState(newState)
+            applyState(newState, toolDescription: toolDescription)
         }
     }
 
@@ -215,7 +231,7 @@ class CatSprite {
 
     // MARK: - State Application
 
-    private func applyState(_ state: CatState) {
+    private func applyState(_ state: CatState, toolDescription: String? = nil) {
         switch state {
         case .idle:
             node.color = sessionColor?.nsColor ?? .orange
@@ -279,7 +295,15 @@ class CatSprite {
             let shake = SKAction.repeatForever(SKAction.sequence([shakeRight, shakeLeft, shakeBack]))
             node.run(shake, withKey: "shakeEffect")
 
-            addAlertOverlay()
+            // Show tool description label
+            let displayText = toolDescription ?? "Permission?"
+            showLabel(text: displayText)
+            // Override label color to white for visibility on red cat
+            labelNode?.fontColor = .white
+            shadowLabelNode?.fontColor = NSColor(white: 0, alpha: 0.6)
+
+            // "!" badge positioned to the right of the label text
+            addAlertOverlay(afterLabel: displayText)
         }
     }
 
@@ -383,15 +407,19 @@ class CatSprite {
 
     // MARK: - Alert Overlay
 
-    private func addAlertOverlay() {
+    private func addAlertOverlay(afterLabel text: String) {
         let overlay = SKNode()
         overlay.zPosition = 15
+
+        // Estimate label width: ~7pt per character at font size 11
+        let labelHalfWidth = CGFloat(text.count) * 3.5
+        let badgeX = labelHalfWidth + 12
 
         let circle = SKShapeNode(circleOfRadius: 8)
         circle.fillColor = NSColor(red: 0.95, green: 0.2, blue: 0.1, alpha: 1)
         circle.strokeColor = .white
         circle.lineWidth = 1.0
-        circle.position = CGPoint(x: 18, y: 22)
+        circle.position = CGPoint(x: badgeX, y: 8)
         overlay.addChild(circle)
 
         let label = SKLabelNode(text: "!")
@@ -400,7 +428,7 @@ class CatSprite {
         label.fontColor = .white
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .center
-        label.position = CGPoint(x: 18, y: 22)
+        label.position = CGPoint(x: badgeX, y: 8)
         overlay.addChild(label)
 
         // Pulse the badge

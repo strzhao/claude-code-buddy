@@ -1,0 +1,23 @@
+.gitignore
+  6509b217b516d5ff 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "13ac628e3ebe4d1498cff00b3655805258f1e857",
+  "prompts": {
+    "6509b217b516d5ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "730750ed-ed6d-485b-ba20-f36fd11d4acc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}

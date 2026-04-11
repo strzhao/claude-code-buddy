@@ -1,0 +1,6 @@
+.build/
+.superpowers/
+ClaudeCodeBuddy.app/
+*.xcodeproj
+*.xcworkspace
+DerivedData/

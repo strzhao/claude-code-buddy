@@ -203,6 +203,15 @@ class SessionManager {
                 sessions[sessionId]?.toolDescription = desc
                 scene.updateCatState(sessionId: sessionId, state: catState, toolDescription: desc)
             }
+
+            // Food spawn trigger on toolEnd
+            if message.event == .toolEnd {
+                let roll = Float.random(in: 0..<1)
+                if roll < FoodManager.toolEndSpawnProbability {
+                    let catX = scene.catPosition(for: sessionId)
+                    scene.spawnFood(near: catX)
+                }
+            }
         }
 
         onSessionCountChanged?(scene.activeCatCount)

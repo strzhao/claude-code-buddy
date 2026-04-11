@@ -5,6 +5,7 @@ import SpriteKit
 struct PhysicsCategory {
     static let cat:    UInt32 = 0x1
     static let ground: UInt32 = 0x2
+    static let food:   UInt32 = 0x4
 }
 
 // MARK: - BuddyScene
@@ -25,6 +26,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var cachedSessions: [SessionInfo] = []
 
+    private(set) var foodManager = FoodManager()
+
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
     }
@@ -35,6 +38,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         backgroundColor = .clear
         setupPhysics()
         setupGround()
+        foodManager.scene = self
+        foodManager.start()
     }
 
     // MARK: - Setup
@@ -51,8 +56,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let groundBody = SKPhysicsBody(edgeFrom: CGPoint(x: -size.width / 2, y: 0),
                                        to: CGPoint(x: size.width / 2, y: 0))
         groundBody.categoryBitMask    = PhysicsCategory.ground
-        groundBody.collisionBitMask   = PhysicsCategory.cat
-        groundBody.contactTestBitMask = PhysicsCategory.cat
+        groundBody.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
+        groundBody.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
         groundBody.isDynamic = false
         groundBody.friction = 0.5
         groundNode.physicsBody = groundBody
@@ -80,6 +85,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         addChild(cat.node)
         cats[sessionId] = cat
+        cat.onFoodAbandoned = { [weak self] sessionId in
+            self?.foodManager.releaseFoodForCat(sessionId: sessionId)
+        }
         cat.enterScene(sceneSize: size)
     }
 
@@ -93,6 +101,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
+        foodManager.removeCatTracking(sessionId: sessionId)
         // Keep a strong ref to cat until exit animation completes, then remove node
         cat.exitScene(sceneWidth: size.width) { [cat] in
             cat.node.removeFromParent()
@@ -102,6 +111,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func updateCatState(sessionId: String, state: CatState, toolDescription: String? = nil) {
         guard let cat = cats[sessionId] else { return }
         cat.switchState(to: state, toolDescription: toolDescription)
+        foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
     }
 
     var activeCatCount: Int { cats.count }
@@ -160,10 +170,41 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 to: CGPoint(x: size.width / 2, y: 0)
             )
             groundNode?.physicsBody?.categoryBitMask    = PhysicsCategory.ground
-            groundNode?.physicsBody?.collisionBitMask   = PhysicsCategory.cat
-            groundNode?.physicsBody?.contactTestBitMask = PhysicsCategory.cat
+            groundNode?.physicsBody?.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
+            groundNode?.physicsBody?.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.isDynamic = false
             groundNode?.physicsBody?.friction = 0.5
         }
+    }
+
+    // MARK: - Physics Contact
+
+    func didBegin(_ contact: SKPhysicsContact) {
+        let maskA = contact.bodyA.categoryBitMask
+        let maskB = contact.bodyB.categoryBitMask
+
+        // Food hits ground
+        if (maskA == PhysicsCategory.food && maskB == PhysicsCategory.ground) ||
+           (maskA == PhysicsCategory.ground && maskB == PhysicsCategory.food) {
+            let foodNode = maskA == PhysicsCategory.food ? contact.bodyA.node : contact.bodyB.node
+            if let foodNode = foodNode as? SKSpriteNode,
+               let food = foodManager.food(for: foodNode) {
+                foodManager.foodLanded(food)
+            }
+        }
+    }
+
+    // MARK: - Food System
+
+    func spawnFood(near x: CGFloat? = nil) {
+        foodManager.trySpawnFood(near: x)
+    }
+
+    func catPosition(for sessionId: String) -> CGFloat? {
+        cats[sessionId]?.node.position.x
+    }
+
+    func idleCats() -> [CatSprite] {
+        cats.values.filter { $0.currentState == .idle }
     }
 }

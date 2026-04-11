@@ -148,6 +148,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.popoverController.updateSessions(sessions)
             }
         }
+        manager.onSessionNeedsTabTitle = { [weak self] session in
+            guard let adapters = self?.terminalAdapters else { return }
+            DispatchQueue.global(qos: .utility).async {
+                for adapter in adapters {
+                    if adapter.setTabTitle(for: session) { break }
+                }
+            }
+        }
         sessionManager = manager
         manager.start()
     }

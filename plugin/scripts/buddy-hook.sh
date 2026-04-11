@@ -54,6 +54,18 @@ except:
 
 TIMESTAMP=$(date +%s)
 
+# Get Ghostty terminal ID on session_start (the focused terminal is the one that just launched Claude)
+TERMINAL_ID=""
+if [ "$EVENT" = "session_start" ]; then
+    TERMINAL_ID=$(osascript -e '
+      tell application "Ghostty"
+        set t to selected tab of front window
+        set term to focused terminal of t
+        return id of term
+      end tell
+    ' 2>/dev/null)
+fi
+
 # Build and send JSON message via Unix domain socket
 if [ "$TOOL_NAME" = "null" ] || [ -z "$TOOL_NAME" ]; then
     TOOL_JSON="null"
@@ -67,7 +79,20 @@ if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
 else
     CWD_JSON=""
 fi
-JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}}"
+
+# Add pid if found
+if [ -n "$CLAUDE_PID" ]; then
+    PID_JSON=",\"pid\":${CLAUDE_PID}"
+else
+    PID_JSON=""
+fi
+# Add terminal_id if found
+if [ -n "$TERMINAL_ID" ]; then
+    TID_JSON=",\"terminal_id\":\"${TERMINAL_ID}\""
+else
+    TID_JSON=""
+fi
+JSON="{\"session_id\":\"${SESSION_ID}\",\"event\":\"${EVENT}\",\"tool\":${TOOL_JSON},\"timestamp\":${TIMESTAMP}${CWD_JSON}${PID_JSON}${TID_JSON}}"
 
 python3 - "$SOCKET_PATH" "$JSON" 2>/dev/null <<'PYEOF'
 import socket, sys

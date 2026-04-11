@@ -48,6 +48,7 @@ class SessionRowView: NSView {
         case .thinking:          state.textColor = .systemBlue
         case .toolUse:           state.textColor = .systemGreen
         case .permissionRequest: state.textColor = .systemOrange
+        case .eating:            state.textColor = .systemPurple
         }
         state.setContentCompressionResistancePriority(.required, for: .horizontal)
         state.setContentHuggingPriority(.required, for: .horizontal)

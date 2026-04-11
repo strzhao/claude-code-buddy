@@ -7,13 +7,14 @@ class SessionPopoverController: NSViewController {
     private let stackView = NSStackView()
     private let headerLabel = NSTextField(labelWithString: "Claude Code Buddy")
     private let countLabel = NSTextField(labelWithString: "0 sessions")
-    private let footerLabel = NSTextField(labelWithString: "点击 session 跳转终端")
+    private let footerLabel = NSTextField(labelWithString: "Click session to switch terminal")
+    private let emptyStateLabel = NSTextField(labelWithString: "No active sessions")
 
     var onSessionClicked: ((SessionInfo) -> Void)?
     var onQuit: (() -> Void)?
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 300))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 360))
 
         // Header
         headerLabel.font = .boldSystemFont(ofSize: 13)
@@ -25,9 +26,15 @@ class SessionPopoverController: NSViewController {
         countLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(countLabel)
 
+        // Header separator
+        let headerSeparator = NSBox()
+        headerSeparator.boxType = .separator
+        headerSeparator.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(headerSeparator)
+
         // Stack view for session rows
         stackView.orientation = .vertical
-        stackView.spacing = 2
+        stackView.spacing = 1
         stackView.translatesAutoresizingMaskIntoConstraints = false
 
         scrollView.documentView = stackView
@@ -35,6 +42,20 @@ class SessionPopoverController: NSViewController {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.drawsBackground = false
         container.addSubview(scrollView)
+
+        // Empty state
+        emptyStateLabel.font = .systemFont(ofSize: 12)
+        emptyStateLabel.textColor = .tertiaryLabelColor
+        emptyStateLabel.alignment = .center
+        emptyStateLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateLabel.isHidden = true
+        container.addSubview(emptyStateLabel)
+
+        // Footer separator
+        let footerSeparator = NSBox()
+        footerSeparator.boxType = .separator
+        footerSeparator.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(footerSeparator)
 
         // Footer
         footerLabel.font = .systemFont(ofSize: 10)
@@ -49,23 +70,34 @@ class SessionPopoverController: NSViewController {
         container.addSubview(quitButton)
 
         NSLayoutConstraint.activate([
-            headerLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
-            headerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+            headerLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
+            headerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
 
             countLabel.centerYAnchor.constraint(equalTo: headerLabel.centerYAnchor),
-            countLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            countLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 8),
+            headerSeparator.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 12),
+            headerSeparator.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            headerSeparator.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            scrollView.topAnchor.constraint(equalTo: headerSeparator.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: footerLabel.topAnchor, constant: -8),
+            scrollView.bottomAnchor.constraint(equalTo: footerSeparator.topAnchor, constant: -4),
 
             stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-            footerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            footerLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
 
-            quitButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            footerSeparator.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            footerSeparator.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            footerSeparator.bottomAnchor.constraint(equalTo: footerLabel.topAnchor, constant: -10),
+
+            footerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            footerLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+
+            quitButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
             quitButton.centerYAnchor.constraint(equalTo: footerLabel.centerYAnchor),
         ])
 
@@ -76,17 +108,33 @@ class SessionPopoverController: NSViewController {
         self.sessions = sessions
         countLabel.stringValue = "\(sessions.count) sessions"
 
+        // Toggle empty state
+        emptyStateLabel.isHidden = !sessions.isEmpty
+        scrollView.isHidden = sessions.isEmpty
+
         // Clear old rows
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        // Add session rows
-        for session in sessions {
+        // Add session rows with separators
+        for (index, session) in sessions.enumerated() {
             let row = SessionRowView(session: session)
             row.alphaValue = session.state == .idle ? 0.7 : 1.0
             row.onClick = { [weak self] in
                 self?.onSessionClicked?(session)
             }
             stackView.addArrangedSubview(row)
+
+            // Add separator between rows (not after last)
+            if index < sessions.count - 1 {
+                let separator = NSBox()
+                separator.boxType = .separator
+                separator.translatesAutoresizingMaskIntoConstraints = false
+                stackView.addArrangedSubview(separator)
+                NSLayoutConstraint.activate([
+                    separator.leadingAnchor.constraint(equalTo: stackView.leadingAnchor, constant: 36),
+                    separator.trailingAnchor.constraint(equalTo: stackView.trailingAnchor, constant: -16),
+                ])
+            }
         }
     }
 

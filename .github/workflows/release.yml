@@ -73,6 +73,14 @@ jobs:
             ### 安装步骤
 
             **1. 下载 App**
+
+            Homebrew（推荐）：
+            ```
+            brew tap strzhao/claude-code-buddy
+            brew install claude-code-buddy
+            ```
+
+            或手动安装：
             1. 下载下方的 `ClaudeCodeBuddy-${{ github.ref_name }}.zip`
             2. 解压，将 `ClaudeCodeBuddy.app` 拖入 `Applications` 文件夹
             3. 首次打开时，右键选择「打开」绕过 Gatekeeper 提示
@@ -89,3 +97,45 @@ jobs:
             猫咪会自动出现在 Dock 上方。
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew-tap:
+    name: Update Homebrew Tap
+    needs: build-and-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release zip and compute sha256
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          ZIP_URL="https://github.com/strzhao/claude-code-buddy/releases/download/${TAG}/ClaudeCodeBuddy-${TAG}.zip"
+
+          curl -fSL -o release.zip "$ZIP_URL"
+          SHA256=$(sha256sum release.zip | awk '{print $1}')
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
+      - name: Update Cask formula
+        run: |
+          sed -i "s/version \".*\"/version \"$VERSION\"/" homebrew/Casks/claude-code-buddy.rb
+          sed -i "s/sha256 \".*\"/sha256 \"$SHA256\"/" homebrew/Casks/claude-code-buddy.rb
+
+      - name: Push to tap repo
+        run: |
+          TAP_REPO="https://x-access-token:${TAP_TOKEN}@github.com/strzhao/homebrew-claude-code-buddy.git"
+          git clone "$TAP_REPO" tap-repo
+          mkdir -p tap-repo/Casks
+          cp homebrew/Casks/claude-code-buddy.rb tap-repo/Casks/
+          cd tap-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/claude-code-buddy.rb
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Update claude-code-buddy to v${VERSION}"
+          git push
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

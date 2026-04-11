@@ -8,6 +8,15 @@ macOS 桌面伴侣 —— Dock 上方的像素猫咪，实时反映 Claude Code 
 
 ### 第 1 步：下载 App
 
+**方式 A：Homebrew（推荐）**
+
+```bash
+brew tap strzhao/claude-code-buddy
+brew install claude-code-buddy
+```
+
+**方式 B：手动下载**
+
 前往 [Releases](../../releases) 页面，下载最新的 `ClaudeCodeBuddy-vX.Y.Z.zip`。
 
 解压后将 `ClaudeCodeBuddy.app` 拖入 `Applications` 文件夹，双击打开。

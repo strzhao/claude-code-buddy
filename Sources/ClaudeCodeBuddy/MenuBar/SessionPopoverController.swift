@@ -14,7 +14,7 @@ class SessionPopoverController: NSViewController {
     var onQuit: (() -> Void)?
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 360))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 450))
 
         // Header
         headerLabel.font = .boldSystemFont(ofSize: 13)
@@ -123,6 +123,7 @@ class SessionPopoverController: NSViewController {
                 self?.onSessionClicked?(session)
             }
             stackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
 
             // Add separator between rows (not after last)
             if index < sessions.count - 1 {

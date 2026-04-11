@@ -54,17 +54,24 @@ class SessionRowView: NSView {
         state.translatesAutoresizingMaskIntoConstraints = false
         addSubview(state)
 
-        // CWD with ~ abbreviation
+        // CWD with smart abbreviation
         let displayCwd: String
-        if let cwd = session.cwd {
-            displayCwd = cwd.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        if let cwdPath = session.cwd {
+            let home = NSHomeDirectory()
+            let components = cwdPath.split(separator: "/", omittingEmptySubsequences: true)
+            if components.count > 3 {
+                let last = String(components.last!)
+                displayCwd = (cwdPath.hasPrefix(home) ? "~" : "") + "/\u{2026}/" + last
+            } else {
+                displayCwd = cwdPath.replacingOccurrences(of: home, with: "~")
+            }
         } else {
             displayCwd = "—"
         }
         let cwd = NSTextField(labelWithString: displayCwd)
         cwd.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
         cwd.textColor = .tertiaryLabelColor
-        cwd.lineBreakMode = .byTruncatingMiddle
+        cwd.lineBreakMode = .byTruncatingTail
         cwd.translatesAutoresizingMaskIntoConstraints = false
         addSubview(cwd)
 

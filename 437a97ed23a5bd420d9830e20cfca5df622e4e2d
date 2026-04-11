@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Scene/TooltipNode.swift
+  de91560f9dbe63b9 1-118
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  de91560f9dbe63b9 20-31,138-149
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  de91560f9dbe63b9 57-63,127-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "437a97ed23a5bd420d9830e20cfca5df622e4e2d",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 153,
+      "total_deletions": 1,
+      "accepted_lines": 1299,
+      "overriden_lines": 0
+    }
+  }
+}

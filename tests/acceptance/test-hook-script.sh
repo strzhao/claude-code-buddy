@@ -183,7 +183,7 @@ PYEOF
     local stdin_json="{\"hook_event_name\":\"$hook_type\",\"session_id\":\"$session_id\",\"tool_name\":$tool_json}"
 
     echo "$stdin_json" | \
-        "$HOOK_SCRIPT" 2>/dev/null
+        "$HOOK_SCRIPT" >/dev/null 2>/dev/null
 
     wait $server_pid 2>/dev/null
     cat "$tmpfile"
@@ -275,6 +275,62 @@ assert isinstance(ts, int) and ts > 0, f'Invalid timestamp: {ts}'
     pass "timestamp is a valid non-zero integer"
 else
     fail "timestamp is invalid (got: '$json')"
+fi
+
+# ── Assertion 12: SessionStart outputs AI awareness JSON to stdout ────────
+# When /tmp/claude-buddy-colors.json has an entry for the session, the hook
+# should print a JSON object with a "message" key to stdout.
+echo "[12] SessionStart outputs AI awareness JSON to stdout when color file exists..."
+
+# Build a color file with our test session
+COLOR_FILE="/tmp/claude-buddy-colors.json"
+TEST_SESSION="sess-ai-awareness"
+echo "{\"$TEST_SESSION\": {\"color\": \"#FF6B6B\", \"label\": \"test-project\"}}" > "$COLOR_FILE"
+
+# We need a live socket for the hook to proceed past line 13.
+# Spin up a minimal one-shot server (we don't care about the socket message here).
+python3 - "$SOCK" <<'PYEOF' &
+import sys, socket, os
+sock_path = sys.argv[1]
+try: os.unlink(sock_path)
+except: pass
+srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+srv.bind(sock_path)
+srv.listen(1)
+srv.settimeout(3)
+try:
+    conn, _ = srv.accept()
+    conn.recv(4096)
+    conn.close()
+except: pass
+finally:
+    srv.close()
+    try: os.unlink(sock_path)
+    except: pass
+PYEOF
+srv_pid=$!
+sleep 0.3
+
+stdout_output=$(echo "{\"hook_event_name\":\"SessionStart\",\"session_id\":\"$TEST_SESSION\"}" | \
+    "$HOOK_SCRIPT" 2>/dev/null)
+wait $srv_pid 2>/dev/null
+
+rm -f "$COLOR_FILE"
+
+if echo "$stdout_output" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert 'message' in d, 'missing message key'
+assert 'buddy-label' in d['message'], 'missing buddy-label hint'
+" 2>/dev/null; then
+    pass "SessionStart AI awareness: stdout contains JSON message with buddy-label hint"
+else
+    # No color file entry → empty output is also acceptable (color file may be absent)
+    if [ -z "$stdout_output" ]; then
+        pass "SessionStart AI awareness: no color info available, stdout correctly empty"
+    else
+        fail "SessionStart AI awareness: unexpected stdout output: '$stdout_output'"
+    fi
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

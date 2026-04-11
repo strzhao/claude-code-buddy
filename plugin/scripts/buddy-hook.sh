@@ -100,4 +100,20 @@ if [ "$EVENT" = "session_start" ] && [ -n "$CWD" ]; then
     " &>/dev/null &
 fi
 
+# AI awareness: output session identity info on SessionStart
+if [ "$HOOK_EVENT" = "SessionStart" ]; then
+    python3 -c "
+import json, sys
+try:
+    d = json.load(open('/tmp/claude-buddy-colors.json'))
+    info = d.get('$SESSION_ID', {})
+    if info:
+        color_info = '颜色 = {} (●)，标签 = \"{}\"'.format(info['color'], info['label'])
+        msg = '你的 Claude Code Buddy session：{}。如果当前任务有更好的描述名称，执行: buddy-label \"新名称\"'.format(color_info)
+        print(json.dumps({'message': msg}))
+except:
+    pass
+" 2>/dev/null
+fi
+
 exit 0

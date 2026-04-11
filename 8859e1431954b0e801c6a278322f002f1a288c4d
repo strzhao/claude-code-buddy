@@ -1,0 +1,35 @@
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  b1386c671f8a446c 151-158
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  b1386c671f8a446c 26-28,169-170,180-182,186-194
+Sources/ClaudeCodeBuddy/Terminal/TerminalAdapter.swift
+  b1386c671f8a446c 6
+hooks/buddy-hook.sh
+  b1386c671f8a446c 57-68,82-95
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  b1386c671f8a446c 24-25,34-35
+Sources/ClaudeCodeBuddy/Terminal/GhosttyAdapter.swift
+  b1386c671f8a446c 10-13,20-26,39-40,44-45,47-48,50-62,64-70,73,75-80
+Sources/ClaudeCodeBuddy/Session/SessionInfo.swift
+  b1386c671f8a446c 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "8859e1431954b0e801c6a278322f002f1a288c4d",
+  "prompts": {
+    "b1386c671f8a446c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d798660e-ed20-4c27-9c5e-b428794ecdf1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 280,
+      "total_deletions": 189,
+      "accepted_lines": 119,
+      "overriden_lines": 0
+    }
+  }
+}

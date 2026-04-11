@@ -1,0 +1,31 @@
+.github/workflows/release.yml
+  6509b217b516d5ff 1-91
+README.md
+  6509b217b516d5ff 3,5,7,9,11-57,60,63,66,71,73-74,81-85,90,92-93,96,99,101-102,105-107,110,115-120
+.claude-plugin/marketplace.json
+  6509b217b516d5ff 1-15
+plugin/hooks/hooks.json
+  6509b217b516d5ff 1-64
+plugin/.claude-plugin/plugin.json
+  6509b217b516d5ff 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0d07ee0ecf3c5f25bda47f7c9b255871bf8a90b9",
+  "prompts": {
+    "6509b217b516d5ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "730750ed-ed6d-485b-ba20-f36fd11d4acc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 262,
+      "total_deletions": 120,
+      "accepted_lines": 262,
+      "overriden_lines": 0
+    }
+  }
+}

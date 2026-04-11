@@ -1,0 +1,60 @@
+tasks:
+  - id: "001-data-models"
+    title: "SessionInfo + SessionColor + HookMessage 扩展"
+    depends_on: []
+    complexity: S
+    status: done
+
+  - id: "002-session-manager"
+    title: "SessionManager 升级（SessionInfo 跟踪、颜色池、cwd 富化、颜色文件、回调）"
+    depends_on: ["001-data-models"]
+    complexity: M
+    status: done
+
+  - id: "003-visual-layer"
+    title: "CatSprite 标签 + 着色，BuddyScene 集成"
+    depends_on: ["002-session-manager"]
+    complexity: M
+    status: done
+
+  - id: "004-hook-script"
+    title: "Hook 脚本 cwd 提取 + Ghostty 标签页标题注入"
+    depends_on: ["001-data-models"]
+    complexity: S
+    status: done
+
+  - id: "005-mouse-tracker"
+    title: "MouseTracker + BuddyWindow 动态穿透"
+    depends_on: ["003-visual-layer"]
+    complexity: M
+    status: done
+
+  - id: "006-tooltip-node"
+    title: "TooltipNode SpriteKit 悬停提示"
+    depends_on: ["005-mouse-tracker"]
+    complexity: M
+    status: done
+
+  - id: "007-terminal-adapter"
+    title: "TerminalAdapter 协议 + GhosttyAdapter 点击激活"
+    depends_on: ["002-session-manager", "005-mouse-tracker"]
+    complexity: M
+    status: done
+
+  - id: "008-menu-dashboard"
+    title: "NSPopover 菜单栏仪表板"
+    depends_on: ["002-session-manager"]
+    complexity: L
+    status: done
+
+  - id: "009-buddy-label"
+    title: "buddy-label CLI + set_label 协议处理"
+    depends_on: ["002-session-manager", "004-hook-script"]
+    complexity: S
+    status: done
+
+  - id: "010-ai-awareness"
+    title: "Hook 系统提示注入 + 状态栏集成指南"
+    depends_on: ["002-session-manager", "004-hook-script"]
+    complexity: S
+    status: done

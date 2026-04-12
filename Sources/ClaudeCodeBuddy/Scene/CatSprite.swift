@@ -32,7 +32,10 @@ class CatSprite {
     let sessionId: String
     private(set) var currentState: CatState = .idle
 
-    /// The underlying SpriteKit node added to the scene.
+    /// Container node added to the scene; holds position, physics, and movement.
+    let containerNode = SKNode()
+
+    /// The underlying SpriteKit sprite node (child of containerNode at origin).
     let node: SKSpriteNode
 
     /// Animation texture arrays keyed by animation name string.
@@ -73,7 +76,10 @@ class CatSprite {
 
         // Start with a placeholder 48x48 colored square if textures are missing
         node = SKSpriteNode(color: .orange, size: CGSize(width: 48, height: 48))
-        node.name = "cat_\(sessionId)"
+        node.name = "catSprite_\(sessionId)"
+
+        containerNode.name = "cat_\(sessionId)"
+        containerNode.addChild(node)
 
         setupPhysicsBody()
         loadTextures()
@@ -90,7 +96,26 @@ class CatSprite {
         body.restitution = 0.0
         body.friction    = 0.8
         body.linearDamping = 0.5
-        node.physicsBody = body
+        containerNode.physicsBody = body
+    }
+
+    // MARK: - Hover Scale
+
+    private static let hoverScale: CGFloat = 1.25
+    private static let hoverDuration: TimeInterval = 0.15
+
+    func applyHoverScale() {
+        containerNode.removeAction(forKey: "hoverScale")
+        let scale = SKAction.scale(to: CatSprite.hoverScale, duration: CatSprite.hoverDuration)
+        scale.timingMode = .easeOut
+        containerNode.run(scale, withKey: "hoverScale")
+    }
+
+    func removeHoverScale() {
+        containerNode.removeAction(forKey: "hoverScale")
+        let scale = SKAction.scale(to: 1.0, duration: CatSprite.hoverDuration)
+        scale.timingMode = .easeOut
+        containerNode.run(scale, withKey: "hoverScale")
     }
 
     // MARK: - Facing Direction
@@ -241,7 +266,7 @@ class CatSprite {
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
         // Safety net: always restore physics dynamics regardless of whether state actually changes
-        node.physicsBody?.isDynamic = true
+        containerNode.physicsBody?.isDynamic = true
         guard newState != currentState else { return }
         // Release any claimed food when switching to a different state
         if currentTargetFood != nil {
@@ -253,6 +278,8 @@ class CatSprite {
         currentState = newState
 
         node.removeAllActions()
+        containerNode.removeAction(forKey: "randomWalk")
+        containerNode.removeAction(forKey: "foodWalk")
         removeAlertOverlay()
         hideLabel()
         // Reset transform but preserve facing direction
@@ -341,7 +368,7 @@ class CatSprite {
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             }
-            originX = node.position.x
+            originX = containerNode.position.x
             startRandomWalk()
             startBreathing()
 
@@ -422,7 +449,7 @@ class CatSprite {
             : rawTarget
 
         // Update facing direction based on movement
-        let delta = target - node.position.x
+        let delta = target - containerNode.position.x
         if delta < -0.5 {
             facingRight = false
         } else if delta > 0.5 {
@@ -436,7 +463,7 @@ class CatSprite {
         if distance < 2.0 {
             let pause = SKAction.wait(forDuration: Double.random(in: 1.0...2.5))
             let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-            node.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
             return
         }
 
@@ -482,10 +509,10 @@ class CatSprite {
 
         if pauseDuration > 0 {
             let pause = SKAction.wait(forDuration: pauseDuration)
-            node.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
         } else {
             // No pause — walk continuously to next target
-            node.run(SKAction.sequence([move, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([move, next]), withKey: "randomWalk")
         }
     }
 
@@ -642,19 +669,16 @@ class CatSprite {
         currentTargetFood = food
 
         let targetX = food.node.position.x
-        let delta = targetX - node.position.x
+        let delta = targetX - containerNode.position.x
         let distance = abs(delta)
 
-        // Flip sprite to face movement direction
+        // Update facing direction via unified path
         if delta < -0.5 {
-            node.xScale = 1.0
-            labelNode?.xScale = 1.0
-            shadowLabelNode?.xScale = 1.0
+            facingRight = false
         } else if delta > 0.5 {
-            node.xScale = -1.0
-            labelNode?.xScale = -1.0
-            shadowLabelNode?.xScale = -1.0
+            facingRight = true
         }
+        applyFacingDirection()
 
         // Stop idle animations
         node.removeAllActions()
@@ -676,13 +700,14 @@ class CatSprite {
             guard let self = self, self.currentTargetFood === food else { return }
             onArrival(self, food)
         }
-        node.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
+        containerNode.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
         currentState = .eating
         currentTargetFood = food
         node.removeAllActions()
+        containerNode.removeAction(forKey: "foodWalk")
 
         if let frames = textures(for: "paw"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
@@ -711,7 +736,8 @@ class CatSprite {
         sceneWidth = sceneSize.width
 
         // Place directly at ground level — no drop animation
-        node.position = CGPoint(x: node.position.x, y: 48)
+        containerNode.position = CGPoint(x: containerNode.position.x, y: 48)
+        containerNode.setScale(1.0)
         node.yScale = 1.0
         node.zRotation = 0
         removeAlertOverlay()
@@ -731,11 +757,11 @@ class CatSprite {
         // Don't interrupt permission-request state (it's already alert)
         guard currentState != .permissionRequest else { return }
 
-        node.physicsBody?.isDynamic = false
+        containerNode.physicsBody?.isDynamic = false
         node.removeAllActions()
 
         // Decide escape direction: flee away from jumper
-        let myX = node.position.x
+        let myX = containerNode.position.x
         let fleeRight = myX > jumperX   // flee to the same side we're on relative to jumper
         let rawTarget = fleeRight ? myX + 30 : myX - 30
         let clampedTarget: CGFloat
@@ -753,7 +779,7 @@ class CatSprite {
 
         guard let scaredFrames = textures(for: "scared"), !scaredFrames.isEmpty else {
             // Fallback: just re-enable physics and resume
-            node.physicsBody?.isDynamic = true
+            containerNode.physicsBody?.isDynamic = true
             return
         }
 
@@ -765,7 +791,7 @@ class CatSprite {
 
         let recover = SKAction.run { [weak self] in
             guard let self = self else { return }
-            self.node.physicsBody?.isDynamic = true
+            self.containerNode.physicsBody?.isDynamic = true
             if self.currentState == .eating {
                 // Use switchState so food is properly released
                 self.switchState(to: .idle)
@@ -779,16 +805,16 @@ class CatSprite {
         // GCD fallback for tests without a display link
         let scaredDuration = Double(scaredFrames.count) * 0.12
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
-            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
+            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
             self.node.position.x += slideDelta
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15) { [weak self] in
-            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
+            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
             self.node.position.x += reboundDelta
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15 + 0.12 + 0.01) { [weak self] in
-            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
-            self.node.physicsBody?.isDynamic = true
+            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
+            self.containerNode.physicsBody?.isDynamic = true
             if self.currentState == .eating {
                 self.switchState(to: .idle)
             } else {
@@ -816,13 +842,15 @@ class CatSprite {
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
         node.removeAllActions()
+        containerNode.removeAllActions()
+        containerNode.setScale(1.0)
 
         // Walk to the nearest edge
-        let edgeX: CGFloat = node.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
-        let duration = Double(abs(edgeX - node.position.x)) / 120.0
+        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
+        let duration = Double(abs(edgeX - containerNode.position.x)) / 120.0
 
         // Face the exit direction
-        if edgeX < node.position.x {
+        if edgeX < containerNode.position.x {
             facingRight = false
         } else {
             facingRight = true
@@ -849,14 +877,14 @@ class CatSprite {
         let walk = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
         walk.timingMode = .easeIn
 
-        node.run(walk) {
+        containerNode.run(walk) {
             safeCompletion()
         }
 
         // GCD fallback for tests without a display link
         let walkDuration = max(duration, 0.5)
         DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-            self?.node.position.x = edgeX
+            self?.containerNode.position.x = edgeX
             safeCompletion()
         }
     }
@@ -869,9 +897,11 @@ class CatSprite {
         completion: @escaping () -> Void
     ) {
         node.removeAllActions()
-        node.physicsBody?.isDynamic = false
+        containerNode.removeAllActions()
+        containerNode.setScale(1.0)
+        containerNode.physicsBody?.isDynamic = false
 
-        let myX = node.position.x
+        let myX = containerNode.position.x
         let goingRight = myX >= sceneWidth / 2
         let edgeX: CGFloat = goingRight ? sceneWidth + 48 : -48
 
@@ -913,11 +943,11 @@ class CatSprite {
             startWalkAnim()
             let walkAction = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
             walkAction.timingMode = .easeIn
-            node.run(walkAction) { safeCompletion() }
+            containerNode.run(walkAction) { safeCompletion() }
             // GCD fallback: fire completion if SKAction doesn't run (no display link)
             let walkDuration = max(duration, 0.5)
             DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-                self?.node.position.x = edgeX
+                self?.containerNode.position.x = edgeX
                 safeCompletion()
             }
             return
@@ -948,15 +978,17 @@ class CatSprite {
             }
             gcdDelay += approachDuration
 
-            // Jump animation frames
+            // Jump animation frames (visual — run on node via SKAction.run block)
             var jumpAnimDuration: Double = 0
             if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
                 jumpAnimDuration = Double(jumpFrames.count) * 0.10
                 let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.10)
-                let stopWalk = SKAction.run { [weak self] in
+                let playJump = SKAction.run { [weak self] in
                     self?.node.removeAction(forKey: "walkAnimation")
+                    self?.node.run(jumpAnim)
                 }
-                actions.append(SKAction.sequence([stopWalk, jumpAnim]))
+                actions.append(playJump)
+                actions.append(SKAction.wait(forDuration: jumpAnimDuration))
             }
             gcdDelay += jumpAnimDuration
 
@@ -973,7 +1005,7 @@ class CatSprite {
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
                 let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
-                self.node.position = CGPoint(x: bx, y: by)
+                self.containerNode.position = CGPoint(x: bx, y: by)
             }
             actions.append(bezierAction)
 
@@ -983,13 +1015,13 @@ class CatSprite {
             DispatchQueue.main.asyncAfter(deadline: .now() + capturedGcdDelay) { [weak self] in
                 guard self != nil else { return }
                 // Update position for test visibility
-                self?.node.position = CGPoint(x: capturedObstX, y: 73)  // approx arc peak
+                self?.containerNode.position = CGPoint(x: capturedObstX, y: 73)  // approx arc peak
                 onJumpOver(capturedObstacleCat)
             }
 
             gcdDelay += 0.30
 
-            // Resume walk after landing
+            // Resume walk after landing (visual — on node)
             let resumeWalk = SKAction.run { [weak self] in
                 guard let self = self else { return }
                 if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
@@ -1004,7 +1036,7 @@ class CatSprite {
             // GCD fallback: land position
             let capturedLandDelay = gcdDelay
             DispatchQueue.main.asyncAfter(deadline: .now() + capturedLandDelay) { [weak self] in
-                self?.node.position = CGPoint(x: landX, y: 48)
+                self?.containerNode.position = CGPoint(x: landX, y: 48)
             }
 
             lastX = landX
@@ -1024,11 +1056,11 @@ class CatSprite {
         gcdDelay += finalDuration
 
         actions.append(SKAction.run { safeCompletion() })
-        node.run(SKAction.sequence(actions), withKey: "exitSequence")
+        containerNode.run(SKAction.sequence(actions), withKey: "exitSequence")
 
         // GCD fallback: completion
         DispatchQueue.main.asyncAfter(deadline: .now() + gcdDelay + 0.1) { [weak self] in
-            self?.node.position.x = edgeX
+            self?.containerNode.position.x = edgeX
             safeCompletion()
         }
     }

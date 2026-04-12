@@ -44,6 +44,9 @@ class CatSprite {
     var sessionColor: SessionColor?
     private var sessionTintFactor: CGFloat = 0.3
     private var alertOverlayNode: SKNode?
+    private var tabNameNode: SKLabelNode?
+    private var tabNameShadowNode: SKLabelNode?
+    private var tabName: String = ""
     /// The X position when the cat was placed, used as anchor for random movement.
     private var originX: CGFloat = 0
     /// Tracks previous state for transition animations.
@@ -151,16 +154,50 @@ class CatSprite {
         label.isHidden = true
         node.addChild(label)
         labelNode = label
+
+        // 记录 tab name
+        tabName = labelText
+
+        // Create tab name shadow (for waiting state)
+        let tabShadow = SKLabelNode(text: labelText)
+        tabShadow.fontName = NSFont.boldSystemFont(ofSize: 9).fontName
+        tabShadow.fontSize = 9
+        tabShadow.fontColor = color.nsColor.withAlphaComponent(0.4)
+        tabShadow.position = CGPoint(x: 1, y: 16)
+        tabShadow.verticalAlignmentMode = .bottom
+        tabShadow.horizontalAlignmentMode = .center
+        tabShadow.zPosition = 9
+        tabShadow.isHidden = true
+        node.addChild(tabShadow)
+        tabNameShadowNode = tabShadow
+
+        // Create tab name label (for waiting state)
+        let tabLabel = SKLabelNode(text: labelText)
+        tabLabel.fontName = NSFont.boldSystemFont(ofSize: 9).fontName
+        tabLabel.fontSize = 9
+        tabLabel.fontColor = color.nsColor
+        tabLabel.position = CGPoint(x: 0, y: 17)
+        tabLabel.verticalAlignmentMode = .bottom
+        tabLabel.horizontalAlignmentMode = .center
+        tabLabel.zPosition = 10
+        tabLabel.isHidden = true
+        node.addChild(tabLabel)
+        tabNameNode = tabLabel
     }
 
     func updateLabel(_ newLabel: String) {
         labelNode?.text = newLabel
         shadowLabelNode?.text = newLabel
+        tabName = newLabel
+        tabNameNode?.text = newLabel
+        tabNameShadowNode?.text = newLabel
     }
 
     func showLabel(text: String? = nil) {
         if let text = text {
-            updateLabel(text)
+            // Only update the tool-description label nodes; do not overwrite tabName
+            labelNode?.text = text
+            shadowLabelNode?.text = text
         }
         labelNode?.isHidden = false
         shadowLabelNode?.isHidden = false
@@ -169,6 +206,8 @@ class CatSprite {
     func hideLabel() {
         labelNode?.isHidden = true
         shadowLabelNode?.isHidden = true
+        tabNameNode?.isHidden = true
+        tabNameShadowNode?.isHidden = true
     }
 
     // MARK: - State Machine
@@ -319,6 +358,10 @@ class CatSprite {
 
             // "!" badge positioned to the right of the label text
             addAlertOverlay(afterLabel: displayText)
+
+            // Show tab name above the tool description
+            tabNameNode?.isHidden = false
+            tabNameShadowNode?.isHidden = false
 
         case .eating:
             break

@@ -67,7 +67,7 @@ msg = {
 }
 if tool:
     msg["tool"] = tool
-if cwd and event == "session_start":
+if cwd:
     msg["cwd"] = cwd
 if terminal_id:
     msg["terminal_id"] = terminal_id

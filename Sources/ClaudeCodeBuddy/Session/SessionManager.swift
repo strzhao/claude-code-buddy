@@ -108,8 +108,9 @@ class SessionManager {
 
         // Primary: from hook message
         if let cwd = message.cwd {
+            let label = generateLabel(from: cwd)
             sessions[sessionId]?.cwd = cwd
-            sessions[sessionId]?.label = generateLabel(from: cwd)
+            sessions[sessionId]?.label = label
             return
         }
 

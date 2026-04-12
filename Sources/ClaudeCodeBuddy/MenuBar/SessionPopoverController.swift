@@ -2,6 +2,20 @@ import AppKit
 
 class SessionPopoverController: NSViewController {
 
+    // Layout constants for dynamic popover height
+    private static let popoverWidth: CGFloat = 320
+    private static let rowHeight: CGFloat = 76
+    private static let separatorGap: CGFloat = 3      // stackView.spacing + NSBox separator + spacing
+    private static let chromeHeight: CGFloat = 93      // header + footer with safety margin
+    private static let emptyStateHeight: CGFloat = 130
+    private static let maxVisibleSessions = 6
+
+    private func idealHeight(for count: Int) -> CGFloat {
+        guard count > 0 else { return Self.emptyStateHeight }
+        let visible = min(count, Self.maxVisibleSessions)
+        return Self.chromeHeight + CGFloat(visible) * Self.rowHeight + CGFloat(visible - 1) * Self.separatorGap
+    }
+
     private var sessions: [SessionInfo] = []
     private let scrollView = NSScrollView()
     private let stackView = NSStackView()
@@ -14,7 +28,7 @@ class SessionPopoverController: NSViewController {
     var onQuit: (() -> Void)?
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 450))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 130))
 
         // Header
         headerLabel.font = .boldSystemFont(ofSize: 13)
@@ -102,6 +116,7 @@ class SessionPopoverController: NSViewController {
         ])
 
         self.view = container
+        preferredContentSize = NSSize(width: Self.popoverWidth, height: Self.emptyStateHeight)
     }
 
     func updateSessions(_ sessions: [SessionInfo]) {
@@ -118,7 +133,7 @@ class SessionPopoverController: NSViewController {
         // Add session rows with separators
         for (index, session) in sessions.enumerated() {
             let row = SessionRowView(session: session)
-            row.alphaValue = session.state == .idle ? 0.7 : 1.0
+            row.alphaValue = 1.0
             row.onClick = { [weak self] in
                 self?.onSessionClicked?(session)
             }
@@ -137,6 +152,7 @@ class SessionPopoverController: NSViewController {
                 ])
             }
         }
+        preferredContentSize = NSSize(width: Self.popoverWidth, height: idealHeight(for: sessions.count))
     }
 
     @objc private func quitClicked() {

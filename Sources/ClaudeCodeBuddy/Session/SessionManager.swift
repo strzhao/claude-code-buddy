@@ -27,6 +27,7 @@ class SessionManager {
     var onSessionNeedsTabTitle: ((SessionInfo) -> Void)?
 
     private var timeoutTimer: Timer?
+    private var lastTranscriptScan: Date = .distantPast
 
     // MARK: - Timeout Config
 
@@ -108,8 +109,9 @@ class SessionManager {
 
         // Primary: from hook message
         if let cwd = message.cwd {
+            let label = generateLabel(from: cwd)
             sessions[sessionId]?.cwd = cwd
-            sessions[sessionId]?.label = generateLabel(from: cwd)
+            sessions[sessionId]?.label = label
             return
         }
 
@@ -170,7 +172,11 @@ class SessionManager {
                     terminalId: message.terminalId,
                     state: message.entityState ?? .idle,
                     lastActivity: Date(),
-                    toolDescription: message.description
+                    toolDescription: message.description,
+                    model: nil,
+                    startedAt: nil,
+                    totalTokens: 0,
+                    toolCallCount: 0
                 )
                 sessions[sessionId] = info
 
@@ -180,6 +186,9 @@ class SessionManager {
                 writeColorFile()
                 if info.terminalId != nil {
                     onSessionNeedsTabTitle?(info)
+                }
+                if let pid = info.pid {
+                    sessions[sessionId]?.startedAt = TranscriptReader.readStartedAt(pid: pid)
                 }
             } else {
                 sessions[sessionId]?.lastActivity = Date()
@@ -208,6 +217,11 @@ class SessionManager {
                 ))
             }
 
+            // Increment tool call count
+            if message.event == .toolStart {
+                sessions[sessionId]?.toolCallCount += 1
+            }
+
             // Food spawn trigger on toolEnd
             if message.event == .toolEnd {
                 let roll = Float.random(in: 0..<1)
@@ -220,6 +234,34 @@ class SessionManager {
 
         onSessionCountChanged?(scene.activeCatCount)
         onSessionsChanged?(Array(sessions.values))
+
+        // Throttled transcript scan (at most once every 10 seconds)
+        let now = Date()
+        if now.timeIntervalSince(lastTranscriptScan) >= 10 {
+            lastTranscriptScan = now
+            let sessionsSnapshot = sessions
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                var updated = false
+                for (id, info) in sessionsSnapshot {
+                    guard let cwd = info.cwd else { continue }
+                    let path = TranscriptReader.transcriptPath(cwd: cwd, sessionId: info.sessionId)
+                    let stats = TranscriptReader.scan(path: path)
+                    if stats.model != nil || stats.totalTokens > 0 {
+                        DispatchQueue.main.async {
+                            self?.sessions[id]?.model = stats.model
+                            self?.sessions[id]?.totalTokens = stats.totalTokens
+                        }
+                        updated = true
+                    }
+                }
+                if updated {
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        self.onSessionsChanged?(Array(self.sessions.values))
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Timeouts

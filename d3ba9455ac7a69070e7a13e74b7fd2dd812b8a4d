@@ -1,0 +1,36 @@
+.autopilot/decisions.md
+  22ee3f955610f06a 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d3ba9455ac7a69070e7a13e74b7fd2dd812b8a4d",
+  "prompts": {
+    "22ee3f955610f06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18909073-0d4e-4666-9a0e-3d0c1a2d1292",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 221,
+      "overriden_lines": 0
+    },
+    "6eaf55c1ac6584e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b91dee7-de15-4439-a8cc-0712de937f73",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 480,
+      "overriden_lines": 0
+    }
+  }
+}

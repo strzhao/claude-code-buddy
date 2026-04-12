@@ -54,7 +54,7 @@ class InteractionComponent {
         let rawTarget = fleeRight ? myX + CatConstants.Fright.fleeDistance : myX - CatConstants.Fright.fleeDistance
         let clampedTarget: CGFloat
         if entity.sceneWidth > 0 {
-            clampedTarget = max(CatConstants.Fright.boundaryMargin, min(entity.sceneWidth - CatConstants.Fright.boundaryMargin, rawTarget))
+            clampedTarget = max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
         } else {
             clampedTarget = rawTarget
         }

@@ -43,11 +43,10 @@ class MovementComponent {
 
         // Random target: ±120px from origin (wide range)
         let maxRange: CGFloat = CatConstants.Movement.walkMaxRange
-        let margin: CGFloat = CatConstants.Movement.walkBoundaryMargin
         let rawTarget = entity.originX + CGFloat.random(in: -maxRange...maxRange)
         let sceneWidth = entity.sceneWidth
         let target = sceneWidth > 0
-            ? max(margin, min(sceneWidth - margin, rawTarget))
+            ? max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
             : rawTarget
 
         // Update facing direction based on movement

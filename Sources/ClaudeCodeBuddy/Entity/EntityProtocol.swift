@@ -10,7 +10,7 @@ protocol EntityProtocol: AnyObject {
     var containerNode: SKNode { get }
     var currentState: CatState { get }
     func switchState(to state: CatState, toolDescription: String?)
-    func enterScene(sceneSize: CGSize)
+    func enterScene(sceneSize: CGSize, activityBounds: ClosedRange<CGFloat>?)
     func applyHoverScale()
     func removeHoverScale()
     func updateSceneSize(_ size: CGSize)

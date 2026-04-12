@@ -2,7 +2,8 @@
 # Acceptance Test: Popover Cell Layout Optimization
 # Verifies that the menu bar popover list cell layout meets the design spec:
 #   - Cell rows are left-aligned with explicit width constraints
-#   - Popover height is 450pt to display ~6 rows
+#   - Popover height is dynamic based on session count (max 6 sessions)
+#   - Initial/empty state container frame height is 130pt
 #   - Long CWD paths are truncated intelligently to ~/…/<last-dir>
 #
 # These are static source-code checks — no app launch required.
@@ -38,20 +39,20 @@ else
 fi
 echo ""
 
-# ── Assertion 2: container frame height is 450pt ─────────────────────────
-echo "[2] SessionPopoverController.swift — container frame height is 450..."
-if grep -q "height: 450" "$POPOVER_CTRL"; then
-    pass "container frame contains 'height: 450'"
+# ── Assertion 2: container frame height is 130pt (empty state initial height) ─
+echo "[2] SessionPopoverController.swift — container frame initial height is 130..."
+if grep -q "height: 130" "$POPOVER_CTRL"; then
+    pass "container frame contains 'height: 130'"
 else
-    fail "container frame does NOT contain 'height: 450' in $POPOVER_CTRL"
+    fail "container frame does NOT contain 'height: 130' in $POPOVER_CTRL"
 fi
 
-# ── Assertion 3: popover contentSize height is 450pt ─────────────────────
-echo "[3] AppDelegate.swift — popover.contentSize height is 450..."
-if grep -q "height: 450" "$APPDELEGATE"; then
-    pass "popover.contentSize contains 'height: 450'"
+# ── Assertion 3: dynamic height via preferredContentSize (no static 450) ────
+echo "[3] AppDelegate.swift — popover.contentSize with hardcoded 450 is removed..."
+if grep -q "contentSize = NSSize(width: 320, height: 450)" "$APPDELEGATE"; then
+    fail "popover.contentSize still contains hardcoded 'height: 450' in $APPDELEGATE"
 else
-    fail "popover.contentSize does NOT contain 'height: 450' in $APPDELEGATE"
+    pass "popover.contentSize hardcoded height: 450 correctly removed from $APPDELEGATE"
 fi
 
 # ── Assertion 4: updateSessions sets row width anchor ────────────────────

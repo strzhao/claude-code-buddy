@@ -10,4 +10,8 @@ struct SessionInfo {
     var state: EntityState
     var lastActivity: Date
     var toolDescription: String?
+    var model: String?
+    var startedAt: Date?
+    var totalTokens: Int
+    var toolCallCount: Int
 }

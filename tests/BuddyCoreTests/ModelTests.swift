@@ -38,7 +38,9 @@ final class SessionInfoTests: XCTestCase {
             terminalId: "UUID-ABC",
             state: .idle,
             lastActivity: Date(),
-            toolDescription: nil
+            toolDescription: nil,
+            totalTokens: 0,
+            toolCallCount: 0
         )
         XCTAssertEqual(info.sessionId, "test-123")
         XCTAssertEqual(info.label, "my-project")
@@ -55,7 +57,9 @@ final class SessionInfoTests: XCTestCase {
             label: "old",
             color: .teal,
             state: .idle,
-            lastActivity: Date()
+            lastActivity: Date(),
+            totalTokens: 0,
+            toolCallCount: 0
         )
         info.label = "new-label"
         info.state = .thinking

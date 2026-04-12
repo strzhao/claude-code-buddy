@@ -76,9 +76,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         // Random horizontal spawn position
         let spawnX = CGFloat.random(in: 48...(size.width - 48))
-        cat.node.position = CGPoint(x: spawnX, y: size.height) // start above frame
+        cat.position = CGPoint(x: spawnX, y: size.height) // start above frame
 
-        addChild(cat.node)
+        addChild(cat)
         cats[sessionId] = cat
         cat.enterScene(sceneSize: size)
     }
@@ -93,9 +93,18 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
-        // Keep a strong ref to cat until exit animation completes, then remove node
-        cat.exitScene(sceneWidth: size.width) { [cat] in
-            cat.node.removeFromParent()
+
+        // Collect all other cats as obstacles, including their current x positions
+        let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { other in
+            (cat: other, x: other.position.x)
+        }
+
+        // Keep a strong ref to cat until exit animation completes, then remove from scene
+        cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { jumpedCat in
+            // Fire-and-forget: jumping cat's x position at call time
+            jumpedCat.playFrightReaction(awayFromX: cat.position.x)
+        }) { [cat] in
+            cat.removeFromParent()
         }
     }
 
@@ -109,7 +118,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func catAtPoint(_ point: CGPoint) -> String? {
         let hitSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {
-            let catPos = cat.node.position
+            let catPos = cat.position
             let rect = CGRect(
                 x: catPos.x - hitSize.width / 2,
                 y: catPos.y - hitSize.height / 2,
@@ -142,7 +151,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
               let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
         // Don't show tooltip if cat is already showing label (waiting state)
         guard cat.currentState != .permissionRequest else { return }
-        tooltipNode.show(label: info.label, color: info.color, at: cat.node.position, sceneSize: size)
+        tooltipNode.show(label: info.label, color: info.color, at: cat.position, sceneSize: size)
     }
 
     func hideTooltip() {

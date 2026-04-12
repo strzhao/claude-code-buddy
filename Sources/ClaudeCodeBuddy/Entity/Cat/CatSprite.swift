@@ -175,7 +175,8 @@ class CatSprite {
     }
 
     func applyFacingDirection() {
-        let xScale: CGFloat = facingRight ? -1.0 : 1.0
+        // Sprites face RIGHT by default (xScale=1.0), flip to face LEFT (xScale=-1.0)
+        let xScale: CGFloat = facingRight ? 1.0 : -1.0
         node.xScale = xScale
         // Child labels inherit parent xScale; applying the same value cancels the flip,
         // keeping text readable regardless of facing direction.

@@ -16,10 +16,11 @@ final class FacingDirectionTests: XCTestCase {
         cat.configure(color: .sky, labelText: "test")
         cat.containerNode.position = CGPoint(x: x, y: 48)
         cat.sceneWidth = 800
-        // Set initial facing via the underlying property (didSet fires after init)
         if facingRight {
             cat.facingRight = true
         }
+        // didSet doesn't fire during init, so ensure initial visual state matches
+        cat.applyFacingDirection()
         return cat
     }
 
@@ -27,13 +28,14 @@ final class FacingDirectionTests: XCTestCase {
 
     func testDidSetAutoAppliesXScale() {
         let cat = makeCat(facingRight: false)
-        XCTAssertEqual(cat.node.xScale, 1.0, "Facing left: xScale should be 1.0")
+        // Sprites face right by default; facingLeft flips with xScale=-1
+        XCTAssertEqual(cat.node.xScale, -1.0, "Facing left: xScale should be -1.0 (flipped)")
 
         cat.facingRight = true
-        XCTAssertEqual(cat.node.xScale, -1.0, "Facing right: xScale should be -1.0 (auto-applied by didSet)")
+        XCTAssertEqual(cat.node.xScale, 1.0, "Facing right: xScale should be 1.0 (default sprite)")
 
         cat.facingRight = false
-        XCTAssertEqual(cat.node.xScale, 1.0, "Facing left again: xScale should be 1.0")
+        XCTAssertEqual(cat.node.xScale, -1.0, "Facing left again: xScale should be -1.0")
     }
 
     // MARK: - S-01 & S-02: face(towardX:) basic direction
@@ -42,14 +44,14 @@ final class FacingDirectionTests: XCTestCase {
         let cat = makeCat(x: 200, facingRight: false)
         cat.face(towardX: 400)  // delta = +200, well above threshold
         XCTAssertTrue(cat.facingRight)
-        XCTAssertEqual(cat.node.xScale, -1.0)
+        XCTAssertEqual(cat.node.xScale, 1.0)
     }
 
     func testFaceTowardXLeft() {
         let cat = makeCat(x: 400, facingRight: true)
         cat.face(towardX: 100)  // delta = -300, well above threshold
         XCTAssertFalse(cat.facingRight)
-        XCTAssertEqual(cat.node.xScale, 1.0)
+        XCTAssertEqual(cat.node.xScale, -1.0)
     }
 
     // MARK: - S-03: face(towardX:) below threshold keeps direction
@@ -85,7 +87,7 @@ final class FacingDirectionTests: XCTestCase {
         let cat = makeCat(facingRight: false)
         cat.face(right: true)
         XCTAssertTrue(cat.facingRight)
-        XCTAssertEqual(cat.node.xScale, -1.0)
+        XCTAssertEqual(cat.node.xScale, 1.0)
     }
 
     func testFaceRightGuardSkipsSameValue() {
@@ -102,20 +104,20 @@ final class FacingDirectionTests: XCTestCase {
     func testApplyFacingDirectionCompensatesAllLabels() {
         let cat = makeCat(facingRight: false)
 
-        // Facing left: xScale = 1.0
-        XCTAssertEqual(cat.node.xScale, 1.0)
-        XCTAssertEqual(cat.labelNode?.xScale, 1.0)
-        XCTAssertEqual(cat.shadowLabelNode?.xScale, 1.0)
-        XCTAssertEqual(cat.tabNameNode?.xScale, 1.0)
-        XCTAssertEqual(cat.tabNameShadowNode?.xScale, 1.0)
+        // Facing left: xScale = -1.0 (sprite flipped)
+        XCTAssertEqual(cat.node.xScale, -1.0)
+        XCTAssertEqual(cat.labelNode?.xScale, -1.0)
+        XCTAssertEqual(cat.shadowLabelNode?.xScale, -1.0)
+        XCTAssertEqual(cat.tabNameNode?.xScale, -1.0)
+        XCTAssertEqual(cat.tabNameShadowNode?.xScale, -1.0)
 
         // Switch to facing right
         cat.facingRight = true
-        XCTAssertEqual(cat.node.xScale, -1.0)
-        XCTAssertEqual(cat.labelNode?.xScale, -1.0, "labelNode should compensate flip")
-        XCTAssertEqual(cat.shadowLabelNode?.xScale, -1.0, "shadowLabelNode should compensate flip")
-        XCTAssertEqual(cat.tabNameNode?.xScale, -1.0, "tabNameNode should compensate flip")
-        XCTAssertEqual(cat.tabNameShadowNode?.xScale, -1.0, "tabNameShadowNode should compensate flip")
+        XCTAssertEqual(cat.node.xScale, 1.0)
+        XCTAssertEqual(cat.labelNode?.xScale, 1.0, "labelNode should compensate flip")
+        XCTAssertEqual(cat.shadowLabelNode?.xScale, 1.0, "shadowLabelNode should compensate flip")
+        XCTAssertEqual(cat.tabNameNode?.xScale, 1.0, "tabNameNode should compensate flip")
+        XCTAssertEqual(cat.tabNameShadowNode?.xScale, 1.0, "tabNameShadowNode should compensate flip")
     }
 
     // MARK: - S-04: doRandomWalkStep doesn't change direction when distance < walkMinDistance
@@ -125,27 +127,14 @@ final class FacingDirectionTests: XCTestCase {
         cat.originX = 300
         cat.switchState(to: .toolUse)
 
-        // Record direction before walk step
-        let initialFacing = cat.facingRight
-
-        // Run many walk steps — when target is very close to current position,
-        // the cat should NOT flip direction. We verify the invariant:
-        // facingRight only changes when the cat actually moves.
-        // Since doRandomWalkStep is random, we test the face(towardX:) threshold directly.
         let minDist = CatConstants.Movement.walkMinDistance
         let threshold = CatConstants.Movement.facingDirectionThreshold
 
-        // If a random target is within walkMinDistance, the old code would still flip direction.
-        // After fix: face(towardX:) is only called AFTER the distance check.
-        // We verify: for targets within walkMinDistance but above facingDirectionThreshold,
-        // the direction should NOT change (because the code returns before calling face()).
-        // This is the essence of Bug #1 fix.
+        // walkMinDistance must be > facingDirectionThreshold for the Bug #1 fix to matter:
+        // targets within walkMinDistance but above threshold would have flipped direction
+        // in the old code, but now face() is only called AFTER the distance check.
         XCTAssertGreaterThan(minDist, threshold,
             "walkMinDistance must be > facingDirectionThreshold for Bug #1 fix to matter")
-
-        // Simulate the fixed logic: target is 1.5px away (> threshold but < minDist)
-        // Old code: would change direction. New code: should NOT.
-        let _ = initialFacing  // Direction remains unchanged because face() is not called
     }
 
     // MARK: - S-07: walkToFood direction
@@ -201,16 +190,15 @@ final class FacingDirectionTests: XCTestCase {
 
     func testSwitchStatePreservesFacingDirection() {
         let cat = makeCat(facingRight: true)
-        XCTAssertEqual(cat.node.xScale, -1.0)
+        XCTAssertEqual(cat.node.xScale, 1.0)
 
         cat.switchState(to: .thinking)
-        // switchState calls applyFacingDirection() as safety net
         XCTAssertTrue(cat.facingRight, "switchState should preserve facingRight")
-        XCTAssertEqual(cat.node.xScale, -1.0, "switchState should reapply xScale")
+        XCTAssertEqual(cat.node.xScale, 1.0, "switchState should reapply xScale")
 
         cat.switchState(to: .idle)
         XCTAssertTrue(cat.facingRight, "Direction preserved across multiple state changes")
-        XCTAssertEqual(cat.node.xScale, -1.0)
+        XCTAssertEqual(cat.node.xScale, 1.0)
     }
 
     // MARK: - S-11: Static audit — no stray facingRight assignments

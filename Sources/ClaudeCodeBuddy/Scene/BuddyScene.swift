@@ -81,7 +81,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         // Random horizontal spawn position
         let spawnX = CGFloat.random(in: 48...(size.width - 48))
-        cat.node.position = CGPoint(x: spawnX, y: size.height) // start above frame
+        cat.node.position = CGPoint(x: spawnX, y: 48) // ground level
 
         addChild(cat.node)
         cats[sessionId] = cat
@@ -174,6 +174,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             groundNode?.physicsBody?.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.isDynamic = false
             groundNode?.physicsBody?.friction = 0.5
+        }
+        // Update cached scene width for cat boundary clamping
+        for cat in cats.values {
+            cat.updateSceneSize(size)
         }
     }
 

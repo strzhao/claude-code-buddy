@@ -1,0 +1,31 @@
+Sources/ClaudeCodeBuddy/Entity/EntityState.swift
+  b736096f75a028a8 1-11
+.autopilot/project/dag.yaml
+  b736096f75a028a8 30
+.autopilot/requirements/20260412-005-interaction/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Entity/EntityProtocol.swift
+  b736096f75a028a8 1-20
+.autopilot/requirements/20260412-006-entity/state.md
+  b736096f75a028a8 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "1a770470431a8da897a3571f2821ebf4a94c68eb",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 38,
+      "total_deletions": 3,
+      "accepted_lines": 34,
+      "overriden_lines": 0
+    }
+  }
+}

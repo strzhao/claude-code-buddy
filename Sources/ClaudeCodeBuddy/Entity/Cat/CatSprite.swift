@@ -94,6 +94,15 @@ class CatSprite {
     /// Cached scene width for boundary clamping during random walk.
     var sceneWidth: CGFloat = 0
 
+    /// Minimum X for cat activity (left boundary).
+    var activityMin: CGFloat = CatConstants.Movement.walkBoundaryMargin
+    /// Maximum X for cat activity (right boundary). 0 means "use sceneWidth - margin".
+    var activityMax: CGFloat = 0
+
+    var effectiveActivityMax: CGFloat {
+        activityMax > 0 ? activityMax : sceneWidth - CatConstants.Movement.walkBoundaryMargin
+    }
+
     // MARK: Init
 
     init(sessionId: String) {
@@ -188,6 +197,11 @@ class CatSprite {
 
     func updateSceneSize(_ size: CGSize) {
         sceneWidth = size.width
+    }
+
+    func updateActivityBounds(_ bounds: ClosedRange<CGFloat>) {
+        activityMin = bounds.lowerBound
+        activityMax = bounds.upperBound
     }
 
     // MARK: - Session Identity
@@ -315,8 +329,12 @@ class CatSprite {
 
     // MARK: - Enter / Exit
 
-    func enterScene(sceneSize: CGSize) {
+    func enterScene(sceneSize: CGSize, activityBounds: ClosedRange<CGFloat>? = nil) {
         sceneWidth = sceneSize.width
+        if let bounds = activityBounds {
+            activityMin = bounds.lowerBound
+            activityMax = bounds.upperBound
+        }
 
         // Place directly at ground level — no drop animation
         containerNode.position = CGPoint(x: containerNode.position.x, y: CatConstants.Visual.groundY)

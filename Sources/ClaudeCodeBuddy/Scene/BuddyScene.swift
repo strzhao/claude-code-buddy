@@ -1,4 +1,5 @@
 import SpriteKit
+import ImageIO
 import Combine
 
 // MARK: - Physics Categories
@@ -31,6 +32,14 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var hoveredCatSessionId: String?
 
+    /// Activity bounds for cat movement. Updated by AppDelegate when Dock changes.
+    var activityBounds: ClosedRange<CGFloat> = 48...752 {
+        didSet { propagateActivityBounds() }
+    }
+
+    private var leftBoundaryNode: SKSpriteNode?
+    private var rightBoundaryNode: SKSpriteNode?
+
     private let sceneEnvironment = SceneEnvironment()
     private var cancellables = Set<AnyCancellable>()
 
@@ -44,6 +53,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         backgroundColor = .clear
         setupPhysics()
         setupGround()
+        setupBoundaryDecorations()
         foodManager.scene = self
         foodManager.start()
 
@@ -93,6 +103,49 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         addChild(groundNode)
     }
 
+    private static let boundaryRenderSize = CGSize(width: 32, height: 32)
+
+    private func loadBoundaryTexture() -> SKTexture? {
+        guard let url = Bundle.module.url(forResource: "boundary-bush",
+                                          withExtension: "png",
+                                          subdirectory: "Assets/Sprites"),
+              let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+            return nil
+        }
+        let tex = SKTexture(cgImage: cgImage)
+        tex.filteringMode = .nearest
+        return tex
+    }
+
+    private func setupBoundaryDecorations() {
+        let tex = loadBoundaryTexture()
+        let renderSize = Self.boundaryRenderSize
+
+        let left = SKSpriteNode(texture: tex, size: renderSize)
+        left.color = tex == nil ? .green : .white
+        left.position = CGPoint(x: activityBounds.lowerBound - renderSize.width / 2 - 2,
+                                y: renderSize.height / 2)
+        left.zPosition = -1
+        addChild(left)
+        leftBoundaryNode = left
+
+        let right = SKSpriteNode(texture: tex, size: renderSize)
+        right.color = tex == nil ? .green : .white
+        right.xScale = -1  // Mirror horizontally
+        right.position = CGPoint(x: activityBounds.upperBound + renderSize.width / 2 + 2,
+                                 y: renderSize.height / 2)
+        right.zPosition = -1
+        addChild(right)
+        rightBoundaryNode = right
+    }
+
+    private func updateBoundaryPositions() {
+        let renderSize = Self.boundaryRenderSize
+        leftBoundaryNode?.position.x = activityBounds.lowerBound - renderSize.width / 2 - 2
+        rightBoundaryNode?.position.x = activityBounds.upperBound + renderSize.width / 2 + 2
+    }
+
     // MARK: - Cat Management
 
     func addCat(info: SessionInfo) {
@@ -107,8 +160,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let cat = CatSprite(sessionId: sessionId)
         cat.configure(color: info.color, labelText: info.label)
 
-        // Random horizontal spawn position
-        let spawnX = CGFloat.random(in: CatConstants.Visual.spawnMargin...(size.width - CatConstants.Visual.spawnMargin))
+        // Random horizontal spawn position within activity bounds
+        let spawnX = CGFloat.random(in: activityBounds)
         cat.containerNode.position = CGPoint(x: spawnX, y: CatConstants.Visual.groundY) // ground level
 
         addChild(cat.containerNode)
@@ -122,7 +175,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 .filter { $0.sessionId != cat.sessionId }
                 .map { ($0, $0.containerNode.position.x) }
         }
-        cat.enterScene(sceneSize: size)
+        cat.enterScene(sceneSize: size, activityBounds: activityBounds)
     }
 
     func updateCatLabel(sessionId: String, label: String) {
@@ -176,6 +229,14 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     }
 
     // MARK: - Private Helpers
+
+    private func propagateActivityBounds() {
+        for cat in cats.values {
+            cat.updateActivityBounds(activityBounds)
+        }
+        foodManager.activityBounds = activityBounds
+        updateBoundaryPositions()
+    }
 
     private func evictIdleCat() {
         // Find first idle cat and evict it

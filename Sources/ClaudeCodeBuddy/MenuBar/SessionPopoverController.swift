@@ -4,7 +4,7 @@ class SessionPopoverController: NSViewController {
 
     // Layout constants for dynamic popover height
     private static let popoverWidth: CGFloat = 320
-    private static let rowHeight: CGFloat = 56
+    private static let rowHeight: CGFloat = 76
     private static let separatorGap: CGFloat = 3      // stackView.spacing + NSBox separator + spacing
     private static let chromeHeight: CGFloat = 93      // header + footer with safety margin
     private static let emptyStateHeight: CGFloat = 130

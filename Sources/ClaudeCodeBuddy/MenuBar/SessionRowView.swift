@@ -7,10 +7,10 @@ class SessionRowView: NSView {
     private let hoverBackground = NSView()
 
     init(session: SessionInfo) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 56))
+        super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 76))
 
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 56).isActive = true
+        heightAnchor.constraint(equalToConstant: 76).isActive = true
         wantsLayer = true
 
         // Hover background (rounded, inset)
@@ -76,6 +76,15 @@ class SessionRowView: NSView {
         cwd.translatesAutoresizingMaskIntoConstraints = false
         addSubview(cwd)
 
+        // Stats line (third line)
+        let statsText = Self.buildStatsText(session: session)
+        let stats = NSTextField(labelWithString: statsText)
+        stats.font = .systemFont(ofSize: 9)
+        stats.textColor = .quaternaryLabelColor
+        stats.lineBreakMode = .byTruncatingTail
+        stats.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stats)
+
         NSLayoutConstraint.activate([
             // Hover background
             hoverBackground.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
@@ -102,6 +111,11 @@ class SessionRowView: NSView {
             cwd.leadingAnchor.constraint(equalTo: label.leadingAnchor),
             cwd.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             cwd.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 3),
+
+            // Stats (third line)
+            stats.leadingAnchor.constraint(equalTo: label.leadingAnchor),
+            stats.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            stats.topAnchor.constraint(equalTo: cwd.bottomAnchor, constant: 2),
         ])
 
         // Click gesture
@@ -110,6 +124,50 @@ class SessionRowView: NSView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    private static func buildStatsText(session: SessionInfo) -> String {
+        var parts: [String] = []
+
+        // Model (simplify name)
+        if let model = session.model {
+            let short = model
+                .replacingOccurrences(of: "claude-", with: "")
+                .replacingOccurrences(of: "-4-6", with: "-4")
+                .replacingOccurrences(of: "-4-5", with: "-4.5")
+            parts.append(short)
+        }
+
+        // Duration
+        if let started = session.startedAt {
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed < 3600 {
+                parts.append("\(Int(elapsed / 60))m")
+            } else if elapsed < 86400 {
+                parts.append("\(Int(elapsed / 3600))h")
+            } else {
+                let days = Int(elapsed / 86400)
+                let hours = Int(elapsed.truncatingRemainder(dividingBy: 86400) / 3600)
+                parts.append("\(days)d \(hours)h")
+            }
+        }
+
+        // Tokens (in millions)
+        if session.totalTokens > 0 {
+            let millions = Double(session.totalTokens) / 1_000_000.0
+            if millions >= 1.0 {
+                parts.append(String(format: "%.1fM", millions))
+            } else {
+                parts.append(String(format: "%.1fM", millions))
+            }
+        }
+
+        // Tool calls
+        if session.toolCallCount > 0 {
+            parts.append("\(session.toolCallCount) tools")
+        }
+
+        return parts.joined(separator: " · ")
+    }
 
     @objc private func handleClick() {
         onClick?()

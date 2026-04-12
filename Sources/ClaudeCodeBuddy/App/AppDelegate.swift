@@ -60,8 +60,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             tracker.onHover = { [weak self] sessionId in
                 if let sessionId = sessionId {
                     self?.scene?.showTooltip(for: sessionId)
+                    self?.scene?.setHovered(sessionId: sessionId, hovered: true)
                 } else {
                     self?.scene?.hideTooltip()
+                    self?.scene?.clearHover()
                 }
             }
             tracker.onClick = { [weak self] sessionId in

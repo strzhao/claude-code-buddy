@@ -26,7 +26,10 @@ class CatSprite {
     let sessionId: String
     private(set) var currentState: CatState = .idle
 
-    /// The underlying SpriteKit node added to the scene.
+    /// Container node added to the scene; holds position, physics, and movement.
+    let containerNode = SKNode()
+
+    /// The underlying SpriteKit sprite node (child of containerNode at origin).
     let node: SKSpriteNode
 
     /// Animation texture arrays keyed by animation name string.
@@ -67,7 +70,10 @@ class CatSprite {
 
         // Start with a placeholder 48x48 colored square if textures are missing
         node = SKSpriteNode(color: .orange, size: CGSize(width: 48, height: 48))
-        node.name = "cat_\(sessionId)"
+        node.name = "catSprite_\(sessionId)"
+
+        containerNode.name = "cat_\(sessionId)"
+        containerNode.addChild(node)
 
         setupPhysicsBody()
         loadTextures()
@@ -84,7 +90,26 @@ class CatSprite {
         body.restitution = 0.0
         body.friction    = 0.8
         body.linearDamping = 0.5
-        node.physicsBody = body
+        containerNode.physicsBody = body
+    }
+
+    // MARK: - Hover Scale
+
+    private static let hoverScale: CGFloat = 1.25
+    private static let hoverDuration: TimeInterval = 0.15
+
+    func applyHoverScale() {
+        containerNode.removeAction(forKey: "hoverScale")
+        let scale = SKAction.scale(to: CatSprite.hoverScale, duration: CatSprite.hoverDuration)
+        scale.timingMode = .easeOut
+        containerNode.run(scale, withKey: "hoverScale")
+    }
+
+    func removeHoverScale() {
+        containerNode.removeAction(forKey: "hoverScale")
+        let scale = SKAction.scale(to: 1.0, duration: CatSprite.hoverDuration)
+        scale.timingMode = .easeOut
+        containerNode.run(scale, withKey: "hoverScale")
     }
 
     // MARK: - Facing Direction
@@ -243,6 +268,8 @@ class CatSprite {
         currentState = newState
 
         node.removeAllActions()
+        containerNode.removeAction(forKey: "randomWalk")
+        containerNode.removeAction(forKey: "foodWalk")
         removeAlertOverlay()
         hideLabel()
         // Reset transform but preserve facing direction
@@ -331,7 +358,7 @@ class CatSprite {
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             }
-            originX = node.position.x
+            originX = containerNode.position.x
             startRandomWalk()
             startBreathing()
 
@@ -412,7 +439,7 @@ class CatSprite {
             : rawTarget
 
         // Update facing direction based on movement
-        let delta = target - node.position.x
+        let delta = target - containerNode.position.x
         if delta < -0.5 {
             facingRight = false
         } else if delta > 0.5 {
@@ -426,7 +453,7 @@ class CatSprite {
         if distance < 2.0 {
             let pause = SKAction.wait(forDuration: Double.random(in: 1.0...2.5))
             let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-            node.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
             return
         }
 
@@ -472,10 +499,10 @@ class CatSprite {
 
         if pauseDuration > 0 {
             let pause = SKAction.wait(forDuration: pauseDuration)
-            node.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
         } else {
             // No pause — walk continuously to next target
-            node.run(SKAction.sequence([move, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence([move, next]), withKey: "randomWalk")
         }
     }
 
@@ -632,19 +659,16 @@ class CatSprite {
         currentTargetFood = food
 
         let targetX = food.node.position.x
-        let delta = targetX - node.position.x
+        let delta = targetX - containerNode.position.x
         let distance = abs(delta)
 
-        // Flip sprite to face movement direction
+        // Update facing direction via unified path
         if delta < -0.5 {
-            node.xScale = 1.0
-            labelNode?.xScale = 1.0
-            shadowLabelNode?.xScale = 1.0
+            facingRight = false
         } else if delta > 0.5 {
-            node.xScale = -1.0
-            labelNode?.xScale = -1.0
-            shadowLabelNode?.xScale = -1.0
+            facingRight = true
         }
+        applyFacingDirection()
 
         // Stop idle animations
         node.removeAllActions()
@@ -666,13 +690,14 @@ class CatSprite {
             guard let self = self, self.currentTargetFood === food else { return }
             onArrival(self, food)
         }
-        node.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
+        containerNode.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
         currentState = .eating
         currentTargetFood = food
         node.removeAllActions()
+        containerNode.removeAction(forKey: "foodWalk")
 
         if let frames = textures(for: "paw"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
@@ -701,7 +726,8 @@ class CatSprite {
         sceneWidth = sceneSize.width
 
         // Place directly at ground level — no drop animation
-        node.position = CGPoint(x: node.position.x, y: 48)
+        containerNode.position = CGPoint(x: containerNode.position.x, y: 48)
+        containerNode.setScale(1.0)
         node.yScale = 1.0
         node.zRotation = 0
         removeAlertOverlay()
@@ -716,13 +742,15 @@ class CatSprite {
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
         node.removeAllActions()
+        containerNode.removeAllActions()
+        containerNode.setScale(1.0)
 
         // Walk to the nearest edge
-        let edgeX: CGFloat = node.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
-        let duration = Double(abs(edgeX - node.position.x)) / 120.0
+        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
+        let duration = Double(abs(edgeX - containerNode.position.x)) / 120.0
 
         // Face the exit direction
-        if edgeX < node.position.x {
+        if edgeX < containerNode.position.x {
             facingRight = false
         } else {
             facingRight = true
@@ -742,7 +770,7 @@ class CatSprite {
         let walk = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
         walk.timingMode = .easeIn
 
-        node.run(walk) {
+        containerNode.run(walk) {
             completion()
         }
     }

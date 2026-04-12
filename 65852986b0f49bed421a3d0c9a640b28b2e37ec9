@@ -1,0 +1,27 @@
+tests/acceptance/test-popover-cell-layout.sh
+  5458d49900c5aea8 5-6,42-45,47,50-53,55
+tests/acceptance/test-dynamic-popover-height.sh
+  5458d49900c5aea8 1-95
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  5458d49900c5aea8 5-18,31,119,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "65852986b0f49bed421a3d0c9a640b28b2e37ec9",
+  "prompts": {
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 125,
+      "total_deletions": 14,
+      "accepted_lines": 124,
+      "overriden_lines": 0
+    }
+  }
+}

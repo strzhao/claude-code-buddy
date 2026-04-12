@@ -255,11 +255,26 @@ class CatSprite {
         shadowLabelNode?.isHidden = false
     }
 
+    /// Debug cats (session ID starts with "test-") always show their name label.
+    var isDebugCat: Bool { sessionId.hasPrefix("debug-") }
+
+    /// True when running in a real SpriteKit scene with display link (not in XCTest).
+    private var hasDisplayLink: Bool { containerNode.scene?.view != nil }
+
+    /// Closure to query other cats' positions for jump-over detection.
+    var nearbyObstacles: (() -> [(cat: CatSprite, x: CGFloat)])?
+
     func hideLabel() {
         labelNode?.isHidden = true
         shadowLabelNode?.isHidden = true
-        tabNameNode?.isHidden = true
-        tabNameShadowNode?.isHidden = true
+        if isDebugCat {
+            // Debug cats keep tab name visible for identification
+            tabNameNode?.isHidden = false
+            tabNameShadowNode?.isHidden = false
+        } else {
+            tabNameNode?.isHidden = true
+            tabNameShadowNode?.isHidden = true
+        }
     }
 
     // MARK: - State Machine
@@ -482,6 +497,9 @@ class CatSprite {
         let move = SKAction.moveTo(x: target, duration: duration)
         move.timingMode = .easeInEaseOut
 
+        // --- Check for obstacles in the walk path and build jump actions ---
+        let jumpActions = buildJumpActions(from: containerNode.position.x, to: target, goingRight: delta > 0)
+
         // --- Pause phase: stop walk, show standing pose ---
         let stopWalkAndPause = SKAction.run { [weak self] in
             guard let self = self, self.currentState == .toolUse else { return }
@@ -507,13 +525,132 @@ class CatSprite {
 
         let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
 
+        // Build the walk sequence, inserting jumps if there are obstacles
+        var walkSequence: [SKAction] = []
+        if jumpActions.isEmpty {
+            // No obstacles — simple walk
+            walkSequence.append(move)
+        } else {
+            // Has obstacles — replace simple move with jump-walk sequence
+            walkSequence.append(contentsOf: jumpActions)
+            // Walk remaining distance to target after last jump
+            let remainDist = abs(target - containerNode.position.x)
+            if remainDist > 5 {
+                let remainWalk = SKAction.moveTo(x: target, duration: max(0.2, Double(remainDist) / speed))
+                remainWalk.timingMode = .easeOut
+                walkSequence.append(remainWalk)
+            }
+        }
+
         if pauseDuration > 0 {
             let pause = SKAction.wait(forDuration: pauseDuration)
-            containerNode.run(SKAction.sequence([move, stopWalkAndPause, pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence(walkSequence + [stopWalkAndPause, pause, next]), withKey: "randomWalk")
         } else {
-            // No pause — walk continuously to next target
-            containerNode.run(SKAction.sequence([move, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence(walkSequence + [next]), withKey: "randomWalk")
         }
+    }
+
+    // MARK: - Jump Over Obstacles (general purpose)
+
+    /// Builds SKAction sequence to jump over obstacles between `fromX` and `toX`.
+    /// Returns empty array if no obstacles in the path.
+    private func buildJumpActions(
+        from fromX: CGFloat,
+        to toX: CGFloat,
+        goingRight: Bool,
+        onJumpOver: ((CatSprite) -> Void)? = nil
+    ) -> [SKAction] {
+        guard let obstacles = nearbyObstacles?() else { return [] }
+
+        let onPath: [(cat: CatSprite, x: CGFloat)]
+        if goingRight {
+            onPath = obstacles.filter { $0.x > fromX - 24 && $0.x < toX + 24 }
+                              .sorted { $0.x < $1.x }
+        } else {
+            onPath = obstacles.filter { $0.x < fromX + 24 && $0.x > toX - 24 }
+                              .sorted { $0.x > $1.x }
+        }
+
+        guard !onPath.isEmpty else { return [] }
+
+        let groundY = containerNode.position.y  // actual resting Y
+        var actions: [SKAction] = []
+        var lastX = fromX
+
+        for obstacle in onPath {
+            let obstX = obstacle.x
+            let approachX = goingRight ? obstX - 20 : obstX + 20
+            let landX = goingRight ? obstX + 20 : obstX - 20
+            let capturedObstacleCat = obstacle.cat
+
+            // Walk to approach point
+            let approachDist = abs(approachX - lastX)
+            if approachDist > 1 {
+                let approachWalk = SKAction.moveTo(x: approachX, duration: max(Double(approachDist) / 120.0, 0.15))
+                approachWalk.timingMode = .easeOut
+                actions.append(approachWalk)
+            }
+
+            // Jump animation (visual on node)
+            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
+                let jumpAnimDuration = Double(jumpFrames.count) * 0.10
+                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.10)
+                let playJump = SKAction.run { [weak self] in
+                    self?.node.removeAction(forKey: "animation")
+                    self?.node.removeAction(forKey: "walkAnimation")
+                    self?.node.run(jumpAnim)
+                }
+                actions.append(playJump)
+                actions.append(SKAction.wait(forDuration: jumpAnimDuration))
+            }
+
+            // Bezier arc
+            let capturedStartX = approachX
+            let capturedObstX = obstX
+            var jumpOverFired = false
+
+            let bezierAction = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
+                guard let self = self else { return }
+                let t = CGFloat(elapsed) / 0.30
+                let p0x = capturedStartX, p0y = groundY
+                let p1x = capturedObstX,  p1y = groundY + 50
+                let p2x = landX,          p2y = groundY
+                let oneMinusT = 1 - t
+                let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
+                let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
+                self.containerNode.position = CGPoint(x: bx, y: by)
+
+                if !jumpOverFired && elapsed >= 0.13 {
+                    jumpOverFired = true
+                    onJumpOver?(capturedObstacleCat)
+                    capturedObstacleCat.playFrightReaction(awayFromX: self.containerNode.position.x)
+                }
+            }
+            actions.append(bezierAction)
+
+            // Ensure cat lands at ground level (bezier may not hit groundY exactly)
+            let land = SKAction.run { [weak self] in
+                self?.containerNode.position.y = groundY
+            }
+            actions.append(land)
+
+            // Resume walk animation after landing
+            let resumeWalk = SKAction.run { [weak self] in
+                guard let self = self else { return }
+                let walkAnim = self.currentState == .toolUse ? "walk-b" : "walk-a"
+                if let frames = self.textures(for: walkAnim), !frames.isEmpty {
+                    let animate = SKAction.animate(with: frames, timePerFrame: 0.10)
+                    self.node.run(SKAction.repeatForever(animate), withKey: self.currentState == .toolUse ? "animation" : "walkAnimation")
+                    self.node.color = self.sessionColor?.nsColor ?? .white
+                    self.node.colorBlendFactor = self.sessionTintFactor
+                }
+            }
+            actions.append(resumeWalk)
+
+            lastX = landX
+        }
+
+        return actions
     }
 
     // MARK: - Alert Overlay
@@ -748,6 +885,12 @@ class CatSprite {
         currentState = .idle
         applyFacingDirection()
         applyState(.idle)
+
+        // Debug cats: ensure name label is visible immediately
+        if isDebugCat {
+            tabNameNode?.isHidden = false
+            tabNameShadowNode?.isHidden = false
+        }
     }
 
     // MARK: - Fright Reaction
@@ -800,20 +943,32 @@ class CatSprite {
             }
         }
 
-        node.run(SKAction.sequence([scaredAnim, slide, rebound, recover]), withKey: "frightReaction")
+        node.run(scaredAnim, withKey: "frightReaction")
+
+        // Movement runs on containerNode (holds world position)
+        let moveSequence = SKAction.sequence([
+            SKAction.wait(forDuration: Double(scaredFrames.count) * 0.12),
+            slide,
+            rebound,
+            recover
+        ])
+        containerNode.run(moveSequence, withKey: "frightMove")
 
         // GCD fallback for tests without a display link
         let scaredDuration = Double(scaredFrames.count) * 0.12
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
-            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
-            self.node.position.x += slideDelta
+            guard let self = self, !self.hasDisplayLink,
+                  self.containerNode.physicsBody?.isDynamic == false else { return }
+            self.containerNode.position.x += slideDelta
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15) { [weak self] in
-            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
-            self.node.position.x += reboundDelta
+            guard let self = self, !self.hasDisplayLink,
+                  self.containerNode.physicsBody?.isDynamic == false else { return }
+            self.containerNode.position.x += reboundDelta
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15 + 0.12 + 0.01) { [weak self] in
-            guard let self = self, self.containerNode.physicsBody?.isDynamic == false else { return }
+            guard let self = self, !self.hasDisplayLink,
+                  self.containerNode.physicsBody?.isDynamic == false else { return }
             self.containerNode.physicsBody?.isDynamic = true
             if self.currentState == .eating {
                 self.switchState(to: .idle)
@@ -828,16 +983,16 @@ class CatSprite {
         let jumperX: CGFloat
         switch direction {
         case .left:
-            jumperX = node.position.x - 1
+            jumperX = containerNode.position.x - 1
         case .right:
-            jumperX = node.position.x + 1
+            jumperX = containerNode.position.x + 1
         }
         playFrightReaction(awayFromX: jumperX)
     }
 
     /// Convenience overload: pass the jumper CatSprite directly.
     func playFrightReaction(frightenedBy jumper: CatSprite) {
-        playFrightReaction(awayFromX: jumper.node.position.x)
+        playFrightReaction(awayFromX: jumper.containerNode.position.x)
     }
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
@@ -884,7 +1039,8 @@ class CatSprite {
         // GCD fallback for tests without a display link
         let walkDuration = max(duration, 0.5)
         DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-            self?.containerNode.position.x = edgeX
+            guard let self = self, !self.hasDisplayLink else { return }
+            self.containerNode.position.x = edgeX
             safeCompletion()
         }
     }
@@ -902,6 +1058,7 @@ class CatSprite {
         containerNode.physicsBody?.isDynamic = false
 
         let myX = containerNode.position.x
+        let groundY = containerNode.position.y  // actual resting Y (gravity-settled)
         let goingRight = myX >= sceneWidth / 2
         let edgeX: CGFloat = goingRight ? sceneWidth + 48 : -48
 
@@ -927,13 +1084,13 @@ class CatSprite {
             }
         }
 
-        // Filter obstacles that are actually on the path between myX and edgeX
+        // Filter obstacles on the path — include overlapping cats (within 24px behind)
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
-            onPath = obstacles.filter { $0.x > myX && $0.x < edgeX }
+            onPath = obstacles.filter { $0.x > myX - 24 && $0.x < edgeX }
                               .sorted { $0.x < $1.x }
         } else {
-            onPath = obstacles.filter { $0.x < myX && $0.x > edgeX }
+            onPath = obstacles.filter { $0.x < myX + 24 && $0.x > edgeX }
                               .sorted { $0.x > $1.x }
         }
 
@@ -947,7 +1104,8 @@ class CatSprite {
             // GCD fallback: fire completion if SKAction doesn't run (no display link)
             let walkDuration = max(duration, 0.5)
             DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-                self?.containerNode.position.x = edgeX
+                guard let self = self, !self.hasDisplayLink else { return }
+                self.containerNode.position.x = edgeX
                 safeCompletion()
             }
             return
@@ -995,28 +1153,43 @@ class CatSprite {
             // Bezier arc over the obstacle
             let capturedStartX = approachX
             let capturedObstX = obstX
+            let capturedObstacleCat = obstacle.cat
+            var jumpOverFired = false
 
             let bezierAction = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
                 guard let self = self else { return }
                 let t = CGFloat(elapsed) / 0.30
-                let p0x = capturedStartX, p0y: CGFloat = 48
-                let p1x = capturedObstX,  p1y: CGFloat = 98  // control point 50px up
-                let p2x = landX,          p2y: CGFloat = 48
+                let p0x = capturedStartX, p0y = groundY
+                let p1x = capturedObstX,  p1y = groundY + 50  // control point 50px up
+                let p2x = landX,          p2y = groundY
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
                 let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
                 self.containerNode.position = CGPoint(x: bx, y: by)
+
+                // Fire onJumpOver at apex (t ≈ 0.5)
+                if !jumpOverFired && elapsed >= 0.13 {
+                    jumpOverFired = true
+                    onJumpOver(capturedObstacleCat)
+                }
             }
             actions.append(bezierAction)
 
-            // GCD fallback: fire onJumpOver at midpoint of arc
-            let capturedObstacleCat = obstacle.cat
-            let capturedGcdDelay = gcdDelay + 0.15  // midpoint of 0.30s arc
+            // Ensure cat lands at ground level (bezier may not hit y=48 exactly)
+            let landAction = SKAction.run { [weak self] in
+                self?.containerNode.position.y = groundY
+            }
+            actions.append(landAction)
+
+            // GCD fallback: only for test environments (no display link)
+            let capturedGcdDelay = gcdDelay + 0.15
             DispatchQueue.main.asyncAfter(deadline: .now() + capturedGcdDelay) { [weak self] in
-                guard self != nil else { return }
-                // Update position for test visibility
-                self?.containerNode.position = CGPoint(x: capturedObstX, y: 73)  // approx arc peak
-                onJumpOver(capturedObstacleCat)
+                guard let self = self, !self.hasDisplayLink else { return }
+                self.containerNode.position = CGPoint(x: capturedObstX, y: groundY + 25)
+                if !jumpOverFired {
+                    jumpOverFired = true
+                    onJumpOver(capturedObstacleCat)
+                }
             }
 
             gcdDelay += 0.30
@@ -1033,10 +1206,11 @@ class CatSprite {
             }
             actions.append(resumeWalk)
 
-            // GCD fallback: land position
+            // GCD fallback: land position (test only)
             let capturedLandDelay = gcdDelay
             DispatchQueue.main.asyncAfter(deadline: .now() + capturedLandDelay) { [weak self] in
-                self?.containerNode.position = CGPoint(x: landX, y: 48)
+                guard let self = self, !self.hasDisplayLink else { return }
+                self.containerNode.position = CGPoint(x: landX, y: groundY)
             }
 
             lastX = landX
@@ -1058,9 +1232,10 @@ class CatSprite {
         actions.append(SKAction.run { safeCompletion() })
         containerNode.run(SKAction.sequence(actions), withKey: "exitSequence")
 
-        // GCD fallback: completion
+        // GCD fallback: completion (test only)
         DispatchQueue.main.asyncAfter(deadline: .now() + gcdDelay + 0.1) { [weak self] in
-            self?.containerNode.position.x = edgeX
+            guard let self = self, !self.hasDisplayLink else { return }
+            self.containerNode.position.x = edgeX
             safeCompletion()
         }
     }

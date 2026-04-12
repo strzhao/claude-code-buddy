@@ -90,6 +90,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.onFoodAbandoned = { [weak self] sessionId in
             self?.foodManager.releaseFoodForCat(sessionId: sessionId)
         }
+        cat.nearbyObstacles = { [weak self, weak cat] in
+            guard let self = self, let cat = cat else { return [] }
+            return self.cats.values
+                .filter { $0.sessionId != cat.sessionId }
+                .map { ($0, $0.containerNode.position.x) }
+        }
         cat.enterScene(sceneSize: size)
     }
 

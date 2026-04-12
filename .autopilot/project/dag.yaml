@@ -21,7 +21,7 @@ tasks:
     title: "提取 MovementComponent + JumpComponent（含 GCD fallback 封装）"
     depends_on: ["003-animation"]
     complexity: L
-    status: pending
+    status: done
 
   - id: "005-interaction"
     title: "提取 InteractionComponent + LabelComponent"

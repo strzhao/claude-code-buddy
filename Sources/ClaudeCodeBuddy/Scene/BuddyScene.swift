@@ -1,4 +1,5 @@
 import SpriteKit
+import Combine
 
 // MARK: - Physics Categories
 
@@ -30,6 +31,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var hoveredCatSessionId: String?
 
+    private let sceneEnvironment = SceneEnvironment()
+    private var cancellables = Set<AnyCancellable>()
+
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
     }
@@ -42,6 +46,28 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         setupGround()
         foodManager.scene = self
         foodManager.start()
+
+        sceneEnvironment.start()
+
+        EventBus.shared.weatherChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] weather in
+                guard let self = self else { return }
+                for cat in self.cats.values {
+                    cat.onWeatherChanged(weather)
+                }
+            }
+            .store(in: &cancellables)
+
+        EventBus.shared.timeOfDayChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] time in
+                guard let self = self else { return }
+                for cat in self.cats.values {
+                    cat.onTimeOfDayChanged(time)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Setup

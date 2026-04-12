@@ -3,7 +3,7 @@ tasks:
     title: "提取 CatConstants（所有魔数命名常量化）"
     depends_on: []
     complexity: S
-    status: pending
+    status: done
 
   - id: "002-gkstate"
     title: "GKStateMachine + 5 个 GKState 子类"

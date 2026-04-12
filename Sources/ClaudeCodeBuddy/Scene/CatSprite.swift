@@ -8,6 +8,7 @@ enum CatState: String, CaseIterable {
     case thinking          = "thinking"
     case toolUse           = "tool_use"
     case permissionRequest = "waiting"
+    case eating            = "eating"
 }
 
 // MARK: - IdleSubState
@@ -47,6 +48,10 @@ class CatSprite {
     private var originX: CGFloat = 0
     /// Tracks previous state for transition animations.
     private var previousState: CatState?
+    /// The food this cat is currently walking toward or eating.
+    var currentTargetFood: FoodSprite?
+    /// Callback to release food when cat is interrupted.
+    var onFoodAbandoned: ((String) -> Void)?  // passes sessionId
 
     // MARK: Init
 
@@ -170,6 +175,11 @@ class CatSprite {
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
         guard newState != currentState else { return }
+        // Release any claimed food when switching to a different state
+        if currentTargetFood != nil {
+            currentTargetFood = nil
+            onFoodAbandoned?(sessionId)
+        }
         let oldState = currentState
         previousState = oldState
         currentState = newState
@@ -220,6 +230,11 @@ class CatSprite {
 
         case (.toolUse, .idle), (.thinking, .idle):
             // Settle down: clean once (grooming = wind-down)
+            guard let cleanFrames = textures(for: "clean") else { return nil }
+            let clean = SKAction.animate(with: cleanFrames, timePerFrame: 0.15)
+            return clean
+
+        case (.eating, .idle):
             guard let cleanFrames = textures(for: "clean") else { return nil }
             let clean = SKAction.animate(with: cleanFrames, timePerFrame: 0.15)
             return clean
@@ -304,6 +319,9 @@ class CatSprite {
 
             // "!" badge positioned to the right of the label text
             addAlertOverlay(afterLabel: displayText)
+
+        case .eating:
+            break
         }
     }
 
@@ -550,6 +568,76 @@ class CatSprite {
             self.runIdleSubState()
         }
         node.run(SKAction.sequence([waitAction, pickAndRun]), withKey: "idleTransition")
+    }
+
+    // MARK: - Food Interaction
+
+    func walkToFood(_ food: FoodSprite, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
+        guard currentState == .idle else { return }
+        currentTargetFood = food
+
+        let targetX = food.node.position.x
+        let delta = targetX - node.position.x
+        let distance = abs(delta)
+
+        // Flip sprite to face movement direction
+        if delta < -0.5 {
+            node.xScale = 1.0
+            labelNode?.xScale = 1.0
+            shadowLabelNode?.xScale = 1.0
+        } else if delta > 0.5 {
+            node.xScale = -1.0
+            labelNode?.xScale = -1.0
+            shadowLabelNode?.xScale = -1.0
+        }
+
+        // Stop idle animations
+        node.removeAllActions()
+
+        // Walk animation (reuse walk-b, same as toolUse)
+        if let frames = textures(for: "walk-b"), !frames.isEmpty {
+            let animate = SKAction.animate(with: frames, timePerFrame: 0.10)
+            node.run(SKAction.repeatForever(animate), withKey: "animation")
+            node.color = sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = sessionTintFactor
+        }
+
+        let speed: CGFloat = 55
+        let duration = max(0.3, Double(distance) / Double(speed))
+        let move = SKAction.moveTo(x: targetX, duration: duration)
+        move.timingMode = .easeInEaseOut
+
+        let arrive = SKAction.run { [weak self] in
+            guard let self = self, self.currentTargetFood === food else { return }
+            onArrival(self, food)
+        }
+        node.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
+    }
+
+    func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
+        currentState = .eating
+        currentTargetFood = food
+        node.removeAllActions()
+
+        if let frames = textures(for: "paw"), !frames.isEmpty {
+            let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
+            let eatCycle = SKAction.repeat(animate, count: 2)
+            let done = SKAction.run { [weak self] in
+                guard let self = self else { return }
+                self.currentTargetFood = nil
+                // Don't set currentState directly — let switchState handle the transition
+                self.switchState(to: .idle)
+                completion()
+            }
+            node.run(SKAction.sequence([eatCycle, done]), withKey: "animation")
+            node.texture = frames[0]
+            node.color = sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = sessionTintFactor
+        } else {
+            currentTargetFood = nil
+            switchState(to: .idle)
+            completion()
+        }
     }
 
     // MARK: - Enter / Exit

@@ -1,4 +1,4 @@
-.PHONY: build run test lint clean release bundle
+.PHONY: build run test test-acceptance test-all lint clean release bundle
 
 build:
 	swift build
@@ -8,6 +8,11 @@ run: build
 
 test:
 	swift test
+
+test-acceptance: build
+	bash tests/acceptance/run-all.sh
+
+test-all: test test-acceptance
 
 lint:
 	swiftlint lint --strict

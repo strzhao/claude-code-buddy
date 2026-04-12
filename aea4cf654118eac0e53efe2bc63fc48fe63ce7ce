@@ -1,0 +1,49 @@
+.autopilot/project/design.md
+  b736096f75a028a8 1,3,5,7,9,12-38,41,45-77,79,81-87
+.autopilot/requirements/20260412-001-constants/state.md
+  b736096f75a028a8 3,162-183,186-202,208-224,228-229
+.autopilot/project/tasks/008-environment.md
+  b736096f75a028a8 1-220
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  b736096f75a028a8 19,50,64,85-86,217
+.autopilot/project/tasks/004-movement.md
+  b736096f75a028a8 1-129
+.autopilot/project/tasks/001-constants.md
+  b736096f75a028a8 1-76
+.autopilot/project/dag.yaml
+  b736096f75a028a8 2-3,6,8-12,14-16,18,20-24,26-28,30,32-34,36,38-40,42,44-46,48
+.autopilot/project/tasks/006-entity.md
+  b736096f75a028a8 1-149
+.autopilot/project/tasks/005-interaction.md
+  b736096f75a028a8 1-107
+.autopilot/project/tasks/002-gkstate.md
+  b736096f75a028a8 1-153
+.autopilot/project/tasks/007-eventbus.md
+  b736096f75a028a8 1-178
+Sources/ClaudeCodeBuddy/Scene/CatConstants.swift
+  b736096f75a028a8 1-237
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  b736096f75a028a8 50,54,78,91,96-98,104-105,184-187,190,197-198,200,203,213-216,219,226-227,229,232,249,326,332,338,343,363,371,373,393,399-400,403,405,411-413,422,439,441,459-460,468,470,478-479,486-487,491,508,510,520-521,538-539,567,570,582-583,589,596-597,612,614,616,623,642,660,663-664,666-667,669-670,674-675,679,683-684,708-710,724-725,742,746,764,784,813,815,825,831-832,850,876,909,912,917,929-930,932,950,958-959,964,969,1004-1005,1017,1032,1040,1063,1079,1090,1093,1099,1101,1105,1123-1124,1130,1142-1143,1159,1161,1163,1171,1185,1188,1195,1201,1223
+.autopilot/project/tasks/003-animation.md
+  b736096f75a028a8 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "aea4cf654118eac0e53efe2bc63fc48fe63ce7ce",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1664,
+      "total_deletions": 271,
+      "accepted_lines": 1661,
+      "overriden_lines": 0
+    }
+  }
+}

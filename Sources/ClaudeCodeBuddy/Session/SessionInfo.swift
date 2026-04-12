@@ -7,7 +7,7 @@ struct SessionInfo {
     var cwd: String?
     var pid: Int?
     var terminalId: String?
-    var state: CatState
+    var state: EntityState
     var lastActivity: Date
     var toolDescription: String?
 }

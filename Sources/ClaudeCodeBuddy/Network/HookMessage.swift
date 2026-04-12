@@ -40,8 +40,8 @@ struct HookMessage: Codable {
 
     // MARK: - State Mapping
 
-    /// Maps this hook event to a CatState (returns nil for session_end).
-    var catState: CatState? {
+    /// Maps this hook event to an EntityState (returns nil for lifecycle-only events).
+    var entityState: EntityState? {
         switch event {
         case .sessionStart: return nil
         case .thinking:   return .thinking

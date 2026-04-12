@@ -33,7 +33,7 @@ tasks:
     title: "EntityProtocol + EntityState + BuddyScene/FoodManager 重构 + 测试迁移"
     depends_on: ["005-interaction"]
     complexity: L
-    status: pending
+    status: done
 
   - id: "007-eventbus"
     title: "Combine EventBus + 解耦 HookMessage/SessionManager/SessionRowView"

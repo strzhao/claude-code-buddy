@@ -102,8 +102,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
         foodManager.removeCatTracking(sessionId: sessionId)
-        // Keep a strong ref to cat until exit animation completes, then remove node
-        cat.exitScene(sceneWidth: size.width) { [cat] in
+        // Collect remaining cats as obstacles for the jump animation
+        let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { ($0, $0.node.position.x) }
+        cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
+            guard cat != nil else { return }
+            jumpedCat.playFrightReaction(awayFromX: cat?.node.position.x ?? 0)
+        }) { [cat] in
             cat.node.removeFromParent()
         }
     }

@@ -11,6 +11,12 @@ enum CatState: String, CaseIterable {
     case eating            = "eating"
 }
 
+// MARK: - ExitDirection
+
+enum ExitDirection {
+    case left, right
+}
+
 // MARK: - IdleSubState
 
 private enum IdleSubState {
@@ -232,6 +238,8 @@ class CatSprite {
     // MARK: - State Machine
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
+        // Safety net: always restore physics dynamics regardless of whether state actually changes
+        node.physicsBody?.isDynamic = true
         guard newState != currentState else { return }
         // Release any claimed food when switching to a different state
         if currentTargetFood != nil {
@@ -714,6 +722,96 @@ class CatSprite {
         applyState(.idle)
     }
 
+    // MARK: - Fright Reaction
+
+    /// Primary entry: called on the cat that was jumped over, passing the jumper's x position.
+    func playFrightReaction(awayFromX jumperX: CGFloat) {
+        // Don't interrupt permission-request state (it's already alert)
+        guard currentState != .permissionRequest else { return }
+
+        node.physicsBody?.isDynamic = false
+        node.removeAllActions()
+
+        // Decide escape direction: flee away from jumper
+        let myX = node.position.x
+        let fleeRight = myX > jumperX   // flee to the same side we're on relative to jumper
+        let rawTarget = fleeRight ? myX + 30 : myX - 30
+        let clampedTarget: CGFloat
+        if sceneWidth > 0 {
+            clampedTarget = max(24, min(sceneWidth - 24, rawTarget))
+        } else {
+            clampedTarget = rawTarget
+        }
+        let slideDelta = clampedTarget - myX
+        let reboundDelta = -slideDelta * 0.5
+
+        // Face the flee direction
+        facingRight = fleeRight
+        applyFacingDirection()
+
+        guard let scaredFrames = textures(for: "scared"), !scaredFrames.isEmpty else {
+            // Fallback: just re-enable physics and resume
+            node.physicsBody?.isDynamic = true
+            return
+        }
+
+        let scaredAnim = SKAction.animate(with: scaredFrames, timePerFrame: 0.12)
+        let slide      = SKAction.moveBy(x: slideDelta, y: 0, duration: 0.15)
+        slide.timingMode = .easeOut
+        let rebound    = SKAction.moveBy(x: reboundDelta, y: 0, duration: 0.12)
+        rebound.timingMode = .easeInEaseOut
+
+        let recover = SKAction.run { [weak self] in
+            guard let self = self else { return }
+            self.node.physicsBody?.isDynamic = true
+            if self.currentState == .eating {
+                // Use switchState so food is properly released
+                self.switchState(to: .idle)
+            } else {
+                self.applyState(self.currentState)
+            }
+        }
+
+        node.run(SKAction.sequence([scaredAnim, slide, rebound, recover]), withKey: "frightReaction")
+
+        // GCD fallback for tests without a display link
+        let scaredDuration = Double(scaredFrames.count) * 0.12
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
+            self.node.position.x += slideDelta
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15) { [weak self] in
+            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
+            self.node.position.x += reboundDelta
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15 + 0.12 + 0.01) { [weak self] in
+            guard let self = self, self.node.physicsBody?.isDynamic == false else { return }
+            self.node.physicsBody?.isDynamic = true
+            if self.currentState == .eating {
+                self.switchState(to: .idle)
+            } else {
+                self.applyState(self.currentState)
+            }
+        }
+    }
+
+    /// Convenience overload: react based on exit direction enum.
+    func playFrightReaction(frightenedBy direction: ExitDirection) {
+        let jumperX: CGFloat
+        switch direction {
+        case .left:
+            jumperX = node.position.x - 1
+        case .right:
+            jumperX = node.position.x + 1
+        }
+        playFrightReaction(awayFromX: jumperX)
+    }
+
+    /// Convenience overload: pass the jumper CatSprite directly.
+    func playFrightReaction(frightenedBy jumper: CatSprite) {
+        playFrightReaction(awayFromX: jumper.node.position.x)
+    }
+
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
         node.removeAllActions()
 
@@ -739,11 +837,197 @@ class CatSprite {
             node.colorBlendFactor = sessionTintFactor
         }
 
+        var completionFired = false
+        let safeCompletion: () -> Void = {
+            guard !completionFired else { return }
+            completionFired = true
+            completion()
+        }
+
         let walk = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
         walk.timingMode = .easeIn
 
         node.run(walk) {
+            safeCompletion()
+        }
+
+        // GCD fallback for tests without a display link
+        let walkDuration = max(duration, 0.5)
+        DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
+            self?.node.position.x = edgeX
+            safeCompletion()
+        }
+    }
+
+    /// Exit variant that jumps over any cats on the path, triggering fright reactions.
+    func exitScene(
+        sceneWidth: CGFloat,
+        obstacles: [(cat: CatSprite, x: CGFloat)],
+        onJumpOver: @escaping (CatSprite) -> Void,
+        completion: @escaping () -> Void
+    ) {
+        node.removeAllActions()
+        node.physicsBody?.isDynamic = false
+
+        let myX = node.position.x
+        let goingRight = myX >= sceneWidth / 2
+        let edgeX: CGFloat = goingRight ? sceneWidth + 48 : -48
+
+        // Face exit direction
+        facingRight = goingRight
+        applyFacingDirection()
+
+        var completionFired = false
+        let safeCompletion: () -> Void = {
+            guard !completionFired else { return }
+            completionFired = true
             completion()
+        }
+
+        // Helper: start looping walk-a animation
+        func startWalkAnim() {
+            if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
+                let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+                self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
+                self.node.texture = frames[0]
+                self.node.color = self.sessionColor?.nsColor ?? .white
+                self.node.colorBlendFactor = self.sessionTintFactor
+            }
+        }
+
+        // Filter obstacles that are actually on the path between myX and edgeX
+        let onPath: [(cat: CatSprite, x: CGFloat)]
+        if goingRight {
+            onPath = obstacles.filter { $0.x > myX && $0.x < edgeX }
+                              .sorted { $0.x < $1.x }
+        } else {
+            onPath = obstacles.filter { $0.x < myX && $0.x > edgeX }
+                              .sorted { $0.x > $1.x }
+        }
+
+        guard !onPath.isEmpty else {
+            // No obstacles — original walk-to-edge behaviour
+            let duration = Double(abs(edgeX - myX)) / 120.0
+            startWalkAnim()
+            let walkAction = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
+            walkAction.timingMode = .easeIn
+            node.run(walkAction) { safeCompletion() }
+            // GCD fallback: fire completion if SKAction doesn't run (no display link)
+            let walkDuration = max(duration, 0.5)
+            DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
+                self?.node.position.x = edgeX
+                safeCompletion()
+            }
+            return
+        }
+
+        // Build action sequence: for each obstacle, walk-near → jump-over → continue
+        var actions: [SKAction] = []
+        var lastX = myX
+        var gcdDelay: Double = 0  // cumulative delay for GCD fallback scheduling
+
+        startWalkAnim()
+
+        for obstacle in onPath {
+            let obstX = obstacle.x
+            let approachX = goingRight ? obstX - 20 : obstX + 20
+            let landX = goingRight ? obstX + 20 : obstX - 20
+
+            // Walk to approach point
+            let approachDist = abs(approachX - lastX)
+            let approachDuration: Double
+            if approachDist > 1 {
+                approachDuration = max(Double(approachDist) / 120.0, 0.2)
+                let approachWalk = SKAction.moveTo(x: approachX, duration: approachDuration)
+                approachWalk.timingMode = .easeOut
+                actions.append(approachWalk)
+            } else {
+                approachDuration = 0
+            }
+            gcdDelay += approachDuration
+
+            // Jump animation frames
+            var jumpAnimDuration: Double = 0
+            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
+                jumpAnimDuration = Double(jumpFrames.count) * 0.10
+                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.10)
+                let stopWalk = SKAction.run { [weak self] in
+                    self?.node.removeAction(forKey: "walkAnimation")
+                }
+                actions.append(SKAction.sequence([stopWalk, jumpAnim]))
+            }
+            gcdDelay += jumpAnimDuration
+
+            // Bezier arc over the obstacle
+            let capturedStartX = approachX
+            let capturedObstX = obstX
+
+            let bezierAction = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
+                guard let self = self else { return }
+                let t = CGFloat(elapsed) / 0.30
+                let p0x = capturedStartX, p0y: CGFloat = 48
+                let p1x = capturedObstX,  p1y: CGFloat = 98  // control point 50px up
+                let p2x = landX,          p2y: CGFloat = 48
+                let oneMinusT = 1 - t
+                let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
+                let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
+                self.node.position = CGPoint(x: bx, y: by)
+            }
+            actions.append(bezierAction)
+
+            // GCD fallback: fire onJumpOver at midpoint of arc
+            let capturedObstacleCat = obstacle.cat
+            let capturedGcdDelay = gcdDelay + 0.15  // midpoint of 0.30s arc
+            DispatchQueue.main.asyncAfter(deadline: .now() + capturedGcdDelay) { [weak self] in
+                guard self != nil else { return }
+                // Update position for test visibility
+                self?.node.position = CGPoint(x: capturedObstX, y: 73)  // approx arc peak
+                onJumpOver(capturedObstacleCat)
+            }
+
+            gcdDelay += 0.30
+
+            // Resume walk after landing
+            let resumeWalk = SKAction.run { [weak self] in
+                guard let self = self else { return }
+                if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
+                    let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+                    self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
+                    self.node.color = self.sessionColor?.nsColor ?? .white
+                    self.node.colorBlendFactor = self.sessionTintFactor
+                }
+            }
+            actions.append(resumeWalk)
+
+            // GCD fallback: land position
+            let capturedLandDelay = gcdDelay
+            DispatchQueue.main.asyncAfter(deadline: .now() + capturedLandDelay) { [weak self] in
+                self?.node.position = CGPoint(x: landX, y: 48)
+            }
+
+            lastX = landX
+        }
+
+        // Final walk to edge
+        let finalDist = abs(edgeX - lastX)
+        let finalDuration: Double
+        if finalDist > 1 {
+            finalDuration = max(Double(finalDist) / 120.0, 0.3)
+            let finalWalk = SKAction.moveTo(x: edgeX, duration: finalDuration)
+            finalWalk.timingMode = .easeIn
+            actions.append(finalWalk)
+        } else {
+            finalDuration = 0
+        }
+        gcdDelay += finalDuration
+
+        actions.append(SKAction.run { safeCompletion() })
+        node.run(SKAction.sequence(actions), withKey: "exitSequence")
+
+        // GCD fallback: completion
+        DispatchQueue.main.asyncAfter(deadline: .now() + gcdDelay + 0.1) { [weak self] in
+            self?.node.position.x = edgeX
+            safeCompletion()
         }
     }
 }

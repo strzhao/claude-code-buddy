@@ -34,7 +34,7 @@ final class CatToolUseState: GKState, ResumableState {
             node.colorBlendFactor = entity.sessionTintFactor
         }
         entity.originX = entity.containerNode.position.x
-        entity.startRandomWalk()
+        entity.movementComponent.startRandomWalk()
         entity.animationComponent.startBreathing()
     }
 

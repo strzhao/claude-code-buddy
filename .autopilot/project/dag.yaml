@@ -15,7 +15,7 @@ tasks:
     title: "提取 AnimationComponent（纹理加载、帧动画、呼吸效果）"
     depends_on: ["002-gkstate"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "004-movement"
     title: "提取 MovementComponent + JumpComponent（含 GCD fallback 封装）"

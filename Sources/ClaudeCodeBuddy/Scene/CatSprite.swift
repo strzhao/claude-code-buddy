@@ -220,9 +220,11 @@ class CatSprite {
 
     func showLabel(text: String? = nil) {
         if let text = text {
+            // Truncate to avoid Metal texture overflow (max 16384px width)
+            let truncated = text.count > 80 ? String(text.prefix(80)) + "…" : text
             // Only update the tool-description label nodes; do not overwrite tabName
-            labelNode?.text = text
-            shadowLabelNode?.text = text
+            labelNode?.text = truncated
+            shadowLabelNode?.text = truncated
         }
         labelNode?.isHidden = false
         shadowLabelNode?.isHidden = false

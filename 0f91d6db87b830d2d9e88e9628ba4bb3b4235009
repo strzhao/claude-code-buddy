@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  5458d49900c5aea8 136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0f91d6db87b830d2d9e88e9628ba4bb3b4235009",
+  "prompts": {
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}

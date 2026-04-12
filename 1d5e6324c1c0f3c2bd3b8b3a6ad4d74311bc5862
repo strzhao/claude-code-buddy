@@ -1,0 +1,23 @@
+CLAUDE.md
+  091234c8daf6506c 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "1d5e6324c1c0f3c2bd3b8b3a6ad4d74311bc5862",
+  "prompts": {
+    "091234c8daf6506c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f8151f51-f855-4027-88ae-c92e17f1954d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}

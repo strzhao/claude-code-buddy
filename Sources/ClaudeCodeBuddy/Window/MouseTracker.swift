@@ -13,6 +13,7 @@ class MouseTracker {
 
     private var hoveredSessionId: String?
     private var leaveTimer: Timer?
+    private var isCursorPushed = false
 
     init(window: BuddyWindow, scene: BuddyScene) {
         self.window = window
@@ -22,7 +23,9 @@ class MouseTracker {
     func start() {
         // Global monitor for mouse movement (works regardless of ignoresMouseEvents)
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
-            self?.handleMouseMoved(event)
+            DispatchQueue.main.async {
+                self?.handleMouseMoved(event)
+            }
         }
 
         // Local monitor for clicks when window is interactive
@@ -47,6 +50,10 @@ class MouseTracker {
         }
         leaveTimer?.invalidate()
         leaveTimer = nil
+        if isCursorPushed {
+            NSCursor.pop()
+            isCursorPushed = false
+        }
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -74,12 +81,20 @@ class MouseTracker {
             if hoveredSessionId != sessionId {
                 hoveredSessionId = sessionId
                 window.setInteractive(true)
+                if !isCursorPushed {
+                    NSCursor.pointingHand.push()
+                    isCursorPushed = true
+                }
                 onHover?(sessionId)
             }
         } else {
             // Mouse left all cats
             if hoveredSessionId != nil {
                 hoveredSessionId = nil
+                if isCursorPushed {
+                    NSCursor.pop()
+                    isCursorPushed = false
+                }
                 onHover?(nil)
 
                 // Delay before restoring click-through
@@ -106,7 +121,12 @@ class MouseTracker {
     @objc private func appDidResignActive() {
         window?.setInteractive(false)
         hoveredSessionId = nil
+        onHover?(nil)
         leaveTimer?.invalidate()
         leaveTimer = nil
+        if isCursorPushed {
+            NSCursor.pop()
+            isCursorPushed = false
+        }
     }
 }

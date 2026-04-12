@@ -28,6 +28,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private(set) var foodManager = FoodManager()
 
+    private var hoveredCatSessionId: String?
+
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
     }
@@ -81,9 +83,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         // Random horizontal spawn position
         let spawnX = CGFloat.random(in: 48...(size.width - 48))
-        cat.node.position = CGPoint(x: spawnX, y: 48) // ground level
+        cat.containerNode.position = CGPoint(x: spawnX, y: 48) // ground level
 
-        addChild(cat.node)
+        addChild(cat.containerNode)
         cats[sessionId] = cat
         cat.onFoodAbandoned = { [weak self] sessionId in
             self?.foodManager.releaseFoodForCat(sessionId: sessionId)
@@ -102,13 +104,17 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
         foodManager.removeCatTracking(sessionId: sessionId)
+        // Keep a strong ref to cat until exit animation completes, then remove node
+        if sessionId == hoveredCatSessionId {
+            hoveredCatSessionId = nil
+        }
         // Collect remaining cats as obstacles for the jump animation
-        let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { ($0, $0.node.position.x) }
+        let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { ($0, $0.containerNode.position.x) }
         cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
             guard cat != nil else { return }
-            jumpedCat.playFrightReaction(awayFromX: cat?.node.position.x ?? 0)
+            jumpedCat.playFrightReaction(awayFromX: cat?.containerNode.position.x ?? 0)
         }) { [cat] in
-            cat.node.removeFromParent()
+            cat.containerNode.removeFromParent()
         }
     }
 
@@ -123,7 +129,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func catAtPoint(_ point: CGPoint) -> String? {
         let hitSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {
-            let catPos = cat.node.position
+            let catPos = cat.containerNode.position
             let rect = CGRect(
                 x: catPos.x - hitSize.width / 2,
                 y: catPos.y - hitSize.height / 2,
@@ -156,11 +162,36 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
               let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
         // Don't show tooltip if cat is already showing label (waiting state)
         guard cat.currentState != .permissionRequest else { return }
-        tooltipNode.show(label: info.label, color: info.color, at: cat.node.position, sceneSize: size)
+        tooltipNode.show(label: info.label, color: info.color, at: cat.containerNode.position, sceneSize: size)
     }
 
     func hideTooltip() {
         tooltipNode.hide()
+    }
+
+    // MARK: - Hover
+
+    func setHovered(sessionId: String, hovered: Bool) {
+        if hovered {
+            // Unhover previous cat if different
+            if let prev = hoveredCatSessionId, prev != sessionId {
+                cats[prev]?.removeHoverScale()
+            }
+            hoveredCatSessionId = sessionId
+            cats[sessionId]?.applyHoverScale()
+        } else {
+            if hoveredCatSessionId == sessionId {
+                hoveredCatSessionId = nil
+            }
+            cats[sessionId]?.removeHoverScale()
+        }
+    }
+
+    func clearHover() {
+        if let sessionId = hoveredCatSessionId {
+            cats[sessionId]?.removeHoverScale()
+            hoveredCatSessionId = nil
+        }
     }
 
     // MARK: - Scene Resize
@@ -209,7 +240,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     }
 
     func catPosition(for sessionId: String) -> CGFloat? {
-        cats[sessionId]?.node.position.x
+        cats[sessionId]?.containerNode.position.x
     }
 
     func idleCats() -> [CatSprite] {

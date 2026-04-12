@@ -1,0 +1,37 @@
+.autopilot/requirements/20260412-006-entity/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Event/EventBus.swift
+  b736096f75a028a8 1-20
+Sources/ClaudeCodeBuddy/Event/BuddyEvent.swift
+  b736096f75a028a8 1-30
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  b736096f75a028a8 171,199-200,204-208,236,252-263
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  b736096f75a028a8 43-44
+.autopilot/requirements/20260412-007-eventbus/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Session/SessionInfo.swift
+  b736096f75a028a8 10
+.autopilot/project/dag.yaml
+  b736096f75a028a8 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "5df65f9120f23370af3588fd1175592303f33bfe",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 78,
+      "total_deletions": 11,
+      "accepted_lines": 78,
+      "overriden_lines": 0
+    }
+  }
+}

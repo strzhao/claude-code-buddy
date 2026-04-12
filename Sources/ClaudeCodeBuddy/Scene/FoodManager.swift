@@ -62,7 +62,7 @@ class FoodManager {
         } else {
             x = CGFloat.random(in: bounds)
         }
-        food.node.position = CGPoint(x: x, y: scene.size.height + 24)
+        food.node.position = CGPoint(x: x, y: scene.size.height + 12)
 
         scene.addChild(food.node)
         activeFoods.append(food)
@@ -85,12 +85,16 @@ class FoodManager {
     private func notifyIdleCats(about food: FoodSprite) {
         guard let scene = scene else { return }
         let idleCats = scene.idleCats()
+        let sceneWidth = scene.size.width
         for cat in idleCats {
-            cat.walkToFood(food) { [weak self] arrivingCat, food in
+            // Distance-based excitement delay: farther cats react slightly later (0–0.3s)
+            let distance = abs(food.node.position.x - cat.containerNode.position.x)
+            let delay = Double(distance / sceneWidth) * 0.3
+            cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
                 guard let self = self else { return }
                 guard food.claim(by: arrivingCat.sessionId) else {
-                    // Food already claimed — return to idle
-                    arrivingCat.switchState(to: .idle)
+                    // Food already claimed — play disappointed reaction instead of snapping to idle
+                    arrivingCat.playDisappointedReaction()
                     return
                 }
                 arrivingCat.startEating(food) {

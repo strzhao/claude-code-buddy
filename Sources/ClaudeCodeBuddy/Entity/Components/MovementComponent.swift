@@ -146,7 +146,7 @@ class MovementComponent {
 
     // MARK: - Walk To Food
 
-    func walkToFood(_ food: FoodSprite, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
+    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
         guard entity.currentState == .idle else { return }
         entity.currentTargetFood = food
 
@@ -162,26 +162,33 @@ class MovementComponent {
         // Stop idle animations
         node.removeAllActions()
 
-        // Walk animation (reuse walk-b, same as toolUse)
-        let sessionColor = entity.sessionColor
-        let sessionTintFactor = entity.sessionTintFactor
-        if let frames = entity.animationComponent.textures(for: "walk-b"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
-            node.run(SKAction.repeatForever(animate), withKey: "animation")
-            node.color = sessionColor?.nsColor ?? .white
-            node.colorBlendFactor = sessionTintFactor
-        }
-
-        let speed: CGFloat = CatConstants.Movement.foodWalkSpeed
-        let duration = max(CatConstants.Movement.foodWalkMinDuration, Double(distance) / Double(speed))
-        let move = SKAction.moveTo(x: targetX, duration: duration)
-        move.timingMode = .easeInEaseOut
-
-        let arrive = SKAction.run { [weak self] in
+        // Play excited reaction first (with per-cat distance-based delay), then start running
+        entity.playExcitedReaction(delay: excitedDelay) { [weak self] in
             guard let self = self, self.entity.currentTargetFood === food else { return }
-            onArrival(self.entity, food)
+
+            // Run animation — use walk-a for food chasing
+            let sessionColor = self.entity.sessionColor
+            let sessionTintFactor = self.entity.sessionTintFactor
+            if let frames = self.entity.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
+                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
+                node.run(SKAction.repeatForever(animate), withKey: "animation")
+                node.color = sessionColor?.nsColor ?? .white
+                node.colorBlendFactor = sessionTintFactor
+            }
+
+            // Speed: base 120 px/s, +30% for distance > 200px
+            let baseSpeed: CGFloat = 120
+            let speed = distance > 200 ? baseSpeed * 1.3 : baseSpeed
+            let duration = max(0.2, Double(distance) / Double(speed))
+            let move = SKAction.moveTo(x: targetX, duration: duration)
+            move.timingMode = .easeIn
+
+            let arrive = SKAction.run { [weak self] in
+                guard let self = self, self.entity.currentTargetFood === food else { return }
+                onArrival(self.entity, food)
+            }
+            containerNode.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
         }
-        containerNode.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
     }
 
     // MARK: - Exit Scene (simple, no obstacles)

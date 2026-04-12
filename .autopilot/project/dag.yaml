@@ -45,4 +45,4 @@ tasks:
     title: "Environment/Weather 框架 + EnvironmentResponder"
     depends_on: ["007-eventbus"]
     complexity: M
-    status: pending
+    status: done

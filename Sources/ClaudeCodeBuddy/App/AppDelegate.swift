@@ -6,6 +6,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var scene: BuddyScene?
     var sessionManager: SessionManager?
     var statusItem: NSStatusItem?
+    var menuBarAnimator: MenuBarAnimator?
     var mouseTracker: MouseTracker?
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
@@ -96,13 +97,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem?.button {
-            if let catImage = NSImage(systemSymbolName: "cat.fill", accessibilityDescription: "Claude Code Buddy") {
-                button.image = catImage
-            } else {
-                button.title = "🐱"
-            }
             button.action = #selector(togglePopover)
             button.target = self
+            menuBarAnimator = MenuBarAnimator(button: button)
         }
 
         popover.contentViewController = popoverController
@@ -145,6 +142,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
         manager.onSessionsChanged = { [weak self] sessions in
             self?.scene?.updateSessionsCache(sessions)
+            let activeSessions = sessions.filter { $0.state != .idle && $0.state != .eating }
+            self?.menuBarAnimator?.updateActiveCatCount(activeSessions.count)
             DispatchQueue.main.async {
                 self?.popoverController.updateSessions(sessions)
             }

@@ -52,22 +52,18 @@ class MovementComponent {
 
         // Update facing direction based on movement
         let delta = target - containerNode.position.x
-        if delta < -CatConstants.Movement.facingDirectionThreshold {
-            entity.facingRight = false
-        } else if delta > CatConstants.Movement.facingDirectionThreshold {
-            entity.facingRight = true
-        }
-        entity.applyFacingDirection()
-
         let distance = abs(delta)
 
-        // Skip move if barely any distance, just pause
+        // Skip move if barely any distance, just pause (don't change direction)
         if distance < CatConstants.Movement.walkMinDistance {
             let pause = SKAction.wait(forDuration: Double.random(in: CatConstants.Movement.walkPauseRange))
             let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
             containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
             return
         }
+
+        // Only change direction when actually moving
+        entity.face(towardX: target)
 
         // --- Walk phase: play walk-b while moving ---
         let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) // px/s
@@ -162,12 +158,7 @@ class MovementComponent {
         let distance = abs(delta)
 
         // Update facing direction via unified path
-        if delta < -CatConstants.Movement.facingDirectionThreshold {
-            entity.facingRight = false
-        } else if delta > CatConstants.Movement.facingDirectionThreshold {
-            entity.facingRight = true
-        }
-        entity.applyFacingDirection()
+        entity.face(towardX: targetX)
 
         // Stop idle animations
         node.removeAllActions()
@@ -208,12 +199,7 @@ class MovementComponent {
         let duration = Double(abs(edgeX - containerNode.position.x)) / CatConstants.Movement.exitWalkSpeed
 
         // Face the exit direction
-        if edgeX < containerNode.position.x {
-            entity.facingRight = false
-        } else {
-            entity.facingRight = true
-        }
-        entity.applyFacingDirection()
+        entity.face(right: edgeX > containerNode.position.x)
 
         // Play walk animation during exit
         let sessionColor = entity.sessionColor
@@ -272,8 +258,7 @@ class MovementComponent {
         let edgeX: CGFloat = goingRight ? sceneWidth + CatConstants.Movement.exitOffscreenOffset : -CatConstants.Movement.exitOffscreenOffset
 
         // Face exit direction
-        entity.facingRight = goingRight
-        entity.applyFacingDirection()
+        entity.face(right: goingRight)
 
         var completionFired = false
         let safeCompletion: () -> Void = {

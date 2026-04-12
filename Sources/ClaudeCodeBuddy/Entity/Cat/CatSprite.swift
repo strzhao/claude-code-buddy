@@ -87,7 +87,10 @@ class CatSprite {
     /// Callback to release food when cat is interrupted.
     var onFoodAbandoned: ((String) -> Void)?  // passes sessionId
     /// Single source of truth for horizontal facing direction.
-    var facingRight: Bool = false
+    /// didSet auto-applies xScale so callers never forget to sync visuals.
+    var facingRight: Bool = false {
+        didSet { applyFacingDirection() }
+    }
     /// Cached scene width for boundary clamping during random walk.
     var sceneWidth: CGFloat = 0
 
@@ -154,6 +157,23 @@ class CatSprite {
 
     // MARK: - Facing Direction
 
+    /// Set facing direction toward a target X position.
+    /// Only changes direction if delta exceeds facingDirectionThreshold.
+    func face(towardX targetX: CGFloat) {
+        let delta = targetX - containerNode.position.x
+        if delta < -CatConstants.Movement.facingDirectionThreshold {
+            facingRight = false
+        } else if delta > CatConstants.Movement.facingDirectionThreshold {
+            facingRight = true
+        }
+    }
+
+    /// Explicitly set facing direction. Guard avoids redundant didSet triggers.
+    func face(right: Bool) {
+        guard facingRight != right else { return }
+        facingRight = right
+    }
+
     func applyFacingDirection() {
         let xScale: CGFloat = facingRight ? -1.0 : 1.0
         node.xScale = xScale
@@ -161,6 +181,8 @@ class CatSprite {
         // keeping text readable regardless of facing direction.
         labelNode?.xScale = xScale
         shadowLabelNode?.xScale = xScale
+        tabNameNode?.xScale = xScale
+        tabNameShadowNode?.xScale = xScale
     }
 
     func updateSceneSize(_ size: CGSize) {

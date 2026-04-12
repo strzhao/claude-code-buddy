@@ -62,8 +62,7 @@ class InteractionComponent {
         let reboundDelta = -slideDelta * CatConstants.Fright.reboundFactor
 
         // Face the flee direction
-        entity.facingRight = fleeRight
-        entity.applyFacingDirection()
+        entity.face(right: fleeRight)
 
         guard let scaredFrames = entity.animationComponent.textures(for: "scared"), !scaredFrames.isEmpty else {
             // Fallback: just re-enable physics and resume

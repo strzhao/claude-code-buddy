@@ -48,7 +48,7 @@ final class CatIdleState: GKState, ResumableState {
         node.color = entity.sessionColor?.nsColor ?? .orange
         node.colorBlendFactor = entity.sessionTintFactor
 
-        if needsCleanTransition, let cleanFrames = entity.textures(for: "clean"), !cleanFrames.isEmpty {
+        if needsCleanTransition, let cleanFrames = entity.animationComponent.textures(for: "clean"), !cleanFrames.isEmpty {
             let clean = SKAction.animate(with: cleanFrames, timePerFrame: CatConstants.Animation.frameTimeClean)
             let enter = SKAction.run { [weak self] in
                 guard let self = self, self.stateMachine?.currentState is CatIdleState else { return }
@@ -100,7 +100,7 @@ final class CatIdleState: GKState, ResumableState {
 
         switch idleSubState {
         case .sleep:
-            if let frames = entity.textures(for: "sleep"), !frames.isEmpty {
+            if let frames = entity.animationComponent.textures(for: "sleep"), !frames.isEmpty {
                 let animDuration = 1.0 / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: animDuration)
                 let loopSleep = SKAction.repeat(animate, count: CatConstants.Idle.sleepLoopCount)
@@ -124,7 +124,7 @@ final class CatIdleState: GKState, ResumableState {
             scheduleNextIdleTransition(after: SKAction.wait(forDuration: CatConstants.Idle.breatheWaitDuration, withRange: CatConstants.Idle.breatheWaitRange))
 
         case .blink:
-            if let frames = entity.textures(for: "idle-b"), !frames.isEmpty {
+            if let frames = entity.animationComponent.textures(for: "idle-b"), !frames.isEmpty {
                 let duration = CatConstants.Idle.blinkAnimDuration / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: duration)
                 let next = SKAction.run { [weak self] in
@@ -142,7 +142,7 @@ final class CatIdleState: GKState, ResumableState {
             }
 
         case .clean:
-            if let frames = entity.textures(for: "clean"), !frames.isEmpty {
+            if let frames = entity.animationComponent.textures(for: "clean"), !frames.isEmpty {
                 let duration = CatConstants.Idle.cleanAnimDuration / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: duration)
                 let next = SKAction.run { [weak self] in
@@ -162,7 +162,7 @@ final class CatIdleState: GKState, ResumableState {
     }
 
     private func playIdleAnimation(animName: String, looping: Bool) {
-        guard let frames = entity.textures(for: animName), !frames.isEmpty else { return }
+        guard let frames = entity.animationComponent.textures(for: animName), !frames.isEmpty else { return }
         let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeIdleA)
         let action = looping ? SKAction.repeatForever(animate) : animate
         entity.node.run(action, withKey: "idleLoop")

@@ -28,14 +28,14 @@ final class CatToolUseState: GKState, ResumableState {
     override func didEnter(from previousState: GKState?) {
         let node = entity.node
         // Standing pose — random walk will switch to walk animation when moving
-        if let frames = entity.textures(for: "idle-a"), !frames.isEmpty {
+        if let frames = entity.animationComponent.textures(for: "idle-a"), !frames.isEmpty {
             node.texture = frames[0]
             node.color = entity.sessionColor?.nsColor ?? .white
             node.colorBlendFactor = entity.sessionTintFactor
         }
         entity.originX = entity.containerNode.position.x
         entity.startRandomWalk()
-        entity.startBreathing()
+        entity.animationComponent.startBreathing()
     }
 
     // MARK: - Exit

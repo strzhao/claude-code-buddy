@@ -27,7 +27,7 @@ tasks:
     title: "提取 InteractionComponent + LabelComponent"
     depends_on: ["004-movement"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "006-entity"
     title: "EntityProtocol + EntityState + BuddyScene/FoodManager 重构 + 测试迁移"

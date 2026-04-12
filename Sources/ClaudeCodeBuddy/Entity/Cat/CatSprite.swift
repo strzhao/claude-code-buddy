@@ -345,3 +345,7 @@ class CatSprite {
         movementComponent.exitScene(sceneWidth: sceneWidth, obstacles: obstacles, onJumpOver: onJumpOver, completion: completion)
     }
 }
+
+// MARK: - EntityProtocol Conformance
+
+extension CatSprite: EntityProtocol {}

@@ -1,0 +1,33 @@
+.autopilot/decisions.md
+  5fc214a938af3818 2,4,6,8,10,12-24
+Sources/ClaudeCodeBuddy/Entity/EntityProtocol.swift
+  5fc214a938af3818 13
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  5fc214a938af3818 97-105,202-206,332,334-337
+.autopilot/patterns.md
+  5fc214a938af3818 8-13
+Sources/ClaudeCodeBuddy/Entity/Components/InteractionComponent.swift
+  5fc214a938af3818 57
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  5fc214a938af3818 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "343df24a4be6c1e0cc34d6fc99cecd9114833d1c",
+  "prompts": {
+    "5fc214a938af3818": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41126c69-7b36-48b2-af00-b339c51bc38f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 73,
+      "total_deletions": 5,
+      "accepted_lines": 46,
+      "overriden_lines": 11
+    }
+  }
+}

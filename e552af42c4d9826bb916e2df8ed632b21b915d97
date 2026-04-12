@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/MenuBar/MenuBarAnimator.swift
+  f0c2225c63e34527 1-128
+tests/acceptance/test-menubar-animation.acceptance.sh
+  f0c2225c63e34527 1-337
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  f0c2225c63e34527 9,102,145-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "e552af42c4d9826bb916e2df8ed632b21b915d97",
+  "prompts": {
+    "f0c2225c63e34527": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "addf8f80-dd64-4b3c-814e-d6fe3782e597",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 475,
+      "total_deletions": 11,
+      "accepted_lines": 469,
+      "overriden_lines": 0
+    }
+  }
+}

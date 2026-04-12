@@ -47,6 +47,10 @@ class CatSprite {
     private var originX: CGFloat = 0
     /// Tracks previous state for transition animations.
     private var previousState: CatState?
+    /// Single source of truth for horizontal facing direction.
+    private var facingRight: Bool = false
+    /// Cached scene width for boundary clamping during random walk.
+    private var sceneWidth: CGFloat = 0
 
     // MARK: Init
 
@@ -73,6 +77,21 @@ class CatSprite {
         body.friction    = 0.8
         body.linearDamping = 0.5
         node.physicsBody = body
+    }
+
+    // MARK: - Facing Direction
+
+    private func applyFacingDirection() {
+        let xScale: CGFloat = facingRight ? -1.0 : 1.0
+        node.xScale = xScale
+        // Child labels inherit parent xScale; applying the same value cancels the flip,
+        // keeping text readable regardless of facing direction.
+        labelNode?.xScale = xScale
+        shadowLabelNode?.xScale = xScale
+    }
+
+    func updateSceneSize(_ size: CGSize) {
+        sceneWidth = size.width
     }
 
     // MARK: - Textures
@@ -177,16 +196,10 @@ class CatSprite {
         node.removeAllActions()
         removeAlertOverlay()
         hideLabel()
-        // Reset transform from previous state effects
-        node.xScale = 1.0
+        // Reset transform but preserve facing direction
         node.yScale = 1.0
         node.zRotation = 0
-        labelNode?.xScale = 1.0
-        shadowLabelNode?.xScale = 1.0
-        // Snap back to origin X (random walk may have drifted)
-        if oldState == .toolUse && originX != 0 {
-            node.position.x = originX
-        }
+        applyFacingDirection()
 
         // Determine transition animation before entering new state
         let transition = transitionAnimation(from: oldState, to: newState)
@@ -280,10 +293,10 @@ class CatSprite {
             node.color = NSColor(red: 1, green: 0.3, blue: 0, alpha: 1)
             node.colorBlendFactor = 0.55
 
-            // Bounce scale pulse
-            let scaleUp = SKAction.scale(to: 1.15, duration: 0.175)
+            // Bounce scale pulse (Y-only to preserve facing direction)
+            let scaleUp = SKAction.scaleY(to: 1.15, duration: 0.175)
             scaleUp.timingMode = .easeIn
-            let scaleDown = SKAction.scale(to: 1.0, duration: 0.175)
+            let scaleDown = SKAction.scaleY(to: 1.0, duration: 0.175)
             scaleDown.timingMode = .easeOut
             let bounce = SKAction.repeatForever(SKAction.sequence([scaleUp, scaleDown]))
             node.run(bounce, withKey: "stateEffect")
@@ -329,22 +342,22 @@ class CatSprite {
     private func doRandomWalkStep() {
         guard currentState == .toolUse else { return }
 
-        // Random target: ±60px from origin (wide range)
-        let maxRange: CGFloat = 60
-        let target = originX + CGFloat.random(in: -maxRange...maxRange)
+        // Random target: ±120px from origin (wide range)
+        let maxRange: CGFloat = 120
+        let margin: CGFloat = 24
+        let rawTarget = originX + CGFloat.random(in: -maxRange...maxRange)
+        let target = sceneWidth > 0
+            ? max(margin, min(sceneWidth - margin, rawTarget))
+            : rawTarget
 
-        // Flip sprite to face movement direction
-        // Default sprite faces LEFT, so xScale=1.0 → left, xScale=-1.0 → right
+        // Update facing direction based on movement
         let delta = target - node.position.x
         if delta < -0.5 {
-            node.xScale = 1.0
-            labelNode?.xScale = 1.0
-            shadowLabelNode?.xScale = 1.0
+            facingRight = false
         } else if delta > 0.5 {
-            node.xScale = -1.0
-            labelNode?.xScale = -1.0
-            shadowLabelNode?.xScale = -1.0
+            facingRight = true
         }
+        applyFacingDirection()
 
         let distance = abs(delta)
 
@@ -357,7 +370,7 @@ class CatSprite {
         }
 
         // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: 25...40) // px/s, leisurely
+        let speed: Double = Double.random(in: 35...55) // px/s
         let duration = max(0.3, Double(distance) / speed)
 
         // Start walk animation
@@ -393,7 +406,6 @@ class CatSprite {
         } else {
             pauseDuration = 0                                // keep moving (85%)
         }
-        let pause = SKAction.wait(forDuration: pauseDuration)
 
         let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
 
@@ -555,28 +567,20 @@ class CatSprite {
     // MARK: - Enter / Exit
 
     func enterScene(sceneSize: CGSize) {
-        // Start above the visible area
-        node.position = CGPoint(x: node.position.x, y: sceneSize.height + 48)
+        sceneWidth = sceneSize.width
 
-        // Play walk animation during drop
-        if let frames = textures(for: "walk-a"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
-            let loop = SKAction.repeatForever(animate)
-            node.run(loop, withKey: "walkAnimation")
-            node.texture = frames[0]
-            node.color = sessionColor?.nsColor ?? .white
-            node.colorBlendFactor = sessionTintFactor
-        }
+        // Place directly at ground level — no drop animation
+        node.position = CGPoint(x: node.position.x, y: 48)
+        node.yScale = 1.0
+        node.zRotation = 0
+        removeAlertOverlay()
+        hideLabel()
+        previousState = nil
 
-        // Drop down to ground level
-        let landY: CGFloat = 48
-        let drop = SKAction.moveTo(y: landY, duration: 0.6)
-        drop.timingMode = .easeIn
-
-        node.run(drop) { [weak self] in
-            self?.node.removeAction(forKey: "walkAnimation")
-            self?.switchState(to: .idle)
-        }
+        // Enter idle state directly
+        currentState = .idle
+        applyFacingDirection()
+        applyState(.idle)
     }
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
@@ -586,12 +590,13 @@ class CatSprite {
         let edgeX: CGFloat = node.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
         let duration = Double(abs(edgeX - node.position.x)) / 120.0
 
-        // Flip sprite to face exit direction (default sprite faces LEFT)
+        // Face the exit direction
         if edgeX < node.position.x {
-            node.xScale = 1.0   // exiting left → face left
+            facingRight = false
         } else {
-            node.xScale = -1.0  // exiting right → face right
+            facingRight = true
         }
+        applyFacingDirection()
 
         // Play walk animation during exit
         if let frames = textures(for: "walk-a"), !frames.isEmpty {

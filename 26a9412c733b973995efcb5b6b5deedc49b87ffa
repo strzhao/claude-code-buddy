@@ -1,0 +1,41 @@
+.autopilot/project/dag.yaml
+  b736096f75a028a8 6
+Sources/ClaudeCodeBuddy/Scene/States/CatToolUseState.swift
+  b736096f75a028a8 1-54
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  b736096f75a028a8 3,29-39,49-51,53,55-56,61-62,64-68,70,76,94-103,141,186,303,310-313,324-330,332,337,350,354,557,591,638-639,678,680,735-736,770
+Sources/ClaudeCodeBuddy/Scene/States/CatPermissionRequestState.swift
+  b736096f75a028a8 1-98
+Sources/ClaudeCodeBuddy/Scene/States/ResumableState.swift
+  b736096f75a028a8 1-8
+Sources/ClaudeCodeBuddy/Scene/States/CatIdleState.swift
+  b736096f75a028a8 1-183
+Sources/ClaudeCodeBuddy/Scene/States/CatEatingState.swift
+  b736096f75a028a8 1-32
+Sources/ClaudeCodeBuddy/Scene/States/CatThinkingState.swift
+  b736096f75a028a8 1-82
+.autopilot/requirements/20260412-001-constants/state.md
+  b736096f75a028a8 3,12,230-231
+.autopilot/requirements/20260412-002-gkstate/state.md
+  b736096f75a028a8 3,186-244,247-262,268-286,290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "26a9412c733b973995efcb5b6b5deedc49b87ffa",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 628,
+      "total_deletions": 283,
+      "accepted_lines": 626,
+      "overriden_lines": 0
+    }
+  }
+}

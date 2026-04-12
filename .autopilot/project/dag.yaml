@@ -1,60 +1,48 @@
 tasks:
-  - id: "001-data-models"
-    title: "SessionInfo + SessionColor + HookMessage 扩展"
+  - id: "001-constants"
+    title: "提取 CatConstants（所有魔数命名常量化）"
     depends_on: []
     complexity: S
-    status: done
+    status: pending
 
-  - id: "002-session-manager"
-    title: "SessionManager 升级（SessionInfo 跟踪、颜色池、cwd 富化、颜色文件、回调）"
-    depends_on: ["001-data-models"]
-    complexity: M
-    status: done
-
-  - id: "003-visual-layer"
-    title: "CatSprite 标签 + 着色，BuddyScene 集成"
-    depends_on: ["002-session-manager"]
-    complexity: M
-    status: done
-
-  - id: "004-hook-script"
-    title: "Hook 脚本 cwd 提取 + Ghostty 标签页标题注入"
-    depends_on: ["001-data-models"]
-    complexity: S
-    status: done
-
-  - id: "005-mouse-tracker"
-    title: "MouseTracker + BuddyWindow 动态穿透"
-    depends_on: ["003-visual-layer"]
-    complexity: M
-    status: done
-
-  - id: "006-tooltip-node"
-    title: "TooltipNode SpriteKit 悬停提示"
-    depends_on: ["005-mouse-tracker"]
-    complexity: M
-    status: done
-
-  - id: "007-terminal-adapter"
-    title: "TerminalAdapter 协议 + GhosttyAdapter 点击激活"
-    depends_on: ["002-session-manager", "005-mouse-tracker"]
-    complexity: M
-    status: done
-
-  - id: "008-menu-dashboard"
-    title: "NSPopover 菜单栏仪表板"
-    depends_on: ["002-session-manager"]
+  - id: "002-gkstate"
+    title: "GKStateMachine + 5 个 GKState 子类"
+    depends_on: ["001-constants"]
     complexity: L
-    status: done
+    status: pending
 
-  - id: "009-buddy-label"
-    title: "buddy-label CLI + set_label 协议处理"
-    depends_on: ["002-session-manager", "004-hook-script"]
-    complexity: S
-    status: done
+  - id: "003-animation"
+    title: "提取 AnimationComponent（纹理加载、帧动画、呼吸效果）"
+    depends_on: ["002-gkstate"]
+    complexity: M
+    status: pending
 
-  - id: "010-ai-awareness"
-    title: "Hook 系统提示注入 + 状态栏集成指南"
-    depends_on: ["002-session-manager", "004-hook-script"]
-    complexity: S
-    status: done
+  - id: "004-movement"
+    title: "提取 MovementComponent + JumpComponent（含 GCD fallback 封装）"
+    depends_on: ["003-animation"]
+    complexity: L
+    status: pending
+
+  - id: "005-interaction"
+    title: "提取 InteractionComponent + LabelComponent"
+    depends_on: ["004-movement"]
+    complexity: M
+    status: pending
+
+  - id: "006-entity"
+    title: "EntityProtocol + EntityState + BuddyScene/FoodManager 重构 + 测试迁移"
+    depends_on: ["005-interaction"]
+    complexity: L
+    status: pending
+
+  - id: "007-eventbus"
+    title: "Combine EventBus + 解耦 HookMessage/SessionManager/SessionRowView"
+    depends_on: ["006-entity"]
+    complexity: M
+    status: pending
+
+  - id: "008-environment"
+    title: "Environment/Weather 框架 + EnvironmentResponder"
+    depends_on: ["007-eventbus"]
+    complexity: M
+    status: pending

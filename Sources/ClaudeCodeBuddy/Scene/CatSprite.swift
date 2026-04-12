@@ -44,9 +44,8 @@ class CatSprite {
     /// The underlying SpriteKit sprite node (child of containerNode at origin).
     let node: SKSpriteNode
 
-    /// Animation texture arrays keyed by animation name string.
-    /// Known names: "idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b"
-    var animations: [String: [SKTexture]] = [:]
+    /// Component that owns all texture data and animation playback for this cat's sprite.
+    let animationComponent: AnimationComponent
 
     // MARK: - GKStateMachine
 
@@ -89,8 +88,10 @@ class CatSprite {
         containerNode.name = "cat_\(sessionId)"
         containerNode.addChild(node)
 
+        animationComponent = AnimationComponent(node: node)
+
         setupPhysicsBody()
-        loadTextures()
+        animationComponent.loadTextures(prefix: "cat", bundle: .module)
 
         // Initialize GKStateMachine after loadTextures so states can access animations
         let states: [GKState] = [
@@ -149,43 +150,6 @@ class CatSprite {
 
     func updateSceneSize(_ size: CGSize) {
         sceneWidth = size.width
-    }
-
-    // MARK: - Textures
-
-    private func loadTextures() {
-        let animNames = ["idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b", "jump"]
-
-        for animName in animNames {
-            var textures: [SKTexture] = []
-            var frame = 1
-            while true {
-                let name = "cat-\(animName)-\(frame)"
-                guard let url = Bundle.module.url(forResource: name,
-                                                  withExtension: "png",
-                                                  subdirectory: "Assets/Sprites") else {
-                    break
-                }
-                guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-                      let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-                    break
-                }
-                let texture = SKTexture(cgImage: cgImage)
-                texture.filteringMode = .nearest
-                textures.append(texture)
-                frame += 1
-            }
-            if !textures.isEmpty {
-                animations[animName] = textures
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    func textures(for animName: String) -> [SKTexture]? {
-        guard let textures = animations[animName], !textures.isEmpty else { return nil }
-        return textures
     }
 
     // MARK: - Session Identity
@@ -332,17 +296,6 @@ class CatSprite {
         stateMachine.enter(stateClass)
     }
 
-    // MARK: - Breathing (subtle scale oscillation for all active states)
-
-    func startBreathing() {
-        let breatheIn = SKAction.scaleY(to: CatConstants.Animation.breatheScaleY, duration: CatConstants.Animation.breatheDuration)
-        breatheIn.timingMode = .easeInEaseOut
-        let breatheOut = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.breatheDuration)
-        breatheOut.timingMode = .easeInEaseOut
-        let breathe = SKAction.repeatForever(SKAction.sequence([breatheIn, breatheOut]))
-        node.run(breathe, withKey: "breathing")
-    }
-
     // MARK: - Organic Random Walk (toolUse)
 
     /// Recursive random walk: pick a random target within range, move there
@@ -386,7 +339,7 @@ class CatSprite {
         let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
 
         // Start walk animation
-        if let walkFrames = textures(for: "walk-b"), !walkFrames.isEmpty {
+        if let walkFrames = animationComponent.textures(for: "walk-b"), !walkFrames.isEmpty {
             let animate = SKAction.animate(with: walkFrames, timePerFrame: CatConstants.Animation.frameTimeWalk)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
             node.color = sessionColor?.nsColor ?? .white
@@ -405,7 +358,7 @@ class CatSprite {
             self.node.removeAction(forKey: "animation")
             // Standing pose: use paw or idle-a
             let standAnim = Float.random(in: 0..<1) < CatConstants.Movement.walkPawProbability ? "paw" : "idle-a"
-            if let frames = self.textures(for: standAnim), !frames.isEmpty {
+            if let frames = self.animationComponent.textures(for: standAnim), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeStand)
                 self.node.run(SKAction.repeatForever(animate), withKey: "animation")
                 self.node.color = self.sessionColor?.nsColor ?? .white
@@ -491,7 +444,7 @@ class CatSprite {
             }
 
             // Jump animation (visual on node)
-            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
+            if let jumpFrames = animationComponent.textures(for: "jump"), !jumpFrames.isEmpty {
                 let jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
                 let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
                 let playJump = SKAction.run { [weak self] in
@@ -537,7 +490,7 @@ class CatSprite {
             let resumeWalk = SKAction.run { [weak self] in
                 guard let self = self else { return }
                 let walkAnim = self.currentState == .toolUse ? "walk-b" : "walk-a"
-                if let frames = self.textures(for: walkAnim), !frames.isEmpty {
+                if let frames = self.animationComponent.textures(for: walkAnim), !frames.isEmpty {
                     let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
                     self.node.run(SKAction.repeatForever(animate), withKey: self.currentState == .toolUse ? "animation" : "walkAnimation")
                     self.node.color = self.sessionColor?.nsColor ?? .white
@@ -615,7 +568,7 @@ class CatSprite {
         node.removeAllActions()
 
         // Walk animation (reuse walk-b, same as toolUse)
-        if let frames = textures(for: "walk-b"), !frames.isEmpty {
+        if let frames = animationComponent.textures(for: "walk-b"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
             node.color = sessionColor?.nsColor ?? .white
@@ -641,7 +594,7 @@ class CatSprite {
         node.removeAllActions()
         containerNode.removeAction(forKey: "foodWalk")
 
-        if let frames = textures(for: "paw"), !frames.isEmpty {
+        if let frames = animationComponent.textures(for: "paw"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
             let eatCycle = SKAction.repeat(animate, count: 2)
             let done = SKAction.run { [weak self] in
@@ -713,7 +666,7 @@ class CatSprite {
         facingRight = fleeRight
         applyFacingDirection()
 
-        guard let scaredFrames = textures(for: "scared"), !scaredFrames.isEmpty else {
+        guard let scaredFrames = animationComponent.textures(for: "scared"), !scaredFrames.isEmpty else {
             // Fallback: just re-enable physics and resume
             containerNode.physicsBody?.isDynamic = true
             return
@@ -807,7 +760,7 @@ class CatSprite {
         applyFacingDirection()
 
         // Play walk animation during exit
-        if let frames = textures(for: "walk-a"), !frames.isEmpty {
+        if let frames = animationComponent.textures(for: "walk-a"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "walkAnimation")
@@ -869,7 +822,7 @@ class CatSprite {
 
         // Helper: start looping walk-a animation
         func startWalkAnim() {
-            if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
+            if let frames = self.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
                 self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
                 self.node.texture = frames[0]
@@ -932,7 +885,7 @@ class CatSprite {
 
             // Jump animation frames (visual — run on node via SKAction.run block)
             var jumpAnimDuration: Double = 0
-            if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
+            if let jumpFrames = animationComponent.textures(for: "jump"), !jumpFrames.isEmpty {
                 jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
                 let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
                 let playJump = SKAction.run { [weak self] in
@@ -991,7 +944,7 @@ class CatSprite {
             // Resume walk after landing (visual — on node)
             let resumeWalk = SKAction.run { [weak self] in
                 guard let self = self else { return }
-                if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
+                if let frames = self.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
                     let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
                     self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
                     self.node.color = self.sessionColor?.nsColor ?? .white

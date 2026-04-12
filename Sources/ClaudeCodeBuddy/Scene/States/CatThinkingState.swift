@@ -26,17 +26,13 @@ final class CatThinkingState: GKState, ResumableState {
     // MARK: - Entry
 
     override func didEnter(from previousState: GKState?) {
-        let node = entity.node
-
         // If transitioning from idle, play blink (wake-up) first, then start thinking loop
         if previousState is CatIdleState,
-           let blinkFrames = entity.textures(for: "idle-b") {
-            let blink = SKAction.animate(with: blinkFrames, timePerFrame: CatConstants.Animation.frameTimeBlink)
-            let enter = SKAction.run { [weak self] in
+           entity.animationComponent.hasAnimation("idle-b") {
+            entity.animationComponent.playTransition(animName: "idle-b", timePerFrame: CatConstants.Animation.frameTimeBlink) { [weak self] in
                 guard let self = self, self.stateMachine?.currentState is CatThinkingState else { return }
                 self.startThinkingLoop()
             }
-            node.run(SKAction.sequence([blink, enter]), withKey: "transition")
         } else {
             startThinkingLoop()
         }
@@ -62,7 +58,7 @@ final class CatThinkingState: GKState, ResumableState {
     private func startThinkingLoop() {
         let node = entity.node
         // Paw animation
-        if let frames = entity.textures(for: "paw"), !frames.isEmpty {
+        if let frames = entity.animationComponent.textures(for: "paw"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "animation")
@@ -77,6 +73,6 @@ final class CatThinkingState: GKState, ResumableState {
         swayLeft.timingMode = .easeInEaseOut
         let sway = SKAction.repeatForever(SKAction.sequence([swayRight, swayLeft]))
         node.run(sway, withKey: "stateEffect")
-        entity.startBreathing()
+        entity.animationComponent.startBreathing()
     }
 }

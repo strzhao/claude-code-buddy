@@ -9,7 +9,7 @@ tasks:
     title: "GKStateMachine + 5 个 GKState 子类"
     depends_on: ["001-constants"]
     complexity: L
-    status: pending
+    status: done
 
   - id: "003-animation"
     title: "提取 AnimationComponent（纹理加载、帧动画、呼吸效果）"

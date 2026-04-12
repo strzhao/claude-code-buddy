@@ -55,7 +55,7 @@ final class CatPermissionRequestState: GKState, ResumableState {
         let node = entity.node
 
         // Scared animation (fast loop)
-        if let frames = entity.textures(for: "scared"), !frames.isEmpty {
+        if let frames = entity.animationComponent.textures(for: "scared"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeScared)
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "animation")

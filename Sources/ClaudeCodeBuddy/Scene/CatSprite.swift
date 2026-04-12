@@ -68,6 +68,14 @@ class CatSprite {
     private var facingRight: Bool = false
     /// Cached scene width for boundary clamping during random walk.
     private var sceneWidth: CGFloat = 0
+    /// Minimum X for cat activity (left boundary). Defaults to 24 (original margin).
+    private var activityMin: CGFloat = 24
+    /// Maximum X for cat activity (right boundary). 0 means "use sceneWidth - 24".
+    private var activityMax: CGFloat = 0
+
+    private var effectiveActivityMax: CGFloat {
+        activityMax > 0 ? activityMax : sceneWidth - 24
+    }
 
     // MARK: Init
 
@@ -131,6 +139,11 @@ class CatSprite {
 
     func updateSceneSize(_ size: CGSize) {
         sceneWidth = size.width
+    }
+
+    func updateActivityBounds(_ bounds: ClosedRange<CGFloat>) {
+        activityMin = bounds.lowerBound
+        activityMax = bounds.upperBound
     }
 
     // MARK: - Textures
@@ -457,10 +470,9 @@ class CatSprite {
 
         // Random target: ±120px from origin (wide range)
         let maxRange: CGFloat = 120
-        let margin: CGFloat = 24
         let rawTarget = originX + CGFloat.random(in: -maxRange...maxRange)
         let target = sceneWidth > 0
-            ? max(margin, min(sceneWidth - margin, rawTarget))
+            ? max(activityMin, min(effectiveActivityMax, rawTarget))
             : rawTarget
 
         // Update facing direction based on movement
@@ -869,8 +881,12 @@ class CatSprite {
 
     // MARK: - Enter / Exit
 
-    func enterScene(sceneSize: CGSize) {
+    func enterScene(sceneSize: CGSize, activityBounds: ClosedRange<CGFloat>? = nil) {
         sceneWidth = sceneSize.width
+        if let bounds = activityBounds {
+            activityMin = bounds.lowerBound
+            activityMax = bounds.upperBound
+        }
 
         // Place directly at ground level — no drop animation
         containerNode.position = CGPoint(x: containerNode.position.x, y: 48)
@@ -909,7 +925,7 @@ class CatSprite {
         let rawTarget = fleeRight ? myX + 30 : myX - 30
         let clampedTarget: CGFloat
         if sceneWidth > 0 {
-            clampedTarget = max(24, min(sceneWidth - 24, rawTarget))
+            clampedTarget = max(activityMin, min(effectiveActivityMax, rawTarget))
         } else {
             clampedTarget = rawTarget
         }

@@ -9,6 +9,8 @@ class FoodManager {
     private var idleCheckTimer: Timer?
     private var expirationTimer: Timer?
     private var idleStartTimes: [String: Date] = [:]
+    /// Activity bounds for food spawn X positioning. If nil, uses full scene width.
+    var activityBounds: ClosedRange<CGFloat>?
 
     // Config
     static let maxConcurrentFoods = 3
@@ -51,13 +53,14 @@ class FoodManager {
         let foodName = FoodSprite.randomFoodName()
         let food = FoodSprite(textureName: foodName)
 
-        // Position: near target or random
-        let sceneWidth = scene.size.width
+        // Position: within activity bounds (or full scene width fallback)
+        let bounds = activityBounds ?? 32...(scene.size.width - 32)
         let x: CGFloat
         if let targetX = targetX {
-            x = max(24, min(sceneWidth - 24, targetX + CGFloat.random(in: -40...40)))
+            let jittered = targetX + CGFloat.random(in: -40...40)
+            x = max(bounds.lowerBound, min(bounds.upperBound, jittered))
         } else {
-            x = CGFloat.random(in: 32...(sceneWidth - 32))
+            x = CGFloat.random(in: bounds)
         }
         food.node.position = CGPoint(x: x, y: scene.size.height + 24)
 

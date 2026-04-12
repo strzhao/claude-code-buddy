@@ -47,6 +47,9 @@ class CatSprite {
     /// Component that owns all texture data and animation playback for this cat's sprite.
     let animationComponent: AnimationComponent
 
+    /// Component that owns all movement and jump behaviour for this cat.
+    private(set) var movementComponent: MovementComponent!
+
     // MARK: - GKStateMachine
 
     private(set) var stateMachine: GKStateMachine!
@@ -74,7 +77,7 @@ class CatSprite {
     /// Single source of truth for horizontal facing direction.
     var facingRight: Bool = false
     /// Cached scene width for boundary clamping during random walk.
-    private var sceneWidth: CGFloat = 0
+    var sceneWidth: CGFloat = 0
 
     // MARK: Init
 
@@ -92,6 +95,9 @@ class CatSprite {
 
         setupPhysicsBody()
         animationComponent.loadTextures(prefix: "cat", bundle: .module)
+
+        // Initialize movement component after animationComponent is ready
+        movementComponent = MovementComponent(entity: self)
 
         // Initialize GKStateMachine after loadTextures so states can access animations
         let states: [GKState] = [
@@ -298,211 +304,10 @@ class CatSprite {
 
     // MARK: - Organic Random Walk (toolUse)
 
-    /// Recursive random walk: pick a random target within range, move there
-    /// with variable speed, pause randomly, then pick next target.
+    /// Starts the recursive random walk used in toolUse state.
+    /// Delegates to MovementComponent.
     func startRandomWalk() {
-        doRandomWalkStep()
-    }
-
-    func doRandomWalkStep() {
-        guard currentState == .toolUse else { return }
-
-        // Random target: ±120px from origin (wide range)
-        let maxRange: CGFloat = CatConstants.Movement.walkMaxRange
-        let margin: CGFloat = CatConstants.Movement.walkBoundaryMargin
-        let rawTarget = originX + CGFloat.random(in: -maxRange...maxRange)
-        let target = sceneWidth > 0
-            ? max(margin, min(sceneWidth - margin, rawTarget))
-            : rawTarget
-
-        // Update facing direction based on movement
-        let delta = target - containerNode.position.x
-        if delta < -CatConstants.Movement.facingDirectionThreshold {
-            facingRight = false
-        } else if delta > CatConstants.Movement.facingDirectionThreshold {
-            facingRight = true
-        }
-        applyFacingDirection()
-
-        let distance = abs(delta)
-
-        // Skip move if barely any distance, just pause
-        if distance < CatConstants.Movement.walkMinDistance {
-            let pause = SKAction.wait(forDuration: Double.random(in: CatConstants.Movement.walkPauseRange))
-            let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-            containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
-            return
-        }
-
-        // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) // px/s
-        let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
-
-        // Start walk animation
-        if let walkFrames = animationComponent.textures(for: "walk-b"), !walkFrames.isEmpty {
-            let animate = SKAction.animate(with: walkFrames, timePerFrame: CatConstants.Animation.frameTimeWalk)
-            node.run(SKAction.repeatForever(animate), withKey: "animation")
-            node.color = sessionColor?.nsColor ?? .white
-            node.colorBlendFactor = sessionTintFactor
-        }
-
-        let move = SKAction.moveTo(x: target, duration: duration)
-        move.timingMode = .easeInEaseOut
-
-        // --- Check for obstacles in the walk path and build jump actions ---
-        let jumpActions = buildJumpActions(from: containerNode.position.x, to: target, goingRight: delta > 0)
-
-        // --- Pause phase: stop walk, show standing pose ---
-        let stopWalkAndPause = SKAction.run { [weak self] in
-            guard let self = self, self.currentState == .toolUse else { return }
-            self.node.removeAction(forKey: "animation")
-            // Standing pose: use paw or idle-a
-            let standAnim = Float.random(in: 0..<1) < CatConstants.Movement.walkPawProbability ? "paw" : "idle-a"
-            if let frames = self.animationComponent.textures(for: standAnim), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeStand)
-                self.node.run(SKAction.repeatForever(animate), withKey: "animation")
-                self.node.color = self.sessionColor?.nsColor ?? .white
-                self.node.colorBlendFactor = self.sessionTintFactor
-            }
-        }
-
-        // Longer walks: mostly keep moving, occasional brief stop
-        let pauseDuration: Double
-        let roll = Float.random(in: 0..<1)
-        if roll < CatConstants.Movement.walkRestProbability {
-            pauseDuration = Double.random(in: CatConstants.Movement.walkRestDurationRange)   // brief rest (15%)
-        } else {
-            pauseDuration = 0                                // keep moving (85%)
-        }
-
-        let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-
-        // Build the walk sequence, inserting jumps if there are obstacles
-        var walkSequence: [SKAction] = []
-        if jumpActions.isEmpty {
-            // No obstacles — simple walk
-            walkSequence.append(move)
-        } else {
-            // Has obstacles — replace simple move with jump-walk sequence
-            walkSequence.append(contentsOf: jumpActions)
-            // Walk remaining distance to target after last jump
-            let remainDist = abs(target - containerNode.position.x)
-            if remainDist > CatConstants.Movement.walkPostJumpMinDistance {
-                let remainWalk = SKAction.moveTo(x: target, duration: max(CatConstants.Movement.walkPostJumpMinDuration, Double(remainDist) / speed))
-                remainWalk.timingMode = .easeOut
-                walkSequence.append(remainWalk)
-            }
-        }
-
-        if pauseDuration > 0 {
-            let pause = SKAction.wait(forDuration: pauseDuration)
-            containerNode.run(SKAction.sequence(walkSequence + [stopWalkAndPause, pause, next]), withKey: "randomWalk")
-        } else {
-            containerNode.run(SKAction.sequence(walkSequence + [next]), withKey: "randomWalk")
-        }
-    }
-
-    // MARK: - Jump Over Obstacles (general purpose)
-
-    /// Builds SKAction sequence to jump over obstacles between `fromX` and `toX`.
-    /// Returns empty array if no obstacles in the path.
-    private func buildJumpActions(
-        from fromX: CGFloat,
-        to toX: CGFloat,
-        goingRight: Bool,
-        onJumpOver: ((CatSprite) -> Void)? = nil
-    ) -> [SKAction] {
-        guard let obstacles = nearbyObstacles?() else { return [] }
-
-        let onPath: [(cat: CatSprite, x: CGFloat)]
-        if goingRight {
-            onPath = obstacles.filter { $0.x > fromX - CatConstants.Jump.obstaclePathTolerance && $0.x < toX + CatConstants.Jump.obstaclePathTolerance }
-                              .sorted { $0.x < $1.x }
-        } else {
-            onPath = obstacles.filter { $0.x < fromX + CatConstants.Jump.obstaclePathTolerance && $0.x > toX - CatConstants.Jump.obstaclePathTolerance }
-                              .sorted { $0.x > $1.x }
-        }
-
-        guard !onPath.isEmpty else { return [] }
-
-        let groundY = containerNode.position.y  // actual resting Y
-        var actions: [SKAction] = []
-        var lastX = fromX
-
-        for obstacle in onPath {
-            let obstX = obstacle.x
-            let approachX = goingRight ? obstX - CatConstants.Jump.approachOffset : obstX + CatConstants.Jump.approachOffset
-            let landX = goingRight ? obstX + CatConstants.Jump.approachOffset : obstX - CatConstants.Jump.approachOffset
-            let capturedObstacleCat = obstacle.cat
-
-            // Walk to approach point
-            let approachDist = abs(approachX - lastX)
-            if approachDist > 1 {
-                let approachWalk = SKAction.moveTo(x: approachX, duration: max(Double(approachDist) / CatConstants.Jump.approachWalkSpeed, CatConstants.Jump.approachMinDuration))
-                approachWalk.timingMode = .easeOut
-                actions.append(approachWalk)
-            }
-
-            // Jump animation (visual on node)
-            if let jumpFrames = animationComponent.textures(for: "jump"), !jumpFrames.isEmpty {
-                let jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
-                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
-                let playJump = SKAction.run { [weak self] in
-                    self?.node.removeAction(forKey: "animation")
-                    self?.node.removeAction(forKey: "walkAnimation")
-                    self?.node.run(jumpAnim)
-                }
-                actions.append(playJump)
-                actions.append(SKAction.wait(forDuration: jumpAnimDuration))
-            }
-
-            // Bezier arc
-            let capturedStartX = approachX
-            let capturedObstX = obstX
-            var jumpOverFired = false
-
-            let bezierAction = SKAction.customAction(withDuration: CatConstants.Jump.arcDuration) { [weak self] _, elapsed in
-                guard let self = self else { return }
-                let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
-                let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight
-                let p2x = landX,          p2y = groundY
-                let oneMinusT = 1 - t
-                let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
-                let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
-                self.containerNode.position = CGPoint(x: bx, y: by)
-
-                if !jumpOverFired && elapsed >= CatConstants.Jump.apexThreshold {
-                    jumpOverFired = true
-                    onJumpOver?(capturedObstacleCat)
-                    capturedObstacleCat.playFrightReaction(awayFromX: self.containerNode.position.x)
-                }
-            }
-            actions.append(bezierAction)
-
-            // Ensure cat lands at ground level (bezier may not hit groundY exactly)
-            let land = SKAction.run { [weak self] in
-                self?.containerNode.position.y = groundY
-            }
-            actions.append(land)
-
-            // Resume walk animation after landing
-            let resumeWalk = SKAction.run { [weak self] in
-                guard let self = self else { return }
-                let walkAnim = self.currentState == .toolUse ? "walk-b" : "walk-a"
-                if let frames = self.animationComponent.textures(for: walkAnim), !frames.isEmpty {
-                    let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
-                    self.node.run(SKAction.repeatForever(animate), withKey: self.currentState == .toolUse ? "animation" : "walkAnimation")
-                    self.node.color = self.sessionColor?.nsColor ?? .white
-                    self.node.colorBlendFactor = self.sessionTintFactor
-                }
-            }
-            actions.append(resumeWalk)
-
-            lastX = landX
-        }
-
-        return actions
+        movementComponent.startRandomWalk()
     }
 
     // MARK: - Alert Overlay
@@ -549,42 +354,7 @@ class CatSprite {
     // MARK: - Food Interaction
 
     func walkToFood(_ food: FoodSprite, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
-        guard currentState == .idle else { return }
-        currentTargetFood = food
-
-        let targetX = food.node.position.x
-        let delta = targetX - containerNode.position.x
-        let distance = abs(delta)
-
-        // Update facing direction via unified path
-        if delta < -CatConstants.Movement.facingDirectionThreshold {
-            facingRight = false
-        } else if delta > CatConstants.Movement.facingDirectionThreshold {
-            facingRight = true
-        }
-        applyFacingDirection()
-
-        // Stop idle animations
-        node.removeAllActions()
-
-        // Walk animation (reuse walk-b, same as toolUse)
-        if let frames = animationComponent.textures(for: "walk-b"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
-            node.run(SKAction.repeatForever(animate), withKey: "animation")
-            node.color = sessionColor?.nsColor ?? .white
-            node.colorBlendFactor = sessionTintFactor
-        }
-
-        let speed: CGFloat = CatConstants.Movement.foodWalkSpeed
-        let duration = max(CatConstants.Movement.foodWalkMinDuration, Double(distance) / Double(speed))
-        let move = SKAction.moveTo(x: targetX, duration: duration)
-        move.timingMode = .easeInEaseOut
-
-        let arrive = SKAction.run { [weak self] in
-            guard let self = self, self.currentTargetFood === food else { return }
-            onArrival(self, food)
-        }
-        containerNode.run(SKAction.sequence([move, arrive]), withKey: "foodWalk")
+        movementComponent.walkToFood(food, onArrival: onArrival)
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
@@ -743,53 +513,7 @@ class CatSprite {
     }
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
-        node.removeAllActions()
-        containerNode.removeAllActions()
-        containerNode.setScale(1.0)
-
-        // Walk to the nearest edge
-        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -CatConstants.Movement.exitOffscreenOffset : sceneWidth + CatConstants.Movement.exitOffscreenOffset
-        let duration = Double(abs(edgeX - containerNode.position.x)) / CatConstants.Movement.exitWalkSpeed
-
-        // Face the exit direction
-        if edgeX < containerNode.position.x {
-            facingRight = false
-        } else {
-            facingRight = true
-        }
-        applyFacingDirection()
-
-        // Play walk animation during exit
-        if let frames = animationComponent.textures(for: "walk-a"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
-            let loop = SKAction.repeatForever(animate)
-            node.run(loop, withKey: "walkAnimation")
-            node.texture = frames[0]
-            node.color = sessionColor?.nsColor ?? .white
-            node.colorBlendFactor = sessionTintFactor
-        }
-
-        var completionFired = false
-        let safeCompletion: () -> Void = {
-            guard !completionFired else { return }
-            completionFired = true
-            completion()
-        }
-
-        let walk = SKAction.moveTo(x: edgeX, duration: max(duration, CatConstants.Movement.exitMinDuration))
-        walk.timingMode = .easeIn
-
-        containerNode.run(walk) {
-            safeCompletion()
-        }
-
-        // GCD fallback for tests without a display link
-        let walkDuration = max(duration, CatConstants.Movement.exitMinDuration)
-        DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-            guard let self = self, !self.hasDisplayLink else { return }
-            self.containerNode.position.x = edgeX
-            safeCompletion()
-        }
+        movementComponent.exitScene(sceneWidth: sceneWidth, completion: completion)
     }
 
     /// Exit variant that jumps over any cats on the path, triggering fright reactions.
@@ -799,191 +523,6 @@ class CatSprite {
         onJumpOver: @escaping (CatSprite) -> Void,
         completion: @escaping () -> Void
     ) {
-        node.removeAllActions()
-        containerNode.removeAllActions()
-        containerNode.setScale(1.0)
-        containerNode.physicsBody?.isDynamic = false
-
-        let myX = containerNode.position.x
-        let groundY = containerNode.position.y  // actual resting Y (gravity-settled)
-        let goingRight = myX >= sceneWidth / 2
-        let edgeX: CGFloat = goingRight ? sceneWidth + CatConstants.Movement.exitOffscreenOffset : -CatConstants.Movement.exitOffscreenOffset
-
-        // Face exit direction
-        facingRight = goingRight
-        applyFacingDirection()
-
-        var completionFired = false
-        let safeCompletion: () -> Void = {
-            guard !completionFired else { return }
-            completionFired = true
-            completion()
-        }
-
-        // Helper: start looping walk-a animation
-        func startWalkAnim() {
-            if let frames = self.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
-                self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
-                self.node.texture = frames[0]
-                self.node.color = self.sessionColor?.nsColor ?? .white
-                self.node.colorBlendFactor = self.sessionTintFactor
-            }
-        }
-
-        // Filter obstacles on the path — include overlapping cats (within 24px behind)
-        let onPath: [(cat: CatSprite, x: CGFloat)]
-        if goingRight {
-            onPath = obstacles.filter { $0.x > myX - CatConstants.Jump.obstaclePathTolerance && $0.x < edgeX }
-                              .sorted { $0.x < $1.x }
-        } else {
-            onPath = obstacles.filter { $0.x < myX + CatConstants.Jump.obstaclePathTolerance && $0.x > edgeX }
-                              .sorted { $0.x > $1.x }
-        }
-
-        guard !onPath.isEmpty else {
-            // No obstacles — original walk-to-edge behaviour
-            let duration = Double(abs(edgeX - myX)) / CatConstants.Movement.exitWalkSpeed
-            startWalkAnim()
-            let walkAction = SKAction.moveTo(x: edgeX, duration: max(duration, CatConstants.Movement.exitMinDuration))
-            walkAction.timingMode = .easeIn
-            containerNode.run(walkAction) { safeCompletion() }
-            // GCD fallback: fire completion if SKAction doesn't run (no display link)
-            let walkDuration = max(duration, CatConstants.Movement.exitMinDuration)
-            DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
-                guard let self = self, !self.hasDisplayLink else { return }
-                self.containerNode.position.x = edgeX
-                safeCompletion()
-            }
-            return
-        }
-
-        // Build action sequence: for each obstacle, walk-near → jump-over → continue
-        var actions: [SKAction] = []
-        var lastX = myX
-        var gcdDelay: Double = 0  // cumulative delay for GCD fallback scheduling
-
-        startWalkAnim()
-
-        for obstacle in onPath {
-            let obstX = obstacle.x
-            let approachX = goingRight ? obstX - CatConstants.Jump.approachOffset : obstX + CatConstants.Jump.approachOffset
-            let landX = goingRight ? obstX + CatConstants.Jump.approachOffset : obstX - CatConstants.Jump.approachOffset
-
-            // Walk to approach point
-            let approachDist = abs(approachX - lastX)
-            let approachDuration: Double
-            if approachDist > 1 {
-                approachDuration = max(Double(approachDist) / CatConstants.Jump.approachWalkSpeed, CatConstants.Jump.approachMinDurationExit)
-                let approachWalk = SKAction.moveTo(x: approachX, duration: approachDuration)
-                approachWalk.timingMode = .easeOut
-                actions.append(approachWalk)
-            } else {
-                approachDuration = 0
-            }
-            gcdDelay += approachDuration
-
-            // Jump animation frames (visual — run on node via SKAction.run block)
-            var jumpAnimDuration: Double = 0
-            if let jumpFrames = animationComponent.textures(for: "jump"), !jumpFrames.isEmpty {
-                jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
-                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
-                let playJump = SKAction.run { [weak self] in
-                    self?.node.removeAction(forKey: "walkAnimation")
-                    self?.node.run(jumpAnim)
-                }
-                actions.append(playJump)
-                actions.append(SKAction.wait(forDuration: jumpAnimDuration))
-            }
-            gcdDelay += jumpAnimDuration
-
-            // Bezier arc over the obstacle
-            let capturedStartX = approachX
-            let capturedObstX = obstX
-            let capturedObstacleCat = obstacle.cat
-            var jumpOverFired = false
-
-            let bezierAction = SKAction.customAction(withDuration: CatConstants.Jump.arcDuration) { [weak self] _, elapsed in
-                guard let self = self else { return }
-                let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
-                let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight  // control point 50px up
-                let p2x = landX,          p2y = groundY
-                let oneMinusT = 1 - t
-                let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
-                let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
-                self.containerNode.position = CGPoint(x: bx, y: by)
-
-                // Fire onJumpOver at apex (t ≈ 0.5)
-                if !jumpOverFired && elapsed >= CatConstants.Jump.apexThreshold {
-                    jumpOverFired = true
-                    onJumpOver(capturedObstacleCat)
-                }
-            }
-            actions.append(bezierAction)
-
-            // Ensure cat lands at ground level (bezier may not hit y=48 exactly)
-            let landAction = SKAction.run { [weak self] in
-                self?.containerNode.position.y = groundY
-            }
-            actions.append(landAction)
-
-            // GCD fallback: only for test environments (no display link)
-            let capturedGcdDelay = gcdDelay + CatConstants.Jump.gcdFallbackOffset
-            DispatchQueue.main.asyncAfter(deadline: .now() + capturedGcdDelay) { [weak self] in
-                guard let self = self, !self.hasDisplayLink else { return }
-                self.containerNode.position = CGPoint(x: capturedObstX, y: groundY + CatConstants.Jump.gcdMidArcYOffset)
-                if !jumpOverFired {
-                    jumpOverFired = true
-                    onJumpOver(capturedObstacleCat)
-                }
-            }
-
-            gcdDelay += CatConstants.Jump.arcDuration
-
-            // Resume walk after landing (visual — on node)
-            let resumeWalk = SKAction.run { [weak self] in
-                guard let self = self else { return }
-                if let frames = self.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
-                    let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
-                    self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
-                    self.node.color = self.sessionColor?.nsColor ?? .white
-                    self.node.colorBlendFactor = self.sessionTintFactor
-                }
-            }
-            actions.append(resumeWalk)
-
-            // GCD fallback: land position (test only)
-            let capturedLandDelay = gcdDelay
-            DispatchQueue.main.asyncAfter(deadline: .now() + capturedLandDelay) { [weak self] in
-                guard let self = self, !self.hasDisplayLink else { return }
-                self.containerNode.position = CGPoint(x: landX, y: groundY)
-            }
-
-            lastX = landX
-        }
-
-        // Final walk to edge
-        let finalDist = abs(edgeX - lastX)
-        let finalDuration: Double
-        if finalDist > 1 {
-            finalDuration = max(Double(finalDist) / CatConstants.Movement.exitWalkSpeed, CatConstants.Movement.walkPostJumpMinDuration)
-            let finalWalk = SKAction.moveTo(x: edgeX, duration: finalDuration)
-            finalWalk.timingMode = .easeIn
-            actions.append(finalWalk)
-        } else {
-            finalDuration = 0
-        }
-        gcdDelay += finalDuration
-
-        actions.append(SKAction.run { safeCompletion() })
-        containerNode.run(SKAction.sequence(actions), withKey: "exitSequence")
-
-        // GCD fallback: completion (test only)
-        DispatchQueue.main.asyncAfter(deadline: .now() + gcdDelay + 0.1) { [weak self] in
-            guard let self = self, !self.hasDisplayLink else { return }
-            self.containerNode.position.x = edgeX
-            safeCompletion()
-        }
+        movementComponent.exitScene(sceneWidth: sceneWidth, obstacles: obstacles, onJumpOver: onJumpOver, completion: completion)
     }
 }

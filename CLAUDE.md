@@ -21,6 +21,8 @@ Sources/ClaudeCodeBuddy/
 
 **猫咪状态机**: idle(sleep/breathe/blink/clean) → thinking(curious paw) → toolUse(random walk) → permissionRequest(alert+badge)
 
+**退出行为**: 会话结束时猫咪跳跃越过路径上的障碍猫（而非推挤），被跳过的猫触发惊吓动画并向反方向闪避
+
 ## 开发
 
 ```bash

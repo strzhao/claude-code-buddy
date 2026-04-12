@@ -260,6 +260,7 @@ class CatSprite {
         removeAlertOverlay()
         hideLabel()
         // Reset transform but preserve facing direction
+        node.position.y = 0  // clear any residual hop offset from playExcitedReaction
         node.yScale = 1.0
         node.zRotation = 0
         applyFacingDirection()
@@ -295,8 +296,37 @@ class CatSprite {
 
     // MARK: - Food Interaction
 
-    func walkToFood(_ food: FoodSprite, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
-        movementComponent.walkToFood(food, onArrival: onArrival)
+    func playExcitedReaction(delay: TimeInterval, completion: @escaping () -> Void) {
+        let wait = SKAction.wait(forDuration: delay)
+        // Small hop on node (not containerNode) to avoid affecting physics position
+        let hopUp = SKAction.moveBy(x: 0, y: 6, duration: 0.1)
+        hopUp.timingMode = .easeOut
+        let hopDown = SKAction.moveBy(x: 0, y: -6, duration: 0.1)
+        hopDown.timingMode = .easeIn
+        let hop = SKAction.sequence([hopUp, hopDown])
+        // Flash paw frame briefly
+        var pawAction = SKAction.wait(forDuration: 0.15)
+        if let frames = animationComponent.textures(for: "paw"), !frames.isEmpty {
+            let pawAnimate = SKAction.animate(with: [frames[0]], timePerFrame: 0.15)
+            pawAction = pawAnimate
+        }
+        let done = SKAction.run { completion() }
+        let reaction = SKAction.sequence([hop, pawAction, done])
+        node.run(SKAction.sequence([wait, reaction]), withKey: "excitedReaction")
+    }
+
+    func playDisappointedReaction() {
+        let droop = SKAction.scaleY(to: 0.92, duration: 0.15)
+        let pause = SKAction.wait(forDuration: 0.3)
+        let recover = SKAction.scaleY(to: 1.0, duration: 0.15)
+        let toIdle = SKAction.run { [weak self] in
+            self?.switchState(to: .idle)
+        }
+        node.run(SKAction.sequence([droop, pause, recover, toIdle]), withKey: "disappointedReaction")
+    }
+
+    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
+        movementComponent.walkToFood(food, excitedDelay: excitedDelay, onArrival: onArrival)
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {

@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  a41a7975b8446ac7 31-32,86,88,108-110,112,127,160,167-191,238
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  a41a7975b8446ac7 63,66
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  a41a7975b8446ac7 29-32,73-76,93,96-112,271-272,361,442,456,502,505,662,665,667,669,671,693,700,729-730,745-746,749-750,753,773
+Sources/ClaudeCodeBuddy/Window/MouseTracker.swift
+  a41a7975b8446ac7 16,26-28,53-56,84-87,94-97,124,127-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "608116218cab1c37f7ba18b14013b168b04e36d1",
+  "prompts": {
+    "a41a7975b8446ac7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b42f0efc-7978-4b32-bda0-40c5dfa88845",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 109,
+      "total_deletions": 29,
+      "accepted_lines": 109,
+      "overriden_lines": 0
+    }
+  }
+}

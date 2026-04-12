@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -9,10 +9,10 @@ retry_count: 0
 mode: "single"
 plan_mode: ""
 brief_file: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/project/tasks/001-constants.md"
-next_task: ""
+next_task: "002-gkstate"
 auto_approve: false
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260412-001-constants"
-session_id: 
+session_id: 7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766
 started_at: "2026-04-12T12:20:33Z"
 ---
 
@@ -227,3 +227,5 @@ protocol EntityProtocol: AnyObject {
 - [2026-04-12T12:20:33Z] autopilot 初始化（brief 模式），任务: 001-constants.md
 - [2026-04-12T12:45:00Z] 设计完成：100+ 魔数审计完毕，7 个 namespace 分组确定，auto-approve 推进到 implement
 - [2026-04-12T12:50:00Z] 实现完成：CatConstants.swift 创建（8 个 namespace，~70 常量），CatSprite.swift + BuddyScene.swift 所有魔数已替换。72 tests passed。
+- [2026-04-12T12:55:00Z] QA 全部通过：build ✅ / 72 tests ✅ / 29 JumpExitTests ✅ / 魔数审计 ✅
+- [2026-04-12T12:57:00Z] 代码已提交：aea4cf6 refactor: extract CatConstants。DAG 状态更新 001-constants: done。next_task: 002-gkstate

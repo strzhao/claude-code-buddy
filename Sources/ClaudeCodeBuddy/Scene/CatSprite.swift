@@ -1,5 +1,6 @@
 import SpriteKit
 import ImageIO
+import GameplayKit
 
 // MARK: - CatState
 
@@ -17,12 +18,6 @@ enum ExitDirection {
     case left, right
 }
 
-// MARK: - IdleSubState
-
-private enum IdleSubState {
-    case sleep, breathe, blink, clean
-}
-
 // MARK: - CatSprite
 
 class CatSprite {
@@ -30,7 +25,18 @@ class CatSprite {
     // MARK: Properties
 
     let sessionId: String
-    private(set) var currentState: CatState = .idle
+
+    /// Computed current state based on GKStateMachine.
+    var currentState: CatState {
+        switch stateMachine?.currentState {
+        case is CatIdleState:              return .idle
+        case is CatThinkingState:          return .thinking
+        case is CatToolUseState:           return .toolUse
+        case is CatPermissionRequestState: return .permissionRequest
+        case is CatEatingState:            return .eating
+        default:                           return .idle  // before stateMachine init
+        }
+    }
 
     /// Container node added to the scene; holds position, physics, and movement.
     let containerNode = SKNode()
@@ -40,32 +46,34 @@ class CatSprite {
 
     /// Animation texture arrays keyed by animation name string.
     /// Known names: "idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b"
-    private var animations: [String: [SKTexture]] = [:]
+    var animations: [String: [SKTexture]] = [:]
 
-    /// Current idle sub-state.
-    private var idleSubState: IdleSubState = .breathe
+    // MARK: - GKStateMachine
+
+    private(set) var stateMachine: GKStateMachine!
+
+    /// Pending tool description passed through to CatPermissionRequestState.
+    var pendingToolDescription: String?
 
     // MARK: - Session Identity
 
     static let hitboxSize = CatConstants.Visual.hitboxSize
-    private var labelNode: SKLabelNode?
-    private var shadowLabelNode: SKLabelNode?
+    var labelNode: SKLabelNode?
+    var shadowLabelNode: SKLabelNode?
     var sessionColor: SessionColor?
-    private var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
-    private var alertOverlayNode: SKNode?
-    private var tabNameNode: SKLabelNode?
-    private var tabNameShadowNode: SKLabelNode?
-    private var tabName: String = ""
+    var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
+    var alertOverlayNode: SKNode?
+    var tabNameNode: SKLabelNode?
+    var tabNameShadowNode: SKLabelNode?
+    var tabName: String = ""
     /// The X position when the cat was placed, used as anchor for random movement.
-    private var originX: CGFloat = 0
-    /// Tracks previous state for transition animations.
-    private var previousState: CatState?
+    var originX: CGFloat = 0
     /// The food this cat is currently walking toward or eating.
     var currentTargetFood: FoodSprite?
     /// Callback to release food when cat is interrupted.
     var onFoodAbandoned: ((String) -> Void)?  // passes sessionId
     /// Single source of truth for horizontal facing direction.
-    private var facingRight: Bool = false
+    var facingRight: Bool = false
     /// Cached scene width for boundary clamping during random walk.
     private var sceneWidth: CGFloat = 0
 
@@ -83,6 +91,16 @@ class CatSprite {
 
         setupPhysicsBody()
         loadTextures()
+
+        // Initialize GKStateMachine after loadTextures so states can access animations
+        let states: [GKState] = [
+            CatIdleState(entity: self),
+            CatThinkingState(entity: self),
+            CatToolUseState(entity: self),
+            CatPermissionRequestState(entity: self),
+            CatEatingState(entity: self)
+        ]
+        stateMachine = GKStateMachine(states: states)
     }
 
     // MARK: - Physics
@@ -120,7 +138,7 @@ class CatSprite {
 
     // MARK: - Facing Direction
 
-    private func applyFacingDirection() {
+    func applyFacingDirection() {
         let xScale: CGFloat = facingRight ? -1.0 : 1.0
         node.xScale = xScale
         // Child labels inherit parent xScale; applying the same value cancels the flip,
@@ -165,7 +183,7 @@ class CatSprite {
 
     // MARK: - Helpers
 
-    private func textures(for animName: String) -> [SKTexture]? {
+    func textures(for animName: String) -> [SKTexture]? {
         guard let textures = animations[animName], !textures.isEmpty else { return nil }
         return textures
     }
@@ -282,16 +300,17 @@ class CatSprite {
     func switchState(to newState: CatState, toolDescription: String? = nil) {
         // Safety net: always restore physics dynamics regardless of whether state actually changes
         containerNode.physicsBody?.isDynamic = true
-        guard newState != currentState else { return }
+
         // Release any claimed food when switching to a different state
         if currentTargetFood != nil {
             currentTargetFood = nil
             onFoodAbandoned?(sessionId)
         }
-        let oldState = currentState
-        previousState = oldState
-        currentState = newState
 
+        // Store tool description for CatPermissionRequestState to access
+        pendingToolDescription = toolDescription
+
+        // Clean up common animation keys before entering new state
         node.removeAllActions()
         containerNode.removeAction(forKey: "randomWalk")
         containerNode.removeAction(forKey: "foodWalk")
@@ -302,140 +321,20 @@ class CatSprite {
         node.zRotation = 0
         applyFacingDirection()
 
-        // Determine transition animation before entering new state
-        let transition = transitionAnimation(from: oldState, to: newState)
-
-        if let transition = transition {
-            let enter = SKAction.run { [weak self] in
-                guard let self = self, self.currentState == newState else { return }
-                self.applyState(newState, toolDescription: toolDescription)
-            }
-            node.run(SKAction.sequence([transition, enter]), withKey: "transition")
-        } else {
-            applyState(newState, toolDescription: toolDescription)
+        let stateClass: AnyClass
+        switch newState {
+        case .idle:              stateClass = CatIdleState.self
+        case .thinking:          stateClass = CatThinkingState.self
+        case .toolUse:           stateClass = CatToolUseState.self
+        case .permissionRequest: stateClass = CatPermissionRequestState.self
+        case .eating:            stateClass = CatEatingState.self
         }
-    }
-
-    // MARK: - Transition Animations
-
-    private func transitionAnimation(from: CatState, to: CatState) -> SKAction? {
-        switch (from, to) {
-        case (.idle, .thinking):
-            // Wake up: blink then stretch
-            guard let blinkFrames = textures(for: "idle-b") else { return nil }
-            let blink = SKAction.animate(with: blinkFrames, timePerFrame: CatConstants.Animation.frameTimeBlink)
-            return blink
-
-        case (.permissionRequest, .idle), (.permissionRequest, .thinking):
-            // Relief: jump
-            guard let jumpFrames = textures(for: "jump") else { return nil }
-            let jump = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJump)
-            return jump
-
-        case (.toolUse, .idle), (.thinking, .idle):
-            // Settle down: clean once (grooming = wind-down)
-            guard let cleanFrames = textures(for: "clean") else { return nil }
-            let clean = SKAction.animate(with: cleanFrames, timePerFrame: CatConstants.Animation.frameTimeClean)
-            return clean
-
-        case (.eating, .idle):
-            guard let cleanFrames = textures(for: "clean") else { return nil }
-            let clean = SKAction.animate(with: cleanFrames, timePerFrame: CatConstants.Animation.frameTimeClean)
-            return clean
-
-        default:
-            return nil
-        }
-    }
-
-    // MARK: - State Application
-
-    private func applyState(_ state: CatState, toolDescription: String? = nil) {
-        switch state {
-        case .idle:
-            node.color = sessionColor?.nsColor ?? .orange
-            node.colorBlendFactor = sessionTintFactor
-            startIdleLoop()
-
-        case .thinking:
-            // Paw animation + gentle sway + breathing
-            if let frames = textures(for: "paw"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
-                let loop = SKAction.repeatForever(animate)
-                node.run(loop, withKey: "animation")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            }
-            // Gentle sway ±3°
-            let swayRight = SKAction.rotate(toAngle: CatConstants.Animation.swayAngle, duration: CatConstants.Animation.swayDuration)
-            swayRight.timingMode = .easeInEaseOut
-            let swayLeft = SKAction.rotate(toAngle: -CatConstants.Animation.swayAngle, duration: CatConstants.Animation.swayDuration)
-            swayLeft.timingMode = .easeInEaseOut
-            let sway = SKAction.repeatForever(SKAction.sequence([swayRight, swayLeft]))
-            node.run(sway, withKey: "stateEffect")
-            startBreathing()
-
-        case .toolUse:
-            // Start with standing pose, random walk handles walk animation
-            if let frames = textures(for: "idle-a"), !frames.isEmpty {
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            }
-            originX = containerNode.position.x
-            startRandomWalk()
-            startBreathing()
-
-        case .permissionRequest:
-            // Scared animation (fast) + bounce + shake + red override + "!" badge
-            if let frames = textures(for: "scared"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeScared)
-                let loop = SKAction.repeatForever(animate)
-                node.run(loop, withKey: "animation")
-                node.texture = frames[0]
-            }
-            // Red color override
-            node.color = CatConstants.Visual.permissionColor
-            node.colorBlendFactor = CatConstants.Visual.permissionBlendFactor
-
-            // Bounce scale pulse (Y-only to preserve facing direction)
-            let scaleUp = SKAction.scaleY(to: CatConstants.Animation.bounceScaleY, duration: CatConstants.Animation.bounceDuration)
-            scaleUp.timingMode = .easeIn
-            let scaleDown = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.bounceDuration)
-            scaleDown.timingMode = .easeOut
-            let bounce = SKAction.repeatForever(SKAction.sequence([scaleUp, scaleDown]))
-            node.run(bounce, withKey: "stateEffect")
-
-            // Horizontal shake
-            let shakeRight = SKAction.moveBy(x: CatConstants.Animation.shakeDeltaX, y: 0, duration: CatConstants.Animation.shakeDuration)
-            let shakeLeft = SKAction.moveBy(x: -CatConstants.Animation.shakeDeltaX * 2, y: 0, duration: CatConstants.Animation.shakeDuration)
-            let shakeBack = SKAction.moveBy(x: CatConstants.Animation.shakeDeltaX, y: 0, duration: CatConstants.Animation.shakeDuration)
-            let shake = SKAction.repeatForever(SKAction.sequence([shakeRight, shakeLeft, shakeBack]))
-            node.run(shake, withKey: "shakeEffect")
-
-            // Show tool description label
-            let displayText = toolDescription ?? "Permission?"
-            showLabel(text: displayText)
-            // Override label color to white for visibility on red cat
-            labelNode?.fontColor = .white
-            shadowLabelNode?.fontColor = CatConstants.Visual.permissionLabelShadowColor
-
-            // "!" badge positioned to the right of the label text
-            addAlertOverlay(afterLabel: displayText)
-
-            // Show tab name above the tool description
-            tabNameNode?.isHidden = false
-            tabNameShadowNode?.isHidden = false
-
-        case .eating:
-            break
-        }
+        stateMachine.enter(stateClass)
     }
 
     // MARK: - Breathing (subtle scale oscillation for all active states)
 
-    private func startBreathing() {
+    func startBreathing() {
         let breatheIn = SKAction.scaleY(to: CatConstants.Animation.breatheScaleY, duration: CatConstants.Animation.breatheDuration)
         breatheIn.timingMode = .easeInEaseOut
         let breatheOut = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.breatheDuration)
@@ -448,11 +347,11 @@ class CatSprite {
 
     /// Recursive random walk: pick a random target within range, move there
     /// with variable speed, pause randomly, then pick next target.
-    private func startRandomWalk() {
+    func startRandomWalk() {
         doRandomWalkStep()
     }
 
-    private func doRandomWalkStep() {
+    func doRandomWalkStep() {
         guard currentState == .toolUse else { return }
 
         // Random target: ±120px from origin (wide range)
@@ -655,7 +554,7 @@ class CatSprite {
 
     // MARK: - Alert Overlay
 
-    private func addAlertOverlay(afterLabel text: String) {
+    func addAlertOverlay(afterLabel text: String) {
         let overlay = SKNode()
         overlay.zPosition = CatConstants.Visual.alertOverlayZPosition
 
@@ -689,114 +588,9 @@ class CatSprite {
         alertOverlayNode = overlay
     }
 
-    private func removeAlertOverlay() {
+    func removeAlertOverlay() {
         alertOverlayNode?.removeFromParent()
         alertOverlayNode = nil
-    }
-
-    // MARK: - Idle State Machine
-
-    private func startIdleLoop() {
-        idleSubState = pickNextIdleSubState()
-        runIdleSubState()
-    }
-
-    private func pickNextIdleSubState() -> IdleSubState {
-        // Weighted random: sleep 70%, breathe 10%, blink 10%, clean 10%
-        let roll = Float.random(in: 0..<1)
-        switch roll {
-        case ..<CatConstants.Idle.sleepWeight: return .sleep
-        case ..<CatConstants.Idle.breatheWeightCumulative: return .breathe
-        case ..<CatConstants.Idle.blinkWeightCumulative: return .blink
-        default:      return .clean
-        }
-    }
-
-    private func runIdleSubState() {
-        // Guard: only run if still in idle state
-        guard currentState == .idle else { return }
-
-        switch idleSubState {
-        case .sleep:
-            if let frames = textures(for: "sleep"), !frames.isEmpty {
-                let animDuration = 1.0 / Double(frames.count)
-                let animate = SKAction.animate(with: frames, timePerFrame: animDuration)
-                let loopSleep = SKAction.repeat(animate, count: CatConstants.Idle.sleepLoopCount)
-                let wait = SKAction.wait(forDuration: CatConstants.Idle.sleepWaitDuration, withRange: CatConstants.Idle.sleepWaitRange)
-                let next = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = self.pickNextIdleSubState()
-                    self.runIdleSubState()
-                }
-                node.run(SKAction.sequence([loopSleep, wait, next]), withKey: "idleLoop")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                idleSubState = .breathe
-                runIdleSubState()
-            }
-
-        case .breathe:
-            playIdleAnimation(animName: "idle-a", looping: true)
-            scheduleNextIdleTransition(after: SKAction.wait(forDuration: CatConstants.Idle.breatheWaitDuration, withRange: CatConstants.Idle.breatheWaitRange))
-
-        case .blink:
-            if let frames = textures(for: "idle-b"), !frames.isEmpty {
-                let duration = CatConstants.Idle.blinkAnimDuration / Double(frames.count)
-                let animate = SKAction.animate(with: frames, timePerFrame: duration)
-                let next = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = self.pickNextIdleSubState()
-                    self.runIdleSubState()
-                }
-                node.run(SKAction.sequence([animate, next]), withKey: "idleLoop")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                idleSubState = .sleep
-                runIdleSubState()
-            }
-
-        case .clean:
-            if let frames = textures(for: "clean"), !frames.isEmpty {
-                let duration = CatConstants.Idle.cleanAnimDuration / Double(frames.count)
-                let animate = SKAction.animate(with: frames, timePerFrame: duration)
-                let next = SKAction.run { [weak self] in
-                    guard let self = self, self.currentState == .idle else { return }
-                    self.idleSubState = self.pickNextIdleSubState()
-                    self.runIdleSubState()
-                }
-                node.run(SKAction.sequence([animate, next]), withKey: "idleLoop")
-                node.texture = frames[0]
-                node.color = sessionColor?.nsColor ?? .white
-                node.colorBlendFactor = sessionTintFactor
-            } else {
-                idleSubState = .sleep
-                runIdleSubState()
-            }
-        }
-    }
-
-    private func playIdleAnimation(animName: String, looping: Bool) {
-        guard let frames = textures(for: animName), !frames.isEmpty else { return }
-        let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeIdleA)
-        let action = looping ? SKAction.repeatForever(animate) : animate
-        node.run(action, withKey: "idleLoop")
-        node.texture = frames[0]
-        node.color = sessionColor?.nsColor ?? .white
-        node.colorBlendFactor = sessionTintFactor
-    }
-
-    private func scheduleNextIdleTransition(after waitAction: SKAction) {
-        let pickAndRun = SKAction.run { [weak self] in
-            guard let self = self, self.currentState == .idle else { return }
-            self.idleSubState = self.pickNextIdleSubState()
-            self.node.removeAction(forKey: "idleLoop")
-            self.runIdleSubState()
-        }
-        node.run(SKAction.sequence([waitAction, pickAndRun]), withKey: "idleTransition")
     }
 
     // MARK: - Food Interaction
@@ -841,7 +635,8 @@ class CatSprite {
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
-        currentState = .eating
+        pendingToolDescription = nil
+        stateMachine.enter(CatEatingState.self)
         currentTargetFood = food
         node.removeAllActions()
         containerNode.removeAction(forKey: "foodWalk")
@@ -879,12 +674,10 @@ class CatSprite {
         node.zRotation = 0
         removeAlertOverlay()
         hideLabel()
-        previousState = nil
 
-        // Enter idle state directly
-        currentState = .idle
+        // Enter idle state via state machine
         applyFacingDirection()
-        applyState(.idle)
+        stateMachine.enter(CatIdleState.self)
 
         // Debug cats: ensure name label is visible immediately
         if isDebugCat {
@@ -939,7 +732,8 @@ class CatSprite {
                 // Use switchState so food is properly released
                 self.switchState(to: .idle)
             } else {
-                self.applyState(self.currentState)
+                // Re-apply steady state animation via ResumableState protocol
+                (self.stateMachine.currentState as? ResumableState)?.resume()
             }
         }
 
@@ -973,7 +767,7 @@ class CatSprite {
             if self.currentState == .eating {
                 self.switchState(to: .idle)
             } else {
-                self.applyState(self.currentState)
+                (self.stateMachine.currentState as? ResumableState)?.resume()
             }
         }
     }

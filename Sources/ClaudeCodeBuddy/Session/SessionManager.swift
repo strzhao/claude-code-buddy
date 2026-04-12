@@ -168,7 +168,7 @@ class SessionManager {
                     cwd: message.cwd,
                     pid: message.pid,
                     terminalId: message.terminalId,
-                    state: message.catState ?? .idle,
+                    state: message.entityState ?? .idle,
                     lastActivity: Date(),
                     toolDescription: message.description
                 )
@@ -196,12 +196,16 @@ class SessionManager {
             }
 
             // Update state
-            if let catState = message.catState {
-                sessions[sessionId]?.state = catState
+            if let entityState = message.entityState {
+                sessions[sessionId]?.state = entityState
                 // Pass description for permission request display
                 let desc = message.description ?? message.tool
                 sessions[sessionId]?.toolDescription = desc
-                scene.updateCatState(sessionId: sessionId, state: catState, toolDescription: desc)
+                scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
+                // Publish to EventBus for future subscribers
+                EventBus.shared.stateChanged.send(StateChangeEvent(
+                    sessionId: sessionId, newState: entityState, toolDescription: desc
+                ))
             }
 
             // Food spawn trigger on toolEnd
@@ -229,7 +233,7 @@ class SessionManager {
                 toRemove.append(sessionId)
             } else if elapsed >= idleTimeout {
                 sessions[sessionId]?.state = .idle
-                scene.updateCatState(sessionId: sessionId, state: .idle)
+                scene.updateCatState(sessionId: sessionId, state: catState(from: .idle))
             }
         }
         for sessionId in toRemove {
@@ -243,6 +247,19 @@ class SessionManager {
             writeColorFile()
             onSessionCountChanged?(scene.activeCatCount)
             onSessionsChanged?(Array(sessions.values))
+        }
+    }
+
+    // MARK: - EntityState → CatState Bridge
+
+    /// Converts EntityState to CatState for passing to BuddyScene/CatSprite.
+    private func catState(from entityState: EntityState) -> CatState {
+        switch entityState {
+        case .idle:              return .idle
+        case .thinking:          return .thinking
+        case .toolUse:           return .toolUse
+        case .permissionRequest: return .permissionRequest
+        case .eating:            return .eating
         }
     }
 }

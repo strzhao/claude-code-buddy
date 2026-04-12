@@ -95,7 +95,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
             button.action = #selector(togglePopover)
             button.target = self

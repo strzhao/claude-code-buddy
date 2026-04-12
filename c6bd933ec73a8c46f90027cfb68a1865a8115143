@@ -1,0 +1,103 @@
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  5458d49900c5aea8 136
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  5458d49900c5aea8 109-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c6bd933ec73a8c46f90027cfb68a1865a8115143",
+  "prompts": {
+    "47016d0ce24717e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d759333d-00d9-4a45-9120-8741354c9280",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 126,
+      "total_deletions": 37,
+      "accepted_lines": 57,
+      "overriden_lines": 0
+    },
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 1,
+      "accepted_lines": 23,
+      "overriden_lines": 0
+    },
+    "a41a7975b8446ac7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b42f0efc-7978-4b32-bda0-40c5dfa88845",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "b1386c671f8a446c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d798660e-ed20-4c27-9c5e-b428794ecdf1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 598,
+      "total_deletions": 11,
+      "accepted_lines": 11,
+      "overriden_lines": 0
+    },
+    "cdbb19ec8fe9f0a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6642198a-a503-43fd-9257-1912fc7bfcc3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 106,
+      "total_deletions": 6,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 137,
+      "overriden_lines": 0
+    },
+    "f0c2225c63e34527": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "addf8f80-dd64-4b3c-814e-d6fe3782e597",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 60,
+      "total_deletions": 32,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}

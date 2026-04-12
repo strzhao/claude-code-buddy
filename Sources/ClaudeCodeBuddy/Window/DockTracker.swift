@@ -4,6 +4,8 @@ import AppKit
 /// placed exactly on top of the Dock's upper edge.
 class DockTracker {
 
+    private let boundsProvider = DockIconBoundsProvider()
+
     /// Returns the frame for the BuddyWindow: full-width strip sitting on top of the Dock.
     func buddyWindowFrame(height: CGFloat = 80) -> NSRect {
         guard let screen = NSScreen.main else {
@@ -32,5 +34,34 @@ class DockTracker {
         guard let screen = NSScreen.main else { return 0 }
         let dh = screen.visibleFrame.origin.y - screen.frame.origin.y
         return max(dh, 0)
+    }
+
+    /// Returns the cat activity bounds in scene-local coordinates.
+    /// When Dock is not at bottom (dockHeight == 0), uses full screen with margins.
+    func activityBounds(windowOriginX: CGFloat, screenMargin: CGFloat = 48) -> ClosedRange<CGFloat> {
+        guard let screen = NSScreen.main else {
+            return screenMargin...(800 - screenMargin)
+        }
+
+        let screenWidth = screen.frame.width
+
+        if dockHeight == 0 {
+            // Dock hidden or on side — full screen with margins
+            return screenMargin...(screenWidth - screenMargin)
+        }
+
+        // Get Dock icon bounds in screen coordinates and convert to scene-local
+        let dockBounds = boundsProvider.currentBounds(screenWidth: screenWidth)
+        let localMin = dockBounds.minX - windowOriginX
+        let localMax = dockBounds.maxX - windowOriginX
+
+        // Ensure minimum 100pt width
+        let width = localMax - localMin
+        if width < 100 {
+            let center = (localMin + localMax) / 2
+            return (center - 50)...(center + 50)
+        }
+
+        return localMin...localMax
     }
 }

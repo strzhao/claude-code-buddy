@@ -8,6 +8,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var menuBarAnimator: MenuBarAnimator?
     var mouseTracker: MouseTracker?
+    private let dockTracker = DockTracker()
+    private var dockPollTimer: Timer?
+    private var cachedActivityBounds: ClosedRange<CGFloat>?
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
@@ -16,6 +19,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupWindow()
         setupMenuBar()
         setupSessionManager()
+        setupDockMonitoring()
+
+        // Request Accessibility permission (non-blocking prompt)
+        DispatchQueue.main.async {
+            let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
+            AXIsProcessTrustedWithOptions(options)
+        }
 
         // Ensure socket cleanup on any exit
         atexit {
@@ -32,12 +42,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     public func applicationWillTerminate(_ notification: Notification) {
         sessionManager?.stop()
         mouseTracker?.stop()
+        dockPollTimer?.invalidate()
+        dockPollTimer = nil
     }
 
     // MARK: - Window
 
     private func setupWindow() {
-        let dockTracker = DockTracker()
         let windowFrame = dockTracker.buddyWindowFrame()
 
         let win = BuddyWindow(contentRect: windowFrame)
@@ -51,6 +62,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         buddyScene.scaleMode = .resizeFill
         scene = buddyScene
         skView.presentScene(buddyScene)
+
+        // Apply initial activity bounds
+        let bounds = dockTracker.activityBounds(windowOriginX: windowFrame.origin.x)
+        buddyScene.activityBounds = bounds
+        buddyScene.foodManager.activityBounds = bounds
+        cachedActivityBounds = bounds
 
         win.makeKeyAndOrderFront(nil)
 
@@ -88,10 +105,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screenParametersChanged() {
         guard let win = window else { return }
-        let dockTracker = DockTracker()
         let newFrame = dockTracker.buddyWindowFrame()
         win.setFrame(newFrame, display: true)
         scene?.size = newFrame.size
+        refreshActivityBounds(windowOriginX: newFrame.origin.x)
     }
 
     // MARK: - Menu Bar
@@ -160,5 +177,45 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
         sessionManager = manager
         manager.start()
+    }
+
+    // MARK: - Dock Monitoring
+
+    private func setupDockMonitoring() {
+        // Poll AX bounds every 3 seconds (catches icon size changes, Dock show/hide)
+        dockPollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            guard let self = self, let win = self.window else { return }
+            self.refreshActivityBounds(windowOriginX: win.frame.origin.x)
+        }
+
+        // App launch/terminate may change Dock icon count
+        let ws = NSWorkspace.shared
+        ws.notificationCenter.addObserver(self, selector: #selector(dockMayHaveChanged),
+                                          name: NSWorkspace.didLaunchApplicationNotification, object: nil)
+        ws.notificationCenter.addObserver(self, selector: #selector(dockMayHaveChanged),
+                                          name: NSWorkspace.didTerminateApplicationNotification, object: nil)
+    }
+
+    @objc private func dockMayHaveChanged() {
+        // Dock animates icon changes — delay before querying
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self = self, let win = self.window else { return }
+            self.refreshActivityBounds(windowOriginX: win.frame.origin.x)
+        }
+    }
+
+    private func refreshActivityBounds(windowOriginX: CGFloat) {
+        let newBounds = dockTracker.activityBounds(windowOriginX: windowOriginX)
+
+        // Only propagate if changed
+        if let cached = cachedActivityBounds,
+           cached.lowerBound == newBounds.lowerBound,
+           cached.upperBound == newBounds.upperBound {
+            return
+        }
+
+        cachedActivityBounds = newBounds
+        scene?.activityBounds = newBounds
+        scene?.foodManager.activityBounds = newBounds
     }
 }

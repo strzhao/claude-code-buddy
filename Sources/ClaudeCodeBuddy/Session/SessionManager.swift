@@ -8,14 +8,14 @@ class SessionManager {
 
     // MARK: - Properties
 
-    private let scene: BuddyScene
+    private let scene: any SceneControlling
     private let server = SocketServer()
 
     /// Full session state keyed by sessionId.
-    private var sessions: [String: SessionInfo] = [:]
+    var sessions: [String: SessionInfo] = [:]
 
     /// Tracks which colors are currently in use.
-    private var usedColors: Set<SessionColor> = []
+    var usedColors: Set<SessionColor> = []
 
     /// Called whenever the active session count changes.
     var onSessionCountChanged: ((Int) -> Void)?
@@ -42,7 +42,7 @@ class SessionManager {
 
     // MARK: - Init
 
-    init(scene: BuddyScene) {
+    init(scene: any SceneControlling) {
         self.scene = scene
     }
 
@@ -139,7 +139,7 @@ class SessionManager {
 
     // MARK: - Message Handling
 
-    private func handle(message: HookMessage) {
+    func handle(message: HookMessage) {
         let sessionId = message.sessionId
 
         switch message.event {
@@ -266,7 +266,7 @@ class SessionManager {
 
     // MARK: - Timeouts
 
-    private func checkTimeouts() {
+    func checkTimeouts() {
         let now = Date()
         var toRemove: [String] = []
         for (sessionId, session) in sessions {
@@ -275,7 +275,7 @@ class SessionManager {
                 toRemove.append(sessionId)
             } else if elapsed >= idleTimeout {
                 sessions[sessionId]?.state = .idle
-                scene.updateCatState(sessionId: sessionId, state: catState(from: .idle))
+                scene.updateCatState(sessionId: sessionId, state: catState(from: .idle), toolDescription: nil)
             }
         }
         for sessionId in toRemove {

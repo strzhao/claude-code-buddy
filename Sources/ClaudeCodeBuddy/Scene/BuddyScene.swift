@@ -279,3 +279,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats.values.filter { $0.currentState == .idle }
     }
 }
+
+// MARK: - SceneControlling
+
+extension BuddyScene: SceneControlling {}

@@ -47,11 +47,11 @@ class CatSprite {
 
     // MARK: - Session Identity
 
-    static let hitboxSize = CGSize(width: 48, height: 64)
+    static let hitboxSize = CatConstants.Visual.hitboxSize
     private var labelNode: SKLabelNode?
     private var shadowLabelNode: SKLabelNode?
     var sessionColor: SessionColor?
-    private var sessionTintFactor: CGFloat = 0.3
+    private var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
     private var alertOverlayNode: SKNode?
     private var tabNameNode: SKLabelNode?
     private var tabNameShadowNode: SKLabelNode?
@@ -75,7 +75,7 @@ class CatSprite {
         self.sessionId = sessionId
 
         // Start with a placeholder 48x48 colored square if textures are missing
-        node = SKSpriteNode(color: .orange, size: CGSize(width: 48, height: 48))
+        node = SKSpriteNode(color: .orange, size: CatConstants.Physics.placeholderSize)
         node.name = "catSprite_\(sessionId)"
 
         containerNode.name = "cat_\(sessionId)"
@@ -88,21 +88,21 @@ class CatSprite {
     // MARK: - Physics
 
     private func setupPhysicsBody() {
-        let body = SKPhysicsBody(rectangleOf: CGSize(width: 44, height: 44))
+        let body = SKPhysicsBody(rectangleOf: CatConstants.Physics.bodySize)
         body.allowsRotation = false
         body.categoryBitMask    = PhysicsCategory.cat
         body.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.ground
         body.contactTestBitMask = PhysicsCategory.ground
-        body.restitution = 0.0
-        body.friction    = 0.8
-        body.linearDamping = 0.5
+        body.restitution = CatConstants.Physics.restitution
+        body.friction    = CatConstants.Physics.friction
+        body.linearDamping = CatConstants.Physics.linearDamping
         containerNode.physicsBody = body
     }
 
     // MARK: - Hover Scale
 
-    private static let hoverScale: CGFloat = 1.25
-    private static let hoverDuration: TimeInterval = 0.15
+    private static let hoverScale: CGFloat = CatConstants.Visual.hoverScale
+    private static let hoverDuration: TimeInterval = CatConstants.Visual.hoverDuration
 
     func applyHoverScale() {
         containerNode.removeAction(forKey: "hoverScale")
@@ -181,26 +181,26 @@ class CatSprite {
 
         // Create shadow label (behind, for glow effect)
         let shadow = SKLabelNode(text: labelText)
-        shadow.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
-        shadow.fontSize = 11
-        shadow.fontColor = color.nsColor.withAlphaComponent(0.4)
-        shadow.position = CGPoint(x: 1, y: 1)
+        shadow.fontName = NSFont.boldSystemFont(ofSize: CatConstants.Visual.labelFontSize).fontName
+        shadow.fontSize = CatConstants.Visual.labelFontSize
+        shadow.fontColor = color.nsColor.withAlphaComponent(CatConstants.Visual.labelShadowAlpha)
+        shadow.position = CatConstants.Visual.labelShadowOffset
         shadow.verticalAlignmentMode = .bottom
         shadow.horizontalAlignmentMode = .center
-        shadow.zPosition = 9
+        shadow.zPosition = CatConstants.Visual.labelShadowZPosition
         shadow.isHidden = true
         node.addChild(shadow)
         shadowLabelNode = shadow
 
         // Create main label
         let label = SKLabelNode(text: labelText)
-        label.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
-        label.fontSize = 11
+        label.fontName = NSFont.boldSystemFont(ofSize: CatConstants.Visual.labelFontSize).fontName
+        label.fontSize = CatConstants.Visual.labelFontSize
         label.fontColor = color.nsColor
-        label.position = CGPoint(x: 0, y: 2)
+        label.position = CGPoint(x: 0, y: CatConstants.Visual.labelYOffset)
         label.verticalAlignmentMode = .bottom
         label.horizontalAlignmentMode = .center
-        label.zPosition = 10
+        label.zPosition = CatConstants.Visual.labelZPosition
         label.isHidden = true
         node.addChild(label)
         labelNode = label
@@ -210,26 +210,26 @@ class CatSprite {
 
         // Create tab name shadow (for waiting state)
         let tabShadow = SKLabelNode(text: labelText)
-        tabShadow.fontName = NSFont.boldSystemFont(ofSize: 9).fontName
-        tabShadow.fontSize = 9
-        tabShadow.fontColor = color.nsColor.withAlphaComponent(0.4)
-        tabShadow.position = CGPoint(x: 1, y: 16)
+        tabShadow.fontName = NSFont.boldSystemFont(ofSize: CatConstants.Visual.tabLabelFontSize).fontName
+        tabShadow.fontSize = CatConstants.Visual.tabLabelFontSize
+        tabShadow.fontColor = color.nsColor.withAlphaComponent(CatConstants.Visual.labelShadowAlpha)
+        tabShadow.position = CGPoint(x: CatConstants.Visual.labelShadowOffset.x, y: CatConstants.Visual.tabLabelShadowYOffset)
         tabShadow.verticalAlignmentMode = .bottom
         tabShadow.horizontalAlignmentMode = .center
-        tabShadow.zPosition = 9
+        tabShadow.zPosition = CatConstants.Visual.labelShadowZPosition
         tabShadow.isHidden = true
         node.addChild(tabShadow)
         tabNameShadowNode = tabShadow
 
         // Create tab name label (for waiting state)
         let tabLabel = SKLabelNode(text: labelText)
-        tabLabel.fontName = NSFont.boldSystemFont(ofSize: 9).fontName
-        tabLabel.fontSize = 9
+        tabLabel.fontName = NSFont.boldSystemFont(ofSize: CatConstants.Visual.tabLabelFontSize).fontName
+        tabLabel.fontSize = CatConstants.Visual.tabLabelFontSize
         tabLabel.fontColor = color.nsColor
-        tabLabel.position = CGPoint(x: 0, y: 17)
+        tabLabel.position = CGPoint(x: 0, y: CatConstants.Visual.tabLabelYOffset)
         tabLabel.verticalAlignmentMode = .bottom
         tabLabel.horizontalAlignmentMode = .center
-        tabLabel.zPosition = 10
+        tabLabel.zPosition = CatConstants.Visual.labelZPosition
         tabLabel.isHidden = true
         node.addChild(tabLabel)
         tabNameNode = tabLabel
@@ -246,7 +246,7 @@ class CatSprite {
     func showLabel(text: String? = nil) {
         if let text = text {
             // Truncate to avoid Metal texture overflow (max 16384px width)
-            let truncated = text.count > 80 ? String(text.prefix(80)) + "…" : text
+            let truncated = text.count > CatConstants.Visual.labelMaxLength ? String(text.prefix(CatConstants.Visual.labelMaxLength)) + "…" : text
             // Only update the tool-description label nodes; do not overwrite tabName
             labelNode?.text = truncated
             shadowLabelNode?.text = truncated
@@ -323,24 +323,24 @@ class CatSprite {
         case (.idle, .thinking):
             // Wake up: blink then stretch
             guard let blinkFrames = textures(for: "idle-b") else { return nil }
-            let blink = SKAction.animate(with: blinkFrames, timePerFrame: 0.12)
+            let blink = SKAction.animate(with: blinkFrames, timePerFrame: CatConstants.Animation.frameTimeBlink)
             return blink
 
         case (.permissionRequest, .idle), (.permissionRequest, .thinking):
             // Relief: jump
             guard let jumpFrames = textures(for: "jump") else { return nil }
-            let jump = SKAction.animate(with: jumpFrames, timePerFrame: 0.12)
+            let jump = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJump)
             return jump
 
         case (.toolUse, .idle), (.thinking, .idle):
             // Settle down: clean once (grooming = wind-down)
             guard let cleanFrames = textures(for: "clean") else { return nil }
-            let clean = SKAction.animate(with: cleanFrames, timePerFrame: 0.15)
+            let clean = SKAction.animate(with: cleanFrames, timePerFrame: CatConstants.Animation.frameTimeClean)
             return clean
 
         case (.eating, .idle):
             guard let cleanFrames = textures(for: "clean") else { return nil }
-            let clean = SKAction.animate(with: cleanFrames, timePerFrame: 0.15)
+            let clean = SKAction.animate(with: cleanFrames, timePerFrame: CatConstants.Animation.frameTimeClean)
             return clean
 
         default:
@@ -360,7 +360,7 @@ class CatSprite {
         case .thinking:
             // Paw animation + gentle sway + breathing
             if let frames = textures(for: "paw"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
+                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
@@ -368,9 +368,9 @@ class CatSprite {
                 node.colorBlendFactor = sessionTintFactor
             }
             // Gentle sway ±3°
-            let swayRight = SKAction.rotate(toAngle: .pi / 60, duration: 0.6)
+            let swayRight = SKAction.rotate(toAngle: CatConstants.Animation.swayAngle, duration: CatConstants.Animation.swayDuration)
             swayRight.timingMode = .easeInEaseOut
-            let swayLeft = SKAction.rotate(toAngle: -.pi / 60, duration: 0.6)
+            let swayLeft = SKAction.rotate(toAngle: -CatConstants.Animation.swayAngle, duration: CatConstants.Animation.swayDuration)
             swayLeft.timingMode = .easeInEaseOut
             let sway = SKAction.repeatForever(SKAction.sequence([swayRight, swayLeft]))
             node.run(sway, withKey: "stateEffect")
@@ -390,27 +390,27 @@ class CatSprite {
         case .permissionRequest:
             // Scared animation (fast) + bounce + shake + red override + "!" badge
             if let frames = textures(for: "scared"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeScared)
                 let loop = SKAction.repeatForever(animate)
                 node.run(loop, withKey: "animation")
                 node.texture = frames[0]
             }
             // Red color override
-            node.color = NSColor(red: 1, green: 0.3, blue: 0, alpha: 1)
-            node.colorBlendFactor = 0.55
+            node.color = CatConstants.Visual.permissionColor
+            node.colorBlendFactor = CatConstants.Visual.permissionBlendFactor
 
             // Bounce scale pulse (Y-only to preserve facing direction)
-            let scaleUp = SKAction.scaleY(to: 1.15, duration: 0.175)
+            let scaleUp = SKAction.scaleY(to: CatConstants.Animation.bounceScaleY, duration: CatConstants.Animation.bounceDuration)
             scaleUp.timingMode = .easeIn
-            let scaleDown = SKAction.scaleY(to: 1.0, duration: 0.175)
+            let scaleDown = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.bounceDuration)
             scaleDown.timingMode = .easeOut
             let bounce = SKAction.repeatForever(SKAction.sequence([scaleUp, scaleDown]))
             node.run(bounce, withKey: "stateEffect")
 
             // Horizontal shake
-            let shakeRight = SKAction.moveBy(x: 3, y: 0, duration: 0.04)
-            let shakeLeft = SKAction.moveBy(x: -6, y: 0, duration: 0.04)
-            let shakeBack = SKAction.moveBy(x: 3, y: 0, duration: 0.04)
+            let shakeRight = SKAction.moveBy(x: CatConstants.Animation.shakeDeltaX, y: 0, duration: CatConstants.Animation.shakeDuration)
+            let shakeLeft = SKAction.moveBy(x: -CatConstants.Animation.shakeDeltaX * 2, y: 0, duration: CatConstants.Animation.shakeDuration)
+            let shakeBack = SKAction.moveBy(x: CatConstants.Animation.shakeDeltaX, y: 0, duration: CatConstants.Animation.shakeDuration)
             let shake = SKAction.repeatForever(SKAction.sequence([shakeRight, shakeLeft, shakeBack]))
             node.run(shake, withKey: "shakeEffect")
 
@@ -419,7 +419,7 @@ class CatSprite {
             showLabel(text: displayText)
             // Override label color to white for visibility on red cat
             labelNode?.fontColor = .white
-            shadowLabelNode?.fontColor = NSColor(white: 0, alpha: 0.6)
+            shadowLabelNode?.fontColor = CatConstants.Visual.permissionLabelShadowColor
 
             // "!" badge positioned to the right of the label text
             addAlertOverlay(afterLabel: displayText)
@@ -436,9 +436,9 @@ class CatSprite {
     // MARK: - Breathing (subtle scale oscillation for all active states)
 
     private func startBreathing() {
-        let breatheIn = SKAction.scaleY(to: 1.02, duration: 1.0)
+        let breatheIn = SKAction.scaleY(to: CatConstants.Animation.breatheScaleY, duration: CatConstants.Animation.breatheDuration)
         breatheIn.timingMode = .easeInEaseOut
-        let breatheOut = SKAction.scaleY(to: 1.0, duration: 1.0)
+        let breatheOut = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.breatheDuration)
         breatheOut.timingMode = .easeInEaseOut
         let breathe = SKAction.repeatForever(SKAction.sequence([breatheIn, breatheOut]))
         node.run(breathe, withKey: "breathing")
@@ -456,8 +456,8 @@ class CatSprite {
         guard currentState == .toolUse else { return }
 
         // Random target: ±120px from origin (wide range)
-        let maxRange: CGFloat = 120
-        let margin: CGFloat = 24
+        let maxRange: CGFloat = CatConstants.Movement.walkMaxRange
+        let margin: CGFloat = CatConstants.Movement.walkBoundaryMargin
         let rawTarget = originX + CGFloat.random(in: -maxRange...maxRange)
         let target = sceneWidth > 0
             ? max(margin, min(sceneWidth - margin, rawTarget))
@@ -465,9 +465,9 @@ class CatSprite {
 
         // Update facing direction based on movement
         let delta = target - containerNode.position.x
-        if delta < -0.5 {
+        if delta < -CatConstants.Movement.facingDirectionThreshold {
             facingRight = false
-        } else if delta > 0.5 {
+        } else if delta > CatConstants.Movement.facingDirectionThreshold {
             facingRight = true
         }
         applyFacingDirection()
@@ -475,20 +475,20 @@ class CatSprite {
         let distance = abs(delta)
 
         // Skip move if barely any distance, just pause
-        if distance < 2.0 {
-            let pause = SKAction.wait(forDuration: Double.random(in: 1.0...2.5))
+        if distance < CatConstants.Movement.walkMinDistance {
+            let pause = SKAction.wait(forDuration: Double.random(in: CatConstants.Movement.walkPauseRange))
             let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
             containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
             return
         }
 
         // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: 35...55) // px/s
-        let duration = max(0.3, Double(distance) / speed)
+        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) // px/s
+        let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
 
         // Start walk animation
         if let walkFrames = textures(for: "walk-b"), !walkFrames.isEmpty {
-            let animate = SKAction.animate(with: walkFrames, timePerFrame: 0.10)
+            let animate = SKAction.animate(with: walkFrames, timePerFrame: CatConstants.Animation.frameTimeWalk)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
             node.color = sessionColor?.nsColor ?? .white
             node.colorBlendFactor = sessionTintFactor
@@ -505,9 +505,9 @@ class CatSprite {
             guard let self = self, self.currentState == .toolUse else { return }
             self.node.removeAction(forKey: "animation")
             // Standing pose: use paw or idle-a
-            let standAnim = Float.random(in: 0..<1) < 0.3 ? "paw" : "idle-a"
+            let standAnim = Float.random(in: 0..<1) < CatConstants.Movement.walkPawProbability ? "paw" : "idle-a"
             if let frames = self.textures(for: standAnim), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.25)
+                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeStand)
                 self.node.run(SKAction.repeatForever(animate), withKey: "animation")
                 self.node.color = self.sessionColor?.nsColor ?? .white
                 self.node.colorBlendFactor = self.sessionTintFactor
@@ -517,8 +517,8 @@ class CatSprite {
         // Longer walks: mostly keep moving, occasional brief stop
         let pauseDuration: Double
         let roll = Float.random(in: 0..<1)
-        if roll < 0.15 {
-            pauseDuration = Double.random(in: 0.8...1.5)   // brief rest (15%)
+        if roll < CatConstants.Movement.walkRestProbability {
+            pauseDuration = Double.random(in: CatConstants.Movement.walkRestDurationRange)   // brief rest (15%)
         } else {
             pauseDuration = 0                                // keep moving (85%)
         }
@@ -535,8 +535,8 @@ class CatSprite {
             walkSequence.append(contentsOf: jumpActions)
             // Walk remaining distance to target after last jump
             let remainDist = abs(target - containerNode.position.x)
-            if remainDist > 5 {
-                let remainWalk = SKAction.moveTo(x: target, duration: max(0.2, Double(remainDist) / speed))
+            if remainDist > CatConstants.Movement.walkPostJumpMinDistance {
+                let remainWalk = SKAction.moveTo(x: target, duration: max(CatConstants.Movement.walkPostJumpMinDuration, Double(remainDist) / speed))
                 remainWalk.timingMode = .easeOut
                 walkSequence.append(remainWalk)
             }
@@ -564,10 +564,10 @@ class CatSprite {
 
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
-            onPath = obstacles.filter { $0.x > fromX - 24 && $0.x < toX + 24 }
+            onPath = obstacles.filter { $0.x > fromX - CatConstants.Jump.obstaclePathTolerance && $0.x < toX + CatConstants.Jump.obstaclePathTolerance }
                               .sorted { $0.x < $1.x }
         } else {
-            onPath = obstacles.filter { $0.x < fromX + 24 && $0.x > toX - 24 }
+            onPath = obstacles.filter { $0.x < fromX + CatConstants.Jump.obstaclePathTolerance && $0.x > toX - CatConstants.Jump.obstaclePathTolerance }
                               .sorted { $0.x > $1.x }
         }
 
@@ -579,22 +579,22 @@ class CatSprite {
 
         for obstacle in onPath {
             let obstX = obstacle.x
-            let approachX = goingRight ? obstX - 20 : obstX + 20
-            let landX = goingRight ? obstX + 20 : obstX - 20
+            let approachX = goingRight ? obstX - CatConstants.Jump.approachOffset : obstX + CatConstants.Jump.approachOffset
+            let landX = goingRight ? obstX + CatConstants.Jump.approachOffset : obstX - CatConstants.Jump.approachOffset
             let capturedObstacleCat = obstacle.cat
 
             // Walk to approach point
             let approachDist = abs(approachX - lastX)
             if approachDist > 1 {
-                let approachWalk = SKAction.moveTo(x: approachX, duration: max(Double(approachDist) / 120.0, 0.15))
+                let approachWalk = SKAction.moveTo(x: approachX, duration: max(Double(approachDist) / CatConstants.Jump.approachWalkSpeed, CatConstants.Jump.approachMinDuration))
                 approachWalk.timingMode = .easeOut
                 actions.append(approachWalk)
             }
 
             // Jump animation (visual on node)
             if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
-                let jumpAnimDuration = Double(jumpFrames.count) * 0.10
-                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.10)
+                let jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
+                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
                 let playJump = SKAction.run { [weak self] in
                     self?.node.removeAction(forKey: "animation")
                     self?.node.removeAction(forKey: "walkAnimation")
@@ -609,18 +609,18 @@ class CatSprite {
             let capturedObstX = obstX
             var jumpOverFired = false
 
-            let bezierAction = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
+            let bezierAction = SKAction.customAction(withDuration: CatConstants.Jump.arcDuration) { [weak self] _, elapsed in
                 guard let self = self else { return }
-                let t = CGFloat(elapsed) / 0.30
+                let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
                 let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + 50
+                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight
                 let p2x = landX,          p2y = groundY
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
                 let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
                 self.containerNode.position = CGPoint(x: bx, y: by)
 
-                if !jumpOverFired && elapsed >= 0.13 {
+                if !jumpOverFired && elapsed >= CatConstants.Jump.apexThreshold {
                     jumpOverFired = true
                     onJumpOver?(capturedObstacleCat)
                     capturedObstacleCat.playFrightReaction(awayFromX: self.containerNode.position.x)
@@ -639,7 +639,7 @@ class CatSprite {
                 guard let self = self else { return }
                 let walkAnim = self.currentState == .toolUse ? "walk-b" : "walk-a"
                 if let frames = self.textures(for: walkAnim), !frames.isEmpty {
-                    let animate = SKAction.animate(with: frames, timePerFrame: 0.10)
+                    let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
                     self.node.run(SKAction.repeatForever(animate), withKey: self.currentState == .toolUse ? "animation" : "walkAnimation")
                     self.node.color = self.sessionColor?.nsColor ?? .white
                     self.node.colorBlendFactor = self.sessionTintFactor
@@ -657,31 +657,31 @@ class CatSprite {
 
     private func addAlertOverlay(afterLabel text: String) {
         let overlay = SKNode()
-        overlay.zPosition = 15
+        overlay.zPosition = CatConstants.Visual.alertOverlayZPosition
 
         // Estimate label width: ~7pt per character at font size 11
-        let labelHalfWidth = CGFloat(text.count) * 3.5
-        let badgeX = labelHalfWidth + 12
+        let labelHalfWidth = CGFloat(text.count) * CatConstants.Visual.alertBadgeCharWidth
+        let badgeX = labelHalfWidth + CatConstants.Visual.alertBadgeHPadding
 
-        let circle = SKShapeNode(circleOfRadius: 8)
-        circle.fillColor = NSColor(red: 0.95, green: 0.2, blue: 0.1, alpha: 1)
+        let circle = SKShapeNode(circleOfRadius: CatConstants.Visual.alertBadgeRadius)
+        circle.fillColor = CatConstants.Visual.alertBadgeColor
         circle.strokeColor = .white
-        circle.lineWidth = 1.0
-        circle.position = CGPoint(x: badgeX, y: 8)
+        circle.lineWidth = CatConstants.Visual.alertBadgeLineWidth
+        circle.position = CGPoint(x: badgeX, y: CatConstants.Visual.alertBadgeYOffset)
         overlay.addChild(circle)
 
         let label = SKLabelNode(text: "!")
-        label.fontName = NSFont.boldSystemFont(ofSize: 12).fontName
-        label.fontSize = 12
+        label.fontName = NSFont.boldSystemFont(ofSize: CatConstants.Visual.alertBadgeFontSize).fontName
+        label.fontSize = CatConstants.Visual.alertBadgeFontSize
         label.fontColor = .white
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .center
-        label.position = CGPoint(x: badgeX, y: 8)
+        label.position = CGPoint(x: badgeX, y: CatConstants.Visual.alertBadgeYOffset)
         overlay.addChild(label)
 
         // Pulse the badge
-        let fadeOut = SKAction.fadeAlpha(to: 0.3, duration: 0.25)
-        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.25)
+        let fadeOut = SKAction.fadeAlpha(to: CatConstants.Animation.badgePulseMinAlpha, duration: CatConstants.Animation.badgeFadeDuration)
+        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: CatConstants.Animation.badgeFadeDuration)
         let pulse = SKAction.repeatForever(SKAction.sequence([fadeOut, fadeIn]))
         overlay.run(pulse)
 
@@ -705,9 +705,9 @@ class CatSprite {
         // Weighted random: sleep 70%, breathe 10%, blink 10%, clean 10%
         let roll = Float.random(in: 0..<1)
         switch roll {
-        case ..<0.70: return .sleep
-        case ..<0.80: return .breathe
-        case ..<0.90: return .blink
+        case ..<CatConstants.Idle.sleepWeight: return .sleep
+        case ..<CatConstants.Idle.breatheWeightCumulative: return .breathe
+        case ..<CatConstants.Idle.blinkWeightCumulative: return .blink
         default:      return .clean
         }
     }
@@ -721,8 +721,8 @@ class CatSprite {
             if let frames = textures(for: "sleep"), !frames.isEmpty {
                 let animDuration = 1.0 / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: animDuration)
-                let loopSleep = SKAction.repeat(animate, count: 3)
-                let wait = SKAction.wait(forDuration: 5, withRange: 2)
+                let loopSleep = SKAction.repeat(animate, count: CatConstants.Idle.sleepLoopCount)
+                let wait = SKAction.wait(forDuration: CatConstants.Idle.sleepWaitDuration, withRange: CatConstants.Idle.sleepWaitRange)
                 let next = SKAction.run { [weak self] in
                     guard let self = self, self.currentState == .idle else { return }
                     self.idleSubState = self.pickNextIdleSubState()
@@ -739,11 +739,11 @@ class CatSprite {
 
         case .breathe:
             playIdleAnimation(animName: "idle-a", looping: true)
-            scheduleNextIdleTransition(after: SKAction.wait(forDuration: 4, withRange: 2))
+            scheduleNextIdleTransition(after: SKAction.wait(forDuration: CatConstants.Idle.breatheWaitDuration, withRange: CatConstants.Idle.breatheWaitRange))
 
         case .blink:
             if let frames = textures(for: "idle-b"), !frames.isEmpty {
-                let duration = 2.0 / Double(frames.count)
+                let duration = CatConstants.Idle.blinkAnimDuration / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: duration)
                 let next = SKAction.run { [weak self] in
                     guard let self = self, self.currentState == .idle else { return }
@@ -761,7 +761,7 @@ class CatSprite {
 
         case .clean:
             if let frames = textures(for: "clean"), !frames.isEmpty {
-                let duration = 3.0 / Double(frames.count)
+                let duration = CatConstants.Idle.cleanAnimDuration / Double(frames.count)
                 let animate = SKAction.animate(with: frames, timePerFrame: duration)
                 let next = SKAction.run { [weak self] in
                     guard let self = self, self.currentState == .idle else { return }
@@ -781,7 +781,7 @@ class CatSprite {
 
     private func playIdleAnimation(animName: String, looping: Bool) {
         guard let frames = textures(for: animName), !frames.isEmpty else { return }
-        let animate = SKAction.animate(with: frames, timePerFrame: 0.20)
+        let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeIdleA)
         let action = looping ? SKAction.repeatForever(animate) : animate
         node.run(action, withKey: "idleLoop")
         node.texture = frames[0]
@@ -810,9 +810,9 @@ class CatSprite {
         let distance = abs(delta)
 
         // Update facing direction via unified path
-        if delta < -0.5 {
+        if delta < -CatConstants.Movement.facingDirectionThreshold {
             facingRight = false
-        } else if delta > 0.5 {
+        } else if delta > CatConstants.Movement.facingDirectionThreshold {
             facingRight = true
         }
         applyFacingDirection()
@@ -822,14 +822,14 @@ class CatSprite {
 
         // Walk animation (reuse walk-b, same as toolUse)
         if let frames = textures(for: "walk-b"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: 0.10)
+            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeWalk)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
             node.color = sessionColor?.nsColor ?? .white
             node.colorBlendFactor = sessionTintFactor
         }
 
-        let speed: CGFloat = 55
-        let duration = max(0.3, Double(distance) / Double(speed))
+        let speed: CGFloat = CatConstants.Movement.foodWalkSpeed
+        let duration = max(CatConstants.Movement.foodWalkMinDuration, Double(distance) / Double(speed))
         let move = SKAction.moveTo(x: targetX, duration: duration)
         move.timingMode = .easeInEaseOut
 
@@ -847,7 +847,7 @@ class CatSprite {
         containerNode.removeAction(forKey: "foodWalk")
 
         if let frames = textures(for: "paw"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: 0.18)
+            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
             let eatCycle = SKAction.repeat(animate, count: 2)
             let done = SKAction.run { [weak self] in
                 guard let self = self else { return }
@@ -873,7 +873,7 @@ class CatSprite {
         sceneWidth = sceneSize.width
 
         // Place directly at ground level — no drop animation
-        containerNode.position = CGPoint(x: containerNode.position.x, y: 48)
+        containerNode.position = CGPoint(x: containerNode.position.x, y: CatConstants.Visual.groundY)
         containerNode.setScale(1.0)
         node.yScale = 1.0
         node.zRotation = 0
@@ -906,15 +906,15 @@ class CatSprite {
         // Decide escape direction: flee away from jumper
         let myX = containerNode.position.x
         let fleeRight = myX > jumperX   // flee to the same side we're on relative to jumper
-        let rawTarget = fleeRight ? myX + 30 : myX - 30
+        let rawTarget = fleeRight ? myX + CatConstants.Fright.fleeDistance : myX - CatConstants.Fright.fleeDistance
         let clampedTarget: CGFloat
         if sceneWidth > 0 {
-            clampedTarget = max(24, min(sceneWidth - 24, rawTarget))
+            clampedTarget = max(CatConstants.Fright.boundaryMargin, min(sceneWidth - CatConstants.Fright.boundaryMargin, rawTarget))
         } else {
             clampedTarget = rawTarget
         }
         let slideDelta = clampedTarget - myX
-        let reboundDelta = -slideDelta * 0.5
+        let reboundDelta = -slideDelta * CatConstants.Fright.reboundFactor
 
         // Face the flee direction
         facingRight = fleeRight
@@ -926,10 +926,10 @@ class CatSprite {
             return
         }
 
-        let scaredAnim = SKAction.animate(with: scaredFrames, timePerFrame: 0.12)
-        let slide      = SKAction.moveBy(x: slideDelta, y: 0, duration: 0.15)
+        let scaredAnim = SKAction.animate(with: scaredFrames, timePerFrame: CatConstants.Animation.frameTimeScared)
+        let slide      = SKAction.moveBy(x: slideDelta, y: 0, duration: CatConstants.Fright.slideDuration)
         slide.timingMode = .easeOut
-        let rebound    = SKAction.moveBy(x: reboundDelta, y: 0, duration: 0.12)
+        let rebound    = SKAction.moveBy(x: reboundDelta, y: 0, duration: CatConstants.Fright.reboundDuration)
         rebound.timingMode = .easeInEaseOut
 
         let recover = SKAction.run { [weak self] in
@@ -947,7 +947,7 @@ class CatSprite {
 
         // Movement runs on containerNode (holds world position)
         let moveSequence = SKAction.sequence([
-            SKAction.wait(forDuration: Double(scaredFrames.count) * 0.12),
+            SKAction.wait(forDuration: Double(scaredFrames.count) * CatConstants.Animation.frameTimeScared),
             slide,
             rebound,
             recover
@@ -955,18 +955,18 @@ class CatSprite {
         containerNode.run(moveSequence, withKey: "frightMove")
 
         // GCD fallback for tests without a display link
-        let scaredDuration = Double(scaredFrames.count) * 0.12
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+        let scaredDuration = Double(scaredFrames.count) * CatConstants.Animation.frameTimeScared
+        DispatchQueue.main.asyncAfter(deadline: .now() + CatConstants.Fright.gcdInitialOffset) { [weak self] in
             guard let self = self, !self.hasDisplayLink,
                   self.containerNode.physicsBody?.isDynamic == false else { return }
             self.containerNode.position.x += slideDelta
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + CatConstants.Fright.slideDuration) { [weak self] in
             guard let self = self, !self.hasDisplayLink,
                   self.containerNode.physicsBody?.isDynamic == false else { return }
             self.containerNode.position.x += reboundDelta
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + 0.15 + 0.12 + 0.01) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + scaredDuration + CatConstants.Fright.slideDuration + CatConstants.Fright.reboundDuration + CatConstants.Fright.gcdSettleOffset) { [weak self] in
             guard let self = self, !self.hasDisplayLink,
                   self.containerNode.physicsBody?.isDynamic == false else { return }
             self.containerNode.physicsBody?.isDynamic = true
@@ -1001,8 +1001,8 @@ class CatSprite {
         containerNode.setScale(1.0)
 
         // Walk to the nearest edge
-        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -48 : sceneWidth + 48
-        let duration = Double(abs(edgeX - containerNode.position.x)) / 120.0
+        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -CatConstants.Movement.exitOffscreenOffset : sceneWidth + CatConstants.Movement.exitOffscreenOffset
+        let duration = Double(abs(edgeX - containerNode.position.x)) / CatConstants.Movement.exitWalkSpeed
 
         // Face the exit direction
         if edgeX < containerNode.position.x {
@@ -1014,7 +1014,7 @@ class CatSprite {
 
         // Play walk animation during exit
         if let frames = textures(for: "walk-a"), !frames.isEmpty {
-            let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+            let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
             let loop = SKAction.repeatForever(animate)
             node.run(loop, withKey: "walkAnimation")
             node.texture = frames[0]
@@ -1029,7 +1029,7 @@ class CatSprite {
             completion()
         }
 
-        let walk = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
+        let walk = SKAction.moveTo(x: edgeX, duration: max(duration, CatConstants.Movement.exitMinDuration))
         walk.timingMode = .easeIn
 
         containerNode.run(walk) {
@@ -1037,7 +1037,7 @@ class CatSprite {
         }
 
         // GCD fallback for tests without a display link
-        let walkDuration = max(duration, 0.5)
+        let walkDuration = max(duration, CatConstants.Movement.exitMinDuration)
         DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
             guard let self = self, !self.hasDisplayLink else { return }
             self.containerNode.position.x = edgeX
@@ -1060,7 +1060,7 @@ class CatSprite {
         let myX = containerNode.position.x
         let groundY = containerNode.position.y  // actual resting Y (gravity-settled)
         let goingRight = myX >= sceneWidth / 2
-        let edgeX: CGFloat = goingRight ? sceneWidth + 48 : -48
+        let edgeX: CGFloat = goingRight ? sceneWidth + CatConstants.Movement.exitOffscreenOffset : -CatConstants.Movement.exitOffscreenOffset
 
         // Face exit direction
         facingRight = goingRight
@@ -1076,7 +1076,7 @@ class CatSprite {
         // Helper: start looping walk-a animation
         func startWalkAnim() {
             if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
-                let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+                let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
                 self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
                 self.node.texture = frames[0]
                 self.node.color = self.sessionColor?.nsColor ?? .white
@@ -1087,22 +1087,22 @@ class CatSprite {
         // Filter obstacles on the path — include overlapping cats (within 24px behind)
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
-            onPath = obstacles.filter { $0.x > myX - 24 && $0.x < edgeX }
+            onPath = obstacles.filter { $0.x > myX - CatConstants.Jump.obstaclePathTolerance && $0.x < edgeX }
                               .sorted { $0.x < $1.x }
         } else {
-            onPath = obstacles.filter { $0.x < myX + 24 && $0.x > edgeX }
+            onPath = obstacles.filter { $0.x < myX + CatConstants.Jump.obstaclePathTolerance && $0.x > edgeX }
                               .sorted { $0.x > $1.x }
         }
 
         guard !onPath.isEmpty else {
             // No obstacles — original walk-to-edge behaviour
-            let duration = Double(abs(edgeX - myX)) / 120.0
+            let duration = Double(abs(edgeX - myX)) / CatConstants.Movement.exitWalkSpeed
             startWalkAnim()
-            let walkAction = SKAction.moveTo(x: edgeX, duration: max(duration, 0.5))
+            let walkAction = SKAction.moveTo(x: edgeX, duration: max(duration, CatConstants.Movement.exitMinDuration))
             walkAction.timingMode = .easeIn
             containerNode.run(walkAction) { safeCompletion() }
             // GCD fallback: fire completion if SKAction doesn't run (no display link)
-            let walkDuration = max(duration, 0.5)
+            let walkDuration = max(duration, CatConstants.Movement.exitMinDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + walkDuration + 0.05) { [weak self] in
                 guard let self = self, !self.hasDisplayLink else { return }
                 self.containerNode.position.x = edgeX
@@ -1120,14 +1120,14 @@ class CatSprite {
 
         for obstacle in onPath {
             let obstX = obstacle.x
-            let approachX = goingRight ? obstX - 20 : obstX + 20
-            let landX = goingRight ? obstX + 20 : obstX - 20
+            let approachX = goingRight ? obstX - CatConstants.Jump.approachOffset : obstX + CatConstants.Jump.approachOffset
+            let landX = goingRight ? obstX + CatConstants.Jump.approachOffset : obstX - CatConstants.Jump.approachOffset
 
             // Walk to approach point
             let approachDist = abs(approachX - lastX)
             let approachDuration: Double
             if approachDist > 1 {
-                approachDuration = max(Double(approachDist) / 120.0, 0.2)
+                approachDuration = max(Double(approachDist) / CatConstants.Jump.approachWalkSpeed, CatConstants.Jump.approachMinDurationExit)
                 let approachWalk = SKAction.moveTo(x: approachX, duration: approachDuration)
                 approachWalk.timingMode = .easeOut
                 actions.append(approachWalk)
@@ -1139,8 +1139,8 @@ class CatSprite {
             // Jump animation frames (visual — run on node via SKAction.run block)
             var jumpAnimDuration: Double = 0
             if let jumpFrames = textures(for: "jump"), !jumpFrames.isEmpty {
-                jumpAnimDuration = Double(jumpFrames.count) * 0.10
-                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: 0.10)
+                jumpAnimDuration = Double(jumpFrames.count) * CatConstants.Animation.frameTimeJumpOver
+                let jumpAnim = SKAction.animate(with: jumpFrames, timePerFrame: CatConstants.Animation.frameTimeJumpOver)
                 let playJump = SKAction.run { [weak self] in
                     self?.node.removeAction(forKey: "walkAnimation")
                     self?.node.run(jumpAnim)
@@ -1156,11 +1156,11 @@ class CatSprite {
             let capturedObstacleCat = obstacle.cat
             var jumpOverFired = false
 
-            let bezierAction = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
+            let bezierAction = SKAction.customAction(withDuration: CatConstants.Jump.arcDuration) { [weak self] _, elapsed in
                 guard let self = self else { return }
-                let t = CGFloat(elapsed) / 0.30
+                let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
                 let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + 50  // control point 50px up
+                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight  // control point 50px up
                 let p2x = landX,          p2y = groundY
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
@@ -1168,7 +1168,7 @@ class CatSprite {
                 self.containerNode.position = CGPoint(x: bx, y: by)
 
                 // Fire onJumpOver at apex (t ≈ 0.5)
-                if !jumpOverFired && elapsed >= 0.13 {
+                if !jumpOverFired && elapsed >= CatConstants.Jump.apexThreshold {
                     jumpOverFired = true
                     onJumpOver(capturedObstacleCat)
                 }
@@ -1182,23 +1182,23 @@ class CatSprite {
             actions.append(landAction)
 
             // GCD fallback: only for test environments (no display link)
-            let capturedGcdDelay = gcdDelay + 0.15
+            let capturedGcdDelay = gcdDelay + CatConstants.Jump.gcdFallbackOffset
             DispatchQueue.main.asyncAfter(deadline: .now() + capturedGcdDelay) { [weak self] in
                 guard let self = self, !self.hasDisplayLink else { return }
-                self.containerNode.position = CGPoint(x: capturedObstX, y: groundY + 25)
+                self.containerNode.position = CGPoint(x: capturedObstX, y: groundY + CatConstants.Jump.gcdMidArcYOffset)
                 if !jumpOverFired {
                     jumpOverFired = true
                     onJumpOver(capturedObstacleCat)
                 }
             }
 
-            gcdDelay += 0.30
+            gcdDelay += CatConstants.Jump.arcDuration
 
             // Resume walk after landing (visual — on node)
             let resumeWalk = SKAction.run { [weak self] in
                 guard let self = self else { return }
                 if let frames = self.textures(for: "walk-a"), !frames.isEmpty {
-                    let animate = SKAction.animate(with: frames, timePerFrame: 0.12)
+                    let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeExitWalk)
                     self.node.run(SKAction.repeatForever(animate), withKey: "walkAnimation")
                     self.node.color = self.sessionColor?.nsColor ?? .white
                     self.node.colorBlendFactor = self.sessionTintFactor
@@ -1220,7 +1220,7 @@ class CatSprite {
         let finalDist = abs(edgeX - lastX)
         let finalDuration: Double
         if finalDist > 1 {
-            finalDuration = max(Double(finalDist) / 120.0, 0.3)
+            finalDuration = max(Double(finalDist) / CatConstants.Movement.exitWalkSpeed, CatConstants.Movement.walkPostJumpMinDuration)
             let finalWalk = SKAction.moveTo(x: edgeX, duration: finalDuration)
             finalWalk.timingMode = .easeIn
             actions.append(finalWalk)

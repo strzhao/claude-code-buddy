@@ -16,7 +16,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var groundNode: SKNode!
     private var cats: [String: CatSprite] = [:]
-    private let maxCats = 8
+    private let maxCats = CatConstants.Scene.maxCats
 
     private lazy var tooltipNode: TooltipNode = {
         let node = TooltipNode()
@@ -47,7 +47,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Setup
 
     private func setupPhysics() {
-        physicsWorld.gravity = CGVector(dx: 0, dy: -9.8)
+        physicsWorld.gravity = CGVector(dx: 0, dy: CatConstants.Scene.gravity)
         physicsWorld.contactDelegate = self
     }
 
@@ -61,7 +61,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         groundBody.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
         groundBody.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
         groundBody.isDynamic = false
-        groundBody.friction = 0.5
+        groundBody.friction = CatConstants.Scene.groundFriction
         groundNode.physicsBody = groundBody
 
         addChild(groundNode)
@@ -82,8 +82,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.configure(color: info.color, labelText: info.label)
 
         // Random horizontal spawn position
-        let spawnX = CGFloat.random(in: 48...(size.width - 48))
-        cat.containerNode.position = CGPoint(x: spawnX, y: 48) // ground level
+        let spawnX = CGFloat.random(in: CatConstants.Visual.spawnMargin...(size.width - CatConstants.Visual.spawnMargin))
+        cat.containerNode.position = CGPoint(x: spawnX, y: CatConstants.Visual.groundY) // ground level
 
         addChild(cat.containerNode)
         cats[sessionId] = cat
@@ -214,7 +214,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             groundNode?.physicsBody?.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.isDynamic = false
-            groundNode?.physicsBody?.friction = 0.5
+            groundNode?.physicsBody?.friction = CatConstants.Scene.groundFriction
         }
         // Update cached scene width for cat boundary clamping
         for cat in cats.values {

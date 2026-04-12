@@ -8,14 +8,14 @@ class SessionManager {
 
     // MARK: - Properties
 
-    private let scene: BuddyScene
+    private let scene: any SceneControlling
     private let server = SocketServer()
 
     /// Full session state keyed by sessionId.
-    private var sessions: [String: SessionInfo] = [:]
+    var sessions: [String: SessionInfo] = [:]
 
     /// Tracks which colors are currently in use.
-    private var usedColors: Set<SessionColor> = []
+    var usedColors: Set<SessionColor> = []
 
     /// Called whenever the active session count changes.
     var onSessionCountChanged: ((Int) -> Void)?
@@ -27,6 +27,7 @@ class SessionManager {
     var onSessionNeedsTabTitle: ((SessionInfo) -> Void)?
 
     private var timeoutTimer: Timer?
+    private var lastTranscriptScan: Date = .distantPast
 
     // MARK: - Timeout Config
 
@@ -41,7 +42,7 @@ class SessionManager {
 
     // MARK: - Init
 
-    init(scene: BuddyScene) {
+    init(scene: any SceneControlling) {
         self.scene = scene
     }
 
@@ -108,8 +109,9 @@ class SessionManager {
 
         // Primary: from hook message
         if let cwd = message.cwd {
+            let label = generateLabel(from: cwd)
             sessions[sessionId]?.cwd = cwd
-            sessions[sessionId]?.label = generateLabel(from: cwd)
+            sessions[sessionId]?.label = label
             return
         }
 
@@ -137,7 +139,7 @@ class SessionManager {
 
     // MARK: - Message Handling
 
-    private func handle(message: HookMessage) {
+    func handle(message: HookMessage) {
         let sessionId = message.sessionId
 
         switch message.event {
@@ -168,9 +170,13 @@ class SessionManager {
                     cwd: message.cwd,
                     pid: message.pid,
                     terminalId: message.terminalId,
-                    state: message.catState ?? .idle,
+                    state: message.entityState ?? .idle,
                     lastActivity: Date(),
-                    toolDescription: message.description
+                    toolDescription: message.description,
+                    model: nil,
+                    startedAt: nil,
+                    totalTokens: 0,
+                    toolCallCount: 0
                 )
                 sessions[sessionId] = info
 
@@ -180,6 +186,9 @@ class SessionManager {
                 writeColorFile()
                 if info.terminalId != nil {
                     onSessionNeedsTabTitle?(info)
+                }
+                if let pid = info.pid {
+                    sessions[sessionId]?.startedAt = TranscriptReader.readStartedAt(pid: pid)
                 }
             } else {
                 sessions[sessionId]?.lastActivity = Date()
@@ -196,12 +205,21 @@ class SessionManager {
             }
 
             // Update state
-            if let catState = message.catState {
-                sessions[sessionId]?.state = catState
+            if let entityState = message.entityState {
+                sessions[sessionId]?.state = entityState
                 // Pass description for permission request display
                 let desc = message.description ?? message.tool
                 sessions[sessionId]?.toolDescription = desc
-                scene.updateCatState(sessionId: sessionId, state: catState, toolDescription: desc)
+                scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
+                // Publish to EventBus for future subscribers
+                EventBus.shared.stateChanged.send(StateChangeEvent(
+                    sessionId: sessionId, newState: entityState, toolDescription: desc
+                ))
+            }
+
+            // Increment tool call count
+            if message.event == .toolStart {
+                sessions[sessionId]?.toolCallCount += 1
             }
 
             // Food spawn trigger on toolEnd
@@ -216,11 +234,39 @@ class SessionManager {
 
         onSessionCountChanged?(scene.activeCatCount)
         onSessionsChanged?(Array(sessions.values))
+
+        // Throttled transcript scan (at most once every 10 seconds)
+        let now = Date()
+        if now.timeIntervalSince(lastTranscriptScan) >= 10 {
+            lastTranscriptScan = now
+            let sessionsSnapshot = sessions
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                var updated = false
+                for (id, info) in sessionsSnapshot {
+                    guard let cwd = info.cwd else { continue }
+                    let path = TranscriptReader.transcriptPath(cwd: cwd, sessionId: info.sessionId)
+                    let stats = TranscriptReader.scan(path: path)
+                    if stats.model != nil || stats.totalTokens > 0 {
+                        DispatchQueue.main.async {
+                            self?.sessions[id]?.model = stats.model
+                            self?.sessions[id]?.totalTokens = stats.totalTokens
+                        }
+                        updated = true
+                    }
+                }
+                if updated {
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        self.onSessionsChanged?(Array(self.sessions.values))
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Timeouts
 
-    private func checkTimeouts() {
+    func checkTimeouts() {
         let now = Date()
         var toRemove: [String] = []
         for (sessionId, session) in sessions {
@@ -229,7 +275,7 @@ class SessionManager {
                 toRemove.append(sessionId)
             } else if elapsed >= idleTimeout {
                 sessions[sessionId]?.state = .idle
-                scene.updateCatState(sessionId: sessionId, state: .idle)
+                scene.updateCatState(sessionId: sessionId, state: catState(from: .idle), toolDescription: nil)
             }
         }
         for sessionId in toRemove {
@@ -243,6 +289,19 @@ class SessionManager {
             writeColorFile()
             onSessionCountChanged?(scene.activeCatCount)
             onSessionsChanged?(Array(sessions.values))
+        }
+    }
+
+    // MARK: - EntityState → CatState Bridge
+
+    /// Converts EntityState to CatState for passing to BuddyScene/CatSprite.
+    private func catState(from entityState: EntityState) -> CatState {
+        switch entityState {
+        case .idle:              return .idle
+        case .thinking:          return .thinking
+        case .toolUse:           return .toolUse
+        case .permissionRequest: return .permissionRequest
+        case .eating:            return .eating
         }
     }
 }

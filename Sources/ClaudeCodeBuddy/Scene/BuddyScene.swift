@@ -1,5 +1,6 @@
 import SpriteKit
 import ImageIO
+import Combine
 
 // MARK: - Physics Categories
 
@@ -17,7 +18,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var groundNode: SKNode!
     private var cats: [String: CatSprite] = [:]
-    private let maxCats = 8
+    private let maxCats = CatConstants.Scene.maxCats
 
     private lazy var tooltipNode: TooltipNode = {
         let node = TooltipNode()
@@ -39,6 +40,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private var leftBoundaryNode: SKSpriteNode?
     private var rightBoundaryNode: SKSpriteNode?
 
+    private let sceneEnvironment = SceneEnvironment()
+    private var cancellables = Set<AnyCancellable>()
+
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
     }
@@ -52,12 +56,34 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         setupBoundaryDecorations()
         foodManager.scene = self
         foodManager.start()
+
+        sceneEnvironment.start()
+
+        EventBus.shared.weatherChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] weather in
+                guard let self = self else { return }
+                for cat in self.cats.values {
+                    cat.onWeatherChanged(weather)
+                }
+            }
+            .store(in: &cancellables)
+
+        EventBus.shared.timeOfDayChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] time in
+                guard let self = self else { return }
+                for cat in self.cats.values {
+                    cat.onTimeOfDayChanged(time)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Setup
 
     private func setupPhysics() {
-        physicsWorld.gravity = CGVector(dx: 0, dy: -9.8)
+        physicsWorld.gravity = CGVector(dx: 0, dy: CatConstants.Scene.gravity)
         physicsWorld.contactDelegate = self
     }
 
@@ -71,7 +97,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         groundBody.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
         groundBody.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
         groundBody.isDynamic = false
-        groundBody.friction = 0.5
+        groundBody.friction = CatConstants.Scene.groundFriction
         groundNode.physicsBody = groundBody
 
         addChild(groundNode)
@@ -136,7 +162,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         // Random horizontal spawn position within activity bounds
         let spawnX = CGFloat.random(in: activityBounds)
-        cat.containerNode.position = CGPoint(x: spawnX, y: 48) // ground level
+        cat.containerNode.position = CGPoint(x: spawnX, y: CatConstants.Visual.groundY) // ground level
 
         addChild(cat.containerNode)
         cats[sessionId] = cat
@@ -275,7 +301,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             groundNode?.physicsBody?.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.contactTestBitMask = PhysicsCategory.cat | PhysicsCategory.food
             groundNode?.physicsBody?.isDynamic = false
-            groundNode?.physicsBody?.friction = 0.5
+            groundNode?.physicsBody?.friction = CatConstants.Scene.groundFriction
         }
         // Update cached scene width for cat boundary clamping
         for cat in cats.values {
@@ -314,3 +340,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats.values.filter { $0.currentState == .idle }
     }
 }
+
+// MARK: - SceneControlling
+
+extension BuddyScene: SceneControlling {}

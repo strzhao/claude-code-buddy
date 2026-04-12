@@ -133,7 +133,7 @@ class SessionPopoverController: NSViewController {
         // Add session rows with separators
         for (index, session) in sessions.enumerated() {
             let row = SessionRowView(session: session)
-            row.alphaValue = session.state == .idle ? 0.7 : 1.0
+            row.alphaValue = 1.0
             row.onClick = { [weak self] in
                 self?.onSessionClicked?(session)
             }

@@ -54,6 +54,17 @@ make bundle         # 打包 .app
 - `ClaudeCodeBuddy` (executable target) — 仅 main.swift 入口
 - `BuddyCoreTests` (test target) — XCTest 单元测试
 
+## 调试猫咪
+
+Session ID 以 `debug-` 开头的猫咪会永久显示名字标签（tab name），方便在手动测试时区分调试猫和真实会话猫。
+
+```bash
+# 创建带标签的调试猫
+echo '{"event":"session_start","session_id":"debug-A","timestamp":0,"cwd":"/tmp/a"}' | nc -U /tmp/claude-buddy.sock
+# 结束调试猫
+echo '{"event":"session_end","session_id":"debug-A","timestamp":0,"cwd":"/tmp/a"}' | nc -U /tmp/claude-buddy.sock
+```
+
 ## 任务管理
 
 本项目的任务通过 ai-todo-cli 管理，任务空间为 `claude-code-buddy`（ID: `1f6cacb2-006f-4fc6-9126-bffb2e711743`）。

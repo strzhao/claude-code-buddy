@@ -15,13 +15,13 @@ private extension JumpExitTests {
     ) -> CatSprite {
         let cat = CatSprite(sessionId: sessionId)
         cat.configure(color: color, labelText: label)
-        cat.node.position = CGPoint(x: x, y: 48)
+        cat.containerNode.position = CGPoint(x: x, y: 48)
         return cat
     }
 
     /// 将 CatSprite 数组转换为 exitScene 所需的 obstacles 格式
     func obstacleEntries(_ cats: [CatSprite]) -> [(cat: CatSprite, x: CGFloat)] {
-        cats.map { (cat: $0, x: $0.node.position.x) }
+        cats.map { (cat: $0, x: $0.containerNode.position.x) }
     }
 }
 
@@ -115,7 +115,7 @@ final class JumpExitTests: XCTestCase {
     func testExitCatIsDynamicFalseAfterExit() throws {
         let cat = makeCat(sessionId: "exit-dynamic", x: 100)
 
-        guard cat.node.physicsBody != nil else {
+        guard cat.containerNode.physicsBody != nil else {
             throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
         }
 
@@ -123,7 +123,7 @@ final class JumpExitTests: XCTestCase {
 
         // 调用 exitScene 后应立即设为 false（同步操作）
         XCTAssertFalse(
-            cat.node.physicsBody?.isDynamic ?? false,
+            cat.containerNode.physicsBody?.isDynamic ?? false,
             "exitScene 后 physicsBody.isDynamic 应立即变为 false"
         )
     }
@@ -171,7 +171,7 @@ final class JumpExitTests: XCTestCase {
         // 验收等价：ExitDirection.left 表示跳跃者从左来，对应 awayFromX = 0（最左侧）
         // 猫在 x=300，应向右闪避
         let cat = makeCat(sessionId: "fright-dir-left", x: 300)
-        let initialX = cat.node.position.x
+        let initialX = cat.containerNode.position.x
 
         let exp = expectation(description: "fright from left direction moves cat right")
 
@@ -180,8 +180,8 @@ final class JumpExitTests: XCTestCase {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             XCTAssertGreaterThan(
-                cat.node.position.x, initialX,
-                "ExitDirection.left 语义：猫（x=\(initialX)）应向右移动，当前 x=\(cat.node.position.x)"
+                cat.containerNode.position.x, initialX,
+                "ExitDirection.left 语义：猫（x=\(initialX)）应向右移动，当前 x=\(cat.containerNode.position.x)"
             )
             exp.fulfill()
         }
@@ -193,7 +193,7 @@ final class JumpExitTests: XCTestCase {
         // 验收等价：ExitDirection.right 表示跳跃者从右来，对应 awayFromX = 很大的值
         // 猫在 x=100，应向左闪避
         let cat = makeCat(sessionId: "fright-dir-right", x: 100)
-        let initialX = cat.node.position.x
+        let initialX = cat.containerNode.position.x
 
         let exp = expectation(description: "fright from right direction moves cat left")
 
@@ -202,8 +202,8 @@ final class JumpExitTests: XCTestCase {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             XCTAssertLessThan(
-                cat.node.position.x, initialX,
-                "ExitDirection.right 语义：猫（x=\(initialX)）应向左移动，当前 x=\(cat.node.position.x)"
+                cat.containerNode.position.x, initialX,
+                "ExitDirection.right 语义：猫（x=\(initialX)）应向左移动，当前 x=\(cat.containerNode.position.x)"
             )
             exp.fulfill()
         }
@@ -216,14 +216,14 @@ final class JumpExitTests: XCTestCase {
     func testFrightReactionMovesRightWhenJumperIsOnLeft() {
         // 猫在 x=200，跳跃者在 x=50（左侧），猫应向右滑动
         let cat = makeCat(sessionId: "fright-direction-right", x: 200)
-        let initialX = cat.node.position.x
+        let initialX = cat.containerNode.position.x
 
         let exp = expectation(description: "cat moves right away from left jumper")
 
         cat.playFrightReaction(awayFromX: 50)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            let currentX = cat.node.position.x
+            let currentX = cat.containerNode.position.x
             // 滑动动画进行中，x 应增大（向右移动）
             XCTAssertGreaterThan(
                 currentX, initialX,
@@ -238,14 +238,14 @@ final class JumpExitTests: XCTestCase {
     func testFrightReactionMovesLeftWhenJumperIsOnRight() {
         // 猫在 x=200，跳跃者在 x=350（右侧），猫应向左滑动
         let cat = makeCat(sessionId: "fright-direction-left", x: 200)
-        let initialX = cat.node.position.x
+        let initialX = cat.containerNode.position.x
 
         let exp = expectation(description: "cat moves left away from right jumper")
 
         cat.playFrightReaction(awayFromX: 350)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            let currentX = cat.node.position.x
+            let currentX = cat.containerNode.position.x
             XCTAssertLessThan(
                 currentX, initialX,
                 "跳跃者在右侧（x=350）时，猫（初始 x=\(initialX)）应向左移动，当前 x=\(currentX)"
@@ -266,7 +266,7 @@ final class JumpExitTests: XCTestCase {
 
         // 等待动画全部完成（scared 帧 + slide 0.15s + rebound 0.12s + 余量）
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            let finalX = cat.node.position.x
+            let finalX = cat.containerNode.position.x
             XCTAssertGreaterThan(
                 finalX, 200,
                 "受惊动画完成后净位移应为正（向右），finalX=\(finalX)"
@@ -282,7 +282,7 @@ final class JumpExitTests: XCTestCase {
     func testIsDynamicRestoredAfterFrightAnimation() throws {
         let cat = makeCat(sessionId: "fright-restore-dynamic", x: 200)
 
-        guard cat.node.physicsBody != nil else {
+        guard cat.containerNode.physicsBody != nil else {
             throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
         }
 
@@ -293,7 +293,7 @@ final class JumpExitTests: XCTestCase {
         // scared 帧 ~0.12s × N + slide 0.15s + rebound 0.12s，等待 1.0s
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             XCTAssertTrue(
-                cat.node.physicsBody?.isDynamic ?? false,
+                cat.containerNode.physicsBody?.isDynamic ?? false,
                 "受惊动画完成后 isDynamic 应恢复为 true"
             )
             exp.fulfill()
@@ -309,14 +309,14 @@ final class JumpExitTests: XCTestCase {
         let cat = makeCat(sessionId: "perm-immune", x: 200)
         cat.switchState(to: .permissionRequest, toolDescription: "Run command")
 
-        let initialX = cat.node.position.x
+        let initialX = cat.containerNode.position.x
 
         let exp = expectation(description: "permission cat position unchanged by fright")
 
         cat.playFrightReaction(awayFromX: 50)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            let finalX = cat.node.position.x
+            let finalX = cat.containerNode.position.x
             XCTAssertEqual(
                 finalX, initialX,
                 accuracy: 1.0,
@@ -346,19 +346,19 @@ final class JumpExitTests: XCTestCase {
     func testSwitchStateRestoresDynamicWhenSetToFalse() throws {
         let cat = makeCat(sessionId: "switch-safeguard", x: 200)
 
-        guard cat.node.physicsBody != nil else {
+        guard cat.containerNode.physicsBody != nil else {
             throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
         }
 
         // 模拟受惊期间 isDynamic 被置为 false
-        cat.node.physicsBody?.isDynamic = false
-        XCTAssertFalse(cat.node.physicsBody?.isDynamic ?? true, "前置条件：isDynamic 应为 false")
+        cat.containerNode.physicsBody?.isDynamic = false
+        XCTAssertFalse(cat.containerNode.physicsBody?.isDynamic ?? true, "前置条件：isDynamic 应为 false")
 
         // switchState 顶部安全网应恢复 isDynamic = true
         cat.switchState(to: .thinking)
 
         XCTAssertTrue(
-            cat.node.physicsBody?.isDynamic ?? false,
+            cat.containerNode.physicsBody?.isDynamic ?? false,
             "switchState 应将 isDynamic 恢复为 true（安全网）"
         )
     }
@@ -369,13 +369,13 @@ final class JumpExitTests: XCTestCase {
         for state in states {
             let cat = makeCat(sessionId: "safeguard-\(state.rawValue)", x: 200)
 
-            guard cat.node.physicsBody != nil else { continue }
+            guard cat.containerNode.physicsBody != nil else { continue }
 
-            cat.node.physicsBody?.isDynamic = false
+            cat.containerNode.physicsBody?.isDynamic = false
             cat.switchState(to: state)
 
             XCTAssertTrue(
-                cat.node.physicsBody?.isDynamic ?? false,
+                cat.containerNode.physicsBody?.isDynamic ?? false,
                 "switchState(to: .\(state.rawValue)) 应恢复 isDynamic"
             )
         }
@@ -398,8 +398,8 @@ final class JumpExitTests: XCTestCase {
         exitCat.exitScene(
             sceneWidth: 400,
             obstacles: [
-                (cat: farObs, x: farObs.node.position.x),
-                (cat: nearObs, x: nearObs.node.position.x)
+                (cat: farObs, x: farObs.containerNode.position.x),
+                (cat: nearObs, x: nearObs.containerNode.position.x)
             ],
             onJumpOver: { cat in
                 jumpOrder.append(cat.sessionId)
@@ -431,8 +431,8 @@ final class JumpExitTests: XCTestCase {
         exitCat.exitScene(
             sceneWidth: 400,
             obstacles: [
-                (cat: onPath, x: onPath.node.position.x),
-                (cat: offPath, x: offPath.node.position.x)
+                (cat: onPath, x: onPath.containerNode.position.x),
+                (cat: offPath, x: offPath.containerNode.position.x)
             ],
             onJumpOver: { cat in
                 jumpedIds.append(cat.sessionId)
@@ -465,7 +465,7 @@ final class JumpExitTests: XCTestCase {
         let exitCat = makeCat(sessionId: "arc-test", x: 320)
         let obstacle = makeCat(sessionId: "arc-obs", x: 350)
 
-        let startY = exitCat.node.position.y  // 应为 48
+        let startY = exitCat.containerNode.position.y  // 应为 48
         var peakY: CGFloat = startY
 
         var samplingDone = false
@@ -488,7 +488,7 @@ final class JumpExitTests: XCTestCase {
                 return
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) {
-                let y = exitCat.node.position.y
+                let y = exitCat.containerNode.position.y
                 if y > peakY { peakY = y }
                 scheduleSample(count: count - 1)
             }
@@ -576,7 +576,7 @@ final class JumpExitTests: XCTestCase {
         cat.playFrightReaction(awayFromX: 50)  // 跳跃者在左侧，猫向右逃
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            let finalX = cat.node.position.x
+            let finalX = cat.containerNode.position.x
             // sceneWidth=400 → 右边界为 376（400-24）
             // 猫从 370 向右逃 30px → 400 → clamp 到 376 → 回弹到 376-15=361
             XCTAssertLessThanOrEqual(
@@ -604,12 +604,12 @@ final class JumpExitTests: XCTestCase {
             obstacles: obstacleEntries([nearRightBoundary]),
             onJumpOver: { cat in
                 // 触发受惊，jumper 在左侧（exitCat 从左向右跳），猫应向右逃
-                cat.playFrightReaction(awayFromX: exitCat.node.position.x)
+                cat.playFrightReaction(awayFromX: exitCat.containerNode.position.x)
             }
         ) {
             // 在完成后检查障碍物位置
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                let finalX = nearRightBoundary.node.position.x
+                let finalX = nearRightBoundary.containerNode.position.x
                 // sceneWidth=400 时，右边界为 400-24=376
                 XCTAssertLessThanOrEqual(
                     finalX, 377,  // 允许 1pt 误差
@@ -636,7 +636,7 @@ final class JumpExitTests: XCTestCase {
                 exp.fulfill()
                 return
             }
-            let x = cat.node.position.x
+            let x = cat.containerNode.position.x
             // 验证不超出 [0, 500] 的宽松范围，精确边界由 clamp 机制保证
             if x < 0 || x > 500 { outOfBounds = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -679,7 +679,7 @@ final class JumpExitTests: XCTestCase {
             obstacles: obstacleEntries([idleCat]),
             onJumpOver: { jumpedCat in
                 // BuddyScene 会在此回调里调用 playFrightReaction
-                jumpedCat.playFrightReaction(awayFromX: exitCat.node.position.x)
+                jumpedCat.playFrightReaction(awayFromX: exitCat.containerNode.position.x)
                 frightTriggered = true
                 frightExp.fulfill()
             }
@@ -691,7 +691,7 @@ final class JumpExitTests: XCTestCase {
 
         XCTAssertTrue(frightTriggered, "障碍物应收到受惊回调")
         // 退出猫应已离开屏幕（x 超出 [0, 400] 范围）
-        let exitX = exitCat.node.position.x
+        let exitX = exitCat.containerNode.position.x
         let isOffScreen = exitX < 0 || exitX > 400
         XCTAssertTrue(isOffScreen, "退出猫应已离开屏幕，当前 x=\(exitX)")
     }

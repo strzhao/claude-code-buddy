@@ -39,7 +39,7 @@ tasks:
     title: "Combine EventBus + 解耦 HookMessage/SessionManager/SessionRowView"
     depends_on: ["006-entity"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "008-environment"
     title: "Environment/Weather 框架 + EnvironmentResponder"

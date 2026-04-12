@@ -13,6 +13,11 @@ class MovementComponent {
     unowned let entity: CatSprite
     let jumpComponent: JumpComponent
 
+    // MARK: - Weather
+
+    /// Weather-driven speed multiplier (default 1.0)
+    var speedMultiplier: CGFloat = 1.0
+
     // MARK: - Init
 
     init(entity: CatSprite) {
@@ -65,7 +70,7 @@ class MovementComponent {
         }
 
         // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) // px/s
+        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) // px/s
         let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
 
         // Start walk animation

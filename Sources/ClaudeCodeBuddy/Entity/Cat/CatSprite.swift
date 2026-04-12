@@ -349,3 +349,17 @@ class CatSprite {
 // MARK: - EntityProtocol Conformance
 
 extension CatSprite: EntityProtocol {}
+
+// MARK: - EnvironmentResponder Conformance
+
+extension CatSprite: EnvironmentResponder {
+    func onWeatherChanged(_ weather: WeatherState) {
+        // Apply behavior modifier to movement speed
+        let modifier = weather.behaviorModifier
+        movementComponent.speedMultiplier = modifier.walkSpeedMultiplier
+    }
+
+    func onTimeOfDayChanged(_ time: TimeOfDay) {
+        // Placeholder for future time-based behavior changes
+    }
+}

@@ -125,6 +125,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
+            popover.contentSize = popoverController.preferredContentSize
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
@@ -147,6 +148,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             self?.menuBarAnimator?.updateActiveCatCount(activeSessions.count)
             DispatchQueue.main.async {
                 self?.popoverController.updateSessions(sessions)
+                self?.popover.contentSize = self?.popoverController.preferredContentSize ?? NSSize(width: 320, height: 130)
             }
         }
         manager.onSessionNeedsTabTitle = { [weak self] session in

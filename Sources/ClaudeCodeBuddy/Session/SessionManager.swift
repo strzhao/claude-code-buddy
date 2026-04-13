@@ -50,7 +50,7 @@ class SessionManager {
 
     func start() {
         // Clear stale color file on startup
-        try? "{}".data(using: .utf8)?.write(to: URL(fileURLWithPath: Self.colorFilePath))
+        try? Data("{}".utf8).write(to: URL(fileURLWithPath: Self.colorFilePath))
 
         server.onMessage = { [weak self] message in
             self?.handle(message: message)
@@ -80,11 +80,9 @@ class SessionManager {
     // MARK: - Color Pool
 
     private func assignColor() -> SessionColor {
-        for color in SessionColor.allCases {
-            if !usedColors.contains(color) {
-                usedColors.insert(color)
-                return color
-            }
+        for color in SessionColor.allCases where !usedColors.contains(color) {
+            usedColors.insert(color)
+            return color
         }
         return SessionColor.allCases[0]
     }

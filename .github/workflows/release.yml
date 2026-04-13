@@ -103,9 +103,14 @@ jobs:
     needs: build-and-release
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
 
       - name: Download release zip and compute sha256
         run: |
@@ -150,5 +155,3 @@ jobs:
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "chore(cask): 同步版本号到 v${VERSION}"
           git push origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

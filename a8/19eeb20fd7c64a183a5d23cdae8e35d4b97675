@@ -1,0 +1,25 @@
+Scripts/bundle.sh
+  96d2cbc80c78f1ac 35-40
+Sources/ClaudeCodeBuddy/Resources/Info.plist
+  96d2cbc80c78f1ac 17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "a819eeb20fd7c64a183a5d23cdae8e35d4b97675",
+  "prompts": {
+    "96d2cbc80c78f1ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "027bee97-bd3e-4251-af23-1edc01f648b4",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 0,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}

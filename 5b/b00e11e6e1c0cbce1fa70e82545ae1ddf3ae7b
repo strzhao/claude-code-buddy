@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  b7d7c3e238f1d132 66-69,248-255,360-366,376-381
+Sources/ClaudeCodeBuddy/Scene/FoodManager.swift
+  b7d7c3e238f1d132 119-146
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  b7d7c3e238f1d132 210-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "5bb00e11e6e1c0cbce1fa70e82545ae1ddf3ae7b",
+  "prompts": {
+    "b7d7c3e238f1d132": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e86e3aad-0982-4528-9d51-967e680a6456",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 57,
+      "total_deletions": 0,
+      "accepted_lines": 57,
+      "overriden_lines": 0
+    }
+  }
+}

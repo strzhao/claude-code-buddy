@@ -256,14 +256,25 @@ class CatSprite {
         // Safety net: always restore physics dynamics regardless of whether state actually changes
         containerNode.physicsBody?.isDynamic = true
 
+        // Store tool description before guard — permissionRequest resume() reads this
+        pendingToolDescription = toolDescription
+
+        // Same-state guard: GKStateMachine rejects same-state transitions, but the cleanup
+        // below (removeAllActions) runs before enter(), leaving the cat frozen with no animation.
+        if currentState == newState {
+            // permissionRequest may need label refresh when toolDescription changes
+            if newState == .permissionRequest {
+                removeAlertOverlay()
+                (stateMachine.currentState as? CatPermissionRequestState)?.resume()
+            }
+            return
+        }
+
         // Release any claimed food when switching to a different state
         if currentTargetFood != nil {
             currentTargetFood = nil
             onFoodAbandoned?(sessionId)
         }
-
-        // Store tool description for CatPermissionRequestState to access
-        pendingToolDescription = toolDescription
 
         // Clean up common animation keys before entering new state
         node.removeAllActions()

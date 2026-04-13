@@ -11,6 +11,7 @@ enum HookEvent: String, Codable {
     case sessionEnd = "session_end"
     case setLabel   = "set_label"
     case permissionRequest = "permission_request"
+    case taskComplete = "task_complete"
 }
 
 // MARK: - HookMessage
@@ -51,6 +52,7 @@ struct HookMessage: Codable {
         case .sessionEnd: return nil
         case .setLabel:   return nil
         case .permissionRequest: return .permissionRequest
+        case .taskComplete: return .taskComplete
         }
     }
 }

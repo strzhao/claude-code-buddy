@@ -16,7 +16,8 @@ final class CatThinkingState: GKState, ResumableState {
         case is CatIdleState.Type,
              is CatToolUseState.Type,
              is CatPermissionRequestState.Type,
-             is CatEatingState.Type:
+             is CatEatingState.Type,
+             is CatTaskCompleteState.Type:
             return true
         default:
             return false

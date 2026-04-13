@@ -10,6 +10,7 @@ enum CatState: String, CaseIterable {
     case toolUse           = "tool_use"
     case permissionRequest = "waiting"
     case eating            = "eating"
+    case taskComplete      = "task_complete"
 }
 
 // MARK: - ExitDirection
@@ -34,6 +35,7 @@ class CatSprite {
         case is CatToolUseState:           return .toolUse
         case is CatPermissionRequestState: return .permissionRequest
         case is CatEatingState:            return .eating
+        case is CatTaskCompleteState:      return .taskComplete
         default:                           return .idle  // before stateMachine init
         }
     }
@@ -86,6 +88,10 @@ class CatSprite {
     var currentTargetFood: FoodSprite?
     /// Callback to release food when cat is interrupted.
     var onFoodAbandoned: ((String) -> Void)?  // passes sessionId
+    /// Callback to request a bed slot when entering taskComplete state.
+    var onBedRequested: ((String) -> (x: CGFloat, bedName: String)?)?
+    /// Callback to release a bed slot when leaving taskComplete state.
+    var onBedReleased: ((String) -> Void)?
     /// Single source of truth for horizontal facing direction.
     /// didSet auto-applies xScale so callers never forget to sync visuals.
     var facingRight: Bool = false {
@@ -135,7 +141,8 @@ class CatSprite {
             CatThinkingState(entity: self),
             CatToolUseState(entity: self),
             CatPermissionRequestState(entity: self),
-            CatEatingState(entity: self)
+            CatEatingState(entity: self),
+            CatTaskCompleteState(entity: self)
         ]
         stateMachine = GKStateMachine(states: states)
     }
@@ -272,6 +279,7 @@ class CatSprite {
         case .toolUse:           stateClass = CatToolUseState.self
         case .permissionRequest: stateClass = CatPermissionRequestState.self
         case .eating:            stateClass = CatEatingState.self
+        case .taskComplete:      stateClass = CatTaskCompleteState.self
         }
         stateMachine.enter(stateClass)
     }

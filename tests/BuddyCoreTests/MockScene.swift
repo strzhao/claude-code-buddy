@@ -46,4 +46,22 @@ final class MockScene: SceneControlling {
     func spawnFood(near x: CGFloat?) {
         spawnFoodCalls.append(x)
     }
+
+    // Bed slot stubs
+    var assignBedSlotCalls: [String] = []
+    var releaseBedSlotCalls: [String] = []
+    var stubbedBedSlotX: CGFloat? = 800
+
+    func assignBedSlot(for sessionId: String) -> CGFloat? {
+        assignBedSlotCalls.append(sessionId)
+        return stubbedBedSlotX
+    }
+
+    func releaseBedSlot(for sessionId: String) {
+        releaseBedSlotCalls.append(sessionId)
+    }
+
+    func bedColorName(for sessionId: String) -> String? {
+        return "bed-blue"
+    }
 }

@@ -120,6 +120,7 @@ final class HookMessageTests: XCTestCase {
             ("session_end", nil),
             ("set_label", nil),
             ("permission_request", .permissionRequest),
+            ("task_complete", .taskComplete),
         ]
         for (event, expected) in mappings {
             let json = """

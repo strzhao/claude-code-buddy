@@ -27,7 +27,8 @@ final class CatIdleState: GKState, ResumableState {
         case is CatThinkingState.Type,
              is CatToolUseState.Type,
              is CatPermissionRequestState.Type,
-             is CatEatingState.Type:
+             is CatEatingState.Type,
+             is CatTaskCompleteState.Type:
             return true
         default:
             return false
@@ -43,6 +44,7 @@ final class CatIdleState: GKState, ResumableState {
         let needsCleanTransition = previousState is CatToolUseState
             || previousState is CatThinkingState
             || previousState is CatEatingState
+            || previousState is CatTaskCompleteState
 
         // Reset color tint
         node.color = entity.sessionColor?.nsColor ?? .orange

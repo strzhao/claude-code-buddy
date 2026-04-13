@@ -13,7 +13,7 @@ class FoodSprite {
 
     let node: SKSpriteNode
     private(set) var state: FoodState = .falling
-    private(set) var claimedBy: String? = nil
+    private(set) var claimedBy: String?
     private var landedTime: Date?
 
     static let renderSize = CGSize(width: 12, height: 12)

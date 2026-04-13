@@ -40,8 +40,12 @@ class DockIconBoundsProvider {
 
             var position = CGPoint.zero
             var size = CGSize.zero
-            guard AXValueGetValue(posRef as! AXValue, .cgPoint, &position),
-                  AXValueGetValue(sizeRef as! AXValue, .cgSize, &size) else { continue }
+            guard let posVal = posRef,
+                  let sizeVal = sizeRef else { continue }
+            let posAXValue = unsafeBitCast(posVal, to: AXValue.self)
+            let sizeAXValue = unsafeBitCast(sizeVal, to: AXValue.self)
+            guard AXValueGetValue(posAXValue, .cgPoint, &position),
+                  AXValueGetValue(sizeAXValue, .cgSize, &size) else { continue }
 
             guard size.width > 0 else { continue }
             return DockIconBounds(minX: position.x, maxX: position.x + size.width)

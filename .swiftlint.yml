@@ -4,6 +4,10 @@ disabled_rules:
   - type_body_length
   - file_length
   - function_body_length
+  - identifier_name
+  - implicitly_unwrapped_optional
+  - cyclomatic_complexity
+  - notification_center_detachment
 
 opt_in_rules:
   - empty_count

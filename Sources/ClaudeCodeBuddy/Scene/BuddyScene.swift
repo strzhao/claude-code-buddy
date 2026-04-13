@@ -5,9 +5,9 @@ import Combine
 // MARK: - Physics Categories
 
 struct PhysicsCategory {
-    static let cat:    UInt32 = 0x1
+    static let cat: UInt32 = 0x1
     static let ground: UInt32 = 0x2
-    static let food:   UInt32 = 0x4
+    static let food: UInt32 = 0x4
 }
 
 // MARK: - BuddyScene
@@ -211,9 +211,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
             guard cat != nil else { return }
             jumpedCat.playFrightReaction(awayFromX: cat?.containerNode.position.x ?? 0)
-        }) { [cat] in
+        }, completion: { [cat] in
             cat.containerNode.removeFromParent()
-        }
+        })
     }
 
     func updateCatState(sessionId: String, state: CatState, toolDescription: String? = nil) {
@@ -366,11 +366,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
         // Find first available slot
         let usedSlots = Set(activeBedSlots.values)
-        for slot in 0..<CatConstants.TaskComplete.maxSlots {
-            if !usedSlots.contains(slot) {
-                activeBedSlots[sessionId] = slot
-                return bedSlotX(for: slot)
-            }
+        for slot in 0..<CatConstants.TaskComplete.maxSlots where !usedSlots.contains(slot) {
+            activeBedSlots[sessionId] = slot
+            return bedSlotX(for: slot)
         }
         return nil // All slots full
     }

@@ -1,0 +1,50 @@
+.autopilot/active
+  d47949b59297c9b1 1
+.autopilot/requirements/20260414-修复-swiftLint-错误/state.md
+  8bd658b875770bcf 1-55
+.autopilot/requirements/20260412-当前的测试效率非常低/qa-report.md
+  8bd658b875770bcf 1-27
+.autopilot/requirements/20260412-当前的测试效率非常低/state.md
+  8bd658b875770bcf 1-125
+.autopilot/requirements/20260412-当前的测试效率非常低/brainstorm.md
+  8bd658b875770bcf 1-48
+.autopilot/requirements/20260412-当前的测试效率非常低/completion-report.md
+  8bd658b875770bcf 1-33
+.autopilot/requirements/20260413-修复掉/state.md
+  8bd658b875770bcf 1-58
+.autopilot/requirements/20260412-当前的测试效率非常低/design.md
+  8bd658b875770bcf 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d2717cdabb7e8530fff4a74961ae7e6ca67eb54f",
+  "prompts": {
+    "8bd658b875770bcf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c0813985-655f-4b9f-8478-bd24565e99c0",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 370,
+      "total_deletions": 0,
+      "accepted_lines": 370,
+      "overriden_lines": 0
+    },
+    "d47949b59297c9b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "960984a1-183d-4833-ba53-65ab6c9f1181",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}

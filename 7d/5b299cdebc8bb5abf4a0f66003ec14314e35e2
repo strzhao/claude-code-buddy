@@ -1,0 +1,38 @@
+.autopilot/patterns.md
+  c247796c1192a6f7 14-19
+.autopilot/index.md
+  c247796c1192a6f7 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7d5b299cdebc8bb5abf4a0f66003ec14314e35e2",
+  "prompts": {
+    "22ee3f955610f06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18909073-0d4e-4666-9a0e-3d0c1a2d1292",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "c247796c1192a6f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "98c0f15c-3738-470a-9b97-8b91c0e306dc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

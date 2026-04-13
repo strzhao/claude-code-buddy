@@ -302,6 +302,7 @@ class SessionManager {
         case .toolUse:           return .toolUse
         case .permissionRequest: return .permissionRequest
         case .eating:            return .eating
+        case .taskComplete:      return .taskComplete
         }
     }
 }

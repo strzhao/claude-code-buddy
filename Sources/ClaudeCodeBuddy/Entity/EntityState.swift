@@ -8,4 +8,5 @@ enum EntityState: String, CaseIterable {
     case toolUse           = "tool_use"
     case permissionRequest = "waiting"
     case eating            = "eating"
+    case taskComplete      = "task_complete"
 }

@@ -34,7 +34,7 @@ cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
 
 # Copy SPM resource bundle (contains Assets/Sprites/ textures)
 cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_BuddyCore.bundle" \
-      "$BUNDLE_DIR/"
+      "$BUNDLE_DIR/Contents/Resources/"
 
 echo "==> Bundle created: $BUNDLE_DIR"
 echo ""

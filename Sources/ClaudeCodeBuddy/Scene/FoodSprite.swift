@@ -52,7 +52,7 @@ class FoodSprite {
 
     init(textureName: String) {
         // Load texture from Assets/Food/ using same pattern as CatSprite
-        if let url = Bundle.module.url(forResource: textureName, withExtension: "png", subdirectory: "Assets/Food"),
+        if let url = ResourceBundle.bundle.url(forResource: textureName, withExtension: "png", subdirectory: "Assets/Food"),
            let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
            let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) {
             let texture = SKTexture(cgImage: cgImage)

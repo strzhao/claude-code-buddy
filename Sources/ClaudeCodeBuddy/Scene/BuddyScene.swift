@@ -106,7 +106,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private static let boundaryRenderSize = CGSize(width: 32, height: 32)
 
     private func loadBoundaryTexture() -> SKTexture? {
-        guard let url = Bundle.module.url(forResource: "boundary-bush",
+        guard let url = ResourceBundle.bundle.url(forResource: "boundary-bush",
                                           withExtension: "png",
                                           subdirectory: "Assets/Sprites"),
               let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),

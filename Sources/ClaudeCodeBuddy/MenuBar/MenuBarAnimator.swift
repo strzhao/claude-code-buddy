@@ -95,7 +95,7 @@ class MenuBarAnimator {
         runFrames = loadFrameSequence(prefix: "menubar-run", count: 5, size: iconSize)
 
         // 加载静止图标
-        if let url = Bundle.module.url(forResource: "menubar-idle-1",
+        if let url = ResourceBundle.bundle.url(forResource: "menubar-idle-1",
                                        withExtension: "png",
                                        subdirectory: "Assets/Sprites/Menubar"),
            let img = NSImage(contentsOf: url) {
@@ -110,7 +110,7 @@ class MenuBarAnimator {
     private func loadFrameSequence(prefix: String, count: Int, size: NSSize) -> [NSImage] {
         var frames: [NSImage] = []
         for i in 1...count {
-            if let url = Bundle.module.url(forResource: "\(prefix)-\(i)",
+            if let url = ResourceBundle.bundle.url(forResource: "\(prefix)-\(i)",
                                            withExtension: "png",
                                            subdirectory: "Assets/Sprites/Menubar"),
                let img = NSImage(contentsOf: url) {

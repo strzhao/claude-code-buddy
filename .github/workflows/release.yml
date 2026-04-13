@@ -45,7 +45,7 @@ jobs:
           cp Sources/ClaudeCodeBuddy/Resources/Info.plist "$APP/Contents/Info.plist"
 
           # Copy SPM resource bundle (Bundle.module looks for it at .app root)
-          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/"
+          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/Contents/Resources/"
 
           # Update version in Info.plist
           TAG="${GITHUB_REF_NAME#v}"

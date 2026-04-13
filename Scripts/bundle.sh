@@ -32,6 +32,12 @@ chmod +x "$BUNDLE_DIR/Contents/MacOS/$APP_NAME"
 cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
    "$BUNDLE_DIR/Contents/Info.plist"
 
+# Copy app icon
+if [ -f "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/AppIcon.icns" ]; then
+    cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/AppIcon.icns" \
+       "$BUNDLE_DIR/Contents/Resources/AppIcon.icns"
+fi
+
 # Copy SPM resource bundle (contains Assets/Sprites/ textures)
 cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_BuddyCore.bundle" \
       "$BUNDLE_DIR/Contents/Resources/"

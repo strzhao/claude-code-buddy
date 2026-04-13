@@ -1,0 +1,35 @@
+Sources/ClaudeCodeBuddy/Network/SocketServer.swift
+  1def2cb4d2d41797 62-63,90-94,101-102,136-137,196-198
+Makefile
+  1def2cb4d2d41797 1,20-25
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  1def2cb4d2d41797 136,138-143
+CLAUDE.md
+  1def2cb4d2d41797 51-52
+.autopilot/doctor-report.md
+  1def2cb4d2d41797 5,12,14,22-34,40-42,50-57,59-66,72-103,105,107-109
+.autopilot/worktree-links
+  1def2cb4d2d41797 1-6
+Sources/ClaudeCodeBuddy/Event/BuddyError.swift
+  1def2cb4d2d41797 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d8bb6595e4a5291b7dd8ffc9c4b9cec849f03792",
+  "prompts": {
+    "1def2cb4d2d41797": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b299550-f9d4-4fd8-b422-17d196789d9a",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 150,
+      "total_deletions": 47,
+      "accepted_lines": 149,
+      "overriden_lines": 0
+    }
+  }
+}

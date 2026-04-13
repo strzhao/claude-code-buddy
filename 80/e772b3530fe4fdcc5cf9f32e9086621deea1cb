@@ -1,0 +1,44 @@
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  d47949b59297c9b1 8,10,214,216,369-371
+Sources/ClaudeCodeBuddy/Scene/FoodSprite.swift
+  d47949b59297c9b1 16
+.swiftlint.yml
+  d47949b59297c9b1 7-10
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  d47949b59297c9b1 53,83-85
+Sources/ClaudeCodeBuddy/Window/DockIconBoundsProvider.swift
+  d47949b59297c9b1 43-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "80e772b3530fe4fdcc5cf9f32e9086621deea1cb",
+  "prompts": {
+    "1def2cb4d2d41797": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b299550-f9d4-4fd8-b422-17d196789d9a",
+        "model": "unknown"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "d47949b59297c9b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "960984a1-183d-4833-ba53-65ab6c9f1181",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 26,
+      "total_deletions": 22,
+      "accepted_lines": 22,
+      "overriden_lines": 0
+    }
+  }
+}

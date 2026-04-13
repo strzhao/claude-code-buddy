@@ -1,0 +1,46 @@
+.github/workflows/release.yml
+  c247796c1192a6f7 48
+Sources/ClaudeCodeBuddy/ResourceBundle.swift
+  c247796c1192a6f7 1-23
+Sources/ClaudeCodeBuddy/MenuBar/MenuBarAnimator.swift
+  c247796c1192a6f7 98,113
+Scripts/bundle.sh
+  c247796c1192a6f7 37
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  c247796c1192a6f7 109
+Sources/ClaudeCodeBuddy/Scene/FoodSprite.swift
+  c247796c1192a6f7 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "3961a4f58fd3700650396592ab40a5f526e9eac2",
+  "prompts": {
+    "22ee3f955610f06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18909073-0d4e-4666-9a0e-3d0c1a2d1292",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "c247796c1192a6f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "98c0f15c-3738-470a-9b97-8b91c0e306dc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 29,
+      "total_deletions": 6,
+      "accepted_lines": 29,
+      "overriden_lines": 0
+    }
+  }
+}

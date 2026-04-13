@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift
+  d47949b59297c9b1 104-105,217-218
+.swiftlint.yml
+  d47949b59297c9b1 11-12
+Sources/ClaudeCodeBuddy/MenuBar/SessionRowView.swift
+  d47949b59297c9b1 64
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  d47949b59297c9b1 90,135,173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "48764920ec62276f87304fb9de4b722b08792950",
+  "prompts": {
+    "d47949b59297c9b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "960984a1-183d-4833-ba53-65ab6c9f1181",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 10,
+      "total_deletions": 15,
+      "accepted_lines": 10,
+      "overriden_lines": 0
+    }
+  }
+}

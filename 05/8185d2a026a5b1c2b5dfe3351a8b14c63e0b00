@@ -1,0 +1,36 @@
+.github/workflows/release.yml
+  c247796c1192a6f7 47-48,142-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "058185d2a026a5b1c2b5dfe3351a8b14c63e0b00",
+  "prompts": {
+    "22ee3f955610f06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18909073-0d4e-4666-9a0e-3d0c1a2d1292",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "c247796c1192a6f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "98c0f15c-3738-470a-9b97-8b91c0e306dc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 15,
+      "total_deletions": 2,
+      "accepted_lines": 15,
+      "overriden_lines": 0
+    }
+  }
+}

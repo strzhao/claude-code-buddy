@@ -87,9 +87,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             tracker.onClick = { [weak self] sessionId in
                 guard let self = self,
                       let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
-                for adapter in self.terminalAdapters {
-                    if adapter.activateTab(for: info) { break }
-                }
+                for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
             }
             mouseTracker = tracker
         }
@@ -134,9 +132,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         popoverController.onSessionClicked = { [weak self] session in
             self?.popover.performClose(nil)
             guard let adapters = self?.terminalAdapters else { return }
-            for adapter in adapters {
-                if adapter.activateTab(for: session) { break }
-            }
+            for adapter in adapters where adapter.activateTab(for: session) { break }
         }
     }
 
@@ -174,9 +170,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         manager.onSessionNeedsTabTitle = { [weak self] session in
             guard let adapters = self?.terminalAdapters else { return }
             DispatchQueue.global(qos: .utility).async {
-                for adapter in adapters {
-                    if adapter.setTabTitle(for: session) { break }
-                }
+                for adapter in adapters where adapter.setTabTitle(for: session) { break }
             }
         }
         sessionManager = manager

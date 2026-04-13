@@ -8,6 +8,8 @@ disabled_rules:
   - implicitly_unwrapped_optional
   - cyclomatic_complexity
   - notification_center_detachment
+  - trailing_comma
+  - function_parameter_count
 
 opt_in_rules:
   - empty_count

@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  5458d49900c5aea8 128,151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0a2bc8f20ff72a8caf100807ecac73b2d62e9909",
+  "prompts": {
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}

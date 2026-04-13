@@ -1,0 +1,33 @@
+.autopilot/requirements/20260412-005-interaction/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Scene/Components/LabelComponent.swift
+  b736096f75a028a8 1-163
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  b736096f75a028a8 53-58,69-80,114-115,117-119,148,152,179-180,184,188,191,201,252,256,321,326,331
+.autopilot/requirements/20260412-004-movement/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Scene/Components/InteractionComponent.swift
+  b736096f75a028a8 1-143
+.autopilot/project/dag.yaml
+  b736096f75a028a8 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "f3a079762761d6f70ad1badc53b9e0b5893f449e",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 346,
+      "total_deletions": 221,
+      "accepted_lines": 346,
+      "overriden_lines": 0
+    }
+  }
+}

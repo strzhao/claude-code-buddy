@@ -1,0 +1,41 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  b736096f75a028a8 352-365
+.autopilot/project/dag.yaml
+  b736096f75a028a8 42
+.autopilot/requirements/20260412-007-eventbus/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Event/BuddyEvent.swift
+  b736096f75a028a8 2,32-55
+Sources/ClaudeCodeBuddy/Environment/BehaviorModifier.swift
+  b736096f75a028a8 1-13
+.autopilot/requirements/20260412-008-environment/state.md
+  b736096f75a028a8 3
+Sources/ClaudeCodeBuddy/Environment/EnvironmentResponder.swift
+  b736096f75a028a8 1-11
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  b736096f75a028a8 16-20,73
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  b736096f75a028a8 2,34-36,49-70
+Sources/ClaudeCodeBuddy/Environment/SceneEnvironment.swift
+  b736096f75a028a8 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c8ec0c5a38225739f125ed67b414adfba081234d",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 136,
+      "total_deletions": 6,
+      "accepted_lines": 134,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,33 @@
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  5458d49900c5aea8 7
+Sources/ClaudeCodeBuddy/Session/SessionInfo.swift
+  5458d49900c5aea8 13-16
+Sources/ClaudeCodeBuddy/Session/TranscriptReader.swift
+  5458d49900c5aea8 1-59
+tests/BuddyCoreTests/ModelTests.swift
+  5458d49900c5aea8 41-43,60-62
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  5458d49900c5aea8 30,175-179,190-191,216-220,233-260
+Sources/ClaudeCodeBuddy/MenuBar/SessionRowView.swift
+  5458d49900c5aea8 10,13,79-87,114-118,128-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7da56d5fc6e76d799300b2edd0e973a4c2079429",
+  "prompts": {
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 172,
+      "total_deletions": 6,
+      "accepted_lines": 172,
+      "overriden_lines": 0
+    }
+  }
+}

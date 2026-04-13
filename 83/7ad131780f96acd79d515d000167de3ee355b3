@@ -1,0 +1,37 @@
+hooks/buddy-hook.sh
+  8419a39042e7b919 10,29
+tests/acceptance/test-session-start.acceptance.test.sh
+  8419a39042e7b919 1-333
+plugin/scripts/buddy-hook.sh
+  8419a39042e7b919 10,29
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  8419a39042e7b919 6,34
+tests/acceptance/run-all.sh
+  8419a39042e7b919 60
+README.md
+  8419a39042e7b919 81
+plugin/hooks/hooks.json
+  8419a39042e7b919 3-14
+tests/acceptance/test-hook-script.sh
+  8419a39042e7b919 203-213,227-228,240-241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "837ad131780f96acd79d515d000167de3ee355b3",
+  "prompts": {
+    "8419a39042e7b919": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e362aca-059a-46db-a1c5-cd4295ddbb38",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 483,
+      "total_deletions": 35,
+      "accepted_lines": 462,
+      "overriden_lines": 2
+    }
+  }
+}

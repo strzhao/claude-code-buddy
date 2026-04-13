@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  cdbb19ec8fe9f0a7 17,126
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  cdbb19ec8fe9f0a7 110
+tests/acceptance/test-popover-cell-layout.sh
+  cdbb19ec8fe9f0a7 1-92
+Sources/ClaudeCodeBuddy/MenuBar/SessionRowView.swift
+  cdbb19ec8fe9f0a7 57,59-67,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "18efbe4a6266e9094a4392ebf91f33ea774f6b3f",
+  "prompts": {
+    "cdbb19ec8fe9f0a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6642198a-a503-43fd-9257-1912fc7bfcc3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 106,
+      "total_deletions": 6,
+      "accepted_lines": 106,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  de91560f9dbe63b9 9,30,53-59
+Sources/ClaudeCodeBuddy/Window/BuddyWindow.swift
+  de91560f9dbe63b9 31-34
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  de91560f9dbe63b9 97-113
+Sources/ClaudeCodeBuddy/Window/MouseTracker.swift
+  de91560f9dbe63b9 1-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fa5daa33366ecd52af82eb322021ecfda493b838",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 144,
+      "total_deletions": 2,
+      "accepted_lines": 1289,
+      "overriden_lines": 0
+    }
+  }
+}

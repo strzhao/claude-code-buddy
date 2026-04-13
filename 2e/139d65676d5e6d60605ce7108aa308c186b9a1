@@ -1,0 +1,27 @@
+plugin/scripts/buddy-hook.sh
+  5458d49900c5aea8 70
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  5458d49900c5aea8 111,113
+hooks/buddy-hook.sh
+  5458d49900c5aea8 70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "2e139d65676d5e6d60605ce7108aa308c186b9a1",
+  "prompts": {
+    "5458d49900c5aea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb708afd-a311-4c82-bd35-f3b817c970bd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 3,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}

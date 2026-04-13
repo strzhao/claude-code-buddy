@@ -1,0 +1,57 @@
+.autopilot/project/tasks/002-session-manager.md
+  de91560f9dbe63b9 1-99
+.autopilot/requirements/20260412-001-data-models/state.md
+  de91560f9dbe63b9 3-4,12,149-163,166-170,173-179,182-200,205-208
+.autopilot/project/tasks/005-mouse-tracker.md
+  de91560f9dbe63b9 1-87
+.autopilot/requirements/20260412-003-visual-layer/state.md
+  de91560f9dbe63b9 3-4,12,200-205,208-211,214-216,219-220,225-226
+.autopilot/requirements/20260412-002-session-manager/state.md
+  de91560f9dbe63b9 3-4,12,210-217,220-226,229-233,236-249,254-256
+.autopilot/project/tasks/006-tooltip-node.md
+  de91560f9dbe63b9 1-80
+.autopilot/project/design.md
+  de91560f9dbe63b9 1-78
+.autopilot/project/tasks/001-data-models.md
+  de91560f9dbe63b9 1-63
+.autopilot/project/tasks/007-terminal-adapter.md
+  de91560f9dbe63b9 1-85
+.autopilot/project/tasks/009-buddy-label.md
+  de91560f9dbe63b9 1-93
+.autopilot/project/dag.yaml
+  de91560f9dbe63b9 1-60
+.autopilot/project/tasks/004-hook-script.md
+  de91560f9dbe63b9 1-76
+.autopilot/project/tasks/001-data-models.handoff.md
+  de91560f9dbe63b9 1-23
+.autopilot/requirements/20260412-004-hook-script/state.md
+  de91560f9dbe63b9 3,187-188,191-194
+.autopilot/project/tasks/010-ai-awareness.md
+  de91560f9dbe63b9 1-78
+.autopilot/project/tasks/003-visual-layer.md
+  de91560f9dbe63b9 1-76
+.autopilot/project/tasks/008-menu-dashboard.md
+  de91560f9dbe63b9 1-93
+.autopilot/project/tasks/002-session-manager.handoff.md
+  de91560f9dbe63b9 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4fd4a68861d833b6d07f09d8481141a38f29eab6",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 1147,
+      "overriden_lines": 0
+    }
+  }
+}

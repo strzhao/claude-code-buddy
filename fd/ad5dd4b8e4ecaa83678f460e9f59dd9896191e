@@ -1,0 +1,23 @@
+plugin/scripts/buddy-label.sh
+  de91560f9dbe63b9 1-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fdad5dd4b8e4ecaa83678f460e9f59dd9896191e",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 180,
+      "total_deletions": 18,
+      "accepted_lines": 1310,
+      "overriden_lines": 0
+    }
+  }
+}

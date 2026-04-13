@@ -1,0 +1,29 @@
+README.md
+  7a2869d07e18dcc6 11-19
+.github/workflows/release.yml
+  7a2869d07e18dcc6 76-83,100-141
+Scripts/init-tap-repo.sh
+  7a2869d07e18dcc6 1-46
+homebrew/Casks/claude-code-buddy.rb
+  7a2869d07e18dcc6 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "052b69804c80effa917b0fe9224c845282cb81ec",
+  "prompts": {
+    "7a2869d07e18dcc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "849a1ffe-972c-4077-bc23-a381d76b7017",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 121,
+      "total_deletions": 1,
+      "accepted_lines": 120,
+      "overriden_lines": 0
+    }
+  }
+}

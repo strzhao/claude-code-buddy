@@ -1,0 +1,41 @@
+Sources/ClaudeCodeBuddy/Scene/SceneControlling.swift
+  6eaf55c1ac6584e4 1-13
+tests/BuddyCoreTests/TranscriptReaderTests.swift
+  6eaf55c1ac6584e4 1-109
+tests/BuddyCoreTests/TestHelpers.swift
+  6eaf55c1ac6584e4 1-37
+Makefile
+  6eaf55c1ac6584e4 1,12-16
+tests/BuddyCoreTests/SessionIntegrationTests.swift
+  6eaf55c1ac6584e4 1-191
+tests/BuddyCoreTests/MockScene.swift
+  6eaf55c1ac6584e4 1-49
+tests/BuddyCoreTests/SessionManagerTests.swift
+  6eaf55c1ac6584e4 1-415
+tests/BuddyCoreTests/EventBusTests.swift
+  6eaf55c1ac6584e4 1-67
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  6eaf55c1ac6584e4 11,15,18,45,142,269,278
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  6eaf55c1ac6584e4 282-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d9e3b018c7791626f6cbc7536412ee570da79af2",
+  "prompts": {
+    "6eaf55c1ac6584e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b91dee7-de15-4439-a8cc-0712de937f73",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1411,
+      "total_deletions": 41,
+      "accepted_lines": 1378,
+      "overriden_lines": 0
+    }
+  }
+}

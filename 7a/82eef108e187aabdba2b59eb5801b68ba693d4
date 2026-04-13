@@ -1,0 +1,42 @@
+tests/BuddyCoreTests/JumpExitTests.swift
+  4c406ab8051af487 62-64,86-89,152-168,388-391,419-422,464-466,572,580-584,595-596,598,669-671
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  4c406ab8051af487 14-19,241-242,725-814,840-846,851,853-859,861-883,886-1031
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  4c406ab8051af487 105-110
+Sources/ClaudeCodeBuddy/Resources/Info.plist
+  4c406ab8051af487 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7a82eef108e187aabdba2b59eb5801b68ba693d4",
+  "prompts": {
+    "4c406ab8051af487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b91afc56-d1dd-40fd-89fe-97d49a1f6333",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 463,
+      "total_deletions": 112,
+      "accepted_lines": 403,
+      "overriden_lines": 2
+    },
+    "af10487ed70aa08f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0ae8957c-793c-4e9d-939c-dfbbe3e83e72",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 166,
+      "total_deletions": 0,
+      "accepted_lines": 166,
+      "overriden_lines": 0
+    }
+  }
+}

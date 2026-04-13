@@ -1,0 +1,29 @@
+Sources/ClaudeCodeBuddy/Session/SessionInfo.swift
+  de91560f9dbe63b9 1-11
+Sources/ClaudeCodeBuddy/Session/SessionColor.swift
+  de91560f9dbe63b9 1-45
+tests/acceptance/test-data-models.sh
+  de91560f9dbe63b9 1-141
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  de91560f9dbe63b9 12,22-23,30-31,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4d6a331905830136a02997dc2b4a0bcda8fa8c2c",
+  "prompts": {
+    "de91560f9dbe63b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bee6fe5e-dc29-4fb4-8e95-9aedc420dd11",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1255,
+      "total_deletions": 39,
+      "accepted_lines": 1220,
+      "overriden_lines": 2
+    }
+  }
+}

@@ -1,0 +1,25 @@
+Sources/ClaudeCodeBuddy/Network/SocketServer.swift
+  b1386c671f8a446c 55,102,129-132,134,156-161,184,190
+plugin/scripts/buddy-hook.sh
+  b1386c671f8a446c 5,7,17-18,20,22,32-34,37-77,83,85,88-104,106-107,112-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "235ad794627a647e1012f97b48ae70ed53423a71",
+  "prompts": {
+    "b1386c671f8a446c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d798660e-ed20-4c27-9c5e-b428794ecdf1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 94,
+      "total_deletions": 122,
+      "accepted_lines": 90,
+      "overriden_lines": 0
+    }
+  }
+}

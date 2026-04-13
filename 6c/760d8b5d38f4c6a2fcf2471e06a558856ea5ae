@@ -1,0 +1,35 @@
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  b1386c671f8a446c 27,38
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  b1386c671f8a446c 172-173,201-204
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  b1386c671f8a446c 102,104,143-145
+Sources/ClaudeCodeBuddy/Session/SessionInfo.swift
+  b1386c671f8a446c 12
+hooks/buddy-hook.sh
+  b1386c671f8a446c 27-29,47,49,55,101-107
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  b1386c671f8a446c 129,133,142,146,156-168,171,179,197,201,234,298-306,410,414-417,422,431
+Sources/ClaudeCodeBuddy/Scene/TooltipNode.swift
+  b1386c671f8a446c 5-6,9-24,31-32,37-41,43-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6c760d8b5d38f4c6a2fcf2471e06a558856ea5ae",
+  "prompts": {
+    "b1386c671f8a446c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d798660e-ed20-4c27-9c5e-b428794ecdf1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 107,
+      "total_deletions": 121,
+      "accepted_lines": 94,
+      "overriden_lines": 0
+    }
+  }
+}

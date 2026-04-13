@@ -1,0 +1,35 @@
+.autopilot/requirements/20260412-003-animation/state.md
+  b736096f75a028a8 3
+.autopilot/project/dag.yaml
+  b736096f75a028a8 18
+Sources/ClaudeCodeBuddy/Scene/States/CatToolUseState.swift
+  b736096f75a028a8 37
+Sources/ClaudeCodeBuddy/Scene/CatSprite.swift
+  b736096f75a028a8 50-52,80,99-101,307-308,310,357,516,526
+.autopilot/requirements/20260412-004-movement/state.md
+  b736096f75a028a8 3,186-218,221-227,233-240
+Sources/ClaudeCodeBuddy/Scene/Components/JumpComponent.swift
+  b736096f75a028a8 1-275
+Sources/ClaudeCodeBuddy/Scene/Components/MovementComponent.swift
+  b736096f75a028a8 1-368
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fc50840f62ca089dd0f9dce4ce12ab06e9168822",
+  "prompts": {
+    "b736096f75a028a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cbae9bb-b5f3-4e2c-bd7e-02a63bef2766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 763,
+      "total_deletions": 536,
+      "accepted_lines": 708,
+      "overriden_lines": 0
+    }
+  }
+}

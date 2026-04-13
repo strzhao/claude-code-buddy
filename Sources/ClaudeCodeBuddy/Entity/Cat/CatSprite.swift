@@ -63,6 +63,10 @@ class CatSprite {
     /// Pending tool description passed through to CatPermissionRequestState.
     var pendingToolDescription: String?
 
+    /// State queued during eating — applied after eating animation completes.
+    private var pendingStateAfterEating: CatState?
+    private var pendingToolDescriptionAfterEating: String?
+
     // MARK: - Session Identity
 
     static let hitboxSize = CatConstants.Visual.hitboxSize
@@ -241,6 +245,14 @@ class CatSprite {
     // MARK: - State Machine
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
+        // Eating is a brief animation (~0.7s) that must complete for proper food cleanup.
+        // Queue non-idle state changes; the done block in startEating will apply them.
+        if currentState == .eating && newState != .idle {
+            pendingStateAfterEating = newState
+            pendingToolDescriptionAfterEating = toolDescription
+            return
+        }
+
         // Safety net: always restore physics dynamics regardless of whether state actually changes
         containerNode.physicsBody?.isDynamic = true
 
@@ -345,6 +357,13 @@ class CatSprite {
                 // Don't set currentState directly — let switchState handle the transition
                 self.switchState(to: .idle)
                 completion()
+                // Apply any state that was queued during eating
+                if let pending = self.pendingStateAfterEating {
+                    self.pendingStateAfterEating = nil
+                    let desc = self.pendingToolDescriptionAfterEating
+                    self.pendingToolDescriptionAfterEating = nil
+                    self.switchState(to: pending, toolDescription: desc)
+                }
             }
             node.run(SKAction.sequence([eatCycle, done]), withKey: "animation")
             node.texture = frames[0]
@@ -354,6 +373,12 @@ class CatSprite {
             currentTargetFood = nil
             switchState(to: .idle)
             completion()
+            if let pending = pendingStateAfterEating {
+                pendingStateAfterEating = nil
+                let desc = pendingToolDescriptionAfterEating
+                pendingToolDescriptionAfterEating = nil
+                switchState(to: pending, toolDescription: desc)
+            }
         }
     }
 

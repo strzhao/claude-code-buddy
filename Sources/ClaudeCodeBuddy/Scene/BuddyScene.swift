@@ -32,6 +32,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var hoveredCatSessionId: String?
 
+    /// Tracks which bed slots are in use (sessionId → slot index).
+    private var activeBedSlots: [String: Int] = [:]
+
     /// Activity bounds for cat movement. Updated by AppDelegate when Dock changes.
     var activityBounds: ClosedRange<CGFloat> = 48...752 {
         didSet { propagateActivityBounds() }
@@ -169,6 +172,15 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.onFoodAbandoned = { [weak self] sessionId in
             self?.foodManager.releaseFoodForCat(sessionId: sessionId)
         }
+        cat.onBedRequested = { [weak self] sessionId in
+            guard let self = self,
+                  let x = self.assignBedSlot(for: sessionId),
+                  let name = self.bedColorName(for: sessionId) else { return nil }
+            return (x: x, bedName: name)
+        }
+        cat.onBedReleased = { [weak self] sessionId in
+            self?.releaseBedSlot(for: sessionId)
+        }
         cat.nearbyObstacles = { [weak self, weak cat] in
             guard let self = self, let cat = cat else { return [] }
             return self.cats.values
@@ -189,6 +201,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
         foodManager.removeCatTracking(sessionId: sessionId)
+        releaseBedSlot(for: sessionId)
         // Keep a strong ref to cat until exit animation completes, then remove node
         if sessionId == hoveredCatSessionId {
             hoveredCatSessionId = nil
@@ -338,6 +351,39 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func idleCats() -> [CatSprite] {
         cats.values.filter { $0.currentState == .idle }
+    }
+
+    // MARK: - Bed Slot Management
+
+    func assignBedSlot(for sessionId: String) -> CGFloat? {
+        // Already assigned?
+        if let slot = activeBedSlots[sessionId] {
+            return bedSlotX(for: slot)
+        }
+        // Find first available slot
+        let usedSlots = Set(activeBedSlots.values)
+        for slot in 0..<CatConstants.TaskComplete.maxSlots {
+            if !usedSlots.contains(slot) {
+                activeBedSlots[sessionId] = slot
+                return bedSlotX(for: slot)
+            }
+        }
+        return nil // All slots full
+    }
+
+    func releaseBedSlot(for sessionId: String) {
+        activeBedSlots.removeValue(forKey: sessionId)
+    }
+
+    func bedColorName(for sessionId: String) -> String? {
+        guard let slot = activeBedSlots[sessionId] else { return nil }
+        let names = CatConstants.TaskComplete.bedNames
+        return names[slot % names.count]
+    }
+
+    private func bedSlotX(for slot: Int) -> CGFloat {
+        activityBounds.upperBound + CatConstants.TaskComplete.firstSlotOffset
+            + CGFloat(slot) * CatConstants.TaskComplete.slotSpacing
     }
 }
 

@@ -4,7 +4,7 @@ import XCTest
 final class CatStateTests: XCTestCase {
 
     func testAllCasesCount() {
-        XCTAssertEqual(CatState.allCases.count, 5)
+        XCTAssertEqual(CatState.allCases.count, 6)
     }
 
     func testRawValues() {

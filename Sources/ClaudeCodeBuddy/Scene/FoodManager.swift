@@ -116,6 +116,34 @@ class FoodManager {
         }
     }
 
+    // MARK: - Notify Single Cat About Landed Food
+
+    /// When a cat becomes idle, check for existing landed food and direct it there.
+    func notifyCatAboutLandedFood(_ cat: CatSprite) {
+        let landedFoods = activeFoods.filter { $0.state == .landed }
+        guard let food = landedFoods.min(by: {
+            abs($0.node.position.x - cat.containerNode.position.x)
+                < abs($1.node.position.x - cat.containerNode.position.x)
+        }) else { return }
+
+        let sceneWidth = scene?.size.width ?? 1
+        let distance = abs(food.node.position.x - cat.containerNode.position.x)
+        let delay = Double(distance / sceneWidth) * 0.3
+
+        cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
+            guard let self = self else { return }
+            guard food.claim(by: arrivingCat.sessionId) else {
+                arrivingCat.playDisappointedReaction()
+                return
+            }
+            arrivingCat.startEating(food) {
+                food.eat { [weak self] in
+                    self?.removeFood(food)
+                }
+            }
+        }
+    }
+
     // MARK: - Expiration
 
     private func checkExpirations() {

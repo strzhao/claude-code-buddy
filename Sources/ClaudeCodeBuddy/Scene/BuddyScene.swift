@@ -207,6 +207,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         guard let cat = cats[sessionId] else { return }
         cat.switchState(to: state, toolDescription: toolDescription)
         foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
+        // When a cat becomes idle, check for existing landed food
+        if state == .idle {
+            foodManager.notifyCatAboutLandedFood(cat)
+        }
     }
 
     var activeCatCount: Int { cats.count }

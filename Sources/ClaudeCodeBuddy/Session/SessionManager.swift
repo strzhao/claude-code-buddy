@@ -133,8 +133,14 @@ class SessionManager {
         guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) else { return }
         let tempPath = Self.colorFilePath + ".tmp"
         FileManager.default.createFile(atPath: tempPath, contents: data)
+        // removeItem may fail if file doesn't exist yet — that's fine
         try? FileManager.default.removeItem(atPath: Self.colorFilePath)
-        try? FileManager.default.moveItem(atPath: tempPath, toPath: Self.colorFilePath)
+        do {
+            try FileManager.default.moveItem(atPath: tempPath, toPath: Self.colorFilePath)
+        } catch {
+            let buddyError = BuddyError.colorFileWriteFailed(path: Self.colorFilePath, reason: error.localizedDescription)
+            NSLog("[SessionManager] %@", buddyError.description)
+        }
     }
 
     // MARK: - Message Handling

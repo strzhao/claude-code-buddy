@@ -1,4 +1,4 @@
-.PHONY: build run test test-acceptance test-all lint clean release bundle
+.PHONY: build run test test-acceptance test-all lint lint-fix format clean release bundle
 
 build:
 	swift build
@@ -16,6 +16,13 @@ test-all: test test-acceptance
 
 lint:
 	swiftlint lint --strict
+
+lint-fix:
+	swiftlint --fix --format
+	swiftlint lint --strict
+
+format:
+	swiftformat Sources/ Tests/
 
 clean:
 	swift package clean

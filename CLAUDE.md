@@ -48,6 +48,8 @@ make build          # 编译 debug
 make run            # 编译并启动
 make test           # 运行单元测试
 make lint           # SwiftLint 检查
+make lint-fix       # SwiftLint 自动修复 + 检查
+make format         # SwiftFormat 格式化
 make clean          # 清理构建产物
 make release        # 编译 release
 make bundle         # 打包 .app

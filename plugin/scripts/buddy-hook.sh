@@ -55,7 +55,7 @@ event_map = {
     "PreToolUse":        "tool_start",
     "PostToolUse":       "tool_end",
     "PermissionRequest": "permission_request",
-    "Stop":              "idle",
+    "Stop":              "task_complete",
     "SessionEnd":        "session_end",
 }
 event = event_map.get(hook, "idle")

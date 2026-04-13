@@ -234,4 +234,22 @@ enum CatConstants {
         /// Maximum number of cats on screen at once
         static let maxCats: Int = 8
     }
+
+    // MARK: - TaskComplete
+    enum TaskComplete {
+        /// Render size for the bed sprite in the scene
+        static let bedRenderSize = CGSize(width: 48, height: 32)
+        /// Walk speed toward the bed in px/s
+        static let walkSpeed: Double = 55
+        /// Horizontal offset from activityBounds.upperBound for first bed slot
+        static let firstSlotOffset: CGFloat = 48
+        /// Horizontal spacing between bed slots
+        static let slotSpacing: CGFloat = 56
+        /// Maximum number of bed slots
+        static let maxSlots: Int = 4
+        /// Z-position for the bed sprite (behind cat)
+        static let bedZPosition: CGFloat = -1
+        /// Bed sprite names (cycled by slot index)
+        static let bedNames: [String] = ["bed-blue", "bed-gray", "bed-pink", "bed-green"]
+    }
 }

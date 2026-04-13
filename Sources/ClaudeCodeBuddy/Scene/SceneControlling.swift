@@ -10,4 +10,7 @@ protocol SceneControlling: AnyObject {
     func updateCatLabel(sessionId: String, label: String)
     func catPosition(for sessionId: String) -> CGFloat?
     func spawnFood(near x: CGFloat?)
+    func assignBedSlot(for sessionId: String) -> CGFloat?
+    func releaseBedSlot(for sessionId: String)
+    func bedColorName(for sessionId: String) -> String?
 }

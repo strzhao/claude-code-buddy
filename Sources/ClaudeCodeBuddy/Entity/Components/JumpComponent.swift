@@ -101,8 +101,8 @@ class JumpComponent {
                 guard let self = self else { return }
                 let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
                 let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight
-                let p2x = landX,          p2y = groundY
+                let p1x = capturedObstX, p1y = groundY + CatConstants.Jump.arcHeight
+                let p2x = landX, p2y = groundY
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
                 let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y
@@ -214,8 +214,8 @@ class JumpComponent {
                 guard let self = self else { return }
                 let t = CGFloat(elapsed) / CatConstants.Jump.arcDuration
                 let p0x = capturedStartX, p0y = groundY
-                let p1x = capturedObstX,  p1y = groundY + CatConstants.Jump.arcHeight
-                let p2x = landX,          p2y = groundY
+                let p1x = capturedObstX, p1y = groundY + CatConstants.Jump.arcHeight
+                let p2x = landX, p2y = groundY
                 let oneMinusT = 1 - t
                 let bx = oneMinusT * oneMinusT * p0x + 2 * oneMinusT * t * p1x + t * t * p2x
                 let by = oneMinusT * oneMinusT * p0y + 2 * oneMinusT * t * p1y + t * t * p2y

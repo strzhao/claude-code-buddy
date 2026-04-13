@@ -61,8 +61,7 @@ class SessionRowView: NSView {
         if let cwdPath = session.cwd {
             let home = NSHomeDirectory()
             let components = cwdPath.split(separator: "/", omittingEmptySubsequences: true)
-            if components.count > 3 {
-                let last = String(components.last!)
+            if components.count > 3, let last = components.last {
                 displayCwd = (cwdPath.hasPrefix(home) ? "~" : "") + "/\u{2026}/" + last
             } else {
                 displayCwd = cwdPath.replacingOccurrences(of: home, with: "~")

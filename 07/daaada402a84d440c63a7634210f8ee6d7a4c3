@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  e5e1503484f9a150 247-260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "07daaada402a84d440c63a7634210f8ee6d7a4c3",
+  "prompts": {
+    "e5e1503484f9a150": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "416700f6-1c5d-4aa4-85b8-60d737db2b1b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 213,
+      "total_deletions": 5,
+      "accepted_lines": 211,
+      "overriden_lines": 0
+    }
+  }
+}

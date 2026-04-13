@@ -59,7 +59,8 @@ class SocketServer {
         // Create socket
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {
-            print("[SocketServer] socket() failed: \(String(cString: strerror(errno)))")
+            let error = BuddyError.socketCreateFailed(reason: String(cString: strerror(errno)))
+            NSLog("[SocketServer] %@", error.description)
             return
         }
 
@@ -86,14 +87,19 @@ class SocketServer {
         }
 
         guard bindResult == 0 else {
-            print("[SocketServer] bind() failed: \(String(cString: strerror(errno)))")
+            let error = BuddyError.socketBindFailed(
+                path: SocketServer.socketPath,
+                reason: String(cString: strerror(errno))
+            )
+            NSLog("[SocketServer] %@", error.description)
             Darwin.close(fd)
             return
         }
 
         // Listen
         guard listen(fd, 8) == 0 else {
-            print("[SocketServer] listen() failed: \(String(cString: strerror(errno)))")
+            let error = BuddyError.socketListenFailed(reason: String(cString: strerror(errno)))
+            NSLog("[SocketServer] %@", error.description)
             Darwin.close(fd)
             return
         }
@@ -127,7 +133,8 @@ class SocketServer {
         }
 
         guard clientFD >= 0 else {
-            print("[SocketServer] accept() failed: \(String(cString: strerror(errno)))")
+            let error = BuddyError.socketAcceptFailed(reason: String(cString: strerror(errno)))
+            NSLog("[SocketServer] %@", error.description)
             return
         }
 
@@ -186,9 +193,9 @@ class SocketServer {
                 self?.onMessage?(msg)
             }
         } catch {
-            if let raw = String(data: data, encoding: .utf8) {
-                NSLog("[SocketServer] JSON decode error: %@ — raw: %@", "\(error)", raw)
-            }
+            let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            let buddyError = BuddyError.messageDecodeFailed(raw: raw, underlying: error)
+            NSLog("[SocketServer] %@", buddyError.description)
         }
     }
 }

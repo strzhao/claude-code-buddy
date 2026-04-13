@@ -1,0 +1,6 @@
+# Autopilot worktree-links
+# Symlinked from worktree into main working tree for shared resources.
+# Format: <source_relative_to_main_worktree> → <target_in_worktree>
+
+# Claude Code plugin cache (shared across worktrees)
+.claude → .claude

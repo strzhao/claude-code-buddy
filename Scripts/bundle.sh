@@ -32,11 +32,9 @@ chmod +x "$BUNDLE_DIR/Contents/MacOS/$APP_NAME"
 cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
    "$BUNDLE_DIR/Contents/Info.plist"
 
-# Copy Assets (sprites)
-cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_ClaudeCodeBuddy.resources/Assets" \
-      "$BUNDLE_DIR/Contents/Resources/" 2>/dev/null || \
-cp -R "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Assets" \
-      "$BUNDLE_DIR/Contents/Resources/"
+# Copy SPM resource bundle (contains Assets/Sprites/ textures)
+cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_BuddyCore.bundle" \
+      "$BUNDLE_DIR/"
 
 echo "==> Bundle created: $BUNDLE_DIR"
 echo ""

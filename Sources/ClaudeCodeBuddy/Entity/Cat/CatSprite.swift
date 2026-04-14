@@ -104,6 +104,10 @@ class CatSprite {
     /// Cached scene width for boundary clamping during random walk.
     var sceneWidth: CGFloat = 0
 
+    /// Timestamp (CACurrentMediaTime) when this cat was first detected outside
+    /// its activity bounds. Nil when the cat is within bounds.
+    var outOfBoundsSince: CFTimeInterval?
+
     /// Minimum X for cat activity (left boundary).
     var activityMin: CGFloat = CatConstants.Movement.walkBoundaryMargin
     /// Maximum X for cat activity (right boundary). 0 means "use sceneWidth - margin".
@@ -215,6 +219,26 @@ class CatSprite {
         activityMax = bounds.upperBound
     }
 
+    // MARK: - Boundary Recovery
+
+    /// Whether this cat is outside its activity bounds by more than the tolerance.
+    func isOutOfBounds() -> Bool {
+        let x = containerNode.position.x
+        let tolerance = CatConstants.BoundaryRecovery.outOfBoundsTolerance
+        return x < activityMin - tolerance || x > effectiveActivityMax + tolerance
+    }
+
+    /// Returns the nearest valid X position within activity bounds for an out-of-bounds cat.
+    func nearestValidX() -> CGFloat {
+        let x = containerNode.position.x
+        let margin = CatConstants.Movement.walkBoundaryMargin
+        if x < activityMin {
+            return activityMin + margin
+        } else {
+            return effectiveActivityMax - margin
+        }
+    }
+
     // MARK: - Session Identity
 
     func configure(color: SessionColor, labelText: String) {
@@ -287,6 +311,7 @@ class CatSprite {
         node.removeAllActions()
         containerNode.removeAction(forKey: "randomWalk")
         containerNode.removeAction(forKey: "foodWalk")
+        containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)
         removeAlertOverlay()
         hideLabel()
         // Reset transform but preserve facing direction

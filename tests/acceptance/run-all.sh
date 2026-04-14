@@ -60,6 +60,7 @@ run_suite "$SCRIPT_DIR/test-hook-script.sh"
 run_suite "$SCRIPT_DIR/test-session-start.acceptance.test.sh"
 run_suite "$SCRIPT_DIR/test-socket-protocol.sh"
 run_suite "$SCRIPT_DIR/test-multi-session.sh"
+run_suite "$SCRIPT_DIR/test-random-walk-jumps.acceptance.sh"
 run_suite "$SCRIPT_DIR/test-app-bundle.sh"
 
 # ── Final summary ──────────────────────────────────────────────────────────

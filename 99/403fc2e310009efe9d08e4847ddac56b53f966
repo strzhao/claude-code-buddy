@@ -1,0 +1,35 @@
+Makefile
+  a9b392d4fd7dbd2c 33
+CLAUDE.md
+  a9b392d4fd7dbd2c 8-40,61-89,94,108-110,117,119-124
+Package.swift
+  a9b392d4fd7dbd2c 23-26
+homebrew/Casks/claude-code-buddy.rb
+  a9b392d4fd7dbd2c 2-3,14-18
+.github/workflows/release.yml
+  a9b392d4fd7dbd2c 29-34,41-45,57-59
+Sources/BuddyCLI/main.swift
+  a9b392d4fd7dbd2c 1-467
+Scripts/bundle.sh
+  a9b392d4fd7dbd2c 16-19,49-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "99403fc2e310009efe9d08e4847ddac56b53f966",
+  "prompts": {
+    "a9b392d4fd7dbd2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e3ce77c8-665f-4996-a5e4-abb0924d6abb",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 602,
+      "total_deletions": 59,
+      "accepted_lines": 580,
+      "overriden_lines": 0
+    }
+  }
+}

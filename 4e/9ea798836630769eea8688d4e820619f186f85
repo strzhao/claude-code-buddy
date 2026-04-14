@@ -1,0 +1,25 @@
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  e2b4c89990f2e089 125,128-133,135,143-146,148
+Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift
+  e2b4c89990f2e089 41-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4e9ea798836630769eea8688d4e820619f186f85",
+  "prompts": {
+    "e2b4c89990f2e089": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21d55243-40cd-4b90-8e2b-15d11de62160",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1256,
+      "total_deletions": 2,
+      "accepted_lines": 1256,
+      "overriden_lines": 0
+    }
+  }
+}

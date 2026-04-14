@@ -38,6 +38,9 @@ class JumpComponent {
     ///   - sessionColor: Session tint color.
     ///   - sessionTintFactor: Session tint blend factor.
     ///   - onJumpOver: Optional callback fired at apex for each jumped-over cat.
+    /// - Important: Callers must disable physics (`isDynamic = false`) before running the returned
+    ///   actions and re-enable after. The approach walk and Bezier arc set `containerNode.position`
+    ///   directly, which conflicts with an active physics body.
     func buildJumpActions(
         from fromX: CGFloat,
         to toX: CGFloat,

@@ -1,0 +1,41 @@
+homebrew/Casks/claude-code-buddy.rb
+  528ad8d1062d6065 2
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  528ad8d1062d6065 241
+  e0ff14f35dbeae8b 244-247,250
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatTaskCompleteState.swift
+  528ad8d1062d6065 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7da35c3d19d9e5b9f3b459b882c8905e2a0a6700",
+  "prompts": {
+    "528ad8d1062d6065": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1cb8b30c-18fa-4944-b0a5-034e07a565e2",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 8,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "e0ff14f35dbeae8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d04e1be6-8e04-4a21-8127-fd4112014211",
+        "model": "unknown"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 8,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}

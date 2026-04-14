@@ -20,6 +20,10 @@ let package = Package(
             dependencies: ["BuddyCore"],
             path: "Sources/App"
         ),
+        .executableTarget(
+            name: "buddy-cli",
+            path: "Sources/BuddyCLI"
+        ),
         .testTarget(
             name: "BuddyCoreTests",
             dependencies: ["BuddyCore"],

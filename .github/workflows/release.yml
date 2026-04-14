@@ -26,11 +26,23 @@ jobs:
       - name: Build release (x86_64)
         run: swift build -c release --arch x86_64
 
+      - name: Build CLI (arm64)
+        run: swift build -c release --arch arm64 --target buddy-cli
+
+      - name: Build CLI (x86_64)
+        run: swift build -c release --arch x86_64 --target buddy-cli
+
       - name: Create universal binary
         run: |
           lipo -create -output ClaudeCodeBuddy \
             .build/arm64-apple-macosx/release/ClaudeCodeBuddy \
             .build/x86_64-apple-macosx/release/ClaudeCodeBuddy
+
+      - name: Create universal CLI binary
+        run: |
+          lipo -create -output buddy \
+            .build/arm64-apple-macosx/release/buddy-cli \
+            .build/x86_64-apple-macosx/release/buddy-cli
 
       - name: Assemble .app bundle
         run: |
@@ -41,6 +53,9 @@ jobs:
 
           cp ClaudeCodeBuddy "$APP/Contents/MacOS/ClaudeCodeBuddy"
           chmod +x "$APP/Contents/MacOS/ClaudeCodeBuddy"
+
+          cp buddy "$APP/Contents/MacOS/buddy"
+          chmod +x "$APP/Contents/MacOS/buddy"
 
           cp Sources/ClaudeCodeBuddy/Resources/Info.plist "$APP/Contents/Info.plist"
 

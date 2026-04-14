@@ -30,6 +30,7 @@ clean:
 
 release:
 	swift build -c release --arch arm64
+	swift build -c release --arch arm64 --target buddy-cli
 
 bundle: release
 	@bash Scripts/bundle.sh

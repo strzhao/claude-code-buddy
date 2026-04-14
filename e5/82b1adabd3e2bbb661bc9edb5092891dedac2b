@@ -1,0 +1,29 @@
+tests/acceptance/run-all.sh
+  e2b4c89990f2e089 63
+tests/acceptance/TEST_SCENARIOS_SUMMARY.md
+  e2b4c89990f2e089 1-342
+tests/acceptance/MANUAL_TESTING_RANDOM_WALK_JUMPS.md
+  e2b4c89990f2e089 1-533
+tests/acceptance/test-random-walk-jumps.acceptance.sh
+  e2b4c89990f2e089 1-363
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "e582b1adabd3e2bbb661bc9edb5092891dedac2b",
+  "prompts": {
+    "e2b4c89990f2e089": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21d55243-40cd-4b90-8e2b-15d11de62160",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 1,
+      "accepted_lines": 1240,
+      "overriden_lines": 0
+    }
+  }
+}

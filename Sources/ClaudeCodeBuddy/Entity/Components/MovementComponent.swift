@@ -122,11 +122,17 @@ class MovementComponent {
         // Build the walk sequence, inserting jumps if there are obstacles
         var walkSequence: [SKAction] = []
         if jumpActions.isEmpty {
-            // No obstacles — simple walk
+            // No obstacles — simple walk (physics stays dynamic)
             walkSequence.append(move)
         } else {
-            // Has obstacles — replace simple move with jump-walk sequence
+            // Disable physics so approach walk and Bezier arc aren't blocked by collisions
+            let disablePhysics = SKAction.run { [weak self] in
+                self?.entity.containerNode.physicsBody?.isDynamic = false
+            }
+            walkSequence.append(disablePhysics)
+
             walkSequence.append(contentsOf: jumpActions)
+
             // Walk remaining distance to target after last jump
             let remainDist = abs(target - containerNode.position.x)
             if remainDist > CatConstants.Movement.walkPostJumpMinDistance {
@@ -134,6 +140,12 @@ class MovementComponent {
                 remainWalk.timingMode = .easeOut
                 walkSequence.append(remainWalk)
             }
+
+            // Re-enable physics after jump lands
+            let enablePhysics = SKAction.run { [weak self] in
+                self?.entity.containerNode.physicsBody?.isDynamic = true
+            }
+            walkSequence.append(enablePhysics)
         }
 
         if pauseDuration > 0 {

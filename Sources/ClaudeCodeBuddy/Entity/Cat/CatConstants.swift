@@ -252,4 +252,19 @@ enum CatConstants {
         /// Bed sprite names (cycled by slot index)
         static let bedNames: [String] = ["bed-blue", "bed-gray", "bed-pink", "bed-green"]
     }
+
+    // MARK: - BoundaryRecovery
+    enum BoundaryRecovery {
+        /// How far outside activity bounds a cat must be before recovery triggers.
+        /// Filters minor excursions from fright rebound (max ~15px).
+        static let outOfBoundsTolerance: CGFloat = 8
+        /// Walk speed when returning to bounds (px/s).
+        static let recoveryWalkSpeed: Double = 65
+        /// Minimum duration for the recovery walk action.
+        static let recoveryMinDuration: Double = 0.3
+        /// How long a cat must be continuously out of bounds before recovery triggers.
+        static let gracePeriod: TimeInterval = 0.5
+        /// Action key for the recovery walk on containerNode.
+        static let actionKey = "boundaryRecovery"
+    }
 }

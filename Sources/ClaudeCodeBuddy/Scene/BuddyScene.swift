@@ -304,6 +304,43 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    // MARK: - Per-Frame Update
+
+    override func update(_ currentTime: TimeInterval) {
+        super.update(currentTime)
+
+        for cat in cats.values {
+            // Skip cats in taskComplete state (beds are outside activityBounds)
+            guard cat.currentState != .taskComplete else { continue }
+
+            // Skip cats already running a boundary recovery
+            guard cat.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil else {
+                continue
+            }
+
+            // Skip cats in the middle of a fright reaction
+            guard cat.node.action(forKey: "frightReaction") == nil,
+                  cat.containerNode.action(forKey: "frightMove") == nil else {
+                cat.outOfBoundsSince = nil
+                continue
+            }
+
+            if cat.isOutOfBounds() {
+                if cat.outOfBoundsSince == nil {
+                    cat.outOfBoundsSince = CACurrentMediaTime()
+                }
+                guard let since = cat.outOfBoundsSince else { continue }
+                let elapsed = CACurrentMediaTime() - since
+                if elapsed >= CatConstants.BoundaryRecovery.gracePeriod {
+                    let targetX = cat.nearestValidX()
+                    cat.movementComponent.walkBackIntoBounds(targetX: targetX)
+                }
+            } else {
+                cat.outOfBoundsSince = nil
+            }
+        }
+    }
+
     // MARK: - Scene Resize
 
     override func didChangeSize(_ oldSize: CGSize) {

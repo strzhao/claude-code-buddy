@@ -203,6 +203,57 @@ class MovementComponent {
         }
     }
 
+    // MARK: - Boundary Recovery Walk
+
+    /// Walks the cat back into activity bounds from an out-of-bounds position.
+    func walkBackIntoBounds(targetX: CGFloat) {
+        let containerNode = entity.containerNode
+        let node = entity.node
+        let myX = containerNode.position.x
+        let distance = abs(targetX - myX)
+
+        guard distance > CatConstants.Movement.walkMinDistance else {
+            containerNode.position.x = targetX
+            entity.outOfBoundsSince = nil
+            return
+        }
+
+        // Face toward the target
+        entity.face(towardX: targetX)
+
+        // Remove any existing recovery action to avoid stacking
+        containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)
+
+        // Play walk animation
+        if let frames = entity.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
+            let animate = SKAction.animate(with: frames, timePerFrame: 0.10)
+            node.run(SKAction.repeatForever(animate), withKey: "animation")
+            node.color = entity.sessionColor?.nsColor ?? .white
+            node.colorBlendFactor = entity.sessionTintFactor
+        }
+
+        // Walk to target
+        let duration = max(
+            CatConstants.BoundaryRecovery.recoveryMinDuration,
+            Double(distance) / CatConstants.BoundaryRecovery.recoveryWalkSpeed
+        )
+        let move = SKAction.moveTo(x: targetX, duration: duration)
+        move.timingMode = .easeInEaseOut
+
+        // After arriving, restore the current state's animation
+        let recover = SKAction.run { [weak self] in
+            guard let self = self else { return }
+            self.entity.outOfBoundsSince = nil
+            self.entity.node.removeAction(forKey: "animation")
+            (self.entity.stateMachine?.currentState as? ResumableState)?.resume()
+        }
+
+        containerNode.run(
+            SKAction.sequence([move, recover]),
+            withKey: CatConstants.BoundaryRecovery.actionKey
+        )
+    }
+
     // MARK: - Exit Scene (simple, no obstacles)
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {

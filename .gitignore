@@ -30,3 +30,6 @@ secrets.json
 # Test artifacts
 test-results/
 
+# Sprite processing backup
+Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
+

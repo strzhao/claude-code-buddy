@@ -1,0 +1,35 @@
+.gitignore
+  48cd259b179e90dd 33-35
+tests/BuddyCoreTests/CatSpriteTabNameTests.swift
+  48cd259b179e90dd 9,12,147,158,161-162,166,170,173-174
+Sources/ClaudeCodeBuddy/Scene/TooltipNode.swift
+  48cd259b179e90dd 11-12,20-21,45
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  48cd259b179e90dd 181,185,189,193,195,197,209,211,213,217,219,221
+Sources/ClaudeCodeBuddy/Scene/FoodSprite.swift
+  48cd259b179e90dd 19,71
+Scripts/reprocess-sprites.py
+  48cd259b179e90dd 1-173
+Sources/ClaudeCodeBuddy/Scene/FoodManager.swift
+  48cd259b179e90dd 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "cd988df5471f670081b9d9b0f40b985bc58b1d65",
+  "prompts": {
+    "48cd259b179e90dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04f2f058-e7b3-4a24-ad0c-d3be459ffb8e",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 215,
+      "total_deletions": 39,
+      "accepted_lines": 206,
+      "overriden_lines": 0
+    }
+  }
+}

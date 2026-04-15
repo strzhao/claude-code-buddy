@@ -10,6 +10,8 @@ class SessionManager {
 
     private let scene: any SceneControlling
     private let server = SocketServer()
+    private(set) var eventStore = EventStore()
+    private var queryHandler: QueryHandler?
 
     /// Full session state keyed by sessionId.
     var sessions: [String: SessionInfo] = [:]
@@ -52,9 +54,19 @@ class SessionManager {
         // Clear stale color file on startup
         try? Data("{}".utf8).write(to: URL(fileURLWithPath: Self.colorFilePath))
 
+        // Initialize query handler
+        queryHandler = QueryHandler(sessionManager: self, scene: scene, eventStore: eventStore)
+
         server.onMessage = { [weak self] message in
             self?.handle(message: message)
         }
+
+        server.onQuery = { [weak self] query, clientFD in
+            guard let self = self, let handler = self.queryHandler else { return }
+            let responseData = handler.handle(query: query)
+            self.server.sendResponse(data: responseData, to: clientFD)
+        }
+
         server.start()
 
         // Timer to enforce idle / remove timeouts
@@ -76,6 +88,15 @@ class SessionManager {
     func sessionInfo(for sessionId: String) -> SessionInfo? {
         return sessions[sessionId]
     }
+
+    /// Whether the socket server is currently listening.
+    var isSocketListening: Bool {
+        return FileManager.default.fileExists(atPath: SocketServer.socketPath)
+    }
+
+    // MARK: - EventBus Recording
+    // Events are recorded directly in handle(message:) — no Combine subscription needed.
+    // All state transitions flow through handle(), making it the natural recording point.
 
     // MARK: - Color Pool
 
@@ -149,6 +170,10 @@ class SessionManager {
         switch message.event {
         case .sessionEnd:
             if let session = sessions[sessionId] {
+                eventStore.record(StoredEvent(
+                    timestamp: Date(), type: "session_ended", sessionId: sessionId,
+                    details: ["label": session.label, "color": "\(session.color)"]
+                ))
                 releaseColor(session.color)
                 sessions.removeValue(forKey: sessionId)
                 scene.removeCat(sessionId: sessionId)
@@ -157,6 +182,10 @@ class SessionManager {
 
         case .setLabel:
             if let label = message.label {
+                eventStore.record(StoredEvent(
+                    timestamp: Date(), type: "label_changed", sessionId: sessionId,
+                    details: ["new_label": label]
+                ))
                 sessions[sessionId]?.label = label
                 scene.updateCatLabel(sessionId: sessionId, label: label)
                 writeColorFile()
@@ -183,6 +212,11 @@ class SessionManager {
                     toolCallCount: 0
                 )
                 sessions[sessionId] = info
+
+                eventStore.record(StoredEvent(
+                    timestamp: Date(), type: "session_started", sessionId: sessionId,
+                    details: ["label": label, "color": "\(color)", "cwd": message.cwd ?? ""]
+                ))
 
                 if scene.activeCatCount < 8 {
                     scene.addCat(info: info)
@@ -214,6 +248,12 @@ class SessionManager {
                 // Pass description for permission request display
                 let desc = message.description ?? message.tool
                 sessions[sessionId]?.toolDescription = desc
+
+                eventStore.record(StoredEvent(
+                    timestamp: Date(), type: "state_changed", sessionId: sessionId,
+                    details: ["new_state": entityState.rawValue, "tool_description": desc ?? ""]
+                ))
+
                 scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
                 // Publish to EventBus for future subscribers
                 EventBus.shared.stateChanged.send(StateChangeEvent(

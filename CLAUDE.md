@@ -127,6 +127,26 @@ echo '{"event":"session_start","session_id":"debug-A","timestamp":0,"cwd":"/tmp/
 echo '{"event":"session_end","session_id":"debug-A","timestamp":0,"cwd":"/tmp/a"}' | nc -U /tmp/claude-buddy.sock
 ```
 
+## Autopilot 知识库
+
+`.autopilot/` 目录存储 autopilot 模式产生的知识沉淀，必须提交到 git：
+
+```
+.autopilot/
+├── index.md          # 知识索引（decisions + patterns 摘要）
+├── decisions.md      # 架构决策记录（ADR）
+├── patterns.md       # 编码模式与经验教训
+├── worktree-links    # worktree 共享资源符号链接配置
+├── doctor-report.md  # 工程健康诊断报告
+├── project/          # 项目设计文档与任务 DAG
+│   ├── dag.yaml      # 任务依赖图
+│   ├── design.md     # 项目总体设计
+│   └── tasks/        # 各任务详情
+└── requirements/     # 各需求的状态、设计、脑暴、QA 报告
+```
+
+**重要**: 这些文件记录了开发过程中的架构决策、踩坑经验和模式沉淀，是项目知识资产的一部分，必须随代码一起提交到 git 管理。
+
 ## 任务管理
 
 本项目的任务通过 ai-todo-cli 管理，任务空间为 `claude-code-buddy`（ID: `1f6cacb2-006f-4fc6-9126-bffb2e711743`）。

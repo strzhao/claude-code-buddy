@@ -1,8 +1,8 @@
 ---
-active: true
-phase: "merge"
+active: false
+phase: "done"
 gate: ""
-iteration: 2
+iteration: 3
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260416-看到了，但是要修正-2"
 session_id: 7b5d6e92-a323-4e41-9d98-edf433f332c3
 started_at: "2026-04-15T17:14:53Z"

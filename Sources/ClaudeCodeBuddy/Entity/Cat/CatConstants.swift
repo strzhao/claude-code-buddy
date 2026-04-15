@@ -178,23 +178,23 @@ enum CatConstants {
         /// Color blend factor for session color tint
         static let tintFactor: CGFloat = 0.3
         /// Font size for the session label
-        static let labelFontSize: CGFloat = 11
+        static let labelFontSize: CGFloat = 14
         /// Alpha for label shadow
         static let labelShadowAlpha: CGFloat = 0.4
         /// Position offset for label shadow
-        static let labelShadowOffset = CGPoint(x: 1, y: 1)
+        static let labelShadowOffset = CGPoint(x: 1.5, y: 1.5)
         /// Z-position for label shadow node
         static let labelShadowZPosition: CGFloat = 9
         /// Y offset for main label above sprite
-        static let labelYOffset: CGFloat = 2
+        static let labelYOffset: CGFloat = 28
         /// Z-position for main label node
         static let labelZPosition: CGFloat = 10
         /// Font size for the tab name label
-        static let tabLabelFontSize: CGFloat = 9
+        static let tabLabelFontSize: CGFloat = 12
         /// Y position for tab label shadow (waiting state)
-        static let tabLabelShadowYOffset: CGFloat = 16
+        static let tabLabelShadowYOffset: CGFloat = 45
         /// Y position for tab label (waiting state)
-        static let tabLabelYOffset: CGFloat = 17
+        static let tabLabelYOffset: CGFloat = 46
         /// Maximum characters for tool description label before truncation
         static let labelMaxLength: Int = 80
         /// Overlay color for permission-request state
@@ -206,19 +206,19 @@ enum CatConstants {
         /// Z-position for the alert overlay node
         static let alertOverlayZPosition: CGFloat = 15
         /// Approximate character width (pt) used to estimate label half-width for badge placement
-        static let alertBadgeCharWidth: CGFloat = 3.5
+        static let alertBadgeCharWidth: CGFloat = 4.5
         /// Horizontal padding from label edge to badge center
-        static let alertBadgeHPadding: CGFloat = 12
+        static let alertBadgeHPadding: CGFloat = 16
         /// Radius of alert badge circle
-        static let alertBadgeRadius: CGFloat = 8
+        static let alertBadgeRadius: CGFloat = 10
         /// Fill color of the alert badge
         static let alertBadgeColor = NSColor(red: 0.95, green: 0.2, blue: 0.1, alpha: 1)
         /// Line width of alert badge stroke
-        static let alertBadgeLineWidth: CGFloat = 1.0
+        static let alertBadgeLineWidth: CGFloat = 1.5
         /// Y offset for alert badge above baseline
-        static let alertBadgeYOffset: CGFloat = 8
+        static let alertBadgeYOffset: CGFloat = 40
         /// Font size for the "!" label in the alert badge
-        static let alertBadgeFontSize: CGFloat = 12
+        static let alertBadgeFontSize: CGFloat = 15
         /// Y position of ground level in scene coordinates
         static let groundY: CGFloat = 48
         /// Minimum horizontal margin from scene edge for cat spawn

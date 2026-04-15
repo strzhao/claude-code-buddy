@@ -62,7 +62,7 @@ class FoodManager {
         } else {
             x = CGFloat.random(in: bounds)
         }
-        food.node.position = CGPoint(x: x, y: scene.size.height + 12)
+        food.node.position = CGPoint(x: x, y: scene.size.height + 24)
 
         scene.addChild(food.node)
         activeFoods.append(food)

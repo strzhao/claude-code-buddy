@@ -8,8 +8,8 @@ class TooltipNode: SKNode {
     override init() {
         // Shadow label (glow effect)
         shadowNode = SKLabelNode()
-        shadowNode.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
-        shadowNode.fontSize = 11
+        shadowNode.fontName = NSFont.boldSystemFont(ofSize: 14).fontName
+        shadowNode.fontSize = 14
         shadowNode.horizontalAlignmentMode = .center
         shadowNode.verticalAlignmentMode = .bottom
         shadowNode.position = CGPoint(x: 1, y: -1)
@@ -17,8 +17,8 @@ class TooltipNode: SKNode {
 
         // Main label
         labelNode = SKLabelNode()
-        labelNode.fontName = NSFont.boldSystemFont(ofSize: 11).fontName
-        labelNode.fontSize = 11
+        labelNode.fontName = NSFont.boldSystemFont(ofSize: 14).fontName
+        labelNode.fontSize = 14
         labelNode.horizontalAlignmentMode = .center
         labelNode.verticalAlignmentMode = .bottom
         labelNode.zPosition = 1
@@ -42,7 +42,7 @@ class TooltipNode: SKNode {
 
         // Position above cat head
         let x = max(30, min(catPosition.x, sceneSize.width - 30))
-        let y = catPosition.y + 2
+        let y = catPosition.y + 26
         position = CGPoint(x: x, y: y)
 
         removeAllActions()

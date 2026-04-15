@@ -52,7 +52,7 @@ final class CatTaskCompleteState: GKState, ResumableState {
 
         // Create and place the bed sprite
         let bed = createBedNode(named: bedName)
-        bed.position = CGPoint(x: bedX, y: 7)
+        bed.position = CGPoint(x: bedX, y: 14)
         entity.containerNode.parent?.addChild(bed)
         bedNode = bed
 

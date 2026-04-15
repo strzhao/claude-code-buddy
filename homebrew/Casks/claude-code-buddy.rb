@@ -1,6 +1,5 @@
 cask "claude-code-buddy" do
-  version "0.6.0"
-<<<<<<< HEAD
+  version "0.6.1"
   sha256 ""
 
   url "https://github.com/strzhao/claude-code-buddy/releases/download/v#{version}/ClaudeCodeBuddy-v#{version}.zip"

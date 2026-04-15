@@ -243,9 +243,9 @@ enum CatConstants {
         /// Font size for the tab name label
         static let tabLabelFontSize: CGFloat = 12
         /// Y position for tab label shadow (waiting state)
-        static let tabLabelShadowYOffset: CGFloat = 45
+        static let tabLabelShadowYOffset: CGFloat = 17
         /// Y position for tab label (waiting state)
-        static let tabLabelYOffset: CGFloat = 46
+        static let tabLabelYOffset: CGFloat = 18
         /// Maximum characters for tool description label before truncation
         static let labelMaxLength: Int = 80
         /// Overlay color for permission-request state
@@ -289,13 +289,13 @@ enum CatConstants {
     // MARK: - TaskComplete
     enum TaskComplete {
         /// Render size for the bed sprite in the scene
-        static let bedRenderSize = CGSize(width: 24, height: 14)
+        static let bedRenderSize = CGSize(width: 48, height: 28)
         /// Walk speed toward the bed in px/s
         static let walkSpeed: Double = 55
         /// Horizontal offset from activityBounds.upperBound for first bed slot (negative = left of boundary)
-        static let firstSlotOffset: CGFloat = -52
+        static let firstSlotOffset: CGFloat = -60
         /// Horizontal spacing between bed slots (negative = extend leftward)
-        static let slotSpacing: CGFloat = -48
+        static let slotSpacing: CGFloat = -56
         /// Maximum number of bed slots
         static let maxSlots: Int = 4
         /// Z-position for the bed sprite (in front of cat so cat appears to sit inside)

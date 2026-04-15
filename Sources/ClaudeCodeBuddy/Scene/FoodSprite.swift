@@ -16,7 +16,7 @@ class FoodSprite {
     private(set) var claimedBy: String?
     private var landedTime: Date?
 
-    static let renderSize = CGSize(width: 12, height: 12)
+    static let renderSize = CGSize(width: 24, height: 24)
     static let expirationInterval: TimeInterval = 60  // auto-remove after 60s on ground
 
     // All 102 food texture names (without extension)
@@ -68,7 +68,7 @@ class FoodSprite {
     }
 
     private func setupPhysicsBody() {
-        let body = SKPhysicsBody(rectangleOf: CGSize(width: 10, height: 10))
+        let body = SKPhysicsBody(rectangleOf: CGSize(width: 20, height: 20))
         body.categoryBitMask = PhysicsCategory.food
         body.collisionBitMask = PhysicsCategory.ground
         body.contactTestBitMask = PhysicsCategory.ground

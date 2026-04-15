@@ -6,10 +6,10 @@ import SpriteKit
 
 private extension CatSpriteTabNameTests {
 
-    /// 在 node.children 中找到 fontSize=9 且 zPosition=10 的 SKLabelNode（主 tab name 节点）
+    /// 在 node.children 中找到 fontSize=12 且 zPosition=10 的 SKLabelNode（主 tab name 节点）
     func findTabNameNode(in cat: CatSprite) -> SKLabelNode? {
         cat.node.children.compactMap { $0 as? SKLabelNode }.first {
-            $0.fontSize == 9 && $0.zPosition == 10
+            $0.fontSize == CatConstants.Visual.tabLabelFontSize && $0.zPosition == 10
         }
     }
 
@@ -144,7 +144,7 @@ final class CatSpriteTabNameTests: XCTestCase {
     func testTabNameNodeHasFontSize9() {
         let cat = makeCat(label: "test")
         let tabNode = findTabNameNode(in: cat)
-        XCTAssertEqual(tabNode?.fontSize, 9, "tab name 节点的 fontSize 应为 9")
+        XCTAssertEqual(tabNode?.fontSize, CatConstants.Visual.tabLabelFontSize, "tab name 节点的 fontSize 应匹配常量")
     }
 
     func testTabNameNodeHasZPosition10() {
@@ -155,23 +155,23 @@ final class CatSpriteTabNameTests: XCTestCase {
 
     func testTabNameShadowNodeExists() {
         let cat = makeCat(label: "test")
-        // shadow node: fontSize=9, zPosition=9
+        // shadow node: fontSize=tabLabelFontSize, zPosition=9
         let shadowNode = cat.node.children
             .compactMap { $0 as? SKLabelNode }
-            .first { $0.fontSize == 9 && $0.zPosition == 9 }
-        XCTAssertNotNil(shadowNode, "configure 后应存在 tab name shadow 节点（fontSize=9, zPosition=9）")
+            .first { $0.fontSize == CatConstants.Visual.tabLabelFontSize && $0.zPosition == 9 }
+        XCTAssertNotNil(shadowNode, "configure 后应存在 tab name shadow 节点")
     }
 
     func testTabNameNodeIsDistinctFromMainLabel() {
-        // 主 label 节点 fontSize=11，tab name 节点 fontSize=9，两者应独立存在
+        // 主 label 节点 fontSize=labelFontSize，tab name 节点 fontSize=tabLabelFontSize，两者应独立存在
         let cat = makeCat(label: "test")
         let mainLabel = cat.node.children
             .compactMap { $0 as? SKLabelNode }
-            .first { $0.fontSize == 11 && $0.zPosition == 10 }
+            .first { $0.fontSize == CatConstants.Visual.labelFontSize && $0.zPosition == 10 }
         let tabNode = findTabNameNode(in: cat)
 
-        XCTAssertNotNil(mainLabel, "应存在主 label 节点（fontSize=11, zPosition=10）")
-        XCTAssertNotNil(tabNode, "应存在 tab name 节点（fontSize=9, zPosition=10）")
+        XCTAssertNotNil(mainLabel, "应存在主 label 节点（fontSize=labelFontSize, zPosition=10）")
+        XCTAssertNotNil(tabNode, "应存在 tab name 节点（fontSize=tabLabelFontSize, zPosition=10）")
         XCTAssertFalse(mainLabel === tabNode,
                        "主 label 节点与 tab name 节点应为不同对象")
     }

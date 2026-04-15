@@ -1,0 +1,27 @@
+.autopilot/decisions.md
+  c8b0903000ba500a 40-57
+.autopilot/patterns.md
+  c8b0903000ba500a 26-31
+.autopilot/index.md
+  c8b0903000ba500a 4,10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fccfd6eea1eb97f404c163b1f518d166729ee92c",
+  "prompts": {
+    "c8b0903000ba500a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2da2558a-0cd1-4d69-bcbd-baae267daff3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 26,
+      "total_deletions": 0,
+      "accepted_lines": 482,
+      "overriden_lines": 0
+    }
+  }
+}

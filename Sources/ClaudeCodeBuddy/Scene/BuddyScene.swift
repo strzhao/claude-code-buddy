@@ -428,4 +428,42 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
 // MARK: - SceneControlling
 
-extension BuddyScene: SceneControlling {}
+extension BuddyScene: SceneControlling {
+    func catSnapshot(for sessionId: String) -> CatSnapshot? {
+        guard let cat = cats[sessionId] else { return nil }
+        return CatSnapshot(
+            sessionId: cat.sessionId,
+            x: cat.containerNode.position.x,
+            y: cat.containerNode.position.y,
+            state: cat.currentState.rawValue,
+            facingRight: cat.facingRight,
+            isDebug: cat.isDebugCat,
+            activityBoundsMin: cat.activityMin,
+            activityBoundsMax: cat.activityMax
+        )
+    }
+
+    func allCatSnapshots() -> [CatSnapshot] {
+        cats.values.map { cat in
+            CatSnapshot(
+                sessionId: cat.sessionId,
+                x: cat.containerNode.position.x,
+                y: cat.containerNode.position.y,
+                state: cat.currentState.rawValue,
+                facingRight: cat.facingRight,
+                isDebug: cat.isDebugCat,
+                activityBoundsMin: cat.activityMin,
+                activityBoundsMax: cat.activityMax
+            )
+        }
+    }
+
+    func sceneSnapshot() -> SceneSnapshot {
+        SceneSnapshot(
+            visible: view != nil,
+            catsRendered: cats.count,
+            boundsMin: activityBounds.lowerBound,
+            boundsMax: activityBounds.upperBound
+        )
+    }
+}

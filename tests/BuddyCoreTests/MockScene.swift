@@ -64,4 +64,22 @@ final class MockScene: SceneControlling {
     func bedColorName(for sessionId: String) -> String? {
         return "bed-blue"
     }
+
+    // MARK: - Query Support Stubs
+
+    var stubbedCatSnapshots: [String: CatSnapshot] = [:]
+    var stubbedAllCatSnapshots: [CatSnapshot] = []
+    var stubbedSceneSnapshot = SceneSnapshot(visible: true, catsRendered: 0, boundsMin: 48, boundsMax: 752)
+
+    func catSnapshot(for sessionId: String) -> CatSnapshot? {
+        return stubbedCatSnapshots[sessionId]
+    }
+
+    func allCatSnapshots() -> [CatSnapshot] {
+        return stubbedAllCatSnapshots
+    }
+
+    func sceneSnapshot() -> SceneSnapshot {
+        return stubbedSceneSnapshot
+    }
 }

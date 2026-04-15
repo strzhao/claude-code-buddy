@@ -1,0 +1,25 @@
+.autopilot/requirements/20260416-看到了，但是要修正-2/completion-report.md
+  23e40e0e3c9cd68e 1-25
+.autopilot/requirements/20260416-看到了，但是要修正-2/state.md
+  23e40e0e3c9cd68e 2-3,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d1dd285dee461b057cde36ada88bd1f77e8f2cec",
+  "prompts": {
+    "23e40e0e3c9cd68e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7b5d6e92-a323-4e41-9d98-edf433f332c3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 28,
+      "total_deletions": 3,
+      "accepted_lines": 28,
+      "overriden_lines": 0
+    }
+  }
+}

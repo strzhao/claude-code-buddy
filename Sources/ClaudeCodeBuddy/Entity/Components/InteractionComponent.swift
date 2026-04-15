@@ -82,6 +82,9 @@ class InteractionComponent {
             if self.entity.currentState == .eating {
                 // Use switchState so food is properly released
                 self.entity.switchState(to: .idle)
+            } else if self.entity.isOutOfBounds() {
+                // Skip resume — BuddyScene boundary recovery will handle it
+                return
             } else {
                 // Re-apply steady state animation via ResumableState protocol
                 (self.entity.stateMachine.currentState as? ResumableState)?.resume()
@@ -117,6 +120,8 @@ class InteractionComponent {
             self.entity.containerNode.physicsBody?.isDynamic = true
             if self.entity.currentState == .eating {
                 self.entity.switchState(to: .idle)
+            } else if self.entity.isOutOfBounds() {
+                return
             } else {
                 (self.entity.stateMachine.currentState as? ResumableState)?.resume()
             }

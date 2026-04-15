@@ -223,6 +223,7 @@ class MovementComponent {
 
         // Remove any existing recovery action to avoid stacking
         containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)
+        containerNode.removeAction(forKey: "randomWalk")
 
         // Play walk animation
         if let frames = entity.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
@@ -320,6 +321,7 @@ class MovementComponent {
         containerNode.removeAllActions()
         containerNode.setScale(1.0)
         containerNode.physicsBody?.isDynamic = false
+        containerNode.physicsBody?.collisionBitMask = 0
 
         let myX = containerNode.position.x
         let groundY = containerNode.position.y  // actual resting Y (gravity-settled)

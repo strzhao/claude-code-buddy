@@ -91,7 +91,9 @@ class MovementComponent {
             nearbyObstacles: entity.nearbyObstacles,
             currentState: entity.currentState,
             sessionColor: sessionColor,
-            sessionTintFactor: sessionTintFactor
+            sessionTintFactor: sessionTintFactor,
+            activityMin: entity.activityMin,
+            activityMax: entity.effectiveActivityMax
         )
 
         // --- Pause phase: stop walk, show standing pose ---
@@ -380,6 +382,7 @@ class MovementComponent {
         // Build action sequence: for each obstacle, walk-near → jump-over → continue
         var actions: [SKAction] = []
         var gcdDelay: Double = 0  // cumulative delay for GCD fallback scheduling
+        var lastLandX: CGFloat = myX
 
         startWalkAnim()
 
@@ -390,18 +393,15 @@ class MovementComponent {
             goingRight: goingRight,
             sessionColor: sessionColor,
             sessionTintFactor: sessionTintFactor,
+            activityMin: entity.activityMin,
+            activityMax: entity.effectiveActivityMax,
             onJumpOver: onJumpOver,
             actions: &actions,
-            gcdDelay: &gcdDelay
+            gcdDelay: &gcdDelay,
+            lastLandX: &lastLandX
         )
 
         // Final walk to edge
-        let lastLandX: CGFloat
-        if let lastObstX = onPath.last?.x {
-            lastLandX = goingRight ? lastObstX + CatConstants.Jump.approachOffset : lastObstX - CatConstants.Jump.approachOffset
-        } else {
-            lastLandX = myX
-        }
         let finalDist = abs(edgeX - lastLandX)
         let finalDuration: Double
         if finalDist > 1 {

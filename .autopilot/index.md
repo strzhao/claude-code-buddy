@@ -14,3 +14,4 @@
 - [2026-04-13] SPM Bundle.module 在 .app 打包中的正确路径 | tags: spm, bundle, resource, packaging, crash | → patterns.md
 - [2026-04-16] 像素精灵图重处理需同步所有 UI 偏移和字号 | tags: spritekit, sprites, reprocessing, labels, constants | → patterns.md
 - [2026-04-16] 测试中不应硬编码常量值来查找节点 | tags: testing, constants, spritekit, font-size | → patterns.md
+- [2026-04-16] 垂直动画峰值由窗口高度和地面位置共同决定 | tags: window, bounds, animation, jump, physics | → patterns.md

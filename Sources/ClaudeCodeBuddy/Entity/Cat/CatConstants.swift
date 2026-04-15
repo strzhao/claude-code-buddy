@@ -45,12 +45,6 @@ enum CatConstants {
 
     // MARK: - Jump
     enum Jump {
-        /// Bezier arc height in px (control point Y offset above ground)
-        static let arcHeight: CGFloat = 50
-        /// Duration of bezier arc action in seconds
-        static let arcDuration: Double = 0.30
-        /// Horizontal offset (px) before/after obstacle for approach and landing
-        static let approachOffset: CGFloat = 20
         /// Tolerance (px) for considering an obstacle "on path" for general-purpose jump
         static let obstaclePathTolerance: CGFloat = 24
         /// Walk speed during approach to obstacle (px/s)
@@ -59,12 +53,69 @@ enum CatConstants {
         static let approachMinDuration: Double = 0.15
         /// Minimum approach walk duration in seconds (exit jump)
         static let approachMinDurationExit: Double = 0.2
-        /// Elapsed-time threshold at which to fire the jump-over callback (apex detection)
-        static let apexThreshold: Double = 0.13
-        /// GCD fallback delay before simulating mid-arc position (exit jump)
-        static let gcdFallbackOffset: Double = 0.15
-        /// Y offset above ground to place cat in GCD mid-arc fallback
-        static let gcdMidArcYOffset: CGFloat = 25
+    }
+
+    // MARK: - PhysicsJump
+    enum PhysicsJump {
+        // --- Trajectory ---
+        /// Custom "jump gravity" in px/s². 800 produces snappy arcs.
+        /// Window height is 80px, groundY=48, so safe peak ≈ 25px.
+        /// h = v₀y² / (2g), so h=12→v₀y=140, h=25→v₀y=200.
+        static let gravity: CGFloat = 800
+        /// Range of initial upward velocity (px/s). Produces peak heights of 12-25px.
+        static let velocityYRange: ClosedRange<CGFloat> = 140...200
+        /// Range of horizontal velocity (px/s) during the arc.
+        static let velocityXRange: ClosedRange<CGFloat> = 280...500
+        /// Range of approach offset before/after obstacle (px), randomized per jump.
+        static let approachOffsetRange: ClosedRange<CGFloat> = 15...30
+
+        // --- Crouch Animation ---
+        /// ScaleY during crouch (compression before jump).
+        static let crouchScaleY: CGFloat = 0.65
+        /// Duration range for crouch animation (seconds).
+        static let crouchDurationRange: ClosedRange<Double> = 0.08...0.20
+
+        // --- Launch Animation ---
+        /// ScaleY at launch moment (brief stretch upward).
+        static let launchStretchScaleY: CGFloat = 1.3
+        /// Duration of launch stretch (seconds).
+        static let launchStretchDuration: Double = 0.06
+
+        // --- Air Stretch ---
+        /// Maximum additional scaleY during flight based on vertical velocity fraction.
+        static let airStretchMaxScaleY: CGFloat = 1.15
+        /// Maximum scaleX squeeze during flight (1.0 - squeeze).
+        static let airStretchSqueezeScaleX: CGFloat = 0.88
+
+        // --- Landing Animation ---
+        /// Landing squash scaleX (widening).
+        static let landingSquashScaleX: CGFloat = 1.3
+        /// Landing squash scaleY (compression).
+        static let landingSquashScaleY: CGFloat = 0.6
+        /// Duration of landing squash hold (seconds).
+        static let landingSquashDuration: Double = 0.08
+        /// Duration of landing recovery back to 1.0 scale (seconds).
+        static let landingRecoveryDuration: Double = 0.15
+
+        // --- Dust Particles ---
+        /// Number of dust particles spawned at landing.
+        static let dustParticleCount: Int = 6
+        /// Range of dust particle sizes (px).
+        static let dustParticleSizeRange: ClosedRange<CGFloat> = 2...4
+        /// Range of dust particle initial velocity (px/s).
+        static let dustVelocityRange: ClosedRange<CGFloat> = 30...80
+        /// Duration of dust particle fade-out (seconds).
+        static let dustFadeDuration: Double = 0.4
+        /// Alpha for dust particles.
+        static let dustAlpha: CGFloat = 0.4
+
+        // --- Apex / Bounds ---
+        /// Fraction of total flight time at which to fire onJumpOver callback.
+        static let apexCallbackFraction: Double = 0.45
+        /// Minimum horizontal clearance from activity boundary for landing prediction.
+        static let boundsClearance: CGFloat = 10
+        /// GCD fallback delay fraction for mid-arc position.
+        static let gcdFallbackFraction: Double = 0.4
     }
 
     // MARK: - Animation

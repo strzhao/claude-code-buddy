@@ -17,6 +17,10 @@ class SocketServer {
     /// Called on the main queue whenever a valid HookMessage arrives.
     var onMessage: ((HookMessage) -> Void)?
 
+    /// Called on the socket queue when a query message arrives.
+    /// Parameters: parsed JSON dictionary, client file descriptor for response.
+    var onQuery: (([String: Any], Int32) -> Void)?
+
     private var serverFD: Int32 = -1
     private var serverSource: DispatchSourceRead?
     private var clientSources: [Int32: DispatchSourceRead] = [:]
@@ -164,7 +168,7 @@ class SocketServer {
             // EOF or error — flush remaining buffer then close client
             if let remaining = clientBuffers[fd], !remaining.isEmpty {
                 NSLog("[SocketServer] Flushing buffer (%d bytes) for fd=%d", remaining.count, fd)
-                handleLine(remaining)
+                handleLineWithFD(remaining, clientFD: fd)
             }
             clientSources[fd]?.cancel()
             clientSources.removeValue(forKey: fd)
@@ -178,7 +182,7 @@ class SocketServer {
               let newlineIdx = data.firstIndex(of: UInt8(ascii: "\n")) {
             let lineData = data[data.startIndex..<newlineIdx]
             clientBuffers[fd] = Data(data[(data.index(after: newlineIdx))...])
-            handleLine(Data(lineData))
+            handleLineWithFD(Data(lineData), clientFD: fd)
         }
     }
 
@@ -186,6 +190,17 @@ class SocketServer {
 
     private func handleLine(_ data: Data) {
         guard !data.isEmpty else { return }
+
+        // Check if this is a query message (has "action" field) vs a hook message
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           json["action"] != nil {
+            // Route to query handler — pass clientFD if available
+            // Note: we don't have the fd here; callers that need response use handleLineWithFD
+            NSLog("[SocketServer] Query received (no clientFD for response)")
+            return
+        }
+
+        // Standard hook message path
         do {
             let msg = try JSONDecoder().decode(HookMessage.self, from: data)
             NSLog("[SocketServer] Decoded message: event=%@, session=%@", "\(msg.event)", msg.sessionId)
@@ -197,5 +212,57 @@ class SocketServer {
             let buddyError = BuddyError.messageDecodeFailed(raw: raw, underlying: error)
             NSLog("[SocketServer] %@", buddyError.description)
         }
+    }
+
+    /// Handle a line of data with client FD for bidirectional response.
+    private func handleLineWithFD(_ data: Data, clientFD: Int32) {
+        guard !data.isEmpty else { return }
+
+        // Check if this is a query message
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           json["action"] != nil {
+            NSLog("[SocketServer] Query received from fd=%d: %@", clientFD, json["action"] as? String ?? "?")
+            onQuery?(json, clientFD)
+            return
+        }
+
+        // Standard hook message path
+        do {
+            let msg = try JSONDecoder().decode(HookMessage.self, from: data)
+            NSLog("[SocketServer] Decoded message: event=%@, session=%@", "\(msg.event)", msg.sessionId)
+            DispatchQueue.main.async { [weak self] in
+                self?.onMessage?(msg)
+            }
+        } catch {
+            let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            let buddyError = BuddyError.messageDecodeFailed(raw: raw, underlying: error)
+            NSLog("[SocketServer] %@", buddyError.description)
+        }
+    }
+
+    // MARK: - Response
+
+    /// Sends a JSON response back to a connected client.
+    /// Handles partial writes by looping until all data is sent or an error occurs.
+    func sendResponse(data: Data, to clientFD: Int32) {
+        var payload = data
+        // Ensure newline delimiter
+        if let last = payload.last, last != UInt8(ascii: "\n") {
+            payload.append(UInt8(ascii: "\n"))
+        }
+        var totalWritten = 0
+        while totalWritten < payload.count {
+            let remaining = payload.count - totalWritten
+            let written = payload.withUnsafeBytes { ptr -> Int in
+                guard let base = ptr.baseAddress else { return -1 }
+                return Darwin.write(clientFD, base.advanced(by: totalWritten), remaining)
+            }
+            if written < 0 {
+                NSLog("[SocketServer] Failed to write response to fd=%d: %s", clientFD, String(cString: strerror(errno)))
+                return
+            }
+            totalWritten += written
+        }
+        NSLog("[SocketServer] Sent %d bytes response to fd=%d", totalWritten, clientFD)
     }
 }

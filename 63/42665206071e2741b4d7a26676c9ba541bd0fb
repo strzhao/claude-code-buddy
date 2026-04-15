@@ -1,0 +1,51 @@
+.autopilot/index.md
+  43a53fb166afb4e3 11
+.autopilot/patterns.md
+  43a53fb166afb4e3 33-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6342665206071e2741b4d7a26676c9ba541bd0fb",
+  "prompts": {
+    "43a53fb166afb4e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e259b1f9-7987-4d4f-b9ee-2719a174befe",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    },
+    "48cd259b179e90dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04f2f058-e7b3-4a24-ad0c-d3be459ffb8e",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    },
+    "c8b0903000ba500a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2da2558a-0cd1-4d69-bcbd-baae267daff3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}

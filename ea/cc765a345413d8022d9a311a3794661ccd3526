@@ -1,0 +1,35 @@
+Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  c8b0903000ba500a 1-157
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  c8b0903000ba500a 13-14,57-59,63-69,92-100,173-176,185-188,216-220,251-256
+Sources/ClaudeCodeBuddy/Scene/SceneControlling.swift
+  c8b0903000ba500a 3-42,56-61
+Sources/BuddyCLI/main.swift
+  c8b0903000ba500a 42-43,53-56,126-203,215,234-236,247,252-254,282-284,450-502,604-609
+Sources/ClaudeCodeBuddy/Event/EventStore.swift
+  c8b0903000ba500a 1-107
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  c8b0903000ba500a 431-469
+Sources/ClaudeCodeBuddy/Network/SocketServer.swift
+  c8b0903000ba500a 20-23,171,185,193-203,214-229,242-264,266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "eacc765a345413d8022d9a311a3794661ccd3526",
+  "prompts": {
+    "c8b0903000ba500a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2da2558a-0cd1-4d69-bcbd-baae267daff3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1095,
+      "total_deletions": 32,
+      "accepted_lines": 1070,
+      "overriden_lines": 0
+    }
+  }
+}

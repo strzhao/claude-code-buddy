@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  8e035e8213dab06d 56-118
+Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift
+  8e035e8213dab06d 5,8-10,30-228,235,245-246,251,254-256,258-260,265,271-274,280-284,289-291,303-305,307-308,311-314,325-326,350-351,354-355,361-364,370-371,380-390,398,401-402,406,408-421,426,428,434-440,442-443,450,452,475-476
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  8e035e8213dab06d 94-96,385,396-397,400-401
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "f3da75926d0d2ce2e9489907b58242168fc49231",
+  "prompts": {
+    "8e035e8213dab06d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29bd2b49-038a-48d9-91d5-74156e6102df",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 376,
+      "total_deletions": 125,
+      "accepted_lines": 362,
+      "overriden_lines": 0
+    }
+  }
+}

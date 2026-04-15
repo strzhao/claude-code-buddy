@@ -1,0 +1,25 @@
+CLAUDE.md
+  87c45c2c2b443d00 130-149
+.autopilot/requirements/20260414-看到了，但是有-3-个问/state.md
+  87c45c2c2b443d00 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "2b5a3ccf0ace3c290a2bdf5d35fc224c214173f5",
+  "prompts": {
+    "87c45c2c2b443d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8067179e-3ab6-4897-ae6a-5c0d80e8380b",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 72,
+      "total_deletions": 0,
+      "accepted_lines": 72,
+      "overriden_lines": 0
+    }
+  }
+}

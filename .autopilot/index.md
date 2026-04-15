@@ -8,6 +8,7 @@
 
 ## Patterns
 - [2026-04-16] Unix socket write 必须循环处理部分写入 | tags: socket, posix, networking, write, partial-write | → patterns.md
+- [2026-04-16] Plugin 缓存与源码不同步导致 hook 事件映射错误 | tags: plugin, cache, hooks, debugging, event-mapping | → patterns.md
 - [2026-04-14] .app 内嵌 CLI 通过 Homebrew binary 指令暴露 PATH | tags: homebrew, cask, cli, packaging | → patterns.md
 - [2026-04-13] SpriteKit moveBy 动画中断留下位置残留 | tags: spritekit, animation, switchState, moveBy | → patterns.md
 - [2026-04-13] SPM Bundle.module 在 .app 打包中的正确路径 | tags: spm, bundle, resource, packaging, crash | → patterns.md

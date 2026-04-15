@@ -39,6 +39,8 @@ private enum SocketError: Error, CustomStringConvertible {
     case notRunning
     case connectFailed(String)
     case sendFailed(String)
+    case responseTimeout
+    case responseInvalid(String)
 
     var description: String {
         switch self {
@@ -48,6 +50,10 @@ private enum SocketError: Error, CustomStringConvertible {
             return "Cannot connect to socket: \(reason)"
         case .sendFailed(let reason):
             return "Failed to send message: \(reason)"
+        case .responseTimeout:
+            return "Timeout waiting for response from Buddy app"
+        case .responseInvalid(let reason):
+            return "Invalid response from Buddy app: \(reason)"
         }
     }
 }
@@ -117,6 +123,84 @@ private func checkSocket() -> Bool {
     return result == 0
 }
 
+// MARK: - Query Support (Bidirectional)
+
+/// Sends a query to the Buddy app and reads the JSON response.
+/// Returns the raw response data, or throws SocketError on failure.
+private func sendQuery(_ query: [String: Any]) throws -> Data {
+    guard let payloadData = try? JSONSerialization.data(withJSONObject: query) else {
+        throw SocketError.sendFailed("Failed to encode query")
+    }
+    var payload = String(data: payloadData, encoding: .utf8) ?? ""
+    payload.append("\n")
+
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else {
+        throw SocketError.connectFailed("Failed to create socket")
+    }
+    defer { close(fd) }
+
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+    guard let pathData = socketPath.data(using: .utf8) else {
+        throw SocketError.connectFailed("Invalid socket path")
+    }
+    pathData.withUnsafeBytes { ptr in
+        guard let base = ptr.baseAddress else { return }
+        memcpy(&addr.sun_path, base, min(pathData.count, MemoryLayout.size(ofValue: addr.sun_path) - 1))
+    }
+
+    let connectResult = withUnsafePointer(to: &addr) { ptr in
+        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { rebound in
+            connect(fd, rebound, socklen_t(MemoryLayout<sockaddr_un>.size))
+        }
+    }
+
+    guard connectResult == 0 else {
+        throw SocketError.notRunning
+    }
+
+    // Send query
+    let sendResult = payload.withCString { ptr in
+        send(fd, ptr, payload.utf8.count, 0)
+    }
+    guard sendResult >= 0 else {
+        throw SocketError.sendFailed(String(cString: strerror(errno)))
+    }
+
+    // Read response with timeout (2 seconds)
+    var response = Data()
+    var buf = [UInt8](repeating: 0, count: 4096)
+    let deadline = Date().addingTimeInterval(2.0)
+
+    while Date() < deadline {
+        let n = read(fd, &buf, buf.count)
+        if n > 0 {
+            response.append(contentsOf: buf[0..<n])
+            // Check if we have a complete line (response ends with \n)
+            if response.last == UInt8(ascii: "\n") {
+                // Remove trailing newline
+                response.removeLast()
+                break
+            }
+        } else if n == 0 {
+            // EOF
+            if response.last == UInt8(ascii: "\n") {
+                response.removeLast()
+            }
+            break
+        } else {
+            throw SocketError.responseInvalid(String(cString: strerror(errno)))
+        }
+    }
+
+    if response.isEmpty {
+        throw SocketError.responseTimeout
+    }
+
+    return response
+}
+
 // MARK: - Argument Parsing
 
 private struct CLIOptions {
@@ -128,6 +212,7 @@ private struct CLIOptions {
     var desc: String?
     var label: String?
     var delay: UInt64 = 1
+    var last: Int = 0
     var positionalArgs: [String] = []
 }
 
@@ -146,6 +231,9 @@ private func printHelp() {
       label <id> <text>                      Set cat label
       test [--delay N]                       Auto-test: cycle all states
       status                                Show active sessions
+      inspect [--id ID]                      Query session and cat state (JSON)
+      events [--id ID] [--last N]            Show recent event history (JSON)
+      health                                System health check (JSON)
       help                                  Show this help
 
     Events: \(validEvents.joined(separator: ", "))
@@ -156,12 +244,14 @@ private func printHelp() {
       --tool <NAME>   Tool name (for tool_start/tool_end)
       --desc <TEXT>   Description text
       --delay <N>     Delay between states in seconds (default: 1)
+      --last <N>      Number of recent events to show (for events command)
 
     Examples:
       buddy session start --id debug-A --cwd ~/myproject
       buddy emit thinking --id debug-A
-      buddy emit tool_start --id debug-A --tool Read --desc "Reading file"
-      buddy label debug-A "My Project"
+      buddy inspect --id debug-A
+      buddy events --id debug-A --last 10
+      buddy health
       buddy test --delay 2
       buddy session end --id debug-A
     """)
@@ -189,6 +279,9 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--delay":
             i += 1
             if i < args.count, let d = UInt64(args[i]) { opts.delay = d }
+        case "--last":
+            i += 1
+            if i < args.count, let n = Int(args[i]) { opts.last = n }
         case "--label":
             i += 1
             if i < args.count { opts.label = args[i] }
@@ -354,6 +447,59 @@ private func cmdStatus() {
     }
 }
 
+// MARK: - Query Commands
+
+private func cmdInspect(_ opts: CLIOptions) {
+    var query: [String: Any] = ["action": "inspect"]
+    if let sid = opts.sessionId {
+        query["session_id"] = sid
+    }
+
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdEvents(_ opts: CLIOptions) {
+    var query: [String: Any] = ["action": "events"]
+    if let sid = opts.sessionId {
+        query["session_id"] = sid
+    }
+    if opts.last > 0 {
+        query["last"] = opts.last
+    }
+
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdHealth() {
+    let query: [String: Any] = ["action": "health"]
+
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
 private struct TestStep {
     let event: String
     let tool: String?
@@ -455,6 +601,12 @@ private func main() {
         cmdTest(opts)
     case "status":
         cmdStatus()
+    case "inspect":
+        cmdInspect(opts)
+    case "events":
+        cmdEvents(opts)
+    case "health":
+        cmdHealth()
     case "help", "--help", "-h", "":
         printHelp()
     default:

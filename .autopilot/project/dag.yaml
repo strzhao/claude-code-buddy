@@ -7,7 +7,7 @@ tasks:
     name: "SkinPackManifest + SkinPack 核心类型"
     depends_on: []
     complexity: S
-    status: pending
+    status: done
 
   - id: "002-skin-manager"
     name: "DefaultSkinManifest + SkinPackManager"

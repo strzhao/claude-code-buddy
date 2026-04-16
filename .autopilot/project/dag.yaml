@@ -19,7 +19,7 @@ tasks:
     name: "重构 AnimationComponent + CatSprite"
     depends_on: ["002-skin-manager"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "004-refactor-scene"
     name: "重构 BuddyScene（边界+床）"

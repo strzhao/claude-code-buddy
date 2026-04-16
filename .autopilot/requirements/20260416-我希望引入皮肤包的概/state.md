@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 3
 max_iterations: 30
@@ -40,3 +40,5 @@ started_at: "2026-04-16T14:20:54Z"
 - [2026-04-16T14:45:00Z] 设计方案通过 Plan Mode 审批（修正 2 个 BLOCKER: SkinPack URL 解析分支 + 热替换 action 清理）
 - [2026-04-16T14:50:00Z] 项目文件创建完成: design.md + dag.yaml + 9 个任务简报
 - [2026-04-16T14:55:00Z] 知识提取完成: +1 决策(SkinPack 资源解析分支) +1 模式(CatEatingState 无 ResumableState)
+- [2026-04-16T15:00:00Z] commit 63b5dd3: docs(皮肤包): 完成皮肤包系统设计阶段，新增 9 任务 DAG 与架构文档
+- [2026-04-16T15:00:00Z] phase: done — 设计阶段完成

@@ -1,0 +1,25 @@
+.autopilot/project/dag.yaml
+  6bf4d31356153b3e 52
+.autopilot/requirements/20260417-008-settings-ui/state.md
+  6bf4d31356153b3e 3,12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "cd8f826f132f72d91663168512aa16aa28e4d26f",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 942,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,31 @@
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  6bf4d31356153b3e 1-88
+Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift
+  6bf4d31356153b3e 1-19
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryItemView.swift
+  6bf4d31356153b3e 1-121
+Sources/ClaudeCodeBuddy/MenuBar/SessionPopoverController.swift
+  6bf4d31356153b3e 29,87-96,125-126,175-178
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  6bf4d31356153b3e 19,136-140,199-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4f69edf1b69ede27fce6135c85a90dfa4473f70a",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 294,
+      "total_deletions": 14,
+      "accepted_lines": 1225,
+      "overriden_lines": 2
+    }
+  }
+}

@@ -82,6 +82,9 @@ class MenuBarAnimator {
     // MARK: - Private Helpers
 
     private func loadSprites() {
+        let skin = SkinPackManager.shared.activeSkin
+        let menuBarConfig = skin.manifest.menuBar
+
         // 菜单栏高度 22pt，图标用满高度，宽度按比例
         let iconHeight: CGFloat = 22
         let iconWidth: CGFloat = 32  // 50:34 ≈ 32:22
@@ -89,15 +92,19 @@ class MenuBarAnimator {
         let iconSize = NSSize(width: iconWidth, height: iconHeight)
 
         // 加载走路帧
-        walkFrames = loadFrameSequence(prefix: "menubar-walk", count: 6, size: iconSize)
+        walkFrames = loadFrameSequence(prefix: menuBarConfig.walkPrefix,
+                                       count: menuBarConfig.walkFrameCount,
+                                       size: iconSize, skin: skin)
 
         // 加载跑步帧
-        runFrames = loadFrameSequence(prefix: "menubar-run", count: 5, size: iconSize)
+        runFrames = loadFrameSequence(prefix: menuBarConfig.runPrefix,
+                                      count: menuBarConfig.runFrameCount,
+                                      size: iconSize, skin: skin)
 
         // 加载静止图标
-        if let url = ResourceBundle.bundle.url(forResource: "menubar-idle-1",
-                                       withExtension: "png",
-                                       subdirectory: "Assets/Sprites/Menubar"),
+        if let url = skin.url(forResource: menuBarConfig.idleFrame,
+                              withExtension: "png",
+                              subdirectory: menuBarConfig.directory),
            let img = NSImage(contentsOf: url) {
             img.size = iconSize
             idleImage = img
@@ -107,12 +114,23 @@ class MenuBarAnimator {
         }
     }
 
-    private func loadFrameSequence(prefix: String, count: Int, size: NSSize) -> [NSImage] {
+    /// Reload all sprites from the current skin (called during skin hot-swap).
+    func reloadSprites() {
+        loadSprites()
+        if activeCatCount > 0 {
+            switchFrames(for: activeCatCount)
+        } else {
+            applyIdleImage()
+        }
+    }
+
+    private func loadFrameSequence(prefix: String, count: Int, size: NSSize, skin: SkinPack) -> [NSImage] {
+        let menuBarDir = skin.manifest.menuBar.directory
         var frames: [NSImage] = []
         for i in 1...count {
-            if let url = ResourceBundle.bundle.url(forResource: "\(prefix)-\(i)",
-                                           withExtension: "png",
-                                           subdirectory: "Assets/Sprites/Menubar"),
+            if let url = skin.url(forResource: "\(prefix)-\(i)",
+                                  withExtension: "png",
+                                  subdirectory: menuBarDir),
                let img = NSImage(contentsOf: url) {
                 img.size = size
                 frames.append(img)

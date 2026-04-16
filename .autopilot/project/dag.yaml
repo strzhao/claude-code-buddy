@@ -25,7 +25,7 @@ tasks:
     name: "重构 BuddyScene（边界+床）"
     depends_on: ["002-skin-manager"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "005-refactor-food"
     name: "重构 FoodSprite"

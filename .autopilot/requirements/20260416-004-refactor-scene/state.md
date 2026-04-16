@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -9,9 +9,9 @@ retry_count: 0
 mode: "single"
 plan_mode: ""
 brief_file: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/project/tasks/004-refactor-scene.md"
-next_task: ""
+next_task: "005-refactor-food"
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/requirements/20260416-004-refactor-scene"
 session_id: 05a94fad-7a57-4363-8e7e-3bca0ae6505a
 started_at: "2026-04-16T15:44:57Z"
@@ -190,3 +190,5 @@ N/A — 纯重构，319 现有测试覆盖回归验证。
 - [2026-04-16T15:44:57Z] autopilot 初始化（brief 模式），任务: 004-refactor-scene.md
 - [2026-04-16T15:48:00Z] 实现完成: BuddyScene + CatTaskCompleteState + CatConstants 3 文件修改
 - [2026-04-16T15:48:00Z] QA 全部通过: build ✅ / 319 tests ✅ / lint ✅ / 无硬编码残留 ✅
+- [2026-04-16T15:52:00Z] commit 17d8177: refactor(皮肤包) BuddyScene 边界/床 SkinPack 驱动
+- [2026-04-16T15:52:00Z] phase: done — 任务 004 完成, next: 005-refactor-food

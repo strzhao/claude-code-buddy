@@ -43,7 +43,7 @@ tasks:
     name: "热替换机制 + AppDelegate 订阅"
     depends_on: ["003-refactor-animation", "004-refactor-scene", "005-refactor-food", "006-refactor-menubar"]
     complexity: L
-    status: pending
+    status: done
 
   - id: "008-settings-ui"
     name: "设置窗口 + 皮肤画廊 + popover 按钮"

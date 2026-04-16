@@ -26,6 +26,7 @@ class SessionPopoverController: NSViewController {
 
     var onSessionClicked: ((SessionInfo) -> Void)?
     var onQuit: (() -> Void)?
+    var onSettings: (() -> Void)?
 
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 130))
@@ -83,6 +84,16 @@ class SessionPopoverController: NSViewController {
         quitButton.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(quitButton)
 
+        // Settings (gear) button
+        let gearImage = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Settings")
+            ?? NSImage(named: NSImage.actionTemplateName)
+            ?? NSImage()
+        let settingsButton = NSButton(image: gearImage, target: self, action: #selector(settingsClicked))
+        settingsButton.bezelStyle = .inline
+        settingsButton.isBordered = false
+        settingsButton.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(settingsButton)
+
         NSLayoutConstraint.activate([
             headerLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
             headerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
@@ -110,6 +121,9 @@ class SessionPopoverController: NSViewController {
 
             footerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
             footerLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+
+            settingsButton.trailingAnchor.constraint(equalTo: quitButton.leadingAnchor, constant: -8),
+            settingsButton.centerYAnchor.constraint(equalTo: footerLabel.centerYAnchor),
 
             quitButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
             quitButton.centerYAnchor.constraint(equalTo: footerLabel.centerYAnchor),
@@ -157,5 +171,9 @@ class SessionPopoverController: NSViewController {
 
     @objc private func quitClicked() {
         onQuit?()
+    }
+
+    @objc private func settingsClicked() {
+        onSettings?()
     }
 }

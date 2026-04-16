@@ -1,0 +1,23 @@
+.autopilot/requirements/20260416-003-refactor-animation/state.md
+  6bf4d31356153b3e 3-4,146-148,151-155,158,161-180,185-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7ffc2c989af3a40a46ef6cb39ef2d403d4691e5c",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 972,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -9,9 +9,9 @@ retry_count: 0
 mode: "single"
 plan_mode: ""
 brief_file: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/project/tasks/005-refactor-food.md"
-next_task: ""
+next_task: "006-refactor-menubar"
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/requirements/20260416-005-refactor-food"
 session_id: 05a94fad-7a57-4363-8e7e-3bca0ae6505a
 started_at: "2026-04-16T15:53:51Z"

@@ -31,7 +31,7 @@ tasks:
     name: "重构 FoodSprite"
     depends_on: ["002-skin-manager"]
     complexity: S
-    status: pending
+    status: done
 
   - id: "006-refactor-menubar"
     name: "重构 MenuBarAnimator"

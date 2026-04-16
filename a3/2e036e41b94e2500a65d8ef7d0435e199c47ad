@@ -1,0 +1,25 @@
+.autopilot/project/dag.yaml
+  6bf4d31356153b3e 34
+.autopilot/requirements/20260416-005-refactor-food/state.md
+  6bf4d31356153b3e 3,12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "a32e036e41b94e2500a65d8ef7d0435e199c47ad",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 942,
+      "overriden_lines": 0
+    }
+  }
+}

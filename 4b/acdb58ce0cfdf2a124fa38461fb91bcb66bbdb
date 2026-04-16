@@ -1,0 +1,23 @@
+.autopilot/requirements/20260416-005-refactor-food/state.md
+  6bf4d31356153b3e 4,140-142,145-147,150,153-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4bacdb58ce0cfdf2a124fa38461fb91bcb66bbdb",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 958,
+      "overriden_lines": 0
+    }
+  }
+}

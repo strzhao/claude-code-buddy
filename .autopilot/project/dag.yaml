@@ -1,48 +1,58 @@
+project:
+  name: skin-pack-system
+  description: 皮肤包系统 — 猫咪/装饰/食物/菜单栏图标可按皮肤切换
+
 tasks:
-  - id: "001-constants"
-    title: "提取 CatConstants（所有魔数命名常量化）"
+  - id: "001-skin-types"
+    name: "SkinPackManifest + SkinPack 核心类型"
     depends_on: []
     complexity: S
-    status: done
+    status: pending
 
-  - id: "002-gkstate"
-    title: "GKStateMachine + 5 个 GKState 子类"
-    depends_on: ["001-constants"]
+  - id: "002-skin-manager"
+    name: "DefaultSkinManifest + SkinPackManager"
+    depends_on: ["001-skin-types"]
+    complexity: M
+    status: pending
+
+  - id: "003-refactor-animation"
+    name: "重构 AnimationComponent + CatSprite"
+    depends_on: ["002-skin-manager"]
+    complexity: M
+    status: pending
+
+  - id: "004-refactor-scene"
+    name: "重构 BuddyScene（边界+床）"
+    depends_on: ["002-skin-manager"]
+    complexity: M
+    status: pending
+
+  - id: "005-refactor-food"
+    name: "重构 FoodSprite"
+    depends_on: ["002-skin-manager"]
+    complexity: S
+    status: pending
+
+  - id: "006-refactor-menubar"
+    name: "重构 MenuBarAnimator"
+    depends_on: ["002-skin-manager"]
+    complexity: S
+    status: pending
+
+  - id: "007-hotswap"
+    name: "热替换机制 + AppDelegate 订阅"
+    depends_on: ["003-refactor-animation", "004-refactor-scene", "005-refactor-food", "006-refactor-menubar"]
     complexity: L
-    status: done
+    status: pending
 
-  - id: "003-animation"
-    title: "提取 AnimationComponent（纹理加载、帧动画、呼吸效果）"
-    depends_on: ["002-gkstate"]
-    complexity: M
-    status: done
-
-  - id: "004-movement"
-    title: "提取 MovementComponent + JumpComponent（含 GCD fallback 封装）"
-    depends_on: ["003-animation"]
+  - id: "008-settings-ui"
+    name: "设置窗口 + 皮肤画廊 + popover 按钮"
+    depends_on: ["007-hotswap"]
     complexity: L
-    status: done
+    status: pending
 
-  - id: "005-interaction"
-    title: "提取 InteractionComponent + LabelComponent"
-    depends_on: ["004-movement"]
-    complexity: M
-    status: done
-
-  - id: "006-entity"
-    title: "EntityProtocol + EntityState + BuddyScene/FoodManager 重构 + 测试迁移"
-    depends_on: ["005-interaction"]
+  - id: "009-skin-store"
+    name: "远程皮肤商店（目录/下载/缓存/校验）"
+    depends_on: ["008-settings-ui"]
     complexity: L
-    status: done
-
-  - id: "007-eventbus"
-    title: "Combine EventBus + 解耦 HookMessage/SessionManager/SessionRowView"
-    depends_on: ["006-entity"]
-    complexity: M
-    status: done
-
-  - id: "008-environment"
-    title: "Environment/Weather 框架 + EnvironmentResponder"
-    depends_on: ["007-eventbus"]
-    complexity: M
-    status: done
+    status: pending

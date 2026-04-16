@@ -9,6 +9,9 @@ final class CatTaskCompleteState: GKState, ResumableState {
     /// The bed sprite node placed in the scene during this state.
     private var bedNode: SKSpriteNode?
 
+    /// The bed sprite name used to create the bed node (stored for hot-swap texture reload).
+    private(set) var currentBedName: String?
+
     /// Whether a bed slot was successfully assigned (prevents releasing unassigned slots).
     private var hasBedSlot = false
 
@@ -49,6 +52,7 @@ final class CatTaskCompleteState: GKState, ResumableState {
         hasBedSlot = true
         let bedX = bedInfo.x
         let bedName = bedInfo.bedName
+        currentBedName = bedName
 
         // Create and place the bed sprite
         let bed = createBedNode(named: bedName)
@@ -156,9 +160,10 @@ final class CatTaskCompleteState: GKState, ResumableState {
     }
 
     private func loadBedTexture(named name: String) -> SKTexture? {
-        guard let url = ResourceBundle.bundle.url(forResource: name,
-                                                   withExtension: "png",
-                                                   subdirectory: "Assets/Sprites"),
+        let skin = SkinPackManager.shared.activeSkin
+        guard let url = skin.url(forResource: name,
+                                 withExtension: "png",
+                                 subdirectory: skin.manifest.spriteDirectory),
               let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
             return nil
@@ -166,5 +171,15 @@ final class CatTaskCompleteState: GKState, ResumableState {
         let tex = SKTexture(cgImage: cgImage)
         tex.filteringMode = .nearest
         return tex
+    }
+
+    // MARK: - Hot-Swap Support
+
+    /// Reload the bed texture from a new skin pack (called during skin hot-swap).
+    func reloadBedTexture(from skin: SkinPack) {
+        guard let bedNode = bedNode, let name = currentBedName else { return }
+        if let tex = loadBedTexture(named: name) {
+            bedNode.texture = tex
+        }
     }
 }

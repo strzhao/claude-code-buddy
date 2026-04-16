@@ -109,9 +109,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private static let boundaryRenderSize = CGSize(width: 32, height: 32)
 
     private func loadBoundaryTexture() -> SKTexture? {
-        guard let url = ResourceBundle.bundle.url(forResource: "boundary-bush",
-                                          withExtension: "png",
-                                          subdirectory: "Assets/Sprites"),
+        let skin = SkinPackManager.shared.activeSkin
+        guard let url = skin.url(forResource: skin.manifest.boundarySprite,
+                                 withExtension: "png",
+                                 subdirectory: skin.manifest.spriteDirectory),
               let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
             return nil
@@ -416,7 +417,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func bedColorName(for sessionId: String) -> String? {
         guard let slot = activeBedSlots[sessionId] else { return nil }
-        let names = CatConstants.TaskComplete.bedNames
+        let names = SkinPackManager.shared.activeSkin.manifest.bedNames
         return names[slot % names.count]
     }
 

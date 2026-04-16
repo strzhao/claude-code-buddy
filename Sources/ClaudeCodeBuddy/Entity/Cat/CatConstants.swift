@@ -300,8 +300,6 @@ enum CatConstants {
         static let maxSlots: Int = 4
         /// Z-position for the bed sprite (in front of cat so cat appears to sit inside)
         static let bedZPosition: CGFloat = -1
-        /// Bed sprite names (cycled by slot index)
-        static let bedNames: [String] = ["bed-blue", "bed-gray", "bed-pink", "bed-green"]
     }
 
     // MARK: - BoundaryRecovery

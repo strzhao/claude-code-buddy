@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/MenuBar/MenuBarAnimator.swift
+  6bf4d31356153b3e 85-87,95-97,100-102,105-107,117-123,127-128,131-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "ec3040ba6bd2d6ff382b98c96cf637f359df4161",
+  "prompts": {
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 49,
+      "total_deletions": 14,
+      "accepted_lines": 986,
+      "overriden_lines": 1
+    }
+  }
+}

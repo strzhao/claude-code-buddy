@@ -37,7 +37,7 @@ tasks:
     name: "重构 MenuBarAnimator"
     depends_on: ["002-skin-manager"]
     complexity: S
-    status: pending
+    status: done
 
   - id: "007-hotswap"
     name: "热替换机制 + AppDelegate 订阅"

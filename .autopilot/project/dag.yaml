@@ -49,7 +49,7 @@ tasks:
     name: "设置窗口 + 皮肤画廊 + popover 按钮"
     depends_on: ["007-hotswap"]
     complexity: L
-    status: pending
+    status: done
 
   - id: "009-skin-store"
     name: "远程皮肤商店（目录/下载/缓存/校验）"

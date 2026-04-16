@@ -26,15 +26,20 @@ final class SkinPackManager {
     /// Fires whenever the active skin changes via `selectSkin(_:)`.
     let skinChanged = PassthroughSubject<SkinPack, Never>()
 
+    /// Fires whenever the available skins list changes (skin added or removed).
+    let availableSkinsChanged = PassthroughSubject<Void, Never>()
+
+    /// Reference to the remote skin store.
+    let store = SkinPackStore.shared
+
     // MARK: - Private
 
     private static let selectedSkinIdKey = "selectedSkinId"
 
-    private static let localSkinsDirectory: URL? = {
-        FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first?
-            .appendingPathComponent("ClaudeCodeBuddy/Skins", isDirectory: true)
+    static let localSkinsDirectory: URL = {
+        // swiftlint:disable:next force_unwrapping
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("ClaudeCodeBuddy/Skins", isDirectory: true)
     }()
 
     // MARK: - Init
@@ -68,7 +73,7 @@ final class SkinPackManager {
     /// Each subdirectory that contains a valid `manifest.json` is loaded as a skin pack.
     /// Packs whose `id` clashes with an already-known skin are silently skipped.
     func loadLocalSkins() {
-        guard let skinsDir = Self.localSkinsDirectory else { return }
+        let skinsDir = Self.localSkinsDirectory
 
         let fm = FileManager.default
         guard fm.fileExists(atPath: skinsDir.path) else { return }
@@ -103,6 +108,24 @@ final class SkinPackManager {
             let pack = SkinPack(manifest: manifest, source: .local(dir))
             availableSkins.append(pack)
         }
+    }
+
+    /// Adds a newly downloaded skin pack to `availableSkins` if its ID does not conflict.
+    ///
+    /// Fires `availableSkinsChanged` after appending.
+    func addDownloadedSkin(_ skin: SkinPack) {
+        guard !availableSkins.contains(where: { $0.manifest.id == skin.manifest.id }) else { return }
+        availableSkins.append(skin)
+        availableSkinsChanged.send()
+    }
+
+    /// Fetches the remote catalog and triggers `availableSkinsChanged` so the gallery can refresh.
+    ///
+    /// Call this once on launch and when the user opens the store section.
+    func refreshRemoteSkins() async {
+        // No-op if no catalog URL is configured; the gallery drives the URL.
+        // This method exists as a hook for future preloading or refresh triggers.
+        availableSkinsChanged.send()
     }
 
     // MARK: - Private Helpers

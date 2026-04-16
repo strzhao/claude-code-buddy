@@ -55,4 +55,4 @@ tasks:
     name: "远程皮肤商店（目录/下载/缓存/校验）"
     depends_on: ["008-settings-ui"]
     complexity: L
-    status: pending
+    status: done

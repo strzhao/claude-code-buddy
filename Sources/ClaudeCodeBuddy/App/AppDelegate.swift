@@ -1,5 +1,6 @@
 import AppKit
 import SpriteKit
+import Combine
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
     var window: BuddyWindow?
@@ -14,12 +15,14 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
+    private var cancellables = Set<AnyCancellable>()
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
         setupMenuBar()
         setupSessionManager()
         setupDockMonitoring()
+        setupSkinHotSwap()
 
         // Request Accessibility permission (non-blocking prompt)
         DispatchQueue.main.async {
@@ -178,6 +181,16 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Dock Monitoring
+
+    private func setupSkinHotSwap() {
+        SkinPackManager.shared.skinChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] skin in
+                self?.scene?.reloadSkin(skin)
+                self?.menuBarAnimator?.reloadSprites()
+            }
+            .store(in: &cancellables)
+    }
 
     private func setupDockMonitoring() {
         // Poll AX bounds every 3 seconds (catches icon size changes, Dock show/hide)

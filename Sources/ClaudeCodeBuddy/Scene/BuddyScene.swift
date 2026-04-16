@@ -395,6 +395,44 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats.values.filter { $0.currentState == .idle }
     }
 
+    // MARK: - Skin Hot-Swap
+
+    func reloadSkin(_ skin: SkinPack) {
+        // 1. Reload boundary decoration textures
+        if let tex = loadBoundaryTexture() {
+            leftBoundaryNode?.texture = tex
+            rightBoundaryNode?.texture = tex
+        }
+
+        // 2. Reload each cat's textures and restart animations
+        for cat in cats.values {
+            // Clean up all running actions to prevent stale frame references
+            cat.node.removeAllActions()
+            cat.containerNode.removeAction(forKey: "randomWalk")
+            cat.containerNode.removeAction(forKey: "foodWalk")
+
+            // Reload textures from the new skin
+            cat.animationComponent.loadTextures(from: skin)
+
+            // Skip eating cats — CatEatingState has no ResumableState;
+            // eating animation completes naturally, next state uses new textures
+            if cat.currentState == .eating { continue }
+
+            // Reload bed texture for sleeping cats
+            if cat.currentState == .taskComplete {
+                (cat.stateMachine?.currentState as? CatTaskCompleteState)?
+                    .reloadBedTexture(from: skin)
+            }
+
+            // Restart current state animation via ResumableState
+            (cat.stateMachine?.currentState as? ResumableState)?.resume()
+
+            // Reapply session color tint
+            cat.node.color = cat.sessionColor?.nsColor ?? .white
+            cat.node.colorBlendFactor = cat.sessionTintFactor
+        }
+    }
+
     // MARK: - Bed Slot Management
 
     func assignBedSlot(for sessionId: String) -> CGFloat? {

@@ -132,7 +132,7 @@ class CatSprite {
         animationComponent = AnimationComponent(node: node)
 
         setupPhysicsBody()
-        animationComponent.loadTextures(prefix: "cat", bundle: ResourceBundle.bundle)
+        animationComponent.loadTextures(from: SkinPackManager.shared.activeSkin)
 
         // Initialize movement component after animationComponent is ready
         movementComponent = MovementComponent(entity: self)

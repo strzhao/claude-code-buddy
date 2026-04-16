@@ -23,16 +23,16 @@ class AnimationComponent {
 
     // MARK: - Texture Loading
 
-    func loadTextures(prefix: String, bundle: Bundle) {
-        let animNames = ["idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b", "jump"]
+    func loadTextures(from skin: SkinPack) {
+        let animNames = skin.manifest.animationNames
         for animName in animNames {
             var textures: [SKTexture] = []
             var frame = 1
             while true {
-                let name = "\(prefix)-\(animName)-\(frame)"
-                guard let url = bundle.url(forResource: name,
-                                           withExtension: "png",
-                                           subdirectory: "Assets/Sprites") else { break }
+                let name = "\(skin.manifest.spritePrefix)-\(animName)-\(frame)"
+                guard let url = skin.url(forResource: name,
+                                         withExtension: "png",
+                                         subdirectory: skin.manifest.spriteDirectory) else { break }
                 guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
                       let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else { break }
                 let texture = SKTexture(cgImage: cgImage)

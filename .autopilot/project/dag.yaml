@@ -13,7 +13,7 @@ tasks:
     name: "DefaultSkinManifest + SkinPackManager"
     depends_on: ["001-skin-types"]
     complexity: M
-    status: pending
+    status: done
 
   - id: "003-refactor-animation"
     name: "重构 AnimationComponent + CatSprite"

@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -9,9 +9,9 @@ retry_count: 0
 mode: "single"
 plan_mode: ""
 brief_file: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/project/tasks/003-refactor-animation.md"
-next_task: ""
+next_task: "004-refactor-scene"
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/snuggly-juggling-parrot/.autopilot/requirements/20260416-003-refactor-animation"
 session_id: 05a94fad-7a57-4363-8e7e-3bca0ae6505a
 started_at: "2026-04-16T15:38:52Z"
@@ -185,3 +185,5 @@ N/A — 此任务是纯重构（API 签名变更），无新功能。现有 319 
 - [2026-04-16T15:40:00Z] 设计+实现直接完成（2 文件各几行修改）
 - [2026-04-16T15:40:00Z] make build ✅ / make test 319 ✅ / make lint 0 violations ✅
 - [2026-04-16T15:40:00Z] QA 全部通过，设置 gate: review-accept
+- [2026-04-16T15:43:00Z] commit ad32bc9: refactor(皮肤包) AnimationComponent SkinPack 驱动
+- [2026-04-16T15:43:00Z] phase: done — 任务 003 完成, next: 004-refactor-scene

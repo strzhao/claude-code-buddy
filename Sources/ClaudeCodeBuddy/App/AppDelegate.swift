@@ -16,6 +16,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
     private var cancellables = Set<AnyCancellable>()
+    private var settingsWindowController: SettingsWindowController?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         setupWindow()
@@ -132,6 +133,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             NSApplication.shared.terminate(nil)
         }
 
+        popoverController.onSettings = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.showSettings()
+        }
+
         popoverController.onSessionClicked = { [weak self] session in
             self?.popover.performClose(nil)
             guard let adapters = self?.terminalAdapters else { return }
@@ -180,8 +186,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         manager.start()
     }
 
-    // MARK: - Dock Monitoring
-
     private func setupSkinHotSwap() {
         SkinPackManager.shared.skinChanged
             .receive(on: RunLoop.main)
@@ -191,6 +195,20 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
     }
+
+    // MARK: - Settings
+
+    private func showSettings() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.center()
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - Dock Monitoring
 
     private func setupDockMonitoring() {
         // Poll AX bounds every 3 seconds (catches icon size changes, Dock show/hide)

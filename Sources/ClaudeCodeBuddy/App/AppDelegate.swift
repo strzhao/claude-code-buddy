@@ -177,6 +177,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         sessionManager = manager
+        manager.bind(modeStore: EntityModeStore.shared)
         manager.start()
     }
 

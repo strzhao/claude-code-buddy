@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // MARK: - SessionManager
 
@@ -12,6 +13,13 @@ class SessionManager {
     private let server = SocketServer()
     private(set) var eventStore = EventStore()
     private var queryHandler: QueryHandler?
+
+    // MARK: - Morph State (Step 4)
+
+    private var currentMode: EntityMode = .cat
+    private var modeStoreCancellable: AnyCancellable?
+    /// Per-session last dispatched event — replayed into the new entity on hot-switch.
+    private var lastEvents: [String: EntityInputEvent] = [:]
 
     /// Full session state keyed by sessionId.
     var sessions: [String: SessionInfo] = [:]
@@ -46,6 +54,32 @@ class SessionManager {
 
     init(scene: any SceneControlling) {
         self.scene = scene
+    }
+
+    // MARK: - Morph Binding (Step 4)
+
+    /// Subscribe to EntityModeStore; hot-switch all entities when mode changes.
+    func bind(modeStore: EntityModeStore) {
+        currentMode = modeStore.current
+        modeStoreCancellable = modeStore.publisher
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newMode in
+                self?.performHotSwitch(to: newMode)
+            }
+    }
+
+    private func performHotSwitch(to newMode: EntityMode) {
+        let prev = currentMode
+        currentMode = newMode
+        let infos = Array(sessions.values)
+        scene.replaceAllEntities(with: newMode,
+                                 infos: infos,
+                                 lastEvents: lastEvents) {
+            EventBus.shared.entityModeChanged.send(
+                EntityModeChangeEvent(previous: prev, next: newMode)
+            )
+        }
     }
 
     // MARK: - Start / Stop
@@ -176,7 +210,8 @@ class SessionManager {
                 ))
                 releaseColor(session.color)
                 sessions.removeValue(forKey: sessionId)
-                scene.removeCat(sessionId: sessionId)
+                lastEvents.removeValue(forKey: sessionId)
+                scene.removeEntity(sessionId: sessionId)
                 writeColorFile()
             }
 
@@ -219,7 +254,7 @@ class SessionManager {
                 ))
 
                 if scene.activeCatCount < 8 {
-                    scene.addCat(info: info)
+                    scene.addEntity(info: info, mode: currentMode)
                 }
                 writeColorFile()
                 if info.terminalId != nil {
@@ -242,14 +277,13 @@ class SessionManager {
                 }
             }
 
-            // Build the generic EntityInputEvent for future dispatch via EntityFactory.
-            // Currently only used for debug logging; actual dispatch happens in Step 4.
-            let _entityInput = EntityInputEvent.from(
+            // Build the generic EntityInputEvent and cache for hot-switch replay.
+            let entityInput = EntityInputEvent.from(
                 hookEvent: message.event,
                 tool: message.tool,
                 description: message.description
             )
-            _ = _entityInput  // silence unused warning; real usage in Step 4
+            lastEvents[sessionId] = entityInput
 
             // Update state
             if let entityState = message.entityState {
@@ -263,7 +297,11 @@ class SessionManager {
                     details: ["new_state": entityState.rawValue, "tool_description": desc ?? ""]
                 ))
 
-                scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
+                if currentMode == .cat {
+                    scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
+                } else {
+                    scene.dispatchEntityEvent(sessionId: sessionId, event: entityInput)
+                }
                 // Publish to EventBus for future subscribers
                 EventBus.shared.stateChanged.send(StateChangeEvent(
                     sessionId: sessionId, newState: entityState, toolDescription: desc
@@ -336,7 +374,8 @@ class SessionManager {
                 releaseColor(session.color)
             }
             sessions.removeValue(forKey: sessionId)
-            scene.removeCat(sessionId: sessionId)
+            lastEvents.removeValue(forKey: sessionId)
+            scene.removeEntity(sessionId: sessionId)
         }
         if !toRemove.isEmpty {
             writeColorFile()

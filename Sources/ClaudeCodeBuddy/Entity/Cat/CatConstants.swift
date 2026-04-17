@@ -318,4 +318,17 @@ enum CatConstants {
         /// Action key for the recovery walk on containerNode.
         static let actionKey = "boundaryRecovery"
     }
+
+    // MARK: - Separation
+    enum Separation {
+        /// Minimum desired X distance between two cat centers (px).
+        /// Physics body is 44px, so 52px gives ~8px visual gap.
+        static let minDistance: CGFloat = 52
+        /// Maximum nudge per frame (px). At 60fps = 30 px/s.
+        static let nudgeSpeed: CGFloat = 0.5
+        /// Minimum spawn distance from any existing cat (px).
+        static let minSpawnDistance: CGFloat = 60
+        /// Maximum spawn placement attempts.
+        static let maxSpawnAttempts: Int = 10
+    }
 }

@@ -50,7 +50,42 @@ class InteractionComponent {
 
         // Decide escape direction: flee away from jumper
         let myX = entity.containerNode.position.x
-        let fleeRight = myX > jumperX   // flee to the same side we're on relative to jumper
+        var fleeRight = myX > jumperX   // flee to the same side we're on relative to jumper
+
+        // Check if fleeing direction has another cat; flip if opposite is clear
+        if let obstacles = entity.nearbyObstacles?() {
+            let fleeTarget = fleeRight
+                ? myX + CatConstants.Fright.fleeDistance
+                : myX - CatConstants.Fright.fleeDistance
+            let minDist = CatConstants.Separation.minDistance
+
+            let hasObstacleInFleeDir = obstacles.contains { obs in
+                let obsX = obs.x  // named tuple
+                if fleeRight {
+                    return obsX > myX && obsX < fleeTarget + minDist
+                } else {
+                    return obsX < myX && obsX > fleeTarget - minDist
+                }
+            }
+
+            if hasObstacleInFleeDir {
+                let oppositeTarget = fleeRight
+                    ? myX - CatConstants.Fright.fleeDistance
+                    : myX + CatConstants.Fright.fleeDistance
+                let hasObstacleInOpposite = obstacles.contains { obs in
+                    let obsX = obs.x
+                    if fleeRight {
+                        return obsX < myX && obsX > oppositeTarget - minDist
+                    } else {
+                        return obsX > myX && obsX < oppositeTarget + minDist
+                    }
+                }
+                if !hasObstacleInOpposite {
+                    fleeRight = !fleeRight
+                }
+            }
+        }
+
         let rawTarget = fleeRight ? myX + CatConstants.Fright.fleeDistance : myX - CatConstants.Fright.fleeDistance
         let clampedTarget: CGFloat
         if entity.sceneWidth > 0 {

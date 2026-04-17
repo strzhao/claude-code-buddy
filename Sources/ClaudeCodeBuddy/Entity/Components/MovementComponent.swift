@@ -45,9 +45,12 @@ class MovementComponent {
         let maxRange: CGFloat = CatConstants.Movement.walkMaxRange
         let rawTarget = entity.originX + CGFloat.random(in: -maxRange...maxRange)
         let sceneWidth = entity.sceneWidth
-        let target = sceneWidth > 0
+        var target = sceneWidth > 0
             ? max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
             : rawTarget
+
+        // Avoid walking into another cat
+        target = adjustTargetAwayFromOtherCats(target)
 
         // Update facing direction based on movement
         let delta = target - containerNode.position.x
@@ -156,6 +159,22 @@ class MovementComponent {
         } else {
             containerNode.run(SKAction.sequence(walkSequence + [next]), withKey: "randomWalk")
         }
+    }
+
+    /// Nudge proposed walk target away from nearby cats.
+    private func adjustTargetAwayFromOtherCats(_ proposedTarget: CGFloat) -> CGFloat {
+        guard let obstacles = entity.nearbyObstacles?() else { return proposedTarget }
+        let minDist = CatConstants.Separation.minDistance
+
+        for obstacle in obstacles {
+            let dist = abs(proposedTarget - obstacle.x)
+            if dist < minDist {
+                let direction: CGFloat = proposedTarget >= obstacle.x ? 1 : -1
+                let adjusted = obstacle.x + direction * minDist
+                return max(entity.activityMin, min(entity.effectiveActivityMax, adjusted))
+            }
+        }
+        return proposedTarget
     }
 
     // MARK: - Walk To Food

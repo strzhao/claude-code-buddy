@@ -263,6 +263,39 @@ class CatEntity {
     /// Debug cats (session ID starts with "debug-") always show their name label.
     var isDebugCat: Bool { sessionId.hasPrefix("debug-") }
 
+    /// SessionEntity protocol conformance — generic name.
+    var isDebug: Bool { sessionId.hasPrefix("debug-") }
+
+    // MARK: - Event Handling (SessionEntity)
+
+    func handle(event: EntityInputEvent) {
+        switch event {
+        case .sessionStart:
+            // Enter scene already handled by enterScene(); no-op here
+            break
+        case .thinking:
+            switchState(to: .thinking)
+        case .toolStart(_, let desc):
+            switchState(to: .toolUse, toolDescription: desc)
+        case .toolEnd:
+            switchState(to: .thinking)
+        case .permissionRequest(let desc):
+            switchState(to: .permissionRequest, toolDescription: desc)
+        case .taskComplete:
+            switchState(to: .taskComplete)
+        case .sessionEnd:
+            // SessionManager handles the scene removal; no-op on the entity
+            break
+        case .hoverEnter:
+            applyHoverScale()
+        case .hoverExit:
+            removeHoverScale()
+        case .externalCommand:
+            // phase 2 扩展点；猫 phase 1 不响应
+            break
+        }
+    }
+
     /// True when running in a real SpriteKit scene with display link (not in XCTest).
     private var hasDisplayLink: Bool { containerNode.scene?.view != nil }
 
@@ -489,6 +522,10 @@ class CatEntity {
 // MARK: - EntityProtocol Conformance
 
 extension CatEntity: EntityProtocol {}
+
+// MARK: - SessionEntity Conformance
+
+extension CatEntity: SessionEntity {}
 
 // MARK: - EnvironmentResponder Conformance
 

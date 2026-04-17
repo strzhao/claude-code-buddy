@@ -242,6 +242,15 @@ class SessionManager {
                 }
             }
 
+            // Build the generic EntityInputEvent for future dispatch via EntityFactory.
+            // Currently only used for debug logging; actual dispatch happens in Step 4.
+            let _entityInput = EntityInputEvent.from(
+                hookEvent: message.event,
+                tool: message.tool,
+                description: message.description
+            )
+            _ = _entityInput  // silence unused warning; real usage in Step 4
+
             // Update state
             if let entityState = message.entityState {
                 sessions[sessionId]?.state = entityState

@@ -12,10 +12,9 @@ Sources/
 │   ├── Entity/         # 实体抽象层
 │   │   ├── SessionEntity.swift      # 薄抽象协议
 │   │   ├── EntityInputEvent.swift   # 通用事件枚举
-│   │   ├── EntityProtocol.swift     # （遗留协议，Task 1.8 删除）
 │   │   ├── EntityState.swift        # （display 层枚举，保留）
 │   │   ├── Cat/                     # 猫实体
-│   │   │   ├── CatSprite.swift      # 猫精灵（~350 行，组装组件）
+│   │   │   ├── CatEntity.swift      # 猫精灵（~350 行，组装组件）
 │   │   │   ├── CatConstants.swift   # 所有猫相关常量
 │   │   │   ├── States/              # GKState 子类（5 个状态 + ResumableState）
 │   │   │   └── CatComponents/       # 猫专属组件
@@ -42,7 +41,7 @@ Sources/
 └── App/                # App 可执行文件入口 (main.swift)
 ```
 
-**数据流**: Claude Code Hook → buddy-hook.sh → Unix Socket → SocketServer → SessionManager → EventBus → BuddyScene/CatSprite
+**数据流**: Claude Code Hook → buddy-hook.sh → Unix Socket → SocketServer → SessionManager → EventBus → BuddyScene/CatEntity
 
 **猫咪状态机** (GKStateMachine): CatIdleState(sleep/breathe/blink/clean) → CatThinkingState(paw+sway) → CatToolUseState(random walk) → CatPermissionRequestState(alert+badge) → CatEatingState
 

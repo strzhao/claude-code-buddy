@@ -519,10 +519,6 @@ class CatEntity {
     }
 }
 
-// MARK: - EntityProtocol Conformance
-
-extension CatEntity: EntityProtocol {}
-
 // MARK: - SessionEntity Conformance
 
 extension CatEntity: SessionEntity {}

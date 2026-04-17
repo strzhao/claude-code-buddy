@@ -18,6 +18,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var groundNode: SKNode!
     private var cats: [String: CatEntity] = [:]
+    /// Authoritative mirror of all active entities (CatEntity + RocketEntity).
+    /// `cats` remains a typed view for cat-specific code paths.
+    private var entities: [String: SessionEntity] = [:]
     private let maxCats = CatConstants.Scene.maxCats
 
     private lazy var tooltipNode: TooltipNode = {
@@ -169,6 +172,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         addChild(cat.containerNode)
         cats[sessionId] = cat
+        entities[sessionId] = cat
         cat.onFoodAbandoned = { [weak self] sessionId in
             self?.foodManager.releaseFoodForCat(sessionId: sessionId)
         }
@@ -200,6 +204,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
+        entities.removeValue(forKey: sessionId)
         foodManager.removeCatTracking(sessionId: sessionId)
         releaseBedSlot(for: sessionId)
         // Keep a strong ref to cat until exit animation completes, then remove node
@@ -226,7 +231,71 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
-    var activeCatCount: Int { cats.count }
+    var activeCatCount: Int { entities.count }
+
+    // MARK: - Entity Management (mode-agnostic)
+
+    func addEntity(info: SessionInfo, mode: EntityMode) {
+        switch mode {
+        case .cat:
+            addCat(info: info)
+        case .rocket:
+            let sessionId = info.sessionId
+            guard entities[sessionId] == nil else { return }
+            let rocket = RocketEntity(sessionId: sessionId)
+            rocket.configure(color: info.color, labelText: info.label)
+            rocket.containerNode.position = CGPoint(
+                x: CGFloat.random(in: activityBounds),
+                y: RocketConstants.Visual.groundY
+            )
+            addChild(rocket.containerNode)
+            entities[sessionId] = rocket
+            rocket.enterScene(sceneSize: size, activityBounds: activityBounds)
+        }
+    }
+
+    func removeEntity(sessionId: String) {
+        if cats[sessionId] != nil {
+            removeCat(sessionId: sessionId)
+            return
+        }
+        guard let entity = entities.removeValue(forKey: sessionId) else { return }
+        entity.exitScene(sceneWidth: size.width) {
+            entity.containerNode.removeFromParent()
+        }
+    }
+
+    func replaceAllEntities(with mode: EntityMode,
+                            infos: [SessionInfo],
+                            lastEvents: [String: EntityInputEvent],
+                            completion: @escaping () -> Void) {
+        let group = DispatchGroup()
+        let snapshot = entities
+        entities.removeAll()
+        cats.removeAll()
+        for (_, entity) in snapshot {
+            group.enter()
+            entity.exitScene(sceneWidth: size.width) {
+                entity.containerNode.removeFromParent()
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            for info in infos {
+                self.addEntity(info: info, mode: mode)
+                if let e = lastEvents[info.sessionId] {
+                    self.entities[info.sessionId]?.handle(event: e)
+                }
+            }
+            completion()
+        }
+    }
+
+    /// Dispatch an input event to the current entity for a session, whichever form it is.
+    func dispatchEntityEvent(sessionId: String, event: EntityInputEvent) {
+        entities[sessionId]?.handle(event: event)
+    }
 
     func catAtPoint(_ point: CGPoint) -> String? {
         let hitSize = CatEntity.hitboxSize
@@ -461,7 +530,7 @@ extension BuddyScene: SceneControlling {
     func sceneSnapshot() -> SceneSnapshot {
         SceneSnapshot(
             visible: view != nil,
-            catsRendered: cats.count,
+            catsRendered: entities.count,
             boundsMin: activityBounds.lowerBound,
             boundsMax: activityBounds.upperBound
         )

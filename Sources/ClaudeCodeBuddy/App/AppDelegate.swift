@@ -16,6 +16,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var popoverController = SessionPopoverController()
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = EntityModeStore.shared
+        NSLog("[AppDelegate] EntityMode at launch: \(EntityModeStore.shared.current.rawValue)")
+
         setupWindow()
         setupMenuBar()
         setupSessionManager()

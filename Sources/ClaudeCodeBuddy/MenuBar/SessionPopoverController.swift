@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 class SessionPopoverController: NSViewController {
 
@@ -6,9 +7,17 @@ class SessionPopoverController: NSViewController {
     private static let popoverWidth: CGFloat = 320
     private static let rowHeight: CGFloat = 76
     private static let separatorGap: CGFloat = 3      // stackView.spacing + NSBox separator + spacing
-    private static let chromeHeight: CGFloat = 93      // header + footer with safety margin
-    private static let emptyStateHeight: CGFloat = 130
+    private static let chromeHeight: CGFloat = 127     // header + morph segment + footer with safety margin
+    private static let emptyStateHeight: CGFloat = 164
     private static let maxVisibleSessions = 6
+
+    private let morphSegment = NSSegmentedControl(
+        labels: ["🐱 Cat", "🚀 Rocket"],
+        trackingMode: .selectOne,
+        target: nil,
+        action: nil
+    )
+    private var cancellables = Set<AnyCancellable>()
 
     private func idealHeight(for count: Int) -> CGFloat {
         guard count > 0 else { return Self.emptyStateHeight }
@@ -45,6 +54,20 @@ class SessionPopoverController: NSViewController {
         headerSeparator.boxType = .separator
         headerSeparator.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(headerSeparator)
+
+        // Morph segment control
+        morphSegment.target = self
+        morphSegment.action = #selector(morphChanged(_:))
+        morphSegment.selectedSegment = EntityModeStore.shared.current == .cat ? 0 : 1
+        morphSegment.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(morphSegment)
+
+        EntityModeStore.shared.publisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                self?.morphSegment.selectedSegment = mode == .cat ? 0 : 1
+            }
+            .store(in: &cancellables)
 
         // Stack view for session rows
         stackView.orientation = .vertical
@@ -94,7 +117,10 @@ class SessionPopoverController: NSViewController {
             headerSeparator.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             headerSeparator.trailingAnchor.constraint(equalTo: container.trailingAnchor),
 
-            scrollView.topAnchor.constraint(equalTo: headerSeparator.bottomAnchor, constant: 4),
+            morphSegment.topAnchor.constraint(equalTo: headerSeparator.bottomAnchor, constant: 6),
+            morphSegment.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+
+            scrollView.topAnchor.constraint(equalTo: morphSegment.bottomAnchor, constant: 6),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: footerSeparator.topAnchor, constant: -4),
@@ -157,5 +183,10 @@ class SessionPopoverController: NSViewController {
 
     @objc private func quitClicked() {
         onQuit?()
+    }
+
+    @objc private func morphChanged(_ sender: NSSegmentedControl) {
+        let mode: EntityMode = sender.selectedSegment == 0 ? .cat : .rocket
+        EntityModeStore.shared.set(mode)
     }
 }

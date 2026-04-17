@@ -12,6 +12,10 @@ final class EventBus {
     // Food events
     let foodSpawnRequested = PassthroughSubject<FoodSpawnEvent, Never>()
 
+    // Rocket / morph events
+    let sceneExpansionRequested = PassthroughSubject<SceneExpansionRequest, Never>()
+    let entityModeChanged = PassthroughSubject<EntityModeChangeEvent, Never>()
+
     // Environment events (for task 008)
     let weatherChanged = PassthroughSubject<WeatherState, Never>()
     let timeOfDayChanged = PassthroughSubject<TimeOfDay, Never>()

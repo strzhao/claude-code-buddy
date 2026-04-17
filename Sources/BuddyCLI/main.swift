@@ -530,10 +530,24 @@ private struct TestStep {
     let desc: String?
 }
 
+private func readCurrentMode() -> String {
+    let base = FileManager.default.urls(for: .applicationSupportDirectory,
+                                        in: .userDomainMask).first
+    let url = base?.appendingPathComponent("ClaudeCodeBuddy/settings.json")
+    if let url = url,
+       let data = try? Data(contentsOf: url),
+       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+       let mode = obj["entityMode"] as? String {
+        return mode
+    }
+    return "cat"
+}
+
 private func cmdTest(_ opts: CLIOptions) {
     let sid = "debug-test-\(Int(Date().timeIntervalSince1970))"
+    let mode = readCurrentMode()
 
-    print("Starting test session: \(sid)")
+    print("Starting test session: \(sid) (mode: \(mode))")
 
     do {
         // Create session

@@ -1,58 +1,60 @@
-project:
-  name: skin-pack-system
-  description: 皮肤包系统 — 猫咪/装饰/食物/菜单栏图标可按皮肤切换
-
 tasks:
-  - id: "001-skin-types"
-    name: "SkinPackManifest + SkinPack 核心类型"
+  - id: "001-scaffold"
+    title: "Next.js 项目脚手架 + 依赖安装 + middleware 占位"
     depends_on: []
     complexity: S
-    status: done
+    status: pending
 
-  - id: "002-skin-manager"
-    name: "DefaultSkinManifest + SkinPackManager"
-    depends_on: ["001-skin-types"]
-    complexity: M
-    status: done
-
-  - id: "003-refactor-animation"
-    name: "重构 AnimationComponent + CatSprite"
-    depends_on: ["002-skin-manager"]
-    complexity: M
-    status: done
-
-  - id: "004-refactor-scene"
-    name: "重构 BuddyScene（边界+床）"
-    depends_on: ["002-skin-manager"]
-    complexity: M
-    status: done
-
-  - id: "005-refactor-food"
-    name: "重构 FoodSprite"
-    depends_on: ["002-skin-manager"]
+  - id: "002-types"
+    title: "共享类型 (types.ts)、常量 (constants.ts)、错误处理 (errors.ts)"
+    depends_on: []
     complexity: S
-    status: done
+    status: pending
 
-  - id: "006-refactor-menubar"
-    name: "重构 MenuBarAnimator"
-    depends_on: ["002-skin-manager"]
+  - id: "003-kv"
+    title: "Vercel KV CRUD helpers + 索引管理 (kv.ts)"
+    depends_on: ["002-types"]
+    complexity: M
+    status: pending
+
+  - id: "004-blob"
+    title: "Vercel Blob 存储 helpers (storage.ts)"
+    depends_on: ["002-types"]
     complexity: S
-    status: done
+    status: pending
 
-  - id: "007-hotswap"
-    name: "热替换机制 + AppDelegate 订阅"
-    depends_on: ["003-refactor-animation", "004-refactor-scene", "005-refactor-food", "006-refactor-menubar"]
-    complexity: L
-    status: done
+  - id: "005-validation"
+    title: "Zip 校验逻辑 — manifest 解析 + 精灵存在检查 + zip bomb 防护 (validation.ts)"
+    depends_on: ["002-types"]
+    complexity: M
+    status: pending
 
-  - id: "008-settings-ui"
-    name: "设置窗口 + 皮肤画廊 + popover 按钮"
-    depends_on: ["007-hotswap"]
-    complexity: L
-    status: done
+  - id: "006-api-skins"
+    title: "GET /api/skins — 公开目录端点 (RemoteSkinEntry[] 格式)"
+    depends_on: ["002-types", "003-kv"]
+    complexity: S
+    status: pending
 
-  - id: "009-skin-store"
-    name: "远程皮肤商店（目录/下载/缓存/校验）"
-    depends_on: ["008-settings-ui"]
+  - id: "007-api-upload"
+    title: "POST /api/upload — zip 上传 + 校验 + Blob/KV 存储"
+    depends_on: ["003-kv", "004-blob", "005-validation"]
     complexity: L
-    status: done
+    status: pending
+
+  - id: "008-api-admin"
+    title: "Admin APIs — list/approve/reject/delete"
+    depends_on: ["003-kv", "004-blob"]
+    complexity: M
+    status: pending
+
+  - id: "009-pages"
+    title: "H5 上传页 + Admin 审核仪表盘"
+    depends_on: ["006-api-skins", "007-api-upload", "008-api-admin"]
+    complexity: L
+    status: pending
+
+  - id: "010-cli"
+    title: "CLI 工具 — 本地校验 + 打包 + 上传"
+    depends_on: ["005-validation", "007-api-upload"]
+    complexity: M
+    status: pending

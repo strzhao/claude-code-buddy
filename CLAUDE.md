@@ -10,18 +10,20 @@ Sources/
 ├── ClaudeCodeBuddy/    # App 源码目录（BuddyCore library）
 │   ├── App/            # AppDelegate, main.swift 入口
 │   ├── Entity/         # 实体抽象层
-│   │   ├── EntityProtocol.swift  # 实体协议接口
-│   │   ├── EntityState.swift     # 通用状态枚举（跨层使用）
-│   │   ├── Cat/            # 猫实体
-│   │   │   ├── CatSprite.swift   # 猫精灵（~350 行，组装组件）
-│   │   │   ├── CatConstants.swift # 所有猫相关常量
-│   │   │   └── States/     # GKState 子类（5 个状态 + ResumableState）
-│   │   └── Components/     # 可复用组件
-│   │       ├── AnimationComponent.swift
-│   │       ├── MovementComponent.swift
-│   │       ├── JumpComponent.swift
-│   │       ├── InteractionComponent.swift
-│   │       └── LabelComponent.swift
+│   │   ├── SessionEntity.swift      # 薄抽象协议
+│   │   ├── EntityInputEvent.swift   # 通用事件枚举
+│   │   ├── EntityProtocol.swift     # （遗留协议，Task 1.8 删除）
+│   │   ├── EntityState.swift        # （display 层枚举，保留）
+│   │   ├── Cat/                     # 猫实体
+│   │   │   ├── CatSprite.swift      # 猫精灵（~350 行，组装组件）
+│   │   │   ├── CatConstants.swift   # 所有猫相关常量
+│   │   │   ├── States/              # GKState 子类（5 个状态 + ResumableState）
+│   │   │   └── CatComponents/       # 猫专属组件
+│   │   │       ├── AnimationComponent.swift
+│   │   │       ├── MovementComponent.swift
+│   │   │       ├── JumpComponent.swift
+│   │   │       ├── InteractionComponent.swift
+│   │   │       └── LabelComponent.swift
 │   ├── Environment/    # 环境/天气系统
 │   │   ├── EnvironmentResponder.swift
 │   │   ├── BehaviorModifier.swift

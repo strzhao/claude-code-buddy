@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  37eda9763d07f3b8 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "4132578528a6a90b85aa06c90f0700d59f1868d9",
+  "prompts": {
+    "37eda9763d07f3b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "934e27df-0831-4911-bdcb-70dbcbfa3ecd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}

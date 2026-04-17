@@ -338,7 +338,7 @@ class SessionManager {
 
     // MARK: - EntityState → CatState Bridge
 
-    /// Converts EntityState to CatState for passing to BuddyScene/CatSprite.
+    /// Converts EntityState to CatState for passing to BuddyScene/CatEntity.
     private func catState(from entityState: EntityState) -> CatState {
         switch entityState {
         case .idle:              return .idle

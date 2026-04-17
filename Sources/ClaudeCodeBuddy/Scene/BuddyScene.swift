@@ -17,7 +17,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     // MARK: Properties
 
     private var groundNode: SKNode!
-    private var cats: [String: CatSprite] = [:]
+    private var cats: [String: CatEntity] = [:]
     private let maxCats = CatConstants.Scene.maxCats
 
     private lazy var tooltipNode: TooltipNode = {
@@ -160,7 +160,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             evictIdleCat()
         }
 
-        let cat = CatSprite(sessionId: sessionId)
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: info.color, labelText: info.label)
 
         // Random horizontal spawn position within activity bounds
@@ -207,7 +207,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             hoveredCatSessionId = nil
         }
         // Collect remaining cats as obstacles for the jump animation
-        let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { ($0, $0.containerNode.position.x) }
+        let obstacles: [(cat: CatEntity, x: CGFloat)] = cats.values.map { ($0, $0.containerNode.position.x) }
         cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
             guard cat != nil else { return }
             jumpedCat.playFrightReaction(awayFromX: cat?.containerNode.position.x ?? 0)
@@ -229,7 +229,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     var activeCatCount: Int { cats.count }
 
     func catAtPoint(_ point: CGPoint) -> String? {
-        let hitSize = CatSprite.hitboxSize
+        let hitSize = CatEntity.hitboxSize
         for (sessionId, cat) in cats {
             let catPos = cat.containerNode.position
             let rect = CGRect(
@@ -390,7 +390,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats[sessionId]?.containerNode.position.x
     }
 
-    func idleCats() -> [CatSprite] {
+    func idleCats() -> [CatEntity] {
         cats.values.filter { $0.currentState == .idle }
     }
 

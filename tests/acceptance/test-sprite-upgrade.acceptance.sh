@@ -11,7 +11,7 @@ PASS=0
 FAIL=0
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SPRITE_DIR="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Assets/Sprites"
-CAT_SPRITE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatSprite.swift"
+CAT_SPRITE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatEntity.swift"
 BUDDY_SCENE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift"
 README="$PROJECT_ROOT/README.md"
 
@@ -153,55 +153,55 @@ echo ""
 
 # ── Section 5: Source code contract (grep-based) ──────────────────────────────
 
-echo "--- [Section 5] Source code contracts (CatSprite.swift) ---"
+echo "--- [Section 5] Source code contracts (CatEntity.swift) ---"
 
-echo "[A] CatSprite.swift contains sprite size '48'..."
+echo "[A] CatEntity.swift contains sprite size '48'..."
 if grep -q "48" "$CAT_SPRITE" 2>/dev/null; then
-    pass "CatSprite.swift references '48' (sprite node size updated)"
+    pass "CatEntity.swift references '48' (sprite node size updated)"
 else
-    fail "CatSprite.swift does NOT reference '48' (sprite size not updated)"
+    fail "CatEntity.swift does NOT reference '48' (sprite size not updated)"
 fi
 
-echo "[A] CatSprite.swift contains physics body size '44'..."
+echo "[A] CatEntity.swift contains physics body size '44'..."
 if grep -q "44" "$CAT_SPRITE" 2>/dev/null; then
-    pass "CatSprite.swift references '44' (physics body size updated)"
+    pass "CatEntity.swift references '44' (physics body size updated)"
 else
-    fail "CatSprite.swift does NOT reference '44' (physics body size not updated)"
+    fail "CatEntity.swift does NOT reference '44' (physics body size not updated)"
 fi
 
-echo "[A] CatSprite.swift does NOT contain 'addCodingMovement' (method removed)..."
+echo "[A] CatEntity.swift does NOT contain 'addCodingMovement' (method removed)..."
 if ! grep -q "addCodingMovement" "$CAT_SPRITE" 2>/dev/null; then
-    pass "addCodingMovement is absent from CatSprite.swift"
+    pass "addCodingMovement is absent from CatEntity.swift"
 else
-    fail "addCodingMovement still present in CatSprite.swift (should be removed)"
+    fail "addCodingMovement still present in CatEntity.swift (should be removed)"
 fi
 
-echo "[A] CatSprite.swift contains 'IdleSubState' (idle state machine enum)..."
+echo "[A] CatEntity.swift contains 'IdleSubState' (idle state machine enum)..."
 if grep -q "IdleSubState" "$CAT_SPRITE" 2>/dev/null; then
-    pass "IdleSubState found in CatSprite.swift"
+    pass "IdleSubState found in CatEntity.swift"
 else
-    fail "IdleSubState NOT found in CatSprite.swift (idle state machine missing)"
+    fail "IdleSubState NOT found in CatEntity.swift (idle state machine missing)"
 fi
 
-echo "[A] CatSprite.swift uses 'SKAction.wait' (SpriteKit-safe timing)..."
+echo "[A] CatEntity.swift uses 'SKAction.wait' (SpriteKit-safe timing)..."
 if grep -q "SKAction.wait" "$CAT_SPRITE" 2>/dev/null; then
-    pass "SKAction.wait found in CatSprite.swift"
+    pass "SKAction.wait found in CatEntity.swift"
 else
-    fail "SKAction.wait NOT found in CatSprite.swift (SpriteKit timing not used)"
+    fail "SKAction.wait NOT found in CatEntity.swift (SpriteKit timing not used)"
 fi
 
-echo "[A] CatSprite.swift does NOT use 'Foundation.Timer' (thread-unsafe)..."
+echo "[A] CatEntity.swift does NOT use 'Foundation.Timer' (thread-unsafe)..."
 if ! grep -q "Foundation\.Timer" "$CAT_SPRITE" 2>/dev/null; then
-    pass "Foundation.Timer is absent from CatSprite.swift"
+    pass "Foundation.Timer is absent from CatEntity.swift"
 else
-    fail "Foundation.Timer found in CatSprite.swift (must use SKAction timing)"
+    fail "Foundation.Timer found in CatEntity.swift (must use SKAction timing)"
 fi
 
-echo "[A] CatSprite.swift does NOT use 'DispatchQueue.asyncAfter' (thread-unsafe)..."
+echo "[A] CatEntity.swift does NOT use 'DispatchQueue.asyncAfter' (thread-unsafe)..."
 if ! grep -q "DispatchQueue\.asyncAfter" "$CAT_SPRITE" 2>/dev/null; then
-    pass "DispatchQueue.asyncAfter is absent from CatSprite.swift"
+    pass "DispatchQueue.asyncAfter is absent from CatEntity.swift"
 else
-    fail "DispatchQueue.asyncAfter found in CatSprite.swift (must use SKAction timing)"
+    fail "DispatchQueue.asyncAfter found in CatEntity.swift (must use SKAction timing)"
 fi
 
 echo ""

@@ -2,7 +2,7 @@ import SpriteKit
 
 // MARK: - MovementComponent
 
-/// Encapsulates all movement behaviour for a CatSprite:
+/// Encapsulates all movement behaviour for a CatEntity:
 ///   - Organic random walk (toolUse state)
 ///   - Walking toward food
 ///   - Exit scene (simple walk-to-edge and obstacle-jumping exit)
@@ -10,7 +10,7 @@ class MovementComponent {
 
     // MARK: - Dependencies
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
     let jumpComponent: JumpComponent
 
     // MARK: - Weather
@@ -20,7 +20,7 @@ class MovementComponent {
 
     // MARK: - Init
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
         self.jumpComponent = JumpComponent(
             containerNode: entity.containerNode,
@@ -160,7 +160,7 @@ class MovementComponent {
 
     // MARK: - Walk To Food
 
-    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
+    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatEntity, FoodSprite) -> Void) {
         guard entity.currentState == .idle else { return }
         entity.currentTargetFood = food
 
@@ -313,8 +313,8 @@ class MovementComponent {
     /// Exit variant that jumps over any cats on the path, triggering fright reactions.
     func exitScene(
         sceneWidth: CGFloat,
-        obstacles: [(cat: CatSprite, x: CGFloat)],
-        onJumpOver: @escaping (CatSprite) -> Void,
+        obstacles: [(cat: CatEntity, x: CGFloat)],
+        onJumpOver: @escaping (CatEntity) -> Void,
         completion: @escaping () -> Void
     ) {
         let containerNode = entity.containerNode
@@ -355,7 +355,7 @@ class MovementComponent {
         }
 
         // Filter obstacles on the path — include overlapping cats (within 24px behind)
-        let onPath: [(cat: CatSprite, x: CGFloat)]
+        let onPath: [(cat: CatEntity, x: CGFloat)]
         if goingRight {
             onPath = obstacles.filter { $0.x > myX - CatConstants.Jump.obstaclePathTolerance && $0.x < edgeX }
                               .sorted { $0.x < $1.x }

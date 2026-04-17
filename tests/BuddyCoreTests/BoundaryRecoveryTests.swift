@@ -12,8 +12,8 @@ final class BoundaryRecoveryTests: XCTestCase {
         activityMin: CGFloat = 48,
         activityMax: CGFloat = 0,
         sceneWidth: CGFloat = 800
-    ) -> CatSprite {
-        let cat = CatSprite(sessionId: "boundary-test")
+    ) -> CatEntity {
+        let cat = CatEntity(sessionId: "boundary-test")
         cat.configure(color: .sky, labelText: "test")
         cat.containerNode.position = CGPoint(x: x, y: 48)
         cat.sceneWidth = sceneWidth

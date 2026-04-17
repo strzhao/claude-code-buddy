@@ -4,7 +4,7 @@ import ImageIO
 
 final class CatTaskCompleteState: GKState, ResumableState {
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
 
     /// The bed sprite node placed in the scene during this state.
     private var bedNode: SKSpriteNode?
@@ -12,7 +12,7 @@ final class CatTaskCompleteState: GKState, ResumableState {
     /// Whether a bed slot was successfully assigned (prevents releasing unassigned slots).
     private var hasBedSlot = false
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
     }
 

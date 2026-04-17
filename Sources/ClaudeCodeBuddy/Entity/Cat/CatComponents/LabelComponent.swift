@@ -2,7 +2,7 @@ import SpriteKit
 
 // MARK: - LabelComponent
 
-/// Manages all label nodes and alert overlay for a CatSprite.
+/// Manages all label nodes and alert overlay for a CatEntity.
 class LabelComponent {
 
     // MARK: - Dependencies

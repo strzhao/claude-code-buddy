@@ -51,7 +51,7 @@ class FoodSprite {
     ]
 
     init(textureName: String) {
-        // Load texture from Assets/Food/ using same pattern as CatSprite
+        // Load texture from Assets/Food/ using same pattern as CatEntity
         if let url = ResourceBundle.bundle.url(forResource: textureName, withExtension: "png", subdirectory: "Assets/Food"),
            let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
            let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) {
@@ -59,7 +59,7 @@ class FoodSprite {
             texture.filteringMode = .nearest
             node = SKSpriteNode(texture: texture, size: Self.renderSize)
         } else {
-            // Fallback: colored square (same pattern as CatSprite)
+            // Fallback: colored square (same pattern as CatEntity)
             node = SKSpriteNode(color: .brown, size: Self.renderSize)
         }
         node.name = "food_\(textureName)"

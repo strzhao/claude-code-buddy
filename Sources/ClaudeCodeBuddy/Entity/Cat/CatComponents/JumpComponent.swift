@@ -109,8 +109,8 @@ class JumpComponent {
     /// Returns the parabolic arc action that moves containerNode and applies air stretch to spriteNode.
     private func buildArcAction(
         trajectory: JumpTrajectory,
-        onJumpOver: ((CatSprite) -> Void)?,
-        obstacleCat: CatSprite?
+        onJumpOver: ((CatEntity) -> Void)?,
+        obstacleCat: CatEntity?
     ) -> SKAction {
         var jumpOverFired = false
 
@@ -238,18 +238,18 @@ class JumpComponent {
         from fromX: CGFloat,
         to toX: CGFloat,
         goingRight: Bool,
-        nearbyObstacles: (() -> [(cat: CatSprite, x: CGFloat)])?,
+        nearbyObstacles: (() -> [(cat: CatEntity, x: CGFloat)])?,
         currentState: CatState,
         sessionColor: SessionColor?,
         sessionTintFactor: CGFloat,
         activityMin: CGFloat = 0,
         activityMax: CGFloat = .infinity,
-        onJumpOver: ((CatSprite) -> Void)? = nil
+        onJumpOver: ((CatEntity) -> Void)? = nil
     ) -> [SKAction] {
         guard let obstacles = nearbyObstacles?() else { return [] }
 
         let tolerance = CatConstants.Jump.obstaclePathTolerance
-        let onPath: [(cat: CatSprite, x: CGFloat)]
+        let onPath: [(cat: CatEntity, x: CGFloat)]
         if goingRight {
             onPath = obstacles
                 .filter { $0.x > fromX - tolerance && $0.x < toX + tolerance }
@@ -341,7 +341,7 @@ class JumpComponent {
     /// Appends SKActions for jumping over each obstacle during an exit sequence,
     /// and schedules GCD fallback blocks (for test environments without a display link).
     func buildExitJumpActionsLoop(
-        onPath: [(cat: CatSprite, x: CGFloat)],
+        onPath: [(cat: CatEntity, x: CGFloat)],
         startX: CGFloat,
         groundY: CGFloat,
         goingRight: Bool,
@@ -349,7 +349,7 @@ class JumpComponent {
         sessionTintFactor: CGFloat,
         activityMin: CGFloat = 0,
         activityMax: CGFloat = .infinity,
-        onJumpOver: @escaping (CatSprite) -> Void,
+        onJumpOver: @escaping (CatEntity) -> Void,
         actions: inout [SKAction],
         gcdDelay: inout Double,
         lastLandX: inout CGFloat

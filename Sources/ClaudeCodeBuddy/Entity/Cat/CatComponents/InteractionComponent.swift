@@ -3,16 +3,16 @@ import GameplayKit
 
 // MARK: - InteractionComponent
 
-/// Encapsulates fright reaction and hover scale behaviours for a CatSprite.
+/// Encapsulates fright reaction and hover scale behaviours for a CatEntity.
 class InteractionComponent {
 
     // MARK: - Dependencies
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
 
     // MARK: - Init
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
     }
 
@@ -140,8 +140,8 @@ class InteractionComponent {
         playFrightReaction(awayFromX: jumperX)
     }
 
-    /// Convenience overload: pass the jumper CatSprite directly.
-    func playFrightReaction(frightenedBy jumper: CatSprite) {
+    /// Convenience overload: pass the jumper CatEntity directly.
+    func playFrightReaction(frightenedBy jumper: CatEntity) {
         playFrightReaction(awayFromX: jumper.containerNode.position.x)
     }
 }

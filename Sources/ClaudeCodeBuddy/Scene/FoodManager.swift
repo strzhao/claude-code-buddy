@@ -119,7 +119,7 @@ class FoodManager {
     // MARK: - Notify Single Cat About Landed Food
 
     /// When a cat becomes idle, check for existing landed food and direct it there.
-    func notifyCatAboutLandedFood(_ cat: CatSprite) {
+    func notifyCatAboutLandedFood(_ cat: CatEntity) {
         let landedFoods = activeFoods.filter { $0.state == .landed }
         guard let food = landedFoods.min(by: {
             abs($0.node.position.x - cat.containerNode.position.x)

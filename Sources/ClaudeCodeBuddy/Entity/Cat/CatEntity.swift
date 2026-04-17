@@ -19,9 +19,9 @@ enum ExitDirection {
     case left, right
 }
 
-// MARK: - CatSprite
+// MARK: - CatEntity
 
-class CatSprite {
+class CatEntity {
 
     // MARK: Properties
 
@@ -267,7 +267,7 @@ class CatSprite {
     private var hasDisplayLink: Bool { containerNode.scene?.view != nil }
 
     /// Closure to query other cats' positions for jump-over detection.
-    var nearbyObstacles: (() -> [(cat: CatSprite, x: CGFloat)])?
+    var nearbyObstacles: (() -> [(cat: CatEntity, x: CGFloat)])?
 
     func hideLabel() {
         labelComponent.hideLabel(isDebugCat: isDebugCat)
@@ -381,7 +381,7 @@ class CatSprite {
         node.run(SKAction.sequence([droop, pause, recover, toIdle]), withKey: "disappointedReaction")
     }
 
-    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
+    func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatEntity, FoodSprite) -> Void) {
         movementComponent.walkToFood(food, excitedDelay: excitedDelay, onArrival: onArrival)
     }
 
@@ -466,8 +466,8 @@ class CatSprite {
         interactionComponent.playFrightReaction(frightenedBy: direction)
     }
 
-    /// Convenience overload: pass the jumper CatSprite directly.
-    func playFrightReaction(frightenedBy jumper: CatSprite) {
+    /// Convenience overload: pass the jumper CatEntity directly.
+    func playFrightReaction(frightenedBy jumper: CatEntity) {
         interactionComponent.playFrightReaction(frightenedBy: jumper)
     }
 
@@ -478,8 +478,8 @@ class CatSprite {
     /// Exit variant that jumps over any cats on the path, triggering fright reactions.
     func exitScene(
         sceneWidth: CGFloat,
-        obstacles: [(cat: CatSprite, x: CGFloat)],
-        onJumpOver: @escaping (CatSprite) -> Void,
+        obstacles: [(cat: CatEntity, x: CGFloat)],
+        onJumpOver: @escaping (CatEntity) -> Void,
         completion: @escaping () -> Void
     ) {
         movementComponent.exitScene(sceneWidth: sceneWidth, obstacles: obstacles, onJumpOver: onJumpOver, completion: completion)
@@ -488,11 +488,11 @@ class CatSprite {
 
 // MARK: - EntityProtocol Conformance
 
-extension CatSprite: EntityProtocol {}
+extension CatEntity: EntityProtocol {}
 
 // MARK: - EnvironmentResponder Conformance
 
-extension CatSprite: EnvironmentResponder {
+extension CatEntity: EnvironmentResponder {
     func onWeatherChanged(_ weather: WeatherState) {
         // Apply behavior modifier to movement speed
         let modifier = weather.behaviorModifier

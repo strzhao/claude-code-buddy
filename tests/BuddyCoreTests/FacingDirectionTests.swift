@@ -11,8 +11,8 @@ final class FacingDirectionTests: XCTestCase {
     private func makeCat(
         x: CGFloat = 200,
         facingRight: Bool = false
-    ) -> CatSprite {
-        let cat = CatSprite(sessionId: "dir-test")
+    ) -> CatEntity {
+        let cat = CatEntity(sessionId: "dir-test")
         cat.configure(color: .sky, labelText: "test")
         cat.containerNode.position = CGPoint(x: x, y: 48)
         cat.sceneWidth = 800

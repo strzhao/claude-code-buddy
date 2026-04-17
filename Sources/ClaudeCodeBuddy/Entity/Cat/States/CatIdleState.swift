@@ -11,12 +11,12 @@ enum IdleSubState {
 
 final class CatIdleState: GKState, ResumableState {
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
 
     /// Current idle sub-state.
     var idleSubState: IdleSubState = .breathe
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
     }
 

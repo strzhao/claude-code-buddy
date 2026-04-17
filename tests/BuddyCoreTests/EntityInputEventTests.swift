@@ -25,6 +25,15 @@ final class EntityInputEventTests: XCTestCase {
         XCTFail("expected .toolStart, got \(e)")
     }
 
+    func testFromHookEvent_toolEnd_withTool() {
+        let e = EntityInputEvent.from(hookEvent: .toolEnd, tool: "Read", description: nil)
+        if case .toolEnd(let name) = e {
+            XCTAssertEqual(name, "Read")
+            return
+        }
+        XCTFail("expected .toolEnd, got \(e)")
+    }
+
     func testFromHookEvent_permissionRequest_carriesDescription() {
         let e = EntityInputEvent.from(hookEvent: .permissionRequest, tool: "Bash", description: "rm -rf /")
         if case .permissionRequest(let desc) = e {

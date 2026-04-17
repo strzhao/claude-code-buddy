@@ -1,5 +1,3 @@
-import Foundation
-
 /// Generic input event passed to any SessionEntity.
 /// Each entity (CatEntity / RocketEntity) translates these into its own state machine.
 /// Decoupled from HookEvent (network layer) and EntityState (display layer).
@@ -27,7 +25,7 @@ enum EntityInputEvent {
         case .taskComplete: return .taskComplete
         case .sessionEnd:   return .sessionEnd
         case .idle:         return .thinking  // fallback; SessionManager normally filters this out
-        case .setLabel:     return .thinking  // unreachable in practice
+        case .setLabel:     return .thinking  // unreachable: SessionManager intercepts setLabel before calling from()
         }
     }
 }

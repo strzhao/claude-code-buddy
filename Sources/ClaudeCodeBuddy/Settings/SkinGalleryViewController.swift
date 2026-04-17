@@ -18,7 +18,7 @@ class SkinGalleryViewController: NSViewController {
 
     // Catalog URL — can be overridden for testing
     // swiftlint:disable:next force_unwrapping
-    var catalogURL: URL = URL(string: "https://raw.githubusercontent.com/stringzhao/claude-code-buddy-skins/main/catalog.json")!
+    var catalogURL: URL = URL(string: "https://buddy.stringzhao.life/api/skins")!
 
     // MARK: - Computed data
 

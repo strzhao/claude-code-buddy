@@ -215,6 +215,12 @@ class SessionManager {
         let sessionId = message.sessionId
 
         switch message.event {
+        case .morph:
+            if let raw = message.mode, let mode = EntityMode(rawValue: raw) {
+                EntityModeStore.shared.set(mode)
+            }
+            return
+
         case .sessionEnd:
             if let session = sessions[sessionId] {
                 eventStore.record(StoredEvent(

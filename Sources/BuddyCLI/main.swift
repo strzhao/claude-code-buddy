@@ -24,12 +24,36 @@ private struct BuddyMessage: Encodable {
     let pid: Int?
     let terminalId: String?
     let description: String?
+    let mode: String?
+
+    init(sessionId: String,
+         event: String,
+         tool: String? = nil,
+         timestamp: TimeInterval,
+         cwd: String? = nil,
+         label: String? = nil,
+         pid: Int? = nil,
+         terminalId: String? = nil,
+         description: String? = nil,
+         mode: String? = nil) {
+        self.sessionId = sessionId
+        self.event = event
+        self.tool = tool
+        self.timestamp = timestamp
+        self.cwd = cwd
+        self.label = label
+        self.pid = pid
+        self.terminalId = terminalId
+        self.description = description
+        self.mode = mode
+    }
 
     enum CodingKeys: String, CodingKey {
         case sessionId = "session_id"
         case event, tool, timestamp, cwd, label, pid
         case terminalId = "terminal_id"
         case description
+        case mode
     }
 }
 
@@ -572,6 +596,43 @@ private func cmdTest(_ opts: CLIOptions) {
 
 // MARK: - Main
 
+private func cmdMorph(_ args: [String]) {
+    if args.isEmpty {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory,
+                                            in: .userDomainMask).first
+        let url = base?.appendingPathComponent("ClaudeCodeBuddy/settings.json")
+        if let url = url,
+           let data = try? Data(contentsOf: url),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let mode = obj["entityMode"] as? String {
+            print(#"{"mode":"\#(mode)"}"#)
+        } else {
+            print(#"{"mode":"cat"}"#)
+        }
+        return
+    }
+
+    let target = args[0]
+    guard ["cat", "rocket"].contains(target) else {
+        fputs("morph target must be cat or rocket; got: \(target)\n", stderr)
+        exit(2)
+    }
+
+    let msg = BuddyMessage(
+        sessionId: "",
+        event: "morph",
+        timestamp: Date().timeIntervalSince1970,
+        mode: target
+    )
+    do {
+        try sendMessage(msg)
+        print(#"{"mode":"\#(target)","status":"requested"}"#)
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
 private func main() {
     let args = Array(CommandLine.arguments.dropFirst())
     let opts = parseArguments(args)
@@ -597,6 +658,11 @@ private func main() {
         cmdEmit(opts)
     case "label":
         cmdLabel(opts)
+    case "morph":
+        // Subsequent positional arg holds target mode (if any)
+        let morphArgs = Array(args.dropFirst())
+            .filter { !$0.hasPrefix("--") }
+        cmdMorph(morphArgs)
     case "test":
         cmdTest(opts)
     case "status":

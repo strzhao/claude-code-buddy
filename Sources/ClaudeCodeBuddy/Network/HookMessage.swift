@@ -12,6 +12,7 @@ enum HookEvent: String, Codable {
     case setLabel   = "set_label"
     case permissionRequest = "permission_request"
     case taskComplete = "task_complete"
+    case morph      = "morph"
 }
 
 // MARK: - HookMessage
@@ -26,6 +27,29 @@ struct HookMessage: Codable {
     let pid: Int?
     let terminalId: String?
     let description: String?
+    let mode: String?
+
+    init(sessionId: String,
+         event: HookEvent,
+         tool: String?,
+         timestamp: TimeInterval,
+         cwd: String?,
+         label: String?,
+         pid: Int?,
+         terminalId: String?,
+         description: String?,
+         mode: String? = nil) {
+        self.sessionId = sessionId
+        self.event = event
+        self.tool = tool
+        self.timestamp = timestamp
+        self.cwd = cwd
+        self.label = label
+        self.pid = pid
+        self.terminalId = terminalId
+        self.description = description
+        self.mode = mode
+    }
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
@@ -37,6 +61,7 @@ struct HookMessage: Codable {
         case pid        = "pid"
         case terminalId = "terminal_id"
         case description = "description"
+        case mode       = "mode"
     }
 
     // MARK: - State Mapping
@@ -53,6 +78,7 @@ struct HookMessage: Codable {
         case .setLabel:   return nil
         case .permissionRequest: return .permissionRequest
         case .taskComplete: return .taskComplete
+        case .morph:      return nil
         }
     }
 }

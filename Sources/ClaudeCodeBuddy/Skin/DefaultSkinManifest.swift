@@ -60,6 +60,11 @@ enum DefaultSkinManifest {
             runFrameCount: 5,
             idleFrame: "menubar-idle-1",
             directory: "Sprites/Menubar"
+        ),
+        sounds: SoundConfig(
+            taskComplete: "complete.mp3",
+            permissionRequest: "confirm.mp3",
+            directory: "Sounds"
         )
     )
 }

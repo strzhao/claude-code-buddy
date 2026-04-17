@@ -25,6 +25,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupDockMonitoring()
         setupSkinHotSwap()
 
+        // Initialize sound manager (subscribes to EventBus for audio playback)
+        _ = SoundManager.shared
+
         // Request Accessibility permission (non-blocking prompt)
         DispatchQueue.main.async {
             let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary

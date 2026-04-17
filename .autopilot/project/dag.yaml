@@ -1,48 +1,60 @@
 tasks:
-  - id: "001-constants"
-    title: "提取 CatConstants（所有魔数命名常量化）"
+  - id: "001-scaffold"
+    title: "Next.js 项目脚手架 + 依赖安装 + middleware 占位"
     depends_on: []
     complexity: S
-    status: done
+    status: pending
 
-  - id: "002-gkstate"
-    title: "GKStateMachine + 5 个 GKState 子类"
-    depends_on: ["001-constants"]
+  - id: "002-types"
+    title: "共享类型 (types.ts)、常量 (constants.ts)、错误处理 (errors.ts)"
+    depends_on: []
+    complexity: S
+    status: pending
+
+  - id: "003-kv"
+    title: "Vercel KV CRUD helpers + 索引管理 (kv.ts)"
+    depends_on: ["002-types"]
+    complexity: M
+    status: pending
+
+  - id: "004-blob"
+    title: "Vercel Blob 存储 helpers (storage.ts)"
+    depends_on: ["002-types"]
+    complexity: S
+    status: pending
+
+  - id: "005-validation"
+    title: "Zip 校验逻辑 — manifest 解析 + 精灵存在检查 + zip bomb 防护 (validation.ts)"
+    depends_on: ["002-types"]
+    complexity: M
+    status: pending
+
+  - id: "006-api-skins"
+    title: "GET /api/skins — 公开目录端点 (RemoteSkinEntry[] 格式)"
+    depends_on: ["002-types", "003-kv"]
+    complexity: S
+    status: pending
+
+  - id: "007-api-upload"
+    title: "POST /api/upload — zip 上传 + 校验 + Blob/KV 存储"
+    depends_on: ["003-kv", "004-blob", "005-validation"]
     complexity: L
-    status: done
+    status: pending
 
-  - id: "003-animation"
-    title: "提取 AnimationComponent（纹理加载、帧动画、呼吸效果）"
-    depends_on: ["002-gkstate"]
+  - id: "008-api-admin"
+    title: "Admin APIs — list/approve/reject/delete"
+    depends_on: ["003-kv", "004-blob"]
     complexity: M
-    status: done
+    status: pending
 
-  - id: "004-movement"
-    title: "提取 MovementComponent + JumpComponent（含 GCD fallback 封装）"
-    depends_on: ["003-animation"]
+  - id: "009-pages"
+    title: "H5 上传页 + Admin 审核仪表盘"
+    depends_on: ["006-api-skins", "007-api-upload", "008-api-admin"]
     complexity: L
-    status: done
+    status: pending
 
-  - id: "005-interaction"
-    title: "提取 InteractionComponent + LabelComponent"
-    depends_on: ["004-movement"]
+  - id: "010-cli"
+    title: "CLI 工具 — 本地校验 + 打包 + 上传"
+    depends_on: ["005-validation", "007-api-upload"]
     complexity: M
-    status: done
-
-  - id: "006-entity"
-    title: "EntityProtocol + EntityState + BuddyScene/FoodManager 重构 + 测试迁移"
-    depends_on: ["005-interaction"]
-    complexity: L
-    status: done
-
-  - id: "007-eventbus"
-    title: "Combine EventBus + 解耦 HookMessage/SessionManager/SessionRowView"
-    depends_on: ["006-entity"]
-    complexity: M
-    status: done
-
-  - id: "008-environment"
-    title: "Environment/Weather 框架 + EnvironmentResponder"
-    depends_on: ["007-eventbus"]
-    complexity: M
-    status: done
+    status: pending

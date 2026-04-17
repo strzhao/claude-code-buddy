@@ -1,0 +1,31 @@
+.autopilot/requirements/20260417-猫咪有时间会站在另外/state.md
+  8bd13b626c8e6284 3,14,103
+.autopilot/requirements/20260417-猫咪有时间会站在另外/design.md
+  8bd13b626c8e6284 1-12
+.autopilot/patterns.md
+  8bd13b626c8e6284 3-8
+.autopilot/requirements/20260417-猫咪有时间会站在另外/completion-report.md
+  8bd13b626c8e6284 1-32
+.autopilot/index.md
+  8bd13b626c8e6284 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "f3b8c3c99dd86978d605d2addcb7dfafdf0ed395",
+  "prompts": {
+    "8bd13b626c8e6284": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bcd3a84-e294-42d6-823a-4a9c6777e0e8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 54,
+      "total_deletions": 2,
+      "accepted_lines": 455,
+      "overriden_lines": 0
+    }
+  }
+}

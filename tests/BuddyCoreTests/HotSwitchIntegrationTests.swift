@@ -59,6 +59,38 @@ final class HotSwitchIntegrationTests: XCTestCase {
         XCTAssertEqual(Set(scene.lastReplacementSessionIds), ["s1", "s2", "s3"])
     }
 
+    func testEventsDuringTransition_areReplayed() {
+        let scene = MockScene()
+        let manager = SessionManager(scene: scene)
+        let store = makeTempStore()
+        manager.bind(modeStore: store)
+
+        let releaseSema = DispatchSemaphore(value: 0)
+        scene.replaceAllBlock = { releaseSema.wait() }
+
+        store.set(.rocket)
+        // Let the switch kick off and enter the blocking replace
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+
+        let newMsg = HookMessage(sessionId: "during-transition", event: .sessionStart,
+                                  tool: nil, timestamp: 0, cwd: "/tmp",
+                                  label: nil, pid: nil, terminalId: nil,
+                                  description: nil)
+        manager.handle(message: newMsg)
+
+        XCTAssertNil(manager.sessions["during-transition"],
+                      "event should be queued during transition, not processed")
+
+        releaseSema.signal()
+
+        let done = expectation(description: "queue drained")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            if manager.sessions["during-transition"] != nil { done.fulfill() }
+        }
+        wait(for: [done], timeout: 2.0)
+        XCTAssertNotNil(manager.sessions["during-transition"])
+    }
+
     func testLastEvents_cachedAndReplayedOnSwitch() {
         let scene = MockScene()
         let manager = SessionManager(scene: scene)

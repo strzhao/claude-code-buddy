@@ -20,6 +20,9 @@ class SessionManager {
     private var modeStoreCancellable: AnyCancellable?
     /// Per-session last dispatched event — replayed into the new entity on hot-switch.
     private var lastEvents: [String: EntityInputEvent] = [:]
+    /// True while a hot-switch is in flight — incoming messages are queued.
+    private var isTransitioning = false
+    private var queuedMessages: [HookMessage] = []
 
     /// Full session state keyed by sessionId.
     var sessions: [String: SessionInfo] = [:]
@@ -72,10 +75,16 @@ class SessionManager {
     private func performHotSwitch(to newMode: EntityMode) {
         let prev = currentMode
         currentMode = newMode
+        isTransitioning = true
         let infos = Array(sessions.values)
         scene.replaceAllEntities(with: newMode,
                                  infos: infos,
-                                 lastEvents: lastEvents) {
+                                 lastEvents: lastEvents) { [weak self] in
+            guard let self = self else { return }
+            self.isTransitioning = false
+            let queued = self.queuedMessages
+            self.queuedMessages.removeAll()
+            for m in queued { self.handle(message: m) }
             EventBus.shared.entityModeChanged.send(
                 EntityModeChangeEvent(previous: prev, next: newMode)
             )
@@ -199,6 +208,10 @@ class SessionManager {
     // MARK: - Message Handling
 
     func handle(message: HookMessage) {
+        if isTransitioning {
+            queuedMessages.append(message)
+            return
+        }
         let sessionId = message.sessionId
 
         switch message.event {

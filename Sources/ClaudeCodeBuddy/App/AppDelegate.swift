@@ -26,6 +26,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupSessionManager()
         setupDockMonitoring()
         setupSceneExpansion()
+        setupStatusBarIconMode()
 
         // Request Accessibility permission (non-blocking prompt)
         DispatchQueue.main.async {
@@ -208,6 +209,26 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self = self, let win = self.window else { return }
             self.refreshActivityBounds(windowOriginX: win.frame.origin.x)
         }
+    }
+
+    private func setupStatusBarIconMode() {
+        updateStatusBarIcon(for: EntityModeStore.shared.current)
+        EntityModeStore.shared.publisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                self?.updateStatusBarIcon(for: mode)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func updateStatusBarIcon(for mode: EntityMode) {
+        menuBarAnimator?.mode = mode
+        guard mode == .rocket else { return }
+        // In cat mode the animator owns the image; in rocket mode we set a static symbol.
+        statusItem?.button?.image = NSImage(
+            systemSymbolName: "airplane",
+            accessibilityDescription: mode.rawValue
+        )
     }
 
     private func setupSceneExpansion() {

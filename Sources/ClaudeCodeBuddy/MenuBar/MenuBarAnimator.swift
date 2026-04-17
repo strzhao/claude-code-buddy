@@ -145,12 +145,19 @@ class MenuBarAnimator {
     }
 
     private func tick() {
-        guard !activeFrames.isEmpty else { return }
+        guard mode == .cat, !activeFrames.isEmpty else { return }
         currentFrame = (currentFrame + 1) % activeFrames.count
         button?.image = activeFrames[currentFrame]
     }
 
     private func applyIdleImage() {
+        guard mode == .cat else { return }
         button?.image = idleImage
     }
+
+    // MARK: - Mode-aware icon (Step 7.2)
+
+    /// Current entity mode. In .rocket mode the animator yields control
+    /// of button.image; the owner (AppDelegate) sets a rocket-specific symbol.
+    var mode: EntityMode = .cat
 }

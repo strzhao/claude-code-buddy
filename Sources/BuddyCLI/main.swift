@@ -4,7 +4,7 @@ import Foundation
 
 private let socketPath = "/tmp/claude-buddy.sock"
 private let colorFilePath = "/tmp/claude-buddy-colors.json"
-private let appVersion = "0.5.0"
+private let appVersion = "0.7.0"
 
 // MARK: - Message Types
 

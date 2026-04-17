@@ -55,3 +55,21 @@
 **影响文件**: SocketServer.swift, QueryHandler.swift, SessionManager.swift, BuddyCLI/main.swift
 
 **约束**: Hook 消息永远不应包含 `"action"` 字段。新增协议消息类型时必须保持这条分离规则。
+
+## 2026-04-17: Phase 1 Rocket Morph — SessionEntity 抽象层
+
+**决策**: 引入 `SessionEntity` 薄协议（≤30 行）作为 SessionManager / BuddyScene 与具体 Entity 的边界；`CatEntity`、`RocketEntity` 并列实现；全局只一种形态，通过 `EntityModeStore`（Combine publisher）切换。
+
+**理由**:
+- 协议零形态专属词（cat / rocket / paw / fuel），避免接口腐化
+- `EntityInputEvent` 通用事件枚举；每个 Entity 内部翻译到自己的 GKStateMachine
+- 热切换通过 `SceneControlling.replaceAllEntities` 统一编排：exit 全体 → 按新 mode 重建 → 回放 lastEvents
+- `cats: [String: CatEntity]` 保留作为类型化视图（现有 cat-specific 代码不动）；新增 `entities: [String: SessionEntity]` 作为权威镜像
+
+**影响文件**: SessionEntity.swift, EntityInputEvent.swift, EntityMode.swift, EntityModeStore.swift, EntityFactory.swift, RocketEntity.swift, RocketState 6 个子类, BuddyScene.swift, SessionManager.swift, SceneControlling.swift, AppDelegate.swift
+
+**约束**:
+- `SessionEntity` 协议必须保持 ≤30 行，禁止引入形态专属方法
+- 新增事件先加到 `EntityInputEvent`，再让各 Entity 翻译
+- Rocket 不引入 `Cat*` 头文件即可编译
+- 全局只一种形态；不做"混合场景"

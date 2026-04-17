@@ -53,3 +53,19 @@
 **Scenario**: 通过 Unix domain socket 向客户端发送 JSON 响应
 **Lesson**: `Darwin.write()` 可能返回比请求更少的字节数（部分写入）。必须循环写入直到全部数据发送完毕或发生错误。单次 `write` 并不保证完整发送。这在本地 socket 上较少见但并非不可能（内核缓冲区满、信号中断等）。
 **Evidence**: SocketServer.swift `sendResponse(data:to:)` 方法 — 从单次 write 改为 while 循环
+
+## Pattern: 事件驱动 Entity（取代命令式 switchState）
+
+**场景**: 多态 Entity（猫 / 火箭 / 未来扩展）需要对外统一接口，内部各自翻译到私有状态机。
+
+**做法**:
+1. 定义通用事件 enum（`EntityInputEvent`：sessionStart / thinking / toolStart / taskComplete / ...）
+2. `SessionEntity` 协议只暴露 `handle(event:)`（以及生命周期方法如 enterScene/exitScene）
+3. 每个具体 Entity 内部 `switch(event)`，`stateMachine.enter(XxxState.self)`
+
+**好处**:
+- 协议薄（≤30 行），形态独立演化
+- Phase 2 加新事件不破坏已有调用者
+- 热切换时回放 lastEvents 天然可行（缓存 event → new entity 消化）
+
+**反例**: SessionManager 直接调 `scene.updateCatState(sid, state: .thinking)` — 这种形态专属 API 无法无缝换成 RocketState；所以 Phase 1 并存两条路径（cat mode 走 updateCatState，rocket mode 走 dispatchEntityEvent），Phase 2 应收敛为单一 entity.handle(event:) 路径。

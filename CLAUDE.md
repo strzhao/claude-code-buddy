@@ -10,9 +10,12 @@ Sources/
 ├── ClaudeCodeBuddy/    # App 源码目录（BuddyCore library）
 │   ├── App/            # AppDelegate, main.swift 入口
 │   ├── Entity/         # 实体抽象层
-│   │   ├── SessionEntity.swift      # 薄抽象协议
-│   │   ├── EntityInputEvent.swift   # 通用事件枚举
+│   │   ├── SessionEntity.swift      # 薄抽象协议（≤30 行）
+│   │   ├── EntityInputEvent.swift   # 通用事件枚举（Cat / Rocket 共享）
 │   │   ├── EntityState.swift        # （display 层枚举，保留）
+│   │   ├── EntityMode.swift         # .cat / .rocket
+│   │   ├── EntityModeStore.swift    # 持久化 + Combine publisher
+│   │   ├── EntityFactory.swift      # 按 mode 产出 SessionEntity
 │   │   ├── Cat/                     # 猫实体
 │   │   │   ├── CatEntity.swift      # 猫精灵（~350 行，组装组件）
 │   │   │   ├── CatConstants.swift   # 所有猫相关常量
@@ -23,6 +26,11 @@ Sources/
 │   │   │       ├── JumpComponent.swift
 │   │   │       ├── InteractionComponent.swift
 │   │   │       └── LabelComponent.swift
+│   │   └── Rocket/                  # 火箭实体（v0.7.0 引入）
+│   │       ├── RocketEntity.swift   # 火箭形态（组装 GKStateMachine）
+│   │       ├── RocketConstants.swift
+│   │       ├── RocketSpriteLoader.swift  # 资源加载（Phase 1 占位）
+│   │       └── States/              # 6 状态：onPad/systemsCheck/cruising/abort/landing/liftoff
 │   ├── Environment/    # 环境/天气系统
 │   │   ├── EnvironmentResponder.swift
 │   │   ├── BehaviorModifier.swift

@@ -43,6 +43,27 @@ brew install claude-code-buddy
 | Thinking | Claude 正在思考 | 蹲坐、摇尾巴 |
 | Coding | 执行工具调用 | 快速跑动 |
 
+## 形态切换（New in v0.7.0）
+
+ClaudeCodeBuddy 支持两种形态，随时热切换：
+
+- 🐱 **Cat**（默认）— 像素猫咪，带食物、睡床、惊吓等丰富交互。
+- 🚀 **Rocket** — 像素火箭，状态可视化为点火/巡航/告警/回收/升空。
+
+切换方式（立即生效，无需重启）：
+
+**状态栏**：点击菜单栏 Buddy 图标 → 顶部 `🐱 Cat / 🚀 Rocket` 分段控件。
+
+**命令行**：
+
+```bash
+buddy morph rocket     # 切换到火箭
+buddy morph cat        # 切回猫
+buddy morph            # 查询当前形态
+```
+
+切换过程中会话身份、颜色、当前状态全部保留。
+
 ## 技术架构
 
 ```

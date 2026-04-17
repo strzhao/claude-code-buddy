@@ -4,8 +4,8 @@ final class EventBus {
     static let shared = EventBus()
 
     // Session lifecycle events
-    let sessionStarted = PassthroughSubject<SessionEvent, Never>()
-    let sessionEnded = PassthroughSubject<SessionEvent, Never>()
+    let sessionStarted = PassthroughSubject<SessionLifecycleEvent, Never>()
+    let sessionEnded = PassthroughSubject<SessionLifecycleEvent, Never>()
     let stateChanged = PassthroughSubject<StateChangeEvent, Never>()
     let labelChanged = PassthroughSubject<LabelChangeEvent, Never>()
 

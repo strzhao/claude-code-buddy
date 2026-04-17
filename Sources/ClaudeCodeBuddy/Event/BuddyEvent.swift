@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-struct SessionEvent {
+struct SessionLifecycleEvent {
     let sessionId: String
     let info: SessionInfo
 }

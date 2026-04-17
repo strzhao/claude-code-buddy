@@ -17,6 +17,7 @@ struct SkinPackManifest: Codable, Equatable {
     let foodDirectory: String
     let spriteDirectory: String
     let menuBar: MenuBarConfig
+    let sounds: SoundConfig?
 
     enum CodingKeys: String, CodingKey {
         case id             = "id"
@@ -33,6 +34,23 @@ struct SkinPackManifest: Codable, Equatable {
         case foodDirectory  = "food_directory"
         case spriteDirectory = "sprite_directory"
         case menuBar        = "menu_bar"
+        case sounds         = "sounds"
+    }
+}
+
+// MARK: - SoundConfig
+
+struct SoundConfig: Codable, Equatable {
+    let taskComplete: String?
+    let permissionRequest: String?
+    let directory: String?
+
+    var resolvedDirectory: String { directory ?? "Sounds" }
+
+    enum CodingKeys: String, CodingKey {
+        case taskComplete     = "task_complete"
+        case permissionRequest = "permission_request"
+        case directory        = "directory"
     }
 }
 

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SpriteKit
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
@@ -14,6 +15,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
+    private var cancellables = Set<AnyCancellable>()
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EntityModeStore.shared
@@ -23,6 +25,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenuBar()
         setupSessionManager()
         setupDockMonitoring()
+        setupSceneExpansion()
 
         // Request Accessibility permission (non-blocking prompt)
         DispatchQueue.main.async {
@@ -205,6 +208,20 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self = self, let win = self.window else { return }
             self.refreshActivityBounds(windowOriginX: win.frame.origin.x)
         }
+    }
+
+    private func setupSceneExpansion() {
+        EventBus.shared.sceneExpansionRequested
+            .receive(on: RunLoop.main)
+            .sink { [weak self] req in
+                guard let self = self, let win = self.window else { return }
+                self.dockTracker.suspendRepositioning()
+                win.expandHeightTemporarily(by: req.height, duration: req.duration)
+                DispatchQueue.main.asyncAfter(deadline: .now() + req.duration + 0.1) { [weak self] in
+                    self?.dockTracker.resumeRepositioning()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func refreshActivityBounds(windowOriginX: CGFloat) {

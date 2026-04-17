@@ -106,6 +106,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screenParametersChanged() {
         guard let win = window else { return }
+        guard !dockTracker.isSuspended else { return }
         let newFrame = dockTracker.buddyWindowFrame()
         win.setFrame(newFrame, display: true)
         scene?.size = newFrame.size

@@ -6,6 +6,13 @@ class DockTracker {
 
     private let boundsProvider = DockIconBoundsProvider()
 
+    /// When true, callers should skip repositioning the window.
+    /// Used during SceneExpansion animations to avoid jitter.
+    private(set) var isSuspended = false
+
+    func suspendRepositioning() { isSuspended = true }
+    func resumeRepositioning() { isSuspended = false }
+
     /// Returns the frame for the BuddyWindow: full-width strip sitting on top of the Dock.
     func buddyWindowFrame(height: CGFloat = 80) -> NSRect {
         guard let screen = NSScreen.main else {

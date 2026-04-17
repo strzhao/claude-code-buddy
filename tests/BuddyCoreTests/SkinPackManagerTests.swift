@@ -228,7 +228,8 @@ final class SkinPackManagerTests: XCTestCase {
                 runFrameCount: 4,
                 idleFrame: "mb-idle",
                 directory: "Sprites/MB"
-            )
+            ),
+            sounds: nil
         )
         let data = try JSONEncoder().encode(customManifest)
         try data.write(to: skinDir.appendingPathComponent("manifest.json"))

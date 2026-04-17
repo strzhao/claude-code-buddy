@@ -2,255 +2,154 @@ import AppKit
 import Combine
 
 class SkinGalleryViewController: NSViewController {
+
+    private var collectionView: NSCollectionView!
     private let scrollView = NSScrollView()
-    private let stackView = NSStackView()
     private var cancellables = Set<AnyCancellable>()
-    private var itemViews: [String: SkinGalleryItemView] = [:]
 
-    // MARK: - Store section
-
-    private let storeStackView = NSStackView()
+    // Data source: installed skins + store skins (mixed)
+    private var installedSkins: [SkinPack] = []
     private var remoteSkins: [RemoteSkinEntry] = []
     private var downloadingIds = Set<String>()
 
-    /// Maps NSButton pointer → RemoteSkinEntry.id for download action routing.
-    private var buttonEntryMap: [ObjectIdentifier: String] = [:]
+    // Sound toggle
+    private let soundSwitch = NSSwitch()
+    private let soundLabel = NSTextField(labelWithString: "Sound Effects")
 
     // Catalog URL — can be overridden for testing
     // swiftlint:disable:next force_unwrapping
     var catalogURL: URL = URL(string: "https://raw.githubusercontent.com/stringzhao/claude-code-buddy-skins/main/catalog.json")!
 
+    // MARK: - Computed data
+
+    /// Store entries not yet installed
+    private var availableRemoteSkins: [RemoteSkinEntry] {
+        let installedIds = Set(installedSkins.map { $0.manifest.id })
+        return remoteSkins.filter { !installedIds.contains($0.id) }
+    }
+
+    /// Total items: installed + available remote
+    private var totalItemCount: Int {
+        installedSkins.count + availableRemoteSkins.count
+    }
+
+    // MARK: - Lifecycle
+
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 480))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 480))
 
-        // Gallery stack view (vertical list of skin cards)
-        stackView.orientation = .vertical
-        stackView.spacing = 8
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.alignment = .leading
+        setupCollectionView(in: container)
+        setupSoundToggle(in: container)
 
-        // Store section header
-        let storeHeaderLabel = NSTextField(labelWithString: "Skin Store")
-        storeHeaderLabel.font = .boldSystemFont(ofSize: 11)
-        storeHeaderLabel.textColor = .secondaryLabelColor
-        storeHeaderLabel.translatesAutoresizingMaskIntoConstraints = false
+        self.view = container
 
-        // Store inner stack (cards for remote skins)
-        storeStackView.orientation = .vertical
-        storeStackView.spacing = 8
-        storeStackView.translatesAutoresizingMaskIntoConstraints = false
-        storeStackView.alignment = .leading
+        reloadData()
+        subscribeToChanges()
+        fetchRemoteCatalog()
+    }
 
-        // Outer stack combining gallery + store header + store list
-        let outerStack = NSStackView(views: [stackView, storeHeaderLabel, storeStackView])
-        outerStack.orientation = .vertical
-        outerStack.spacing = 8
-        outerStack.alignment = .leading
-        outerStack.translatesAutoresizingMaskIntoConstraints = false
+    // MARK: - Setup
 
-        scrollView.documentView = outerStack
+    private func setupCollectionView(in container: NSView) {
+        let layout = NSCollectionViewFlowLayout()
+        layout.itemSize = NSSize(width: 170, height: 200)
+        layout.minimumInteritemSpacing = 12
+        layout.minimumLineSpacing = 12
+        layout.sectionInset = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+
+        collectionView = NSCollectionView(frame: NSRect(x: 0, y: 0, width: 580, height: 440))
+        collectionView.collectionViewLayout = layout
+        collectionView.dataSource = self
+        collectionView.delegate = self
+        collectionView.backgroundColors = [.clear]
+        collectionView.isSelectable = false
+        collectionView.register(SkinCardItem.self, forItemWithIdentifier: SkinCardItem.identifier)
+
+        scrollView.documentView = collectionView
         scrollView.hasVerticalScroller = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.drawsBackground = false
         container.addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
-
-            outerStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -16),
-            outerStack.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor, constant: 8),
-
-            stackView.widthAnchor.constraint(equalTo: outerStack.widthAnchor),
-            storeHeaderLabel.widthAnchor.constraint(equalTo: outerStack.widthAnchor),
-            storeStackView.widthAnchor.constraint(equalTo: outerStack.widthAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -40),
         ])
+    }
 
-        self.view = container
+    private func setupSoundToggle(in container: NSView) {
+        soundLabel.font = .systemFont(ofSize: 13)
+        soundLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(soundLabel)
 
-        reloadGallery()
-        reloadStoreSection()
+        soundSwitch.target = self
+        soundSwitch.action = #selector(soundToggleChanged)
+        soundSwitch.state = SoundManager.shared.isEnabled ? .on : .off
+        soundSwitch.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(soundSwitch)
 
-        // Subscribe to active skin changes to update selection highlight
+        NSLayoutConstraint.activate([
+            soundLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+
+            soundSwitch.leadingAnchor.constraint(equalTo: soundLabel.trailingAnchor, constant: 8),
+            soundSwitch.centerYAnchor.constraint(equalTo: soundLabel.centerYAnchor),
+        ])
+    }
+
+    private func subscribeToChanges() {
         SkinPackManager.shared.skinChanged
             .receive(on: RunLoop.main)
-            .sink { [weak self] skin in
-                self?.updateSelection(skinId: skin.manifest.id)
+            .sink { [weak self] _ in
+                self?.collectionView.reloadData()
             }
             .store(in: &cancellables)
 
-        // Subscribe to available skins list changes (downloads complete, etc.)
         SkinPackManager.shared.availableSkinsChanged
             .receive(on: RunLoop.main)
             .sink { [weak self] in
-                self?.reloadGallery()
-                self?.reloadStoreSection()
+                self?.reloadData()
             }
             .store(in: &cancellables)
-
-        // Trigger refresh of remote skins in background
-        Task { await SkinPackManager.shared.refreshRemoteSkins() }
-        fetchRemoteCatalog()
     }
 
-    // MARK: - Gallery
+    // MARK: - Data
 
-    private func reloadGallery() {
-        // Clear old views
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        itemViews.removeAll()
-
-        let activeSkinId = SkinPackManager.shared.activeSkin.manifest.id
-
-        for skin in SkinPackManager.shared.availableSkins {
-            let manifest = skin.manifest
-            let itemView = SkinGalleryItemView(manifest: manifest)
-            itemView.isSelectedSkin = manifest.id == activeSkinId
-            itemView.translatesAutoresizingMaskIntoConstraints = false
-            itemView.onClick = { [weak self] in
-                SkinPackManager.shared.selectSkin(manifest.id)
-                self?.updateSelection(skinId: manifest.id)
-            }
-            stackView.addArrangedSubview(itemView)
-            itemView.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
-            itemViews[manifest.id] = itemView
-        }
+    private func reloadData() {
+        installedSkins = SkinPackManager.shared.availableSkins
+        collectionView.reloadData()
     }
-
-    private func updateSelection(skinId: String) {
-        for (id, view) in itemViews {
-            view.isSelectedSkin = id == skinId
-        }
-    }
-
-    // MARK: - Store Section
 
     private func fetchRemoteCatalog() {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let entries = try await SkinPackManager.shared.store.fetchCatalog(from: catalogURL)
+                let entries = try await SkinPackManager.shared.store.fetchCatalog(from: self.catalogURL)
                 await MainActor.run {
                     self.remoteSkins = entries
-                    self.reloadStoreSection()
+                    self.collectionView.reloadData()
                 }
             } catch {
-                // Silently ignore catalog fetch failures (network may be unavailable)
+                // Silently ignore catalog fetch failures
             }
         }
     }
 
-    private func reloadStoreSection() {
-        // Clear button map entries that belong to old rows
-        storeStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        buttonEntryMap.removeAll()
+    // MARK: - Actions
 
-        // Filter out already-installed skins
-        let installedIds = Set(SkinPackManager.shared.availableSkins.map { $0.manifest.id })
-        let available = remoteSkins.filter { !installedIds.contains($0.id) }
-
-        if available.isEmpty && remoteSkins.isEmpty {
-            // Show loading placeholder while catalog is being fetched
-            let loadingLabel = NSTextField(labelWithString: "Loading store…")
-            loadingLabel.font = .systemFont(ofSize: 11)
-            loadingLabel.textColor = .tertiaryLabelColor
-            loadingLabel.translatesAutoresizingMaskIntoConstraints = false
-            storeStackView.addArrangedSubview(loadingLabel)
-        } else if available.isEmpty {
-            let doneLabel = NSTextField(labelWithString: "All available skins are installed.")
-            doneLabel.font = .systemFont(ofSize: 11)
-            doneLabel.textColor = .tertiaryLabelColor
-            doneLabel.translatesAutoresizingMaskIntoConstraints = false
-            storeStackView.addArrangedSubview(doneLabel)
-        } else {
-            for entry in available {
-                let row = makeStoreRow(for: entry)
-                storeStackView.addArrangedSubview(row)
-                row.widthAnchor.constraint(equalTo: storeStackView.widthAnchor).isActive = true
-            }
-        }
+    @objc private func soundToggleChanged(_ sender: NSSwitch) {
+        SoundManager.shared.isEnabled = sender.state == .on
     }
 
-    private func makeStoreRow(for entry: RemoteSkinEntry) -> NSView {
-        let row = NSView()
-        row.translatesAutoresizingMaskIntoConstraints = false
-        row.wantsLayer = true
-        row.layer?.cornerRadius = 8
-        row.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+    private func downloadSkin(entry: RemoteSkinEntry, at indexPath: IndexPath) {
+        guard !downloadingIds.contains(entry.id) else { return }
+        downloadingIds.insert(entry.id)
 
-        let nameLabel = NSTextField(labelWithString: entry.name)
-        nameLabel.font = .boldSystemFont(ofSize: 13)
-        nameLabel.lineBreakMode = .byTruncatingTail
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let authorLabel = NSTextField(labelWithString: entry.author)
-        authorLabel.font = .systemFont(ofSize: 11)
-        authorLabel.textColor = .secondaryLabelColor
-        authorLabel.lineBreakMode = .byTruncatingTail
-        authorLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let downloadButton = NSButton(title: "Download", target: self, action: #selector(handleDownload(_:)))
-        downloadButton.bezelStyle = .rounded
-        downloadButton.translatesAutoresizingMaskIntoConstraints = false
-
-        let progressIndicator = NSProgressIndicator()
-        progressIndicator.style = .spinning
-        progressIndicator.controlSize = .small
-        progressIndicator.isIndeterminate = true
-        progressIndicator.translatesAutoresizingMaskIntoConstraints = false
-        progressIndicator.isHidden = true
-
-        row.addSubview(nameLabel)
-        row.addSubview(authorLabel)
-        row.addSubview(downloadButton)
-        row.addSubview(progressIndicator)
-
-        // Register button → entryId mapping for action routing
-        buttonEntryMap[ObjectIdentifier(downloadButton)] = entry.id
-
-        NSLayoutConstraint.activate([
-            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
-
-            nameLabel.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 12),
-            nameLabel.trailingAnchor.constraint(equalTo: downloadButton.leadingAnchor, constant: -8),
-            nameLabel.bottomAnchor.constraint(equalTo: row.centerYAnchor, constant: -2),
-
-            authorLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
-            authorLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
-            authorLabel.topAnchor.constraint(equalTo: row.centerYAnchor, constant: 2),
-
-            downloadButton.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -12),
-            downloadButton.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-
-            progressIndicator.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -12),
-            progressIndicator.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-        ])
-
-        // If already downloading, show spinner
-        if downloadingIds.contains(entry.id) {
-            downloadButton.isHidden = true
-            progressIndicator.isHidden = false
-            progressIndicator.startAnimation(nil)
-        }
-
-        return row
-    }
-
-    @objc private func handleDownload(_ sender: NSButton) {
-        guard let entryId = buttonEntryMap[ObjectIdentifier(sender)],
-              let entry = remoteSkins.first(where: { $0.id == entryId }) else { return }
-
-        guard !downloadingIds.contains(entryId) else { return }
-        downloadingIds.insert(entryId)
-
-        // Update UI: hide button, show spinner for this row
-        sender.isHidden = true
-        if let row = sender.superview,
-           let indicator = row.subviews.first(where: { $0 is NSProgressIndicator }) as? NSProgressIndicator {
-            indicator.isHidden = false
-            indicator.startAnimation(nil)
+        // Update the specific cell
+        if let item = collectionView.item(at: indexPath) as? SkinCardItem {
+            item.isDownloading = true
         }
 
         Task { [weak self] in
@@ -261,21 +160,13 @@ class SkinGalleryViewController: NSViewController {
                     progress: { _ in }
                 )
                 await MainActor.run {
-                    self.downloadingIds.remove(entryId)
+                    self.downloadingIds.remove(entry.id)
                     SkinPackManager.shared.addDownloadedSkin(skin)
-                    // reloadGallery/reloadStoreSection are triggered via availableSkinsChanged
                 }
             } catch {
                 await MainActor.run {
-                    self.downloadingIds.remove(entryId)
-                    // Restore button state
-                    sender.isHidden = false
-                    if let row = sender.superview,
-                       let indicator = row.subviews.first(where: { $0 is NSProgressIndicator }) as? NSProgressIndicator {
-                        indicator.stopAnimation(nil)
-                        indicator.isHidden = true
-                    }
-                    // Show error as alert
+                    self.downloadingIds.remove(entry.id)
+                    self.collectionView.reloadData()
                     let alert = NSAlert()
                     alert.messageText = "Download Failed"
                     alert.informativeText = error.localizedDescription
@@ -286,3 +177,78 @@ class SkinGalleryViewController: NSViewController {
         }
     }
 }
+
+// MARK: - NSCollectionViewDataSource
+
+extension SkinGalleryViewController: NSCollectionViewDataSource {
+    func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
+        totalItemCount
+    }
+
+    func collectionView(
+        _ collectionView: NSCollectionView,
+        itemForRepresentedObjectAt indexPath: IndexPath
+    ) -> NSCollectionViewItem {
+        let item = collectionView.makeItem(
+            withIdentifier: SkinCardItem.identifier,
+            for: indexPath
+        )
+        guard let cardItem = item as? SkinCardItem else { return item }
+
+        let activeSkinId = SkinPackManager.shared.activeSkin.manifest.id
+        let index = indexPath.item
+
+        if index < installedSkins.count {
+            // Installed skin
+            let skin = installedSkins[index]
+            cardItem.configure(manifest: skin.manifest, skin: skin)
+            cardItem.isInstalled = true
+            cardItem.isSelectedSkin = skin.manifest.id == activeSkinId
+            cardItem.isDownloading = false
+            cardItem.onSelect = {
+                SkinPackManager.shared.selectSkin(skin.manifest.id)
+            }
+        } else {
+            // Remote skin (not yet installed)
+            let remoteIndex = index - installedSkins.count
+            let available = availableRemoteSkins
+            guard remoteIndex < available.count else { return cardItem }
+            let entry = available[remoteIndex]
+
+            let manifest = SkinPackManifest(
+                id: entry.id,
+                name: entry.name,
+                author: entry.author,
+                version: entry.version,
+                previewImage: nil,
+                spritePrefix: "cat",
+                animationNames: [],
+                canvasSize: [48, 48],
+                bedNames: [],
+                boundarySprite: "",
+                foodNames: [],
+                foodDirectory: "",
+                spriteDirectory: "",
+                menuBar: MenuBarConfig(
+                    walkPrefix: "", walkFrameCount: 0,
+                    runPrefix: "", runFrameCount: 0,
+                    idleFrame: "", directory: ""
+                ),
+                sounds: nil
+            )
+            cardItem.configure(manifest: manifest, skin: nil)
+            cardItem.isInstalled = false
+            cardItem.isSelectedSkin = false
+            cardItem.isDownloading = downloadingIds.contains(entry.id)
+            cardItem.onDownload = { [weak self] in
+                self?.downloadSkin(entry: entry, at: indexPath)
+            }
+        }
+
+        return cardItem
+    }
+}
+
+// MARK: - NSCollectionViewDelegateFlowLayout
+
+extension SkinGalleryViewController: NSCollectionViewDelegateFlowLayout {}

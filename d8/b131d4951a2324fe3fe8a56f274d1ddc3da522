@@ -1,0 +1,35 @@
+Sources/ClaudeCodeBuddy/Settings/SkinCardItem.swift
+  3681978d9495b1dd 1-193
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  3681978d9495b1dd 28-30
+Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift
+  3681978d9495b1dd 6,11
+Sources/ClaudeCodeBuddy/Skin/SkinPackManifest.swift
+  3681978d9495b1dd 20,37-53
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  3681978d9495b1dd 5-6,10-11,15-17,23-36,39-68,75,78,80,82-85,87-91,93-95,97-100,102,105-106,113,118,120-122,129,132,135,140,142-143,146-148,150-152,163,168-169,180-244,247-248,251-254
+Sources/ClaudeCodeBuddy/Audio/SoundManager.swift
+  3681978d9495b1dd 1-81
+Sources/ClaudeCodeBuddy/Skin/DefaultSkinManifest.swift
+  3681978d9495b1dd 63-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d8b131d4951a2324fe3fe8a56f274d1ddc3da522",
+  "prompts": {
+    "3681978d9495b1dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11a61dda-188a-4e6b-8396-fa6e924343f9",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 477,
+      "total_deletions": 211,
+      "accepted_lines": 474,
+      "overriden_lines": 0
+    }
+  }
+}

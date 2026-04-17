@@ -161,7 +161,7 @@ class CatSprite {
         let body = SKPhysicsBody(rectangleOf: CatConstants.Physics.bodySize)
         body.allowsRotation = false
         body.categoryBitMask    = PhysicsCategory.cat
-        body.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.ground
+        body.collisionBitMask   = PhysicsCategory.ground
         body.contactTestBitMask = PhysicsCategory.ground
         body.restitution = CatConstants.Physics.restitution
         body.friction    = CatConstants.Physics.friction

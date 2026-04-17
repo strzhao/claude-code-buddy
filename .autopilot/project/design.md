@@ -1,65 +1,58 @@
-# 皮肤包系统 — 项目设计文档
+# Claude Code Buddy Web — 皮肤包商店架构设计
 
-## 目标
-
-为 Claude Code Buddy 引入皮肤包系统，使猫咪精灵、动画、装饰物（床、边界）、食物、菜单栏图标可按皮肤包切换。提供设置中心 UI 和远程皮肤商店。
-
-## 系统架构
+## 系统概览
 
 ```
-SkinPackManifest (Codable)          ← 皮肤包元数据 + 资产配置
-        ↑
-SkinPack (struct)                   ← manifest + 资源解析（Bundle 或 file URL）
-        ↑
-SkinPackManager (singleton)         ← 加载/选择/持久化/变更通知
-   ↑           ↑            ↑
-CatSprite  MenuBarAnimator  BuddyScene/FoodSprite
+社区用户 ──→ H5 上传页 ──→ POST /api/upload ──→ [校验] ──→ Blob + KV (pending)
+                                                                    │
+CLI 工具 ──→ 本地校验 ──→ POST /api/upload ──────────────────────────┘
+                                                                    │
+管理员 ────→ Admin 页面 ──→ Admin APIs ──→ KV 状态流转 (approve/reject)
+                                                                    │
+桌面 App ──→ GET /api/skins ──→ KV (approved only) ──→ RemoteSkinEntry[]
 ```
 
-**数据流**: 用户选皮肤 → SkinPackManager.selectSkin() → UserDefaults 持久化 → Combine skinChanged → AppDelegate 接收 → 分发到 BuddyScene.reloadSkin() + MenuBarAnimator.reloadSprites()
+## Tech Stack
+
+- Next.js (App Router) + TypeScript + Tailwind CSS
+- Vercel Blob (zip + preview) + Vercel KV (metadata)
+- JSZip (服务端 zip 解析)
+- 新独立 GitHub 仓库: `stringzhao/claude-code-buddy-web`
 
 ## 关键技术决策
 
-1. **SkinPack 统一资源解析**: `url(forResource:withExtension:subdirectory:)` 方法，内置皮肤走 `Bundle.url()` 带 "Assets/" 前缀，本地/下载皮肤走 `FileManager` 直接拼接
-2. **Manifest 驱动**: `manifest.json` 声明所有资产名和配置
-3. **UserDefaults 持久化**: `selectedSkinId` 单键
-4. **NSPanel 设置窗口**: 独立于 popover 的浮动面板
-5. **热替换**: removeAllActions() → loadTextures() → resume()。CatEatingState 跳过（吃完自然用新纹理）
+1. `GET /api/skins` 返回桌面端 `RemoteSkinEntry[]` 格式（snake_case JSON）
+2. KV: `skin:{id}:{version}` 主键 + Redis SET 按状态索引
+3. CLI 本地预校验 + 服务端完整校验双层保障
+4. `middleware.ts` 匹配 admin 路由，当前 pass-through，后续接入认证
+5. 同一 id 仅允许一个 approved 版本出现在公开列表
 
-## SkinPackManifest 结构
+## 数据模型
 
-```swift
-struct SkinPackManifest: Codable, Equatable {
-    let id: String
-    let name: String
-    let author: String
-    let version: String
-    let previewImage: String?
-    let spritePrefix: String
-    let animationNames: [String]
-    let canvasSize: [CGFloat]
-    let bedNames: [String]
-    let boundarySprite: String
-    let foodNames: [String]
-    let foodDirectory: String
-    let spriteDirectory: String
-    let menuBar: MenuBarConfig
+### KV Key Schema
 
-    struct MenuBarConfig: Codable, Equatable {
-        let walkPrefix: String
-        let walkFrameCount: Int
-        let runPrefix: String
-        let runFrameCount: Int
-        let idleFrame: String
-        let directory: String
-    }
-}
-```
+| Key | Value | 用途 |
+|-----|-------|------|
+| `skin:{id}:{version}` | SkinRecord JSON | 主记录 |
+| `skin-ids` | Redis SET | 全量索引 |
+| `skin-ids:approved` | Redis SET | 已批准索引 |
+| `skin-ids:pending` | Redis SET | 待审核索引 |
+| `skin-ids:rejected` | Redis SET | 已拒绝索引 |
 
-## 跨任务约束
+### API 响应字段映射
 
-- 新类型前缀 `SkinPack`，目录 `Skin/` 和 `Settings/`
-- `SkinPack.url()` 是纹理加载唯一入口
-- `SkinPackManager.shared.activeSkin` 是当前皮肤唯一来源
-- Combine `.receive(on: RunLoop.main)` 确保主线程
-- 缺失纹理保持现有降级行为
+| SkinRecord 字段 | API 响应字段 | 说明 |
+|----------------|-------------|------|
+| `blob_url` | `download_url` | 直接下载 URL |
+| `preview_blob_url` | `preview_url` | 可为 null |
+| id/name/author/version/size | 同名透传 | |
+| status/manifest/etc. | 不输出 | 内部字段 |
+
+## 跨任务设计约束
+
+1. 所有 API 响应 snake_case（桌面端兼容关键）
+2. 错误格式: `{ "error": "...", "details": "..." }`
+3. KV pipeline 批量减少 RTT（非原子事务）
+4. 上传上限 5MB；maxDuration: 60
+5. reject 不删除 Blob；仅 delete API 同步删除
+6. 并发写入用 KV SET NX 语义

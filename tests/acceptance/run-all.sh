@@ -62,6 +62,7 @@ run_suite "$SCRIPT_DIR/test-socket-protocol.sh"
 run_suite "$SCRIPT_DIR/test-multi-session.sh"
 run_suite "$SCRIPT_DIR/test-random-walk-jumps.acceptance.sh"
 run_suite "$SCRIPT_DIR/test-app-bundle.sh"
+run_suite "$SCRIPT_DIR/test-rocket-morph.sh"
 
 # ── Final summary ──────────────────────────────────────────────────────────
 separator

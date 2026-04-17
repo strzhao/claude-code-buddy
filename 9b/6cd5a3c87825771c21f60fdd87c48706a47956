@@ -1,0 +1,50 @@
+.autopilot/project/tasks/010-cli.md
+  37eda9763d07f3b8 1-68
+.gitignore
+  37eda9763d07f3b8 36
+CLAUDE.md
+  37eda9763d07f3b8 157-188
+.autopilot/project/design.md
+  6bf4d31356153b3e 1,3,6,8,10,12,15,18-19,22,27,35,45
+  37eda9763d07f3b8 7,9,11,17,20,24-26,28-34,36-44,46-58
+.autopilot/project/tasks/007-api-upload.md
+  37eda9763d07f3b8 1-51
+.autopilot/project/dag.yaml
+  6bf4d31356153b3e 2-3,6,8-10,12,14-16,18,20-22,24,26-28,34,36,38-40,42,44-48,50-52,54
+  37eda9763d07f3b8 11,30-33,56-60
+.autopilot/project/tasks/009-pages.md
+  37eda9763d07f3b8 1-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "9b6cd5a3c87825771c21f60fdd87c48706a47956",
+  "prompts": {
+    "37eda9763d07f3b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "934e27df-0831-4911-bdcb-70dbcbfa3ecd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 256,
+      "overriden_lines": 0
+    },
+    "6bf4d31356153b3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a94fad-7a57-4363-8e7e-3bca0ae6505a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 49,
+      "overriden_lines": 0
+    }
+  }
+}

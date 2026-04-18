@@ -335,6 +335,36 @@ enum CatConstants {
         static let lineWidth: CGFloat = 1.0
     }
 
+    // MARK: - LevelUp
+    enum LevelUp {
+        /// Duration of the flash + scale animation
+        static let animationDuration: TimeInterval = 0.5
+        /// Peak color blend factor during flash
+        static let flashBlendFactor: CGFloat = 0.8
+        /// Duration of flash in phase
+        static let flashInDuration: TimeInterval = 0.1
+        /// Duration of flash out phase
+        static let flashOutDuration: TimeInterval = 0.2
+        /// Scale overshoot multiplier (applied on top of target tokenScale)
+        static let scaleOvershoot: CGFloat = 1.15
+        /// Duration of scale overshoot phase
+        static let scaleOvershootDuration: TimeInterval = 0.15
+        /// Duration of scale settle phase (overshoot → target)
+        static let scaleSettleDuration: TimeInterval = 0.2
+        /// SKAction key for level-up animation on containerNode
+        static let actionKey = "levelUp"
+        /// SKAction key for level-up flash animation on node
+        static let flashActionKey = "levelUpFlash"
+        /// Duration the popup label stays visible before fading
+        static let popupDisplayDuration: TimeInterval = 2.0
+        /// Duration of popup fade-out
+        static let popupFadeOutDuration: TimeInterval = 0.5
+        /// Y offset of popup label above cat center
+        static let popupYOffset: CGFloat = 40
+        /// Font size for popup label
+        static let popupFontSize: CGFloat = 12
+    }
+
     // MARK: - Separation
     enum Separation {
         /// Minimum desired X distance between two cat centers (px).

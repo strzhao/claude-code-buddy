@@ -23,14 +23,15 @@ class InteractionComponent {
 
     func applyHoverScale() {
         entity.containerNode.removeAction(forKey: "hoverScale")
-        let scale = SKAction.scale(to: InteractionComponent.hoverScale, duration: InteractionComponent.hoverDuration)
+        let targetScale = entity.tokenScale * InteractionComponent.hoverScale
+        let scale = SKAction.scale(to: targetScale, duration: InteractionComponent.hoverDuration)
         scale.timingMode = .easeOut
         entity.containerNode.run(scale, withKey: "hoverScale")
     }
 
     func removeHoverScale() {
         entity.containerNode.removeAction(forKey: "hoverScale")
-        let scale = SKAction.scale(to: 1.0, duration: InteractionComponent.hoverDuration)
+        let scale = SKAction.scale(to: entity.tokenScale, duration: InteractionComponent.hoverDuration)
         scale.timingMode = .easeOut
         entity.containerNode.run(scale, withKey: "hoverScale")
     }

@@ -10,7 +10,7 @@ private let appVersion = "0.5.0"
 
 private let validEvents = [
     "thinking", "tool_start", "tool_end", "idle",
-    "session_start", "session_end", "set_label",
+    "session_start", "session_end", "set_label", "set_tokens",
     "permission_request", "task_complete"
 ]
 
@@ -24,12 +24,14 @@ private struct BuddyMessage: Encodable {
     let pid: Int?
     let terminalId: String?
     let description: String?
+    let totalTokens: Int?
 
     enum CodingKeys: String, CodingKey {
         case sessionId = "session_id"
         case event, tool, timestamp, cwd, label, pid
         case terminalId = "terminal_id"
         case description
+        case totalTokens = "total_tokens"
     }
 }
 
@@ -229,7 +231,9 @@ private func printHelp() {
       session end [--id ID]                  Remove a debug cat
       emit <event> [--id ID] [--tool NAME] [--desc TEXT]  Send event
       label <id> <text>                      Set cat label
+      token <id> <amount>                    Set token count (e.g. 500000, 1.2M, 5M)
       test [--delay N]                       Auto-test: cycle all states
+      test-tokens [--delay N]                Auto-test: cycle all token levels
       status                                Show active sessions
       inspect [--id ID]                      Query session and cat state (JSON)
       events [--id ID] [--last N]            Show recent event history (JSON)
@@ -249,10 +253,9 @@ private func printHelp() {
     Examples:
       buddy session start --id debug-A --cwd ~/myproject
       buddy emit thinking --id debug-A
+      buddy token debug-A 1.5M
+      buddy test-tokens --delay 3
       buddy inspect --id debug-A
-      buddy events --id debug-A --last 10
-      buddy health
-      buddy test --delay 2
       buddy session end --id debug-A
     """)
 }
@@ -290,7 +293,7 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
                 opts.command = arg
             } else if opts.command == "session" && opts.subcommand.isEmpty {
                 opts.subcommand = arg
-            } else if opts.command == "label" && opts.positionalArgs.count < 2 {
+            } else if (opts.command == "label" || opts.command == "token") && opts.positionalArgs.count < 2 {
                 opts.positionalArgs.append(arg)
             } else if opts.command == "emit" && opts.subcommand.isEmpty {
                 opts.subcommand = arg
@@ -326,7 +329,8 @@ private func cmdSessionStart(_ opts: CLIOptions) {
         label: nil,
         pid: nil,
         terminalId: nil,
-        description: nil
+        description: nil,
+        totalTokens: nil
     )
 
     do {
@@ -353,7 +357,8 @@ private func cmdSessionEnd(_ opts: CLIOptions) {
         label: nil,
         pid: nil,
         terminalId: nil,
-        description: nil
+        description: nil,
+        totalTokens: nil
     )
 
     do {
@@ -382,7 +387,8 @@ private func cmdEmit(_ opts: CLIOptions) {
         label: opts.label,
         pid: nil,
         terminalId: nil,
-        description: opts.desc
+        description: opts.desc,
+        totalTokens: nil
     )
 
     do {
@@ -412,7 +418,8 @@ private func cmdLabel(_ opts: CLIOptions) {
         label: text,
         pid: nil,
         terminalId: nil,
-        description: nil
+        description: nil,
+        totalTokens: nil
     )
 
     do {
@@ -516,7 +523,7 @@ private func cmdTest(_ opts: CLIOptions) {
         try sendMessage(BuddyMessage(
             sessionId: sid, event: "session_start", tool: nil,
             timestamp: Date().timeIntervalSince1970,
-            cwd: "/tmp", label: nil, pid: nil, terminalId: nil, description: nil
+            cwd: "/tmp", label: nil, pid: nil, terminalId: nil, description: nil, totalTokens: nil
         ))
         print("  ✓ session_start")
         Thread.sleep(forTimeInterval: 1)
@@ -539,7 +546,7 @@ private func cmdTest(_ opts: CLIOptions) {
             try sendMessage(BuddyMessage(
                 sessionId: sid, event: step.event, tool: step.tool,
                 timestamp: Date().timeIntervalSince1970,
-                cwd: nil, label: nil, pid: nil, terminalId: nil, description: step.desc
+                cwd: nil, label: nil, pid: nil, terminalId: nil, description: step.desc, totalTokens: nil
             ))
             let toolInfo = step.tool.map { " (\($0))" } ?? ""
             print("  ✓ \(step.event)\(toolInfo)")
@@ -550,7 +557,7 @@ private func cmdTest(_ opts: CLIOptions) {
         try sendMessage(BuddyMessage(
             sessionId: sid, event: "set_label", tool: nil,
             timestamp: Date().timeIntervalSince1970,
-            cwd: nil, label: "Test Cat", pid: nil, terminalId: nil, description: nil
+            cwd: nil, label: "Test Cat", pid: nil, terminalId: nil, description: nil, totalTokens: nil
         ))
         print("  ✓ set_label -> Test Cat")
         Thread.sleep(forTimeInterval: 1)
@@ -559,10 +566,140 @@ private func cmdTest(_ opts: CLIOptions) {
         try sendMessage(BuddyMessage(
             sessionId: sid, event: "session_end", tool: nil,
             timestamp: Date().timeIntervalSince1970,
-            cwd: nil, label: nil, pid: nil, terminalId: nil, description: nil
+            cwd: nil, label: nil, pid: nil, terminalId: nil, description: nil, totalTokens: nil
         ))
         print("  ✓ session_end")
         print("Test complete!")
+
+    } catch {
+        fputs("Test failed: \(error)\n", stderr)
+        exit(1)
+    }
+}
+
+// MARK: - Token Commands
+
+/// Parse a token amount string like "500000", "1.5M", "500K" into an integer.
+private func parseTokenAmount(_ str: String) -> Int? {
+    let upper = str.uppercased()
+    if upper.hasSuffix("M") {
+        let numStr = String(upper.dropLast())
+        guard let num = Double(numStr) else { return nil }
+        return Int(num * 1_000_000)
+    } else if upper.hasSuffix("K") {
+        let numStr = String(upper.dropLast())
+        guard let num = Double(numStr) else { return nil }
+        return Int(num * 1_000)
+    } else {
+        return Int(str)
+    }
+}
+
+private func formatTokensForDisplay(_ tokens: Int) -> String {
+    if tokens >= 1_000_000 {
+        let m = Double(tokens) / 1_000_000.0
+        return m < 10 ? String(format: "%.1fM", m) : String(format: "%.0fM", m)
+    } else if tokens >= 1000 {
+        return String(format: "%.0fK", Double(tokens) / 1000.0)
+    } else {
+        return "\(tokens)"
+    }
+}
+
+private func cmdToken(_ opts: CLIOptions) {
+    guard opts.positionalArgs.count >= 2 else {
+        fputs("Usage: buddy token <id> <amount>\n  amount: 500000, 1.5M, 500K\n", stderr)
+        exit(2)
+    }
+
+    let sid = opts.positionalArgs[0]
+    let amountStr = opts.positionalArgs[1]
+
+    guard let tokens = parseTokenAmount(amountStr) else {
+        fputs("Invalid token amount: \(amountStr)\n  Examples: 500000, 1.5M, 500K\n", stderr)
+        exit(2)
+    }
+
+    let message = BuddyMessage(
+        sessionId: sid,
+        event: "set_tokens",
+        tool: nil,
+        timestamp: Date().timeIntervalSince1970,
+        cwd: nil,
+        label: nil,
+        pid: nil,
+        terminalId: nil,
+        description: nil,
+        totalTokens: tokens
+    )
+
+    do {
+        try sendMessage(message)
+        let formatted = formatTokensForDisplay(tokens)
+        print("Tokens set: \(sid) -> \(formatted)")
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdTestTokens(_ opts: CLIOptions) {
+    let sid = "debug-token-\(Int(Date().timeIntervalSince1970))"
+    let delay = Double(opts.delay)
+
+    print("Starting token level test: \(sid)")
+
+    let levels: [(name: String, tokens: Int)] = [
+        ("Lv1 (0)", 0),
+        ("Lv2 (100K)", 100_000),
+        ("Lv3 (300K)", 300_000),
+        ("Lv4 (500K)", 500_000),
+        ("Lv5 (800K)", 800_000),
+        ("Lv6 (1.2M)", 1_200_000),
+        ("Lv7 (2M)", 2_000_000),
+        ("Lv8 (3M)", 3_000_000),
+        ("Lv9 (5M)", 5_000_000),
+        ("Lv10 (7M)", 7_000_000),
+        ("Lv11 (10M)", 10_000_000),
+        ("Lv12 (15M)", 15_000_000),
+        ("Lv13 (20M)", 20_000_000),
+        ("Lv14 (30M)", 30_000_000),
+        ("Lv15 (50M)", 50_000_000),
+        ("Lv16 (100M)", 100_000_000),
+    ]
+
+    do {
+        // Create session
+        try sendMessage(BuddyMessage(
+            sessionId: sid, event: "session_start", tool: nil,
+            timestamp: Date().timeIntervalSince1970,
+            cwd: "/tmp", label: nil, pid: nil, terminalId: nil, description: nil, totalTokens: nil
+        ))
+        print("  ✓ session_start")
+        Thread.sleep(forTimeInterval: 1)
+
+        // Cycle through all token levels
+        for level in levels {
+            try sendMessage(BuddyMessage(
+                sessionId: sid, event: "set_tokens", tool: nil,
+                timestamp: Date().timeIntervalSince1970,
+                cwd: nil, label: nil, pid: nil, terminalId: nil, description: nil, totalTokens: level.tokens
+            ))
+            print("  ✓ \(level.name)")
+            Thread.sleep(forTimeInterval: delay)
+        }
+
+        // Wait a bit then end session
+        print("  All levels shown! Ending in 3s...")
+        Thread.sleep(forTimeInterval: 3)
+
+        try sendMessage(BuddyMessage(
+            sessionId: sid, event: "session_end", tool: nil,
+            timestamp: Date().timeIntervalSince1970,
+            cwd: nil, label: nil, pid: nil, terminalId: nil, description: nil, totalTokens: nil
+        ))
+        print("  ✓ session_end")
+        print("Token test complete!")
 
     } catch {
         fputs("Test failed: \(error)\n", stderr)
@@ -597,8 +734,12 @@ private func main() {
         cmdEmit(opts)
     case "label":
         cmdLabel(opts)
+    case "token":
+        cmdToken(opts)
     case "test":
         cmdTest(opts)
+    case "test-tokens":
+        cmdTestTokens(opts)
     case "status":
         cmdStatus()
     case "inspect":

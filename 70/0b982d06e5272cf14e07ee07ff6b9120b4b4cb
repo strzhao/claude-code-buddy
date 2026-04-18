@@ -1,0 +1,45 @@
+Sources/BuddyCLI/main.swift
+  2e2b1dc9a6398643 13,27,34,234,236,256-257,296,332-333,360-361,390-391,421-422,526,549,560,569,580-709,737-738,741-742
+tests/BuddyCoreTests/TokenLevelTests.swift
+  2e2b1dc9a6398643 1-173
+Sources/ClaudeCodeBuddy/Entity/Components/LabelComponent.swift
+  2e2b1dc9a6398643 123-143
+Sources/ClaudeCodeBuddy/Entity/Cat/TokenLevel.swift
+  2e2b1dc9a6398643 1-145
+Sources/ClaudeCodeBuddy/Entity/Components/InteractionComponent.swift
+  2e2b1dc9a6398643 26-27,34
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  2e2b1dc9a6398643 43-48,57-85,241,251,253,270,273-275,277-280,316-323,330-380,450,476-478,627-629
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  2e2b1dc9a6398643 194-198
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  2e2b1dc9a6398643 91-97,212-213,245-323,522
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  2e2b1dc9a6398643 286,288-290,344,351-352
+Sources/ClaudeCodeBuddy/Network/HookMessage.swift
+  2e2b1dc9a6398643 13,30,42,57
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  2e2b1dc9a6398643 320-349
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  2e2b1dc9a6398643 15,60,114-124,201-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "700b982d06e5272cf14e07ee07ff6b9120b4b4cb",
+  "prompts": {
+    "2e2b1dc9a6398643": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11783a36-eea7-452c-8183-8e32e6e7466f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1065,
+      "total_deletions": 168,
+      "accepted_lines": 954,
+      "overriden_lines": 0
+    }
+  }
+}

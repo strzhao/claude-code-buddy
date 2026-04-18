@@ -27,14 +27,12 @@ final class RocketAbortStandbyState: RocketBaseState {
 
     private func playAbortAnimation() {
         let (frames, fps) = RocketSpriteLoader.frames(for: "abort", kind: entity.kind)
-        if frames.count > 1 {
-            let blink = SKAction.repeatForever(
-                SKAction.animate(with: frames, timePerFrame: 1.0 / fps)
-            )
-            entity.node.run(blink, withKey: "abort")
-        } else {
-            entity.node.texture = frames.first
-        }
+        if let first = frames.first { entity.node.texture = first }
+        guard frames.count > 1 else { return }
+        let blink = SKAction.repeatForever(
+            SKAction.animate(with: frames, timePerFrame: 1.0 / fps)
+        )
+        entity.node.run(blink, withKey: "abort")
     }
 
     /// Red filled circle + white "!" at natural pixel size. Added directly to
@@ -45,6 +43,7 @@ final class RocketAbortStandbyState: RocketBaseState {
         guard let scene = entity.containerNode.scene else { return }
 
         let container = SKNode()
+        container.name = "abort_badge_\(entity.sessionId)"
         let rocketPos = entity.containerNode.position
         // Offset above rocket body center. Since Starship now renders at its
         // native 72×72 size (no more runtime 1.5× scaling), badge offset is a

@@ -3,7 +3,11 @@ import AppKit
 import ImageIO
 
 /// Loads rocket sprite textures from Assets/Sprites/Rocket/rocket_<state>_<letter>.png.
-/// Falls back to a blank white texture if assets are missing.
+/// Falls back to a transparent texture if assets are missing — a missing
+/// asset should render as *nothing* rather than a big white rectangle that
+/// silently masquerades as a valid sprite (which is what the old white
+/// placeholder caused: any pre-animation window, or any sprite whose frames
+/// failed to load, painted a full 72×72 white block over the Starship body).
 enum RocketSpriteLoader {
 
     private static var cache: [String: [SKTexture]] = [:]
@@ -34,16 +38,20 @@ enum RocketSpriteLoader {
             if kind != .classic {
                 return frames(for: animation, kind: .classic)
             }
+            NSLog("[RocketSpriteLoader] no frames for \(key) — using transparent placeholder")
             return ([placeholderTexture()], 1.0)
         }
         cache[key] = loaded
         return (loaded, defaultFPS(for: animation))
     }
 
-    /// White-square fallback for when bundle resources are missing.
+    /// Transparent fallback for when bundle resources are missing OR when a
+    /// sprite is created before its first animation tick assigns a real
+    /// texture. Clear (not white) so the "missing asset" state fails silently
+    /// invisibly — never a white block over a real ship.
     static func placeholderTexture(size: CGSize = RocketConstants.Visual.spriteSize) -> SKTexture {
         let image = NSImage(size: size, flipped: false) { rect in
-            NSColor.white.setFill()
+            NSColor.clear.setFill()
             rect.fill()
             return true
         }

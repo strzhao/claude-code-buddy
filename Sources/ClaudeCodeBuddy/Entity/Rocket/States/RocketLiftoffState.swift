@@ -19,13 +19,12 @@ final class RocketLiftoffState: RocketBaseState {
         }
 
         let (frames, fps) = RocketSpriteLoader.frames(for: "liftoff", kind: entity.kind)
+        if let first = frames.first { entity.node.texture = first }
         if frames.count > 1 {
             let anim = SKAction.repeatForever(
                 SKAction.animate(with: frames, timePerFrame: 1.0 / fps)
             )
             entity.node.run(anim, withKey: "liftoffFrames")
-        } else {
-            entity.node.texture = frames.first
         }
 
         // Pad drops by exactly the rocket's ascent magnitude (cubic ease-in, same duration).

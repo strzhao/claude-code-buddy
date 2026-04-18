@@ -152,12 +152,10 @@ final class RocketPropulsiveLandingState: RocketBaseState {
 
     private func playLandingFrames() {
         let (frames, _) = RocketSpriteLoader.frames(for: "landing", kind: entity.kind)
-        if frames.count > 1 {
-            let perFrame = RocketConstants.Landing.totalDuration / Double(frames.count)
-            let anim = SKAction.animate(with: frames, timePerFrame: perFrame)
-            entity.node.run(anim, withKey: "landingFrames")
-        } else {
-            entity.node.texture = frames.first
-        }
+        if let first = frames.first { entity.node.texture = first }
+        guard frames.count > 1 else { return }
+        let perFrame = RocketConstants.Landing.totalDuration / Double(frames.count)
+        let anim = SKAction.animate(with: frames, timePerFrame: perFrame)
+        entity.node.run(anim, withKey: "landingFrames")
     }
 }

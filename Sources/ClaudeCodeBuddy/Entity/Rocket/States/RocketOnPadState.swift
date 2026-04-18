@@ -64,13 +64,15 @@ final class RocketOnPadState: RocketBaseState {
 
     private func playOnPadFrames() {
         let (frames, fps) = RocketSpriteLoader.frames(for: "onpad", kind: entity.kind)
+        // Assign first frame synchronously so the sprite is never caught on
+        // the init placeholder texture between state entry and the animate
+        // action's first tick.
+        if let first = frames.first { entity.node.texture = first }
         if frames.count > 1 {
             let loop = SKAction.repeatForever(
                 SKAction.animate(with: frames, timePerFrame: 1.0 / fps)
             )
             entity.node.run(loop, withKey: "onPad")
-        } else {
-            entity.node.texture = frames.first
         }
     }
 

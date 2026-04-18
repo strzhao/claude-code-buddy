@@ -157,8 +157,8 @@ final class RocketCruisingState: RocketBaseState {
     /// liftoff can schedule it explicitly at phase 3.
     private func cruiseLoopAction() -> SKAction {
         let (cruiseFrames, fps) = RocketSpriteLoader.frames(for: "cruise", kind: entity.kind)
+        if let f = cruiseFrames.first { entity.node.texture = f }
         guard cruiseFrames.count > 1 else {
-            if let f = cruiseFrames.first { entity.node.texture = f }
             return SKAction.wait(forDuration: 0.01)
         }
         return SKAction.repeatForever(

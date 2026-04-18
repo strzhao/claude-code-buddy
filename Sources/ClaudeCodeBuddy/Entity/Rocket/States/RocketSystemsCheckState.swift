@@ -7,10 +7,8 @@ final class RocketSystemsCheckState: RocketBaseState {
     override func didEnter(from previousState: GKState?) {
         entity.ensurePadVisible()
         let (frames, fps) = RocketSpriteLoader.frames(for: "systems", kind: entity.kind)
-        guard frames.count > 1 else {
-            entity.node.texture = frames.first
-            return
-        }
+        if let first = frames.first { entity.node.texture = first }
+        guard frames.count > 1 else { return }
         let loop = SKAction.repeatForever(
             SKAction.animate(with: frames, timePerFrame: 1.0 / fps)
         )

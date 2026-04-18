@@ -287,7 +287,9 @@ for frame in 0..<5 {
     render(to: "menubar-rocket-idle-\(frame + 1).png") { ctx in
         drawRocket(ctx, yShift: -2)
 
-        var rng = SeededRNG(UInt64(frame + 1))
+        // Seed offset bumped per regen — change this number to roll a
+        // fresh set of 5 random frames.
+        var rng = SeededRNG(UInt64(frame + 42))
         // 4-6 puffs per frame, scattered across both flanks of the ship.
         // Each puff is either a 4×4 main block or a 3×3 trail block
         // (random per puff). Positions land in the mid-lower vent band

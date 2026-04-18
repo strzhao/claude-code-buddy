@@ -214,22 +214,21 @@ func drawMotionStreaks(_ ctx: CGContext, intensity: Int) {
 
 // MARK: - Smoke puffs (run mode)
 
-/// Direct port of F9's `drawSmoke` shape — two symmetrical puffs per side:
-/// a main 4×3 block plus a 3×2 trailing puff. Call sites pass explicit
-/// (x, y) anchor positions so the same shape can be placed anywhere and
-/// repeated across frames at varied locations (used for the idle 5-frame
-/// vent animation).
+/// F9-style smoke shape — two symmetrical puffs per side: a large main
+/// block plus a trailing puff. Sizes bumped larger than F9's original
+/// 4×3 + 3×2 since the menubar Starship body is proportionally wider,
+/// and the user wanted bigger visible clouds.
 func drawFalconPuffs(_ ctx: CGContext,
                      leftMainX: Int,   leftMainY: Int,
                      leftTrailX: Int,  leftTrailY: Int,
                      rightMainX: Int,  rightMainY: Int,
                      rightTrailX: Int, rightTrailY: Int) {
     // Left side
-    px(ctx, leftMainX,  leftMainY,  4, 3, smokePuff)
-    px(ctx, leftTrailX, leftTrailY, 3, 2, smokePuff)
+    px(ctx, leftMainX,  leftMainY,  7, 5, smokePuff)
+    px(ctx, leftTrailX, leftTrailY, 5, 3, smokePuff)
     // Right side
-    px(ctx, rightMainX,  rightMainY,  4, 3, smokePuff)
-    px(ctx, rightTrailX, rightTrailY, 3, 2, smokePuff)
+    px(ctx, rightMainX,  rightMainY,  7, 5, smokePuff)
+    px(ctx, rightTrailX, rightTrailY, 5, 3, smokePuff)
 }
 
 /// Legacy single-frame smoke (run state) — F9 placement at the base.
@@ -300,17 +299,18 @@ for frame in 0..<5 {
         drawRocket(ctx, yShift: -2)
 
         var rng = SeededRNG(UInt64(frame + 1))
-        // Anchor each puff inside the mid-lower vent band. Main puffs
-        // stick close to body edges (x=11..13 on left, x=31..34 on right)
-        // and trail puffs sit further out.
-        let leftMainX  = rng.nextInt(in: 11...13)
-        let leftMainY  = rng.nextInt(in: 10...16)
-        let leftTrailX = rng.nextInt(in:  6...9)
-        let leftTrailY = rng.nextInt(in: 11...17)
-        let rightMainX  = rng.nextInt(in: 31...34)
-        let rightMainY  = rng.nextInt(in: 10...16)
-        let rightTrailX = rng.nextInt(in: 38...41)
-        let rightTrailY = rng.nextInt(in: 11...17)
+        // Anchor each puff inside the mid-lower vent band. Main 7×5
+        // stays within 1 column of the body edge; trail 5×3 sits further
+        // out. Ranges picked so none of the puffs clip the canvas or
+        // overlap the body rectangle (x=18..31, body at y=7..30).
+        let leftMainX  = rng.nextInt(in:  7...10)
+        let leftMainY  = rng.nextInt(in:  9...12)
+        let leftTrailX = rng.nextInt(in:  1...5)
+        let leftTrailY = rng.nextInt(in: 11...15)
+        let rightMainX  = rng.nextInt(in: 33...36)
+        let rightMainY  = rng.nextInt(in:  9...12)
+        let rightTrailX = rng.nextInt(in: 40...44)
+        let rightTrailY = rng.nextInt(in: 11...15)
 
         drawFalconPuffs(ctx,
                         leftMainX: leftMainX,   leftMainY: leftMainY,

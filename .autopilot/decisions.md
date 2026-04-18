@@ -56,6 +56,40 @@
 
 **约束**: Hook 消息永远不应包含 `"action"` 字段。新增协议消息类型时必须保持这条分离规则。
 
+## 2026-04-19: 皮肤颜色变体采用 manifest variants 数组而非独立皮肤包
+
+**决策**: 在 SkinPackManifest 中新增可选 `variants: [SkinVariant]?` 数组，每个变体有独立的 `sprite_prefix`，共享其他 manifest 字段（animation_names、canvas_size、food 等）。
+
+**否决**: 每种颜色作为独立皮肤包上传（如 pixel-dog-red、pixel-dog-blue）。
+
+**理由**:
+- 12 种颜色 × 独立皮肤包 = 皮肤市场极度膨胀，用户体验差
+- 变体间只有 spritePrefix 不同，其他配置完全相同，冗余度极高
+- manifest 级变体让用户在选择皮肤后自然选择颜色，交互更直观
+- 默认"随机"变体增加趣味性（每次启动随机选色）
+
+**影响文件**: SkinPackManifest.swift, SkinPack.swift, SkinPackManager.swift, SkinCardItem.swift, SkinGalleryViewController.swift, web types.ts/validation.ts
+
+**约束**: 变体只能覆盖 spritePrefix、previewImage、bedNames。animation_names 等结构性字段必须全变体共享。
+
+## 2026-04-19: Settings 面板点击事件通过 Panel.sendEvent 而非 NSCollectionView 选择
+
+**决策**: 在 SettingsPanel（NSPanel 子类）的 sendEvent(_:) 中拦截 mouseUp 事件，通过 collectionView.indexPathForItem(at:) 坐标计算找到目标 item，直接调用 gallery 的处理方法。NSCollectionView.isSelectable 设为 false。
+
+**否决**:
+- Strategy A: NSCollectionView.isSelectable=true + didSelectItemsAt delegate
+- Strategy B: NSClickGestureRecognizer
+- Strategy C: 自定义 NSView.mouseUp override
+
+**理由**:
+- 本 app 是 LSUIElement menubar agent（无 Dock 图标），NSApp.isActive 始终 false
+- NSCollectionView 选择和手势识别器都依赖 key window，在未激活 app 中不可靠
+- sendEvent 是 NSWindow 事件分发的最底层入口，不依赖 window/app 激活状态
+
+**影响文件**: SettingsWindowController.swift, SkinGalleryViewController.swift
+
+**约束**: 任何需要在 Settings 面板中处理点击的新控件，都应通过 SettingsPanel.sendEvent → Gallery.handleClickAt 链路，不要依赖 NSCollectionView 的选择机制。
+
 ## 2026-04-16: SkinPack 资源解析采用 builtIn/local 分支而非统一 Bundle
 
 **决策**: `SkinPack` 通过 `SkinSource` enum 区分两种资源解析路径：`builtIn(Bundle)` 走 `Bundle.url(forResource:withExtension:subdirectory:)` 且自动补 `"Assets/"` 前缀；`local(URL)` 走 `FileManager` 直接拼接 `baseURL + subdirectory + name.ext`。

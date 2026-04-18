@@ -46,6 +46,11 @@ let flameCore  = rgb(255, 250, 220)
 // Chunky smoke puff — matches `smokePuff` in
 // Scripts/generate-rocket-sprites-v2.swift (Falcon 9 liftoff style).
 let smokePuff  = rgb(140, 140, 150, 0.9)
+// Cold gas vapor from the cryogenic propellant vents mid-hull on the
+// ship (LOX/LNG boil-off). Whiter and softer than exhaust smoke.
+let vaporBright = rgb(232, 238, 248, 0.92)
+let vaporMid    = rgb(210, 218, 232, 0.75)
+let vaporFade   = rgb(200, 210, 225, 0.40)
 
 // MARK: - Pixel helpers
 
@@ -275,12 +280,89 @@ func render(to relativePath: String, _ body: (CGContext) -> Void) {
 
 // MARK: - Frames
 
-// Idle: Raptors off — ship settles 2pt below cruise altitude, no flame,
-// but a small wisp of residual smoke at the base reads as "just powered
-// down / waiting on the pad".
-render(to: "menubar-rocket-idle-1.png") { ctx in
-    drawRocket(ctx, yShift: -2)
-    drawSmoke(ctx)
+// ─────────────────────────────────────────────────────────────────────
+// Cryogenic vent animation — 5 frames of cold LOX/LNG vapor drifting
+// sideways from the ship's mid-lower body (NOT the base, which is where
+// engine exhaust would go). The 5-frame cycle shows wisps spawning at
+// the vent points (x=17 on the left flank, x=32 on the right), drifting
+// outward + upward, and fading. Reads as "fueled ship sitting on the
+// pad, ready to launch".
+//
+// Ship body occupies x=18..31, y=7..30 (after idle yShift=-2 applied it
+// sits at y=5..28). Vents punch out sideways around the MID-LOWER body
+// (y ≈ 10..16) to match real Starship LOX tank venting visuals.
+
+/// Draws one animated frame of cryogenic vapor wisps on both sides of
+/// the ship. `frame` is 0..4.
+func drawVapor(_ ctx: CGContext, frame: Int) {
+    // Each entry: age-in-frames before this frame → wisp kept alive if
+    // (frame - birthFrame + 5) % 5 == age. Wisps are born on every frame
+    // so at any given snapshot ages 0/1/2/3/4 are simultaneously visible.
+    //
+    // Trajectory (relative to vent at (vx, vy)):
+    //   age 0: puff right at the vent (2×2, vaporBright)
+    //   age 1: drift −1/+1 outward+up, thins to 2×1 (vaporMid)
+    //   age 2: drift −2/+2 outward+up, single pixel cluster (vaporMid)
+    //   age 3: drift −3/+3, fading to vaporFade (1 pixel)
+    //   age 4: drift −4/+4, almost gone (single vaporFade pixel)
+    //
+    // To introduce jitter so the cycle doesn't feel mechanical, every
+    // other frame nudges fresh puffs one row down.
+    let jitter = (frame % 2 == 0) ? 0 : -1
+
+    func paintLeftWisps(ventX vx: Int, ventY vy: Int) {
+        // age 0 — freshly vented, opaque
+        px(ctx, vx - 1, vy + jitter,     2, 2, vaporBright)
+        // age 1
+        px(ctx, vx - 3, vy + 1 + jitter, 2, 1, vaporMid)
+        p(ctx,  vx - 3, vy + 2 + jitter, vaporMid)
+        // age 2
+        p(ctx,  vx - 5, vy + 3 + jitter, vaporMid)
+        p(ctx,  vx - 4, vy + 3 + jitter, vaporMid)
+        // age 3
+        p(ctx,  vx - 7, vy + 4 + jitter, vaporFade)
+        p(ctx,  vx - 6, vy + 4 + jitter, vaporFade)
+        // age 4 — nearly gone
+        p(ctx,  vx - 8, vy + 5 + jitter, vaporFade)
+    }
+
+    func paintRightWisps(ventX vx: Int, ventY vy: Int) {
+        px(ctx, vx,     vy + jitter,     2, 2, vaporBright)
+        px(ctx, vx + 2, vy + 1 + jitter, 2, 1, vaporMid)
+        p(ctx,  vx + 3, vy + 2 + jitter, vaporMid)
+        p(ctx,  vx + 4, vy + 3 + jitter, vaporMid)
+        p(ctx,  vx + 5, vy + 3 + jitter, vaporMid)
+        p(ctx,  vx + 6, vy + 4 + jitter, vaporFade)
+        p(ctx,  vx + 7, vy + 4 + jitter, vaporFade)
+        p(ctx,  vx + 8, vy + 5 + jitter, vaporFade)
+    }
+
+    // Alternate vent altitude per frame so the wisps look like they come
+    // from different LOX tank level vents, breaking repetitive symmetry.
+    let ventRows: [Int] = [12, 11, 13, 12, 14]
+    let vy = ventRows[frame]
+
+    paintLeftWisps(ventX: 17, ventY: vy)   // left flank vent
+    paintRightWisps(ventX: 32, ventY: vy)  // right flank vent
+
+    // Secondary smaller vent higher up on alternate frames — hints at
+    // upper-stage LOX vent (realistic Starship has vents at multiple levels).
+    if frame == 1 || frame == 3 {
+        px(ctx, 16, 18, 2, 1, vaporMid)
+        p(ctx,  14, 19, vaporFade)
+        px(ctx, 32, 18, 2, 1, vaporMid)
+        p(ctx,  34, 19, vaporFade)
+    }
+}
+
+// Idle: Raptors OFF — ship settles 2pt below cruise altitude, no flame.
+// 5-frame animation of cryogenic vapor venting from the mid-lower hull
+// loops at ~6 fps giving a subtle "fueled and waiting" feel.
+for frame in 0..<5 {
+    render(to: "menubar-rocket-idle-\(frame + 1).png") { ctx in
+        drawRocket(ctx, yShift: -2)
+        drawVapor(ctx, frame: frame)
+    }
 }
 
 // Walk (6 frames): rocket hovering with small / medium flame flickering.

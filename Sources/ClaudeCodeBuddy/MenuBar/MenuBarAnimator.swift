@@ -15,10 +15,12 @@ class MenuBarAnimator {
     /// 静止图标（cat）
     private var idleImage: NSImage?
 
-    /// Rocket 模式对应的三组帧（nativecompose 不走 skin pack）。
+    /// Rocket 模式对应的三组帧（不走 skin pack）。idle 是 5 帧的冷气
+    /// 喷射循环，不像 cat 那样是单张静止图。
     private var rocketWalkFrames: [NSImage] = []
     private var rocketRunFrames: [NSImage] = []
-    private var rocketIdleImage: NSImage?
+    private var rocketIdleFrames: [NSImage] = []
+    private var rocketIdleImage: NSImage? { rocketIdleFrames.first }
 
     private var currentFrame: Int = 0
     private var activeCatCount: Int = 0
@@ -52,34 +54,49 @@ class MenuBarAnimator {
 
     // MARK: - Public Interface
 
+    /// Debug override. When set via env var `BUDDY_LOCK_MENUBAR` to
+    /// `idle` / `walk` / `run`, the animator ignores the real session
+    /// count and locks to that state — useful while iterating on pixel art.
+    /// Unset / empty / unknown value = no lock.
+    private static let lockedCount: Int? = {
+        guard let raw = ProcessInfo.processInfo.environment["BUDDY_LOCK_MENUBAR"]?.lowercased(),
+              !raw.isEmpty else { return nil }
+        switch raw {
+        case "idle": return 0
+        case "walk": return 2
+        case "run":  return 4
+        default:     return nil
+        }
+    }()
+
     /// 更新活跃会话数，可在任意线程调用。
     func updateActiveCatCount(_ count: Int) {
+        let effectiveCount = Self.lockedCount ?? count
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            let wasActive = self.activeCatCount > 0
             let oldCount = self.activeCatCount
-            self.activeCatCount = count
-            let isActive = count > 0
+            self.activeCatCount = effectiveCount
 
-            if isActive && !wasActive {
-                // 从静止切换到动画
-                self.switchFrames(for: count)
-                self.updateInterval(immediate: true)
-                self.timer?.resume()
-                self.timerSuspended = false
-            } else if !isActive && wasActive {
-                // 停止动画，显示静止图标
-                self.timer?.suspend()
-                self.timerSuspended = true
-                self.applyIdleImage()
-            } else if isActive {
-                // 活跃数变化：检查是否需要切换 walk↔run
-                let wasRunning = oldCount >= self.runThreshold
-                let shouldRun = count >= self.runThreshold
-                if wasRunning != shouldRun {
-                    self.switchFrames(for: count)
+            // Rocket idle is a 5-frame vent loop; cat idle is a single
+            // static sprite. When idle animates we keep the timer running
+            // (on a slow ~6 fps tick); otherwise we suspend it.
+            let shouldAnimate = effectiveCount > 0
+                || (self.mode == .rocket && self.rocketIdleFrames.count > 1)
+
+            self.switchFrames(for: effectiveCount)
+
+            if shouldAnimate {
+                self.updateInterval(immediate: oldCount != effectiveCount)
+                if self.timerSuspended {
+                    self.timer?.resume()
+                    self.timerSuspended = false
                 }
-                self.updateInterval(immediate: false)
+            } else {
+                if !self.timerSuspended {
+                    self.timer?.suspend()
+                    self.timerSuspended = true
+                }
+                self.applyIdleImage()
             }
         }
     }
@@ -95,7 +112,7 @@ class MenuBarAnimator {
         // 两套帧：cat 走 skin manifest（可被用户皮肤包覆盖），rocket 走内置
         // 资源（不 skinnable）。MenuBarAnimator 根据 `mode` 挑选哪一套。
         (walkFrames, runFrames, idleImage) = loadCatFrames(iconSize: iconSize)
-        (rocketWalkFrames, rocketRunFrames, rocketIdleImage) = loadRocketFrames(iconSize: iconSize)
+        (rocketWalkFrames, rocketRunFrames, rocketIdleFrames) = loadRocketFrames(iconSize: iconSize)
     }
 
     private func loadCatFrames(iconSize: NSSize) -> (walk: [NSImage], run: [NSImage], idle: NSImage?) {
@@ -123,14 +140,18 @@ class MenuBarAnimator {
 
     /// Loads the rocket menubar set from the built-in bundle (Assets/Sprites/Menubar/
     /// menubar-rocket-*.png). These are NOT part of user skin packs — rocket
-    /// mode is a system feature, not a customization surface.
-    private func loadRocketFrames(iconSize: NSSize) -> (walk: [NSImage], run: [NSImage], idle: NSImage?) {
+    /// mode is a system feature, not a customization surface. Idle returns
+    /// a 5-frame vapor-vent loop (with SF `airplane` as single-frame
+    /// fallback if assets are missing).
+    private func loadRocketFrames(iconSize: NSSize) -> (walk: [NSImage], run: [NSImage], idle: [NSImage]) {
         let directory = "Assets/Sprites/Menubar"
         let walk = (1...6).compactMap { loadBundleImage("menubar-rocket-walk-\($0)", dir: directory, size: iconSize) }
         let run  = (1...5).compactMap { loadBundleImage("menubar-rocket-run-\($0)",  dir: directory, size: iconSize) }
-        let idle = loadBundleImage("menubar-rocket-idle-1", dir: directory, size: iconSize)
-            ?? NSImage(systemSymbolName: "airplane",
-                       accessibilityDescription: "Claude Code Buddy (Rocket)")
+        let idle = (1...5).compactMap { loadBundleImage("menubar-rocket-idle-\($0)", dir: directory, size: iconSize) }
+        if idle.isEmpty, let fallback = NSImage(systemSymbolName: "airplane",
+                                                accessibilityDescription: "Claude Code Buddy (Rocket)") {
+            return (walk, run, [fallback])
+        }
         return (walk, run, idle)
     }
 
@@ -174,8 +195,14 @@ class MenuBarAnimator {
         let running = count >= runThreshold
         let newFrames: [NSImage]
         switch mode {
-        case .cat:    newFrames = running ? runFrames       : walkFrames
-        case .rocket: newFrames = running ? rocketRunFrames : rocketWalkFrames
+        case .cat:
+            newFrames = running ? runFrames : walkFrames
+        case .rocket:
+            if count == 0 {
+                newFrames = rocketIdleFrames
+            } else {
+                newFrames = running ? rocketRunFrames : rocketWalkFrames
+            }
         }
         if activeFrames.count != newFrames.count || activeFrames.first !== newFrames.first {
             activeFrames = newFrames
@@ -192,8 +219,14 @@ class MenuBarAnimator {
     }
 
     private func updateInterval(immediate: Bool = true) {
-        guard activeCatCount > 0 else { return }
-        let interval = max(0.04, 0.15 / Double(activeCatCount))
+        // Rocket idle animates slowly (~6 fps, 160ms/frame) so the vent
+        // wisps drift gently. Active states scale faster with session count.
+        let interval: Double
+        if activeCatCount == 0 {
+            interval = 0.16
+        } else {
+            interval = max(0.04, 0.15 / Double(activeCatCount))
+        }
         let deadline: DispatchTime = immediate ? .now() : .now() + interval
         timer?.schedule(deadline: deadline, repeating: .milliseconds(Int(interval * 1000)))
     }
@@ -216,11 +249,10 @@ class MenuBarAnimator {
     var mode: EntityMode = .cat {
         didSet {
             guard oldValue != mode else { return }
-            if activeCatCount > 0 {
-                switchFrames(for: activeCatCount)
-            } else {
-                applyIdleImage()
-            }
+            // Re-evaluate animation state — rocket idle animates (vent
+            // vapor loop) while cat idle is static, so switching between
+            // modes with 0 active sessions needs to start/stop the timer.
+            updateActiveCatCount(activeCatCount)
         }
     }
 }

@@ -10,11 +10,13 @@ struct RemoteSkinEntry: Codable {
     let previewURL: String?
     let downloadURL: String
     let size: Int
+    let variantCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, name, author, version, size
         case previewURL = "preview_url"
         case downloadURL = "download_url"
+        case variantCount = "variant_count"
     }
 }
 

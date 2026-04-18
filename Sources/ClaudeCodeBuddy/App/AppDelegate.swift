@@ -225,6 +225,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.center()
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        // LSUIElement apps need explicit activation for windows to become key.
+        // .accessory policy allows key windows without showing a Dock icon.
         NSApp.activate(ignoringOtherApps: true)
     }
 

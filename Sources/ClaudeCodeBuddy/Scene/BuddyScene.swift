@@ -606,32 +606,34 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             rightBoundaryNode?.texture = tex
         }
 
-        // 2. Reload each cat's textures and restart animations
+        // 2. Reload each cat's textures asynchronously and restart animations when done
         for cat in cats.values {
             // Clean up all running actions to prevent stale frame references
             cat.node.removeAllActions()
             cat.containerNode.removeAction(forKey: "randomWalk")
             cat.containerNode.removeAction(forKey: "foodWalk")
 
-            // Reload textures from the new skin
-            cat.animationComponent.loadTextures(from: skin)
-
             // Skip eating cats — CatEatingState has no ResumableState;
             // eating animation completes naturally, next state uses new textures
             if cat.currentState == .eating { continue }
 
-            // Reload bed texture for sleeping cats
-            if cat.currentState == .taskComplete {
-                (cat.stateMachine?.currentState as? CatTaskCompleteState)?
-                    .reloadBedTexture(from: skin)
+            // Load textures in background, then resume animation on main thread
+            cat.animationComponent.loadTexturesAsync(from: skin) { [weak cat] in
+                guard let cat else { return }
+
+                // Reload bed texture for sleeping cats
+                if cat.currentState == .taskComplete {
+                    (cat.stateMachine?.currentState as? CatTaskCompleteState)?
+                        .reloadBedTexture(from: skin)
+                }
+
+                // Restart current state animation via ResumableState
+                (cat.stateMachine?.currentState as? ResumableState)?.resume()
+
+                // Reapply session color tint
+                cat.node.color = cat.sessionColor?.nsColor ?? .white
+                cat.node.colorBlendFactor = cat.sessionTintFactor
             }
-
-            // Restart current state animation via ResumableState
-            (cat.stateMachine?.currentState as? ResumableState)?.resume()
-
-            // Reapply session color tint
-            cat.node.color = cat.sessionColor?.nsColor ?? .white
-            cat.node.colorBlendFactor = cat.sessionTintFactor
 
             // Restore token scale (skin reload may reset containerNode scale)
             cat.containerNode.setScale(cat.tokenScale)
@@ -660,7 +662,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func bedColorName(for sessionId: String) -> String? {
         guard let slot = activeBedSlots[sessionId] else { return nil }
-        let names = SkinPackManager.shared.activeSkin.manifest.bedNames
+        let names = SkinPackManager.shared.activeSkin.effectiveBedNames
         return names[slot % names.count]
     }
 

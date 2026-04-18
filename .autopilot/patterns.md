@@ -72,6 +72,18 @@
 **Lesson**: 6 个 GKState 中，CatEatingState 是唯一不实现 ResumableState 的状态。热替换（或任何需要 `resume()` 的机制）必须对 eating 状态做特殊处理：跳过 resume，让 eating 动画自然完成，完成后的 `switchState(to: .idle)` 会自动使用新纹理。在 `reloadSkin()` 中需要先 `node.removeAllActions()` 清理旧动画帧引用，再 `loadTextures()`，最后才 `resume()`——顺序不能错。
 **Evidence**: Plan Review 发现 CatEatingState.swift:4 仅 `final class CatEatingState: GKState`，无 ResumableState 协议。Grep 确认 5 个状态实现 ResumableState，eating 缺席。
 
+### [2026-04-19] LSUIElement app 中 NSCollectionView 选择机制不工作
+<!-- tags: appkit, lsuielement, nscollectionview, key-window, nswindow, click -->
+**Scenario**: 皮肤市场 Settings 面板用 NSCollectionView + isSelectable=true 实现皮肤选择，单击无反应，双击才响应
+**Lesson**: LSUIElement=true 的 menubar agent app 无法可靠激活（NSApp.isActive 始终 false），因此其窗口无法成为 key window。NSCollectionView 的 didSelectItemsAt 依赖 key window，在 LSUIElement app 中完全失效。尝试过的无效方案：NSClickGestureRecognizer（不可靠）、mouseUp override（第一次点击被窗口激活消耗）、acceptsFirstMouse（无效）、makeKey()（app 未激活时无效）、NSApp.activate()（LSUIElement 下不生效）。正确方案：在 NSPanel 子类的 sendEvent(_:) 中拦截 mouseUp，通过 collectionView.indexPathForItem(at:) 坐标计算找到目标 item，直接调用回调。sendEvent 是最底层且 100% 可靠的事件入口，不依赖 key window 状态。
+**Evidence**: 诊断日志显示 appActive=false + isKeyWindow=false 贯穿所有点击事件。修改为 sendEvent 拦截后单击 100% 响应。
+
+### [2026-04-19] 第三方精灵图朝向需在 manifest 中声明
+<!-- tags: skin, sprite, facing, manifest, third-party -->
+**Scenario**: 上传像素狗皮肤包后，狗跑步方向反转——狗精灵面朝左，而 app 假设精灵面朝右
+**Lesson**: SpriteKit 中通过 xScale 翻转实现角色转向，默认假设精灵面朝右 (xScale=1.0=面右)。第三方皮肤的精灵朝向不确定，需在 manifest 中声明 `sprite_faces_right: bool`。app 端 CatSprite.applyFacingDirection() 读取此字段，当 sprite 面朝左时反转 xScale 逻辑：`xScale = (facingRight == spriteFacesRight) ? 1.0 : -1.0`。CLI 上传工具通过 `--facing left|right` 参数自动写入 manifest。
+**Evidence**: 用户验证像素狗走路方向反转。添加 sprite_faces_right=false 后方向正确。
+
 ### [2026-04-18] release.yml 与 bundle.sh 打包步骤不同步导致 CI 产物缺资源
 <!-- tags: ci, release, packaging, bundle, icon -->
 **Scenario**: 本地 `make bundle`（调用 Scripts/bundle.sh）打包的 .app 有 icon，但 GitHub CI release.yml 打包的 .app 缺少 icon

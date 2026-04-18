@@ -1,5 +1,25 @@
 import Foundation
 
+// MARK: - SkinVariant
+
+/// A color variant within a skin pack. Overrides `spritePrefix` (and optionally
+/// `bedNames` / `previewImage`) while sharing all other manifest fields.
+struct SkinVariant: Codable, Equatable {
+    let id: String
+    let name: String
+    let spritePrefix: String
+    let previewImage: String?
+    let bedNames: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id           = "id"
+        case name         = "name"
+        case spritePrefix = "sprite_prefix"
+        case previewImage = "preview_image"
+        case bedNames     = "bed_names"
+    }
+}
+
 // MARK: - SkinPackManifest
 
 struct SkinPackManifest: Codable, Equatable {
@@ -18,6 +38,10 @@ struct SkinPackManifest: Codable, Equatable {
     let spriteDirectory: String
     let menuBar: MenuBarConfig
     let sounds: SoundConfig?
+    let variants: [SkinVariant]?
+    /// Whether the sprite artwork faces right by default. Defaults to `true`.
+    /// Set to `false` if sprites are drawn facing left.
+    let spriteFacesRight: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id             = "id"
@@ -35,6 +59,44 @@ struct SkinPackManifest: Codable, Equatable {
         case spriteDirectory = "sprite_directory"
         case menuBar        = "menu_bar"
         case sounds         = "sounds"
+        case variants       = "variants"
+        case spriteFacesRight = "sprite_faces_right"
+    }
+}
+
+// MARK: - Variant Helpers
+
+extension SkinPackManifest {
+
+    var hasVariants: Bool {
+        guard let v = variants else { return false }
+        return !v.isEmpty
+    }
+
+    func effectiveSpritePrefix(for variantId: String?) -> String {
+        guard let variantId,
+              let variant = variants?.first(where: { $0.id == variantId }) else {
+            return spritePrefix
+        }
+        return variant.spritePrefix
+    }
+
+    func effectiveBedNames(for variantId: String?) -> [String] {
+        guard let variantId,
+              let variant = variants?.first(where: { $0.id == variantId }),
+              let variantBeds = variant.bedNames else {
+            return bedNames
+        }
+        return variantBeds
+    }
+
+    func effectivePreviewImage(for variantId: String?) -> String? {
+        guard let variantId,
+              let variant = variants?.first(where: { $0.id == variantId }),
+              let variantPreview = variant.previewImage else {
+            return previewImage
+        }
+        return variantPreview
     }
 }
 

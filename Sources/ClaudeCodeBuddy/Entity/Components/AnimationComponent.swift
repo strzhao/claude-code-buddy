@@ -29,7 +29,7 @@ class AnimationComponent {
             var textures: [SKTexture] = []
             var frame = 1
             while true {
-                let name = "\(skin.manifest.spritePrefix)-\(animName)-\(frame)"
+                let name = "\(skin.effectiveSpritePrefix)-\(animName)-\(frame)"
                 guard let url = skin.url(forResource: name,
                                          withExtension: "png",
                                          subdirectory: skin.manifest.spriteDirectory) else { break }
@@ -42,6 +42,47 @@ class AnimationComponent {
             }
             if !textures.isEmpty {
                 animations[animName] = textures
+            }
+        }
+    }
+
+    /// Load textures on a background thread, then apply on main thread.
+    /// Calls completion on the main thread when done.
+    func loadTexturesAsync(from skin: SkinPack, completion: @escaping () -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Read all CGImages from disk on background thread
+            let animNames = skin.manifest.animationNames
+            var loaded: [String: [CGImage]] = [:]
+
+            for animName in animNames {
+                var images: [CGImage] = []
+                var frame = 1
+                while true {
+                    let name = "\(skin.effectiveSpritePrefix)-\(animName)-\(frame)"
+                    guard let url = skin.url(forResource: name,
+                                             withExtension: "png",
+                                             subdirectory: skin.manifest.spriteDirectory) else { break }
+                    guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+                          let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else { break }
+                    images.append(cgImage)
+                    frame += 1
+                }
+                if !images.isEmpty {
+                    loaded[animName] = images
+                }
+            }
+
+            // Create SKTextures and assign on main thread
+            DispatchQueue.main.async {
+                guard let self else { return }
+                for (animName, images) in loaded {
+                    self.animations[animName] = images.map { cgImage in
+                        let texture = SKTexture(cgImage: cgImage)
+                        texture.filteringMode = .nearest
+                        return texture
+                    }
+                }
+                completion()
             }
         }
     }

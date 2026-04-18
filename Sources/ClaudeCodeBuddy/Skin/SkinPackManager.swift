@@ -32,9 +32,12 @@ final class SkinPackManager {
     /// Reference to the remote skin store.
     let store = SkinPackStore.shared
 
-    // MARK: - Private
+    // MARK: - Constants
 
     private static let selectedSkinIdKey = "selectedSkinId"
+
+    /// Sentinel value stored in UserDefaults to indicate "random variant each launch".
+    static let randomVariantSentinel = "__random__"
 
     static let localSkinsDirectory: URL = {
         // swiftlint:disable:next force_unwrapping
@@ -55,18 +58,69 @@ final class SkinPackManager {
         restoreSelection()
     }
 
-    // MARK: - Public API
+    // MARK: - Skin Selection
 
     /// Selects a skin by ID.
     ///
     /// If the ID is not found in `availableSkins`, the call is a no-op.
     /// On success the selection is persisted to `UserDefaults` and `skinChanged` fires.
     func selectSkin(_ skinId: String) {
-        guard let skin = availableSkins.first(where: { $0.manifest.id == skinId }) else { return }
+        NSLog("[SkinPackManager] selectSkin called: \(skinId)")
+        guard var skin = availableSkins.first(where: { $0.manifest.id == skinId }) else {
+            NSLog("[SkinPackManager] skin not found in availableSkins!")
+            return
+        }
+        let storedVariant = UserDefaults.standard.string(forKey: Self.variantKey(for: skinId))
+        skin.selectedVariantId = resolveVariantId(storedVariant, for: skin.manifest)
         activeSkin = skin
         UserDefaults.standard.set(skinId, forKey: Self.selectedSkinIdKey)
         skinChanged.send(skin)
     }
+
+    // MARK: - Variant Selection
+
+    /// Returns the UserDefaults key for the variant preference of a given skin.
+    private static func variantKey(for skinId: String) -> String {
+        "selectedVariant:\(skinId)"
+    }
+
+    /// Select a specific variant for a skin. Pass `nil` for "random" behavior.
+    func selectVariant(_ variantId: String?, for skinId: String) {
+        let key = Self.variantKey(for: skinId)
+        let valueToStore = variantId ?? Self.randomVariantSentinel
+        UserDefaults.standard.set(valueToStore, forKey: key)
+
+        // If this is the active skin, update it and notify
+        if activeSkin.manifest.id == skinId {
+            let resolved = resolveVariantId(valueToStore, for: activeSkin.manifest)
+            activeSkin.selectedVariantId = resolved
+            skinChanged.send(activeSkin)
+        }
+    }
+
+    /// Returns the raw preference for a skin (may be `__random__` or a specific ID).
+    func variantPreference(for skinId: String) -> String? {
+        UserDefaults.standard.string(forKey: Self.variantKey(for: skinId))
+    }
+
+    /// Resolve the stored variant preference to a concrete variant ID.
+    /// If stored value is `__random__` or nil, pick a random variant.
+    private func resolveVariantId(_ stored: String?, for manifest: SkinPackManifest) -> String? {
+        guard manifest.hasVariants, let variants = manifest.variants, !variants.isEmpty else {
+            return nil
+        }
+        if stored == nil || stored == Self.randomVariantSentinel {
+            return variants.randomElement()?.id
+        }
+        // Verify the stored ID still exists in the manifest
+        if variants.contains(where: { $0.id == stored }) {
+            return stored
+        }
+        // Fallback: random
+        return variants.randomElement()?.id
+    }
+
+    // MARK: - Local Skin Loading
 
     /// Scans the local skins directory and appends any valid skin packs to `availableSkins`.
     ///
@@ -132,9 +186,11 @@ final class SkinPackManager {
 
     private func restoreSelection() {
         guard let savedId = UserDefaults.standard.string(forKey: Self.selectedSkinIdKey),
-              let skin = availableSkins.first(where: { $0.manifest.id == savedId }) else {
+              var skin = availableSkins.first(where: { $0.manifest.id == savedId }) else {
             return
         }
+        let storedVariant = UserDefaults.standard.string(forKey: Self.variantKey(for: savedId))
+        skin.selectedVariantId = resolveVariantId(storedVariant, for: skin.manifest)
         activeSkin = skin
     }
 }

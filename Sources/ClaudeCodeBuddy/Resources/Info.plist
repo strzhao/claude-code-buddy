@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.claudebuddy.ClaudeCodeBuddy</string>
     <key>CFBundleVersion</key>
-    <string>1.5</string>
+    <string>1.6</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.11.0</string>
+    <string>0.12.0</string>
     <key>CFBundleExecutable</key>
     <string>ClaudeCodeBuddy</string>
     <key>CFBundleIconFile</key>

@@ -214,30 +214,19 @@ func drawMotionStreaks(_ ctx: CGContext, intensity: Int) {
 
 // MARK: - Smoke puffs (run mode)
 
-/// F9-style smoke shape — two symmetrical puffs per side: a large main
-/// block plus a trailing puff. Sizes bumped larger than F9's original
-/// 4×3 + 3×2 since the menubar Starship body is proportionally wider,
-/// and the user wanted bigger visible clouds.
-func drawFalconPuffs(_ ctx: CGContext,
-                     leftMainX: Int,   leftMainY: Int,
-                     leftTrailX: Int,  leftTrailY: Int,
-                     rightMainX: Int,  rightMainY: Int,
-                     rightTrailX: Int, rightTrailY: Int) {
-    // Left side
-    px(ctx, leftMainX,  leftMainY,  7, 5, smokePuff)
-    px(ctx, leftTrailX, leftTrailY, 5, 3, smokePuff)
-    // Right side
-    px(ctx, rightMainX,  rightMainY,  7, 5, smokePuff)
-    px(ctx, rightTrailX, rightTrailY, 5, 3, smokePuff)
+/// F9-style smoke puff — solid grey rectangles at the requested shape.
+/// `isMain = true` draws the 4×4 primary puff; `false` draws the 3×3 trail.
+func drawFalconPuff(_ ctx: CGContext, x: Int, y: Int, isMain: Bool) {
+    let size = isMain ? 4 : 3
+    px(ctx, x, y, size, size, smokePuff)
 }
 
 /// Legacy single-frame smoke (run state) — F9 placement at the base.
 func drawSmoke(_ ctx: CGContext) {
-    drawFalconPuffs(ctx,
-                    leftMainX: 13,   leftMainY: 1,
-                    leftTrailX: 9,   leftTrailY: 2,
-                    rightMainX: 33,  rightMainY: 1,
-                    rightTrailX: 38, rightTrailY: 2)
+    drawFalconPuff(ctx, x: 13, y: 1, isMain: true)
+    drawFalconPuff(ctx, x:  9, y: 2, isMain: false)
+    drawFalconPuff(ctx, x: 33, y: 1, isMain: true)
+    drawFalconPuff(ctx, x: 38, y: 2, isMain: false)
 }
 
 // MARK: - Render
@@ -299,42 +288,25 @@ for frame in 0..<5 {
         drawRocket(ctx, yShift: -2)
 
         var rng = SeededRNG(UInt64(frame + 1))
-        // Split the vent band into 3 vertical zones so left and right
-        // puffs are never at the same height. Each frame picks a
-        // contrasting pair (upper / mid / lower) — guarantees clear
-        // asymmetry no matter how the RNG rolls.
-        struct VentZone {
-            let mainY:  ClosedRange<Int>
-            let trailY: ClosedRange<Int>
+        // 4-6 puffs per frame, scattered across both flanks of the ship.
+        // Each puff is either a 4×4 main block or a 3×3 trail block
+        // (random per puff). Positions land in the mid-lower vent band
+        // (y=9..16) without overlapping the ship body (x=18..31).
+        let puffCount = rng.nextInt(in: 4...6)
+        for _ in 0..<puffCount {
+            let isMain = rng.nextInt(in: 0...1) == 0
+            let size = isMain ? 4 : 3
+            // Pick side 50/50. Left x∈0..(17-size), right x∈34..(49-size).
+            let onLeft = rng.nextInt(in: 0...1) == 0
+            let x: Int
+            if onLeft {
+                x = rng.nextInt(in: 0...(17 - size))
+            } else {
+                x = rng.nextInt(in: 34...(49 - size))
+            }
+            let y = rng.nextInt(in: 9...(16 - size + 1))
+            drawFalconPuff(ctx, x: x, y: y, isMain: isMain)
         }
-        let upper = VentZone(mainY:  9...10, trailY: 10...12)
-        let mid   = VentZone(mainY: 12...13, trailY: 13...15)
-        let lower = VentZone(mainY: 15...16, trailY: 15...17)
-        // Per-frame (leftZone, rightZone) pairings — all 5 keep left
-        // and right in DIFFERENT zones.
-        let zonePairs: [(VentZone, VentZone)] = [
-            (upper, lower),
-            (lower, upper),
-            (mid,   lower),
-            (upper, mid),
-            (lower, mid),
-        ]
-        let (leftZone, rightZone) = zonePairs[frame]
-
-        let leftMainX  = rng.nextInt(in:  7...10)
-        let leftMainY  = rng.nextInt(in:  leftZone.mainY)
-        let leftTrailX = rng.nextInt(in:  1...5)
-        let leftTrailY = rng.nextInt(in:  leftZone.trailY)
-        let rightMainX  = rng.nextInt(in: 33...36)
-        let rightMainY  = rng.nextInt(in:  rightZone.mainY)
-        let rightTrailX = rng.nextInt(in: 40...44)
-        let rightTrailY = rng.nextInt(in:  rightZone.trailY)
-
-        drawFalconPuffs(ctx,
-                        leftMainX: leftMainX,   leftMainY: leftMainY,
-                        leftTrailX: leftTrailX, leftTrailY: leftTrailY,
-                        rightMainX: rightMainX, rightMainY: rightMainY,
-                        rightTrailX: rightTrailX, rightTrailY: rightTrailY)
     }
 }
 

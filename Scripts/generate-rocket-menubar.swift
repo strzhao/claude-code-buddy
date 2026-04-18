@@ -67,9 +67,12 @@ func p(_ ctx: CGContext, _ x: Int, _ y: Int, _ color: CGColor) {
 /// Silhouette read at 32×22 render:
 ///   narrow ship body (8 wide) · aft flaps wider at base · forward flaps
 ///   higher · pointy nose cone · 3 tiny Raptor bells at bottom.
-func drawRocket(_ ctx: CGContext) {
+/// Draws the Starship upper stage. `yShift` lowers (or raises) the whole
+/// stack — idle mode uses -2 to "settle" the ship 2pt below the cruise
+/// attitude, suggesting the Raptors are off.
+func drawRocket(_ ctx: CGContext, yShift: Int = 0) {
     let cx = 25
-    let baseY = 7          // ship body bottom row (engines sit at baseY-1 = 6)
+    let baseY = 7 + yShift  // ship body bottom row (engines sit at baseY-1)
     let bodyHeight = 24    // y=7..30 — cylinder runs almost to canvas top
 
     // ── Ship body — 14 wide (cx-7..cx+6), 24 rows tall (y=7..30) ─────
@@ -251,9 +254,10 @@ func render(to relativePath: String, _ body: (CGContext) -> Void) {
 
 // MARK: - Frames
 
-// Idle: rocket on pad, no flame.
+// Idle: Raptors off — ship settles 2pt below cruise altitude, no flame,
+// no motion. Reads as "resting on the pad / waiting for input".
 render(to: "menubar-rocket-idle-1.png") { ctx in
-    drawRocket(ctx)
+    drawRocket(ctx, yShift: -2)
 }
 
 // Walk (6 frames): rocket hovering with small / medium flame flickering.
@@ -272,14 +276,16 @@ for (i, plan) in walkPlan.enumerated() {
     }
 }
 
-// Run (5 frames): large/huge flame + motion streaks + occasional smoke.
+// Run (5 frames): Raptors at MAX thrust — huge flame on every frame.
+// Flicker / streaks / smoke vary so successive frames read as animated
+// turbulence rather than a static image.
 let runPlan: [(FlameSize, Bool, Int, Bool)] = [
-    // flame,   flicker, streak count, smoke
-    (.large,  false, 2, false),
-    (.huge,   false, 3, true),
-    (.large,  true,  2, false),
+    // flame,  flicker, streak count, smoke
+    (.huge,   false, 3, false),
     (.huge,   true,  3, true),
-    (.large,  false, 1, false),
+    (.huge,   false, 3, true),
+    (.huge,   true,  3, false),
+    (.huge,   false, 3, true),
 ]
 for (i, plan) in runPlan.enumerated() {
     render(to: "menubar-rocket-run-\(i + 1).png") { ctx in

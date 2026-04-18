@@ -1,0 +1,23 @@
+tests/BuddyCoreTests/FoodAttractionAcceptanceTests.swift
+  7283a90ae2de6fdd 1-469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "c976c9710e6bdf753daf4efb4a4b8d81fc6d443e",
+  "prompts": {
+    "7283a90ae2de6fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73e3377d-a0bb-446d-aa04-8d5ae2ef362c",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 469,
+      "total_deletions": 0,
+      "accepted_lines": 938,
+      "overriden_lines": 0
+    }
+  }
+}

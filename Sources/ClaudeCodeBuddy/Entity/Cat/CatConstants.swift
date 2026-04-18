@@ -32,7 +32,7 @@ enum CatConstants {
         /// Delta threshold for updating facing direction
         static let facingDirectionThreshold: CGFloat = 0.5
         /// Walk speed when moving toward food (px/s)
-        static let foodWalkSpeed: CGFloat = 55
+        static let foodWalkSpeed: CGFloat = 100
         /// Minimum food walk duration in seconds
         static let foodWalkMinDuration: Double = 0.3
         /// Walk speed during exit sequence (px/s)

@@ -43,8 +43,9 @@ let flameOrng  = rgb(255, 160, 40)
 let flameYel   = rgb(255, 220, 90)
 let flameCore  = rgb(255, 250, 220)
 
-let smokeLight = rgb(200, 200, 205, 0.85)
-let smokeDark  = rgb(150, 150, 155, 0.55)
+// Chunky smoke puff — matches `smokePuff` in
+// Scripts/generate-rocket-sprites-v2.swift (Falcon 9 liftoff style).
+let smokePuff  = rgb(140, 140, 150, 0.9)
 
 // MARK: - Pixel helpers
 
@@ -212,15 +213,16 @@ func drawMotionStreaks(_ ctx: CGContext, intensity: Int) {
 
 // MARK: - Smoke puffs (run mode)
 
+/// Chunky symmetric smoke puffs at the base — ported from the F9 liftoff
+/// sprite (drawSmoke in generate-rocket-sprites-v2.swift). Reads as a
+/// visible billow rather than a few pixel sprinkles.
 func drawSmoke(_ ctx: CGContext) {
-    // A couple of puffs below the rocket
-    p(ctx, 19, 4, smokeLight)
-    p(ctx, 18, 3, smokeDark)
-    p(ctx, 21, 2, smokeLight)
-    p(ctx, 22, 1, smokeDark)
-    p(ctx, 28, 3, smokeLight)
-    p(ctx, 30, 4, smokeLight)
-    p(ctx, 31, 2, smokeDark)
+    // Main puffs (4×3) on both sides of the rocket base
+    px(ctx, 13, 1, 4, 3, smokePuff)
+    px(ctx, 33, 1, 4, 3, smokePuff)
+    // Outer trailing puffs (3×2), slightly higher
+    px(ctx,  9, 2, 3, 2, smokePuff)
+    px(ctx, 38, 2, 3, 2, smokePuff)
 }
 
 // MARK: - Render

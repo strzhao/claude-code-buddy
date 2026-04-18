@@ -295,7 +295,7 @@ enum CatConstants {
         /// Horizontal offset from activityBounds.upperBound for first bed slot (negative = left of boundary)
         static let firstSlotOffset: CGFloat = -60
         /// Horizontal spacing between bed slots (negative = extend leftward)
-        static let slotSpacing: CGFloat = -56
+        static let slotSpacing: CGFloat = -100
         /// Maximum number of bed slots
         static let maxSlots: Int = 4
         /// Z-position for the bed sprite (in front of cat so cat appears to sit inside)

@@ -229,6 +229,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     var activeCatCount: Int { cats.count }
 
+    func removePersistentBadge(for sessionId: String) {
+        cats[sessionId]?.removePersistentBadge()
+    }
+
     func catAtPoint(_ point: CGPoint) -> String? {
         let hitSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {

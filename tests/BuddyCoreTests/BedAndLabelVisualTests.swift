@@ -16,9 +16,9 @@ final class BedAndLabelVisualTests: XCTestCase {
                        "bedRenderSize.height 应为 28（放大 2x 后）")
     }
 
-    func testSlotSpacingIsNegative56() {
-        XCTAssertEqual(CatConstants.TaskComplete.slotSpacing, -56,
-                       "slotSpacing 应为 -56（负数表示向左延伸）")
+    func testSlotSpacingIsNegative80() {
+        XCTAssertEqual(CatConstants.TaskComplete.slotSpacing, -100,
+                       "slotSpacing 应为 -100（负数表示向左延伸，增大间距防止标签重叠）")
     }
 
     func testFirstSlotOffsetIsNegative60() {
@@ -94,7 +94,7 @@ final class BedAndLabelVisualTests: XCTestCase {
         XCTAssertEqual(bedRenderSize.height, 28, "bedRenderSize.height 应为 14x2=28")
 
         // 验证 slotSpacing 符合 2x 放大比例（原值 -48 → -56）
-        XCTAssertEqual(slotSpacing, -56, "slotSpacing 应为原值的约 1.16x（考虑猫宽度）")
+        XCTAssertEqual(slotSpacing, -100, "slotSpacing 应为 -100（增大间距防止标签重叠）")
 
         // 验证 firstSlotOffset 符合 2x 放大比例（原值 -52 → -60）
         XCTAssertEqual(firstSlotOffset, -60, "firstSlotOffset 应为原值的约 1.15x")

@@ -213,16 +213,35 @@ func drawMotionStreaks(_ ctx: CGContext, intensity: Int) {
 
 // MARK: - Smoke puffs (run mode)
 
-/// Chunky symmetric smoke puffs at the base — ported from the F9 liftoff
-/// sprite (drawSmoke in generate-rocket-sprites-v2.swift). Reads as a
-/// visible billow rather than a few pixel sprinkles.
+/// Billowing smoke at the rocket base — proportional to the 14-wide
+/// Starship body. Mirrors F9 liftoff's drawSmoke layout (main + trailing
+/// puff) but scaled up: each side gets a 7×3 main billow flush against
+/// the body, a 3×2 trailing puff further out, and a couple of accent
+/// pixels for texture. Reads as a solid grey cloud, not sparse dots.
+///
+/// Canvas layout (Starship body = x=18..31):
+///   • Left billow:  main 7×3 at x=11..17, trail 3×2 at x=7..9
+///   • Right billow: main 7×3 at x=32..38, trail 3×2 at x=40..42
 func drawSmoke(_ ctx: CGContext) {
-    // Main puffs (4×3) on both sides of the rocket base
-    px(ctx, 13, 1, 4, 3, smokePuff)
-    px(ctx, 33, 1, 4, 3, smokePuff)
-    // Outer trailing puffs (3×2), slightly higher
-    px(ctx,  9, 2, 3, 2, smokePuff)
-    px(ctx, 38, 2, 3, 2, smokePuff)
+    // ── LEFT side ────────────────────────────────────────────────────
+    // Main billow: 7 wide, 3 tall, flush against body left edge
+    px(ctx, 11, 1, 7, 3, smokePuff)
+    // Upper hint (narrower cloud top)
+    px(ctx, 13, 4, 4, 1, smokePuff)
+    // Trailing puff further out
+    px(ctx,  7, 2, 3, 2, smokePuff)
+    p(ctx,   6, 2, smokePuff)
+    p(ctx,  10, 4, smokePuff)
+    // Bottom feathering (ground haze)
+    px(ctx,  9, 0, 8, 1, smokePuff)
+
+    // ── RIGHT side (mirror) ──────────────────────────────────────────
+    px(ctx, 32, 1, 7, 3, smokePuff)
+    px(ctx, 33, 4, 4, 1, smokePuff)
+    px(ctx, 40, 2, 3, 2, smokePuff)
+    p(ctx,  43, 2, smokePuff)
+    p(ctx,  39, 4, smokePuff)
+    px(ctx, 33, 0, 8, 1, smokePuff)
 }
 
 // MARK: - Render

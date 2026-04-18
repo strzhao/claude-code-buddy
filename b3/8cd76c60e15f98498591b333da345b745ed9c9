@@ -1,0 +1,53 @@
+Sources/ClaudeCodeBuddy/Entity/Components/AnimationComponent.swift
+  90aad7a5418d7874 32,49-89
+Sources/ClaudeCodeBuddy/Resources/Info.plist
+  90aad7a5418d7874 14
+Sources/ClaudeCodeBuddy/Skin/SkinPackManifest.swift
+  90aad7a5418d7874 3-22,41-44,62-99
+tests/BuddyCoreTests/SkinPackManagerTests.swift
+  90aad7a5418d7874 232-234
+Sources/ClaudeCodeBuddy/Skin/DefaultSkinManifest.swift
+  90aad7a5418d7874 68-70
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  90aad7a5418d7874 55,140-174,268-270
+Scripts/slice-dog-sprites.swift
+  90aad7a5418d7874 1-205
+Sources/ClaudeCodeBuddy/Skin/SkinPackManager.swift
+  90aad7a5418d7874 35,39-41,61,68-74,80-124,189,192-193
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  90aad7a5418d7874 211-212
+Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift
+  90aad7a5418d7874 5,18-35
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  90aad7a5418d7874 202-206
+Sources/ClaudeCodeBuddy/Skin/SkinPackStore.swift
+  90aad7a5418d7874 13,19
+Sources/ClaudeCodeBuddy/Settings/SkinCardItem.swift
+  90aad7a5418d7874 3-4,15-19,24-29,50,80-98,146-155,177-178,180,186-188,200-201,208-249,272-275
+homebrew/Casks/claude-code-buddy.rb
+  90aad7a5418d7874 2
+Sources/ClaudeCodeBuddy/Skin/SkinPack.swift
+  90aad7a5418d7874 9-11,19-30
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  90aad7a5418d7874 500,511-513,515-519,521-527,553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "b38cd76c60e15f98498591b333da345b745ed9c9",
+  "prompts": {
+    "90aad7a5418d7874": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e7c9876e-47d8-4424-b312-fadd24e57b24",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 726,
+      "total_deletions": 200,
+      "accepted_lines": 582,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,25 @@
+.autopilot/patterns.md
+  1457fc68c75f4201 74-79
+.autopilot/index.md
+  1457fc68c75f4201 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "03b717b90b0a0f8d49f632d971ad229703e4f4cd",
+  "prompts": {
+    "1457fc68c75f4201": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23b69ec2-4c51-48b6-89ed-f5374a10e5a0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

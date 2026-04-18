@@ -13,6 +13,7 @@ enum HookEvent: String, Codable {
     case permissionRequest = "permission_request"
     case taskComplete = "task_complete"
     case morph      = "morph"
+    case showcase   = "showcase"
 }
 
 // MARK: - HookMessage
@@ -79,6 +80,7 @@ struct HookMessage: Codable {
         case .permissionRequest: return .permissionRequest
         case .taskComplete: return .taskComplete
         case .morph:      return nil
+        case .showcase:   return nil
         }
     }
 }

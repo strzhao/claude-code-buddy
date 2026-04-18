@@ -70,8 +70,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         scene = buddyScene
         skView.presentScene(buddyScene)
 
-        // Apply initial activity bounds
-        let bounds = dockTracker.activityBounds(windowOriginX: windowFrame.origin.x)
+        // Apply initial activity bounds (clamped so boundary decorations stay visible).
+        var bounds = dockTracker.activityBounds(windowOriginX: windowFrame.origin.x)
+        let decorationMargin: CGFloat = 36
+        let minX = max(bounds.lowerBound, decorationMargin)
+        let maxX = min(bounds.upperBound, windowFrame.size.width - decorationMargin)
+        if minX < maxX { bounds = minX...maxX }
         buddyScene.activityBounds = bounds
         buddyScene.foodManager.activityBounds = bounds
         cachedActivityBounds = bounds
@@ -246,7 +250,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshActivityBounds(windowOriginX: CGFloat) {
-        let newBounds = dockTracker.activityBounds(windowOriginX: windowOriginX)
+        var newBounds = dockTracker.activityBounds(windowOriginX: windowOriginX)
+
+        // Clamp to scene width minus a margin for boundary decorations (~36 per side).
+        if let sceneWidth = scene?.size.width {
+            let decorationMargin: CGFloat = 36
+            let minX = max(newBounds.lowerBound, decorationMargin)
+            let maxX = min(newBounds.upperBound, sceneWidth - decorationMargin)
+            if minX < maxX { newBounds = minX...maxX }
+        }
 
         // Only propagate if changed
         if let cached = cachedActivityBounds,

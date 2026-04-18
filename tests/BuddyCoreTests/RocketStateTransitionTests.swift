@@ -10,10 +10,20 @@ final class RocketStateTransitionTests: XCTestCase {
         super.tearDown()
     }
 
-    func testThinking_entersSystemsCheck() {
+    func testThinking_fromPadTakesOff() {
         let r = RocketEntity(sessionId: "t1")
         r.handle(event: .thinking)
-        XCTAssertEqual(r.currentState, .systemsCheck)
+        // thinking = user gave a command → rocket lifts off
+        XCTAssertEqual(r.currentState, .cruising)
+    }
+
+    func testToolEnd_staysInFlight() {
+        let r = RocketEntity(sessionId: "t1b")
+        r.handle(event: .thinking)
+        XCTAssertEqual(r.currentState, .cruising)
+        r.handle(event: .toolEnd(name: "Read"))
+        // tool_end does NOT return to pad; rocket stays airborne until task_complete.
+        XCTAssertEqual(r.currentState, .cruising)
     }
 
     func testToolStart_entersCruising() {
@@ -34,20 +44,8 @@ final class RocketStateTransitionTests: XCTestCase {
         XCTAssertEqual(r.currentState, .propulsiveLanding)
     }
 
-    func testPropulsiveLanding_emitsSceneExpansionRequest() {
-        let r = RocketEntity(sessionId: "t5")
-        let exp = expectation(description: "emits expansion")
-        var receivedHeight: CGFloat?
-        EventBus.shared.sceneExpansionRequested
-            .sink { req in
-                receivedHeight = req.height
-                exp.fulfill()
-            }
-            .store(in: &cancellables)
-        r.handle(event: .taskComplete)
-        wait(for: [exp], timeout: 1.0)
-        XCTAssertEqual(receivedHeight, RocketConstants.Landing.sceneExpansion)
-    }
+    // Note: landing no longer requests scene expansion — rocket descends from its current
+    // cruise altitude (~30pt above the pad), which fits within the normal window height.
 
     func testLiftoff_emitsLargerExpansion() {
         let r = RocketEntity(sessionId: "t6")

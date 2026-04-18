@@ -647,6 +647,39 @@ private func cmdMorph(_ args: [String]) {
     }
 }
 
+private func cmdShowcase(_ positional: [String]) {
+    // Server-side showcase: the app iterates RocketKind.allCases itself, so
+    // adding a new kind later doesn't require any CLI change. An optional
+    // positional kind (classic/shuttle/falcon9/starship3; aliases: starship/f9)
+    // filters to just that variant.
+    let kindArg = positional.first
+    let normalized: String? = kindArg.map { raw -> String in
+        switch raw.lowercased() {
+        case "starship", "starship3": return "starship3"
+        case "f9", "falcon", "falcon9": return "falcon9"
+        case "classic": return "classic"
+        case "shuttle": return "shuttle"
+        default: return raw
+        }
+    }
+    do {
+        try sendMessage(BuddyMessage(
+            sessionId: "",
+            event: "showcase",
+            timestamp: Date().timeIntervalSince1970,
+            label: normalized
+        ))
+        if let k = normalized {
+            print("Showcase requested — only \(k). Re-run to reset.")
+        } else {
+            print("Showcase requested — one rocket per kind. Re-run to reset.")
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
 private func main() {
     let args = Array(CommandLine.arguments.dropFirst())
     let opts = parseArguments(args)
@@ -685,6 +718,10 @@ private func main() {
         cmdInspect(opts)
     case "events":
         cmdEvents(opts)
+    case "showcase":
+        let showcaseArgs = Array(args.dropFirst())
+            .filter { !$0.hasPrefix("--") }
+        cmdShowcase(showcaseArgs)
     case "health":
         cmdHealth()
     case "help", "--help", "-h", "":

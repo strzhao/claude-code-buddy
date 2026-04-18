@@ -27,6 +27,11 @@ class SessionManager {
     /// Full session state keyed by sessionId.
     var sessions: [String: SessionInfo] = [:]
 
+    /// Token per showcase-driven session. Bumped whenever a session is
+    /// restarted or ended — pending cycle callbacks bail out if the token
+    /// no longer matches.
+    private var showcaseTokens: [String: UUID] = [:]
+
     /// Tracks which colors are currently in use.
     var usedColors: Set<SessionColor> = []
 
@@ -70,6 +75,102 @@ class SessionManager {
             .sink { [weak self] newMode in
                 self?.performHotSwitch(to: newMode)
             }
+    }
+
+    /// Spawns one debug session per RocketKind with a random state, so every
+    /// variant is visible side-by-side for comparison. Only runs in rocket mode
+    /// (morphs there first if not already). Running again resets the display.
+    private func performShowcase(filter: RocketKind? = nil) {
+        if currentMode != .rocket {
+            EntityModeStore.shared.set(.rocket)
+        }
+        // Tear down all previous showcase sessions first so a filtered re-run
+        // clears the other kinds rather than adding alongside them.
+        for existing in sessions.keys where existing.hasPrefix("showcase-") {
+            if let info = sessions[existing] { releaseColor(info.color) }
+            sessions.removeValue(forKey: existing)
+            lastEvents.removeValue(forKey: existing)
+            showcaseTokens.removeValue(forKey: existing)
+            scene.removeEntity(sessionId: existing)
+        }
+        let kinds: [RocketKind] = filter.map { [$0] } ?? RocketKind.allCases
+        for kind in kinds {
+            let sid = "showcase-\(kind.rawValue)"
+            // Tear down any previous showcase session with this id. Bumping
+            // the token invalidates any pending cycle callback from the
+            // previous run.
+            if sessions[sid] != nil {
+                if let info = sessions[sid] { releaseColor(info.color) }
+                sessions.removeValue(forKey: sid)
+                lastEvents.removeValue(forKey: sid)
+                showcaseTokens.removeValue(forKey: sid)
+                scene.removeEntity(sessionId: sid)
+            }
+            EntityFactory.presetKind(sessionId: sid, kind: kind)
+
+            let color = assignColor()
+            let info = SessionInfo(
+                sessionId: sid,
+                label: kind.rawValue,
+                color: color,
+                cwd: "/tmp/showcase-\(kind.rawValue)",
+                pid: nil,
+                terminalId: nil,
+                state: .idle,
+                lastActivity: Date(),
+                toolDescription: nil,
+                model: nil,
+                startedAt: nil,
+                totalTokens: 0,
+                toolCallCount: 0
+            )
+            sessions[sid] = info
+            if scene.activeCatCount < 8 {
+                scene.addEntity(info: info, mode: .rocket)
+            }
+
+            // Drive every showcase rocket through the same deterministic
+            // cycle: OnPad → liftoff → abort (!) → resume → landing → loop.
+            startShowcaseCycle(for: sid)
+        }
+        writeColorFile()
+        onSessionCountChanged?(scene.activeCatCount)
+        onSessionsChanged?(Array(sessions.values))
+    }
+
+    /// Fixed showcase cycle — (event, wait-before-next).
+    /// The session starts in OnPad automatically on spawn; after the initial
+    /// settle delay we emit `.thinking` to lift off, then cycle forever.
+    private static let showcaseCycleSteps: [(EntityInputEvent, TimeInterval)] = [
+        // Settle on the pad before the first liftoff so the initial
+        // state reads clearly.
+        (.thinking,                                       5.0),  // liftoff → cruising
+        (.permissionRequest(description: "Confirm"),      3.5),  // "!" abort
+        (.toolStart(name: "Read", description: nil),      3.5),  // resume flight
+        (.taskComplete,                                   6.0),  // land → OnPad (2.8s anim + settle)
+    ]
+
+    private func startShowcaseCycle(for sid: String) {
+        let token = UUID()
+        showcaseTokens[sid] = token
+        // Initial on-pad dwell before the first event in the cycle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.advanceShowcaseCycle(sid: sid, token: token, step: 0)
+        }
+    }
+
+    private func advanceShowcaseCycle(sid: String, token: UUID, step: Int) {
+        // Bail if the session was torn down or a newer cycle was started.
+        guard sessions[sid] != nil, showcaseTokens[sid] == token else { return }
+
+        let steps = Self.showcaseCycleSteps
+        let (event, wait) = steps[step % steps.count]
+        lastEvents[sid] = event
+        scene.dispatchEntityEvent(sessionId: sid, event: event)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
+            self?.advanceShowcaseCycle(sid: sid, token: token, step: step + 1)
+        }
     }
 
     private func performHotSwitch(to newMode: EntityMode) {
@@ -221,6 +322,11 @@ class SessionManager {
             }
             return
 
+        case .showcase:
+            let filter = message.label.flatMap { RocketKind(rawValue: $0) }
+            performShowcase(filter: filter)
+            return
+
         case .sessionEnd:
             if let session = sessions[sessionId] {
                 eventStore.record(StoredEvent(
@@ -230,6 +336,7 @@ class SessionManager {
                 releaseColor(session.color)
                 sessions.removeValue(forKey: sessionId)
                 lastEvents.removeValue(forKey: sessionId)
+                showcaseTokens.removeValue(forKey: sessionId)
                 scene.removeEntity(sessionId: sessionId)
                 writeColorFile()
             }
@@ -332,8 +439,8 @@ class SessionManager {
                 sessions[sessionId]?.toolCallCount += 1
             }
 
-            // Food spawn trigger on toolEnd
-            if message.event == .toolEnd {
+            // Food spawn trigger on toolEnd — only in cat mode.
+            if message.event == .toolEnd, currentMode == .cat {
                 let roll = Float.random(in: 0..<1)
                 if roll < FoodManager.toolEndSpawnProbability {
                     let catX = scene.catPosition(for: sessionId)

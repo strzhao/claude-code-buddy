@@ -71,7 +71,7 @@ class MouseTracker {
         let viewPoint = view.convert(windowPoint, from: nil)
         let scenePoint = scene.convertPoint(fromView: viewPoint)
 
-        let hitSessionId = scene.catAtPoint(scenePoint)
+        let hitSessionId = scene.entityAtPoint(scenePoint)
 
         if let sessionId = hitSessionId {
             // Mouse is over a cat
@@ -113,7 +113,7 @@ class MouseTracker {
         let viewPoint = view.convert(event.locationInWindow, from: nil)
         let scenePoint = scene.convertPoint(fromView: viewPoint)
 
-        if let sessionId = scene.catAtPoint(scenePoint) {
+        if let sessionId = scene.entityAtPoint(scenePoint) {
             onClick?(sessionId)
         }
     }

@@ -34,6 +34,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private(set) var foodManager = FoodManager()
 
     private var hoveredCatSessionId: String?
+    /// When non-nil, BuddyScene repositions tooltipNode each frame so it follows
+    /// the entity's current position (rocket can drift while cruising).
+    private var tooltipFollowSessionId: String?
 
     /// Tracks which bed slots are in use (sessionId → slot index).
     private var activeBedSlots: [String: Int] = [:]
@@ -45,6 +48,19 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var leftBoundaryNode: SKSpriteNode?
     private var rightBoundaryNode: SKSpriteNode?
+
+    /// sessionId of the currently-active Starship 3, if any. Used to enforce the
+    /// at-most-one rule and to drive the Mechazilla right tower swap.
+    private var activeStarshipSessionId: String?
+
+    /// Cached Mechazilla textures (closed / open) — loaded once on first use.
+    private var mechazillaClosedTexture: SKTexture?
+    private var mechazillaOpenTexture: SKTexture?
+    private var mechazillaHalfTexture: SKTexture?
+
+    /// Orbital Launch Mount — trapezoidal concrete slab the Starship sits on.
+    /// Shown only while a Starship is on scene.
+    private var olmNode: SKNode?
 
     private let sceneEnvironment = SceneEnvironment()
     private var cancellables = Set<AnyCancellable>()
@@ -62,6 +78,11 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         setupBoundaryDecorations()
         foodManager.scene = self
         foodManager.start()
+
+        // Wire EntityFactory's starship-uniqueness check to our scene state.
+        EntityFactory.hasActiveStarship = { [weak self] in
+            self?.hasStarship() ?? false
+        }
 
         sceneEnvironment.start()
 
@@ -109,10 +130,18 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         addChild(groundNode)
     }
 
-    private static let boundaryRenderSize = CGSize(width: 32, height: 32)
+    private static let boundaryRenderSizeCat = CGSize(width: 32, height: 32)
+    private static let boundaryRenderSizeRocket = CGSize(width: 32, height: 68)
 
-    private func loadBoundaryTexture() -> SKTexture? {
-        guard let url = ResourceBundle.bundle.url(forResource: "boundary-bush",
+    private func boundaryRenderSize(for mode: EntityMode) -> CGSize {
+        switch mode {
+        case .cat:    return Self.boundaryRenderSizeCat
+        case .rocket: return Self.boundaryRenderSizeRocket
+        }
+    }
+
+    private func loadBoundaryTexture(named: String) -> SKTexture? {
+        guard let url = ResourceBundle.bundle.url(forResource: named,
                                           withExtension: "png",
                                           subdirectory: "Assets/Sprites"),
               let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -124,9 +153,19 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         return tex
     }
 
+    private func boundaryTextureName(for mode: EntityMode) -> String {
+        switch mode {
+        case .cat:    return "boundary-bush"
+        // Rocket mode always uses Mechazilla towers — both sides, even when
+        // no Starship is on scene.
+        case .rocket: return "boundary-mechazilla"
+        }
+    }
+
     private func setupBoundaryDecorations() {
-        let tex = loadBoundaryTexture()
-        let renderSize = Self.boundaryRenderSize
+        let currentMode = EntityModeStore.shared.current
+        let tex = loadBoundaryTexture(named: boundaryTextureName(for: currentMode))
+        let renderSize = boundaryRenderSize(for: currentMode)
 
         let left = SKSpriteNode(texture: tex, size: renderSize)
         left.color = tex == nil ? .green : .white
@@ -144,10 +183,41 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         right.zPosition = -1
         addChild(right)
         rightBoundaryNode = right
+
+        // Keep boundary textures in sync with mode changes (hot-switch).
+        EventBus.shared.entityModeChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] change in
+                self?.applyBoundaryTexture(for: change.next)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyBoundaryTexture(for mode: EntityMode) {
+        let tex = loadBoundaryTexture(named: boundaryTextureName(for: mode))
+        let renderSize = boundaryRenderSize(for: mode)
+        leftBoundaryNode?.texture = tex
+        leftBoundaryNode?.size = renderSize
+        leftBoundaryNode?.color = tex == nil ? .green : .white
+        leftBoundaryNode?.position = CGPoint(
+            x: activityBounds.lowerBound - renderSize.width / 2 - 2,
+            y: renderSize.height / 2
+        )
+        rightBoundaryNode?.texture = tex
+        rightBoundaryNode?.size = renderSize
+        rightBoundaryNode?.color = tex == nil ? .green : .white
+        rightBoundaryNode?.position = CGPoint(
+            x: activityBounds.upperBound + renderSize.width / 2 + 2,
+            y: renderSize.height / 2
+        )
+        // Re-apply Starship dressing after a mode swap so the left boundary
+        // stays hidden / Mechazilla stays on the right while a Starship is still
+        // on scene.
+        applyStarshipSceneAdjustments()
     }
 
     private func updateBoundaryPositions() {
-        let renderSize = Self.boundaryRenderSize
+        let renderSize = boundaryRenderSize(for: EntityModeStore.shared.current)
         leftBoundaryNode?.position.x = activityBounds.lowerBound - renderSize.width / 2 - 2
         rightBoundaryNode?.position.x = activityBounds.upperBound + renderSize.width / 2 + 2
     }
@@ -242,14 +312,38 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         case .rocket:
             let sessionId = info.sessionId
             guard entities[sessionId] == nil else { return }
-            let rocket = RocketEntity(sessionId: sessionId)
+            // Route through EntityFactory so the rocket kind (classic/F9/Starship)
+            // is consistent with what the rest of the app expects.
+            guard let rocket = EntityFactory.make(mode: .rocket,
+                                                  sessionId: sessionId) as? RocketEntity else { return }
             rocket.configure(color: info.color, labelText: info.label)
+
+            // Starship 3 spawns near the right tower, not at a random x.
+            let spawnX: CGFloat
+            if rocket.kind == .starship3 {
+                spawnX = max(activityBounds.lowerBound,
+                             activityBounds.upperBound - RocketConstants.Starship.rightTowerPadding)
+            } else {
+                // Other rockets must not encroach on Starship's OLM area.
+                let upper = effectiveUpperBound(for: rocket.kind)
+                let lower = min(activityBounds.lowerBound, upper)
+                spawnX = CGFloat.random(in: lower...upper)
+            }
+            // Kind-specific init y (Starship sits higher to keep its booster
+            // nozzle on OLM top). Pad uses per-instance padVisibleY.
             rocket.containerNode.position = CGPoint(
-                x: CGFloat.random(in: activityBounds),
-                y: RocketConstants.Visual.groundY
+                x: spawnX,
+                y: rocket.kind.containerInitY
             )
             addChild(rocket.containerNode)
+            // Pad sits at scene level so it doesn't follow horizontal drift.
+            rocket.padNode.position = CGPoint(x: spawnX, y: rocket.padVisibleY)
+            addChild(rocket.padNode)
             entities[sessionId] = rocket
+            if rocket.kind == .starship3 {
+                activeStarshipSessionId = sessionId
+                applyStarshipSceneAdjustments()
+            }
             rocket.enterScene(sceneSize: size, activityBounds: activityBounds)
         }
     }
@@ -260,8 +354,16 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         guard let entity = entities.removeValue(forKey: sessionId) else { return }
+        if sessionId == activeStarshipSessionId {
+            activeStarshipSessionId = nil
+            applyStarshipSceneAdjustments()
+        }
         entity.exitScene(sceneWidth: size.width) {
             entity.containerNode.removeFromParent()
+            if let rocket = entity as? RocketEntity {
+                rocket.padNode.removeFromParent()
+                rocket.setBoosterIgnited(false)  // tear down scene-level plume if still up
+            }
         }
     }
 
@@ -273,10 +375,15 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let snapshot = entities
         entities.removeAll()
         cats.removeAll()
+        activeStarshipSessionId = nil
+        applyStarshipSceneAdjustments()
         for (_, entity) in snapshot {
             group.enter()
             entity.exitScene(sceneWidth: size.width) {
                 entity.containerNode.removeFromParent()
+                if let rocket = entity as? RocketEntity {
+                    rocket.padNode.removeFromParent()
+                }
                 group.leave()
             }
         }
@@ -297,6 +404,42 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         entities[sessionId]?.handle(event: event)
     }
 
+    /// Returns an x-position within activity bounds where a pad can land without
+    /// overlapping other currently-visible pads. Flying rockets (pad hidden) are ignored.
+    func findSafeLandingX(excluding sessionId: String, near preferredX: CGFloat) -> CGFloat {
+        let separation = RocketConstants.Visual.spriteSize.width - 4   // ~44pt gap
+        let occupied: [CGFloat] = entities.compactMap { sid, ent -> CGFloat? in
+            guard sid != sessionId,
+                  let rocket = ent as? RocketEntity,
+                  !rocket.padNode.isHidden else { return nil }
+            return rocket.padNode.position.x
+        }
+
+        func overlaps(_ x: CGFloat) -> Bool {
+            occupied.contains { abs($0 - x) < separation }
+        }
+        if !overlaps(preferredX) { return preferredX }
+
+        let halfSprite = RocketConstants.Visual.spriteSize.width / 2
+        let leftBound = activityBounds.lowerBound + halfSprite
+        let rightBound = min(activityBounds.upperBound - halfSprite,
+                             effectiveUpperBound(for: .classic))
+        // Note: .classic is a stand-in — effectiveUpperBound returns the same
+        // value for all non-starship kinds.
+
+        var delta = separation
+        let maxDelta = max(rightBound - leftBound, separation)
+        while delta <= maxDelta {
+            for candidate in [preferredX + delta, preferredX - delta] {
+                if candidate >= leftBound && candidate <= rightBound && !overlaps(candidate) {
+                    return candidate
+                }
+            }
+            delta += separation / 2
+        }
+        return preferredX
+    }
+
     func catAtPoint(_ point: CGPoint) -> String? {
         let hitSize = CatEntity.hitboxSize
         for (sessionId, cat) in cats {
@@ -314,11 +457,32 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         return nil
     }
 
+    /// Mode-agnostic hit test: returns the sessionId of a cat OR rocket under `point`.
+    func entityAtPoint(_ point: CGPoint) -> String? {
+        if let id = catAtPoint(point) { return id }
+        for (sid, entity) in entities {
+            guard let rocket = entity as? RocketEntity else { continue }
+            let hit = RocketConstants.Visual.hitboxSize
+            let pos = rocket.containerNode.position
+            let rect = CGRect(
+                x: pos.x - hit.width / 2,
+                y: pos.y - hit.height / 2,
+                width: hit.width,
+                height: hit.height
+            )
+            if rect.contains(point) { return sid }
+        }
+        return nil
+    }
+
     // MARK: - Private Helpers
 
     private func propagateActivityBounds() {
         for cat in cats.values {
             cat.updateActivityBounds(activityBounds)
+        }
+        for case let rocket as RocketEntity in entities.values {
+            rocket.updateActivityBounds(activityBounds)
         }
         foodManager.activityBounds = activityBounds
         updateBoundaryPositions()
@@ -337,38 +501,92 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Tooltip
 
     func showTooltip(for sessionId: String) {
-        guard let cat = cats[sessionId],
-              let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
-        // Don't show tooltip if cat is already showing label (waiting state)
-        guard cat.currentState != .permissionRequest else { return }
-        tooltipNode.show(label: info.label, color: info.color, at: cat.containerNode.position, sceneSize: size)
+        guard let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
+        let shortLabel = Self.truncate(info.label, max: 12)
+
+        if let cat = cats[sessionId] {
+            guard cat.currentState != .permissionRequest else { return }
+            tooltipFollowSessionId = sessionId
+            tooltipNode.show(label: shortLabel, color: info.color,
+                             at: cat.containerNode.position, sceneSize: size)
+            return
+        }
+        if let rocket = entities[sessionId] as? RocketEntity {
+            tooltipFollowSessionId = sessionId
+            tooltipNode.show(label: shortLabel, color: info.color,
+                             at: rocket.containerNode.position, sceneSize: size)
+        }
+    }
+
+    private static func truncate(_ label: String, max: Int) -> String {
+        guard label.count > max else { return label }
+        return String(label.prefix(max - 1)) + "…"
     }
 
     func hideTooltip() {
+        tooltipFollowSessionId = nil
         tooltipNode.hide()
+    }
+
+    /// Per-frame mouse-over detection. NSEvent.mouseMoved only fires on movement,
+    /// so a stationary cursor won't re-hit a rocket that drifts underneath it. We
+    /// poll each frame to cover both rocket-moves-into-cursor and cursor-moves-off-rocket.
+    private func pollMouseHover() {
+        guard let view = self.view, let window = view.window else { return }
+        let screenPoint = NSEvent.mouseLocation
+        let windowFrame = NSRect(origin: screenPoint, size: .zero)
+        let windowPoint = window.convertPoint(fromScreen: windowFrame.origin)
+        let viewPoint = view.convert(windowPoint, from: nil)
+        let scenePoint = convertPoint(fromView: viewPoint)
+
+        let hit = entityAtPoint(scenePoint)
+        if let sid = hit {
+            if tooltipFollowSessionId != sid {
+                showTooltip(for: sid)
+                setHovered(sessionId: sid, hovered: true)
+            }
+        } else if let prev = tooltipFollowSessionId {
+            hideTooltip()
+            setHovered(sessionId: prev, hovered: false)
+        }
+    }
+
+    /// Keeps the tooltip pinned above whichever entity it's currently attached to.
+    /// Called from `update(_:)` each frame.
+    private func updateTooltipFollow() {
+        guard let sid = tooltipFollowSessionId else { return }
+        let anchor: CGPoint
+        if let cat = cats[sid] {
+            anchor = cat.containerNode.position
+        } else if let rocket = entities[sid] as? RocketEntity {
+            anchor = rocket.containerNode.position
+        } else {
+            tooltipFollowSessionId = nil
+            return
+        }
+        tooltipNode.place(at: anchor, sceneSize: size)
     }
 
     // MARK: - Hover
 
     func setHovered(sessionId: String, hovered: Bool) {
         if hovered {
-            // Unhover previous cat if different
             if let prev = hoveredCatSessionId, prev != sessionId {
-                cats[prev]?.removeHoverScale()
+                entities[prev]?.removeHoverScale()
             }
             hoveredCatSessionId = sessionId
-            cats[sessionId]?.applyHoverScale()
+            entities[sessionId]?.applyHoverScale()
         } else {
             if hoveredCatSessionId == sessionId {
                 hoveredCatSessionId = nil
             }
-            cats[sessionId]?.removeHoverScale()
+            entities[sessionId]?.removeHoverScale()
         }
     }
 
     func clearHover() {
         if let sessionId = hoveredCatSessionId {
-            cats[sessionId]?.removeHoverScale()
+            entities[sessionId]?.removeHoverScale()
             hoveredCatSessionId = nil
         }
     }
@@ -377,6 +595,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     override func update(_ currentTime: TimeInterval) {
         super.update(currentTime)
+
+        pollMouseHover()
+        updateTooltipFollow()
 
         for cat in cats.values {
             // Skip cats in taskComplete state (beds are outside activityBounds)
@@ -492,6 +713,164 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private func bedSlotX(for slot: Int) -> CGFloat {
         activityBounds.upperBound + CatConstants.TaskComplete.firstSlotOffset
             + CGFloat(slot) * CatConstants.TaskComplete.slotSpacing
+    }
+
+    // MARK: - Starship 3 scene adjustments
+
+    /// Returns true when a Starship 3 is currently on scene. Exposed to
+    /// EntityFactory so it can skip `.starship3` in the kind rotation.
+    func hasStarship() -> Bool {
+        activeStarshipSessionId != nil
+    }
+
+    /// Swings the Mechazilla chopstick arms open or closed. No-op if the
+    /// right-boundary node isn't currently in Mechazilla mode (i.e. no
+    /// Starship on scene).
+    ///
+    /// - Parameters:
+    ///   - open: `true` = arms retracted (open). `false` = arms extended (closed).
+    ///   - animated: when `true`, plays the 3-frame closed↔half↔open animation
+    ///     over `RocketConstants.Starship.chopstickAnimationDuration`. Otherwise
+    ///     snaps instantly to the target texture.
+    func setChopsticks(open: Bool, animated: Bool = false) {
+        guard activeStarshipSessionId != nil else { return }
+        loadMechazillaTexturesIfNeeded()
+        guard let node = rightBoundaryNode else { return }
+
+        // Only the RIGHT (real) Mechazilla animates. The LEFT tower is a
+        // static mirrored dressing and must NOT follow liftoff/catch state.
+        node.removeAction(forKey: "chopsticks")
+
+        if animated,
+           let closed = mechazillaClosedTexture,
+           let half = mechazillaHalfTexture,
+           let opened = mechazillaOpenTexture {
+            let frames: [SKTexture] = open
+                ? [closed, half, opened]
+                : [opened, half, closed]
+            let total = RocketConstants.Starship.chopstickAnimationDuration
+            let timePerFrame = total / Double(frames.count)
+            let animate = SKAction.animate(with: frames, timePerFrame: timePerFrame)
+            node.run(animate, withKey: "chopsticks")
+        } else {
+            node.texture = open ? mechazillaOpenTexture : mechazillaClosedTexture
+        }
+    }
+
+    private func loadMechazillaTexturesIfNeeded() {
+        if mechazillaClosedTexture == nil {
+            mechazillaClosedTexture = loadBoundaryTexture(named: "boundary-mechazilla")
+        }
+        if mechazillaOpenTexture == nil {
+            mechazillaOpenTexture = loadBoundaryTexture(named: "boundary-mechazilla-open")
+        }
+        if mechazillaHalfTexture == nil {
+            mechazillaHalfTexture = loadBoundaryTexture(named: "boundary-mechazilla-half")
+        }
+    }
+
+    /// Applies (or reverts) the Starship-specific scene dressing: swap the RIGHT
+    /// tower to Mechazilla while a Starship is on scene. Left boundary stays
+    /// visible as the normal mode-decoration (both launch towers shown).
+    private func applyStarshipSceneAdjustments() {
+        // The boundary towers are already Mechazilla in rocket mode — no
+        // texture swap needed when Starship comes/goes. Just manage OLM +
+        // make sure the right tower returns to CLOSED when Starship leaves.
+        if activeStarshipSessionId != nil {
+            ensureOLM()
+        } else {
+            loadMechazillaTexturesIfNeeded()
+            if let tex = mechazillaClosedTexture {
+                rightBoundaryNode?.texture = tex
+            }
+            olmNode?.removeFromParent()
+            olmNode = nil
+        }
+    }
+
+    /// Right-edge cap for non-Starship rockets. Starship's spot at the OLM is
+    /// reserved permanently — other rockets are capped regardless of whether
+    /// a Starship is currently on scene. Returns the OLM's left edge minus
+    /// half a sprite so rockets stay fully clear of the mount.
+    func effectiveUpperBound(for kind: RocketKind) -> CGFloat {
+        let fullUpper = activityBounds.upperBound
+        guard kind != .starship3 else { return fullUpper }
+        let olmCenter = activityBounds.upperBound - RocketConstants.Starship.rightTowerPadding
+        let olmHalfBottomWidth: CGFloat = 11
+        let halfSprite = RocketConstants.Visual.spriteSize.width / 2
+        return min(fullUpper, olmCenter - olmHalfBottomWidth - halfSprite)
+    }
+
+    /// Canonical x for the Starship's OLM / launch-liftoff-land position.
+    func starshipAnchorX() -> CGFloat {
+        activityBounds.upperBound - RocketConstants.Starship.rightTowerPadding
+    }
+
+    /// Builds the Orbital Launch Mount under the Starship spawn x. Open-truss
+    /// design: a wide top deck sits on three NARROW pillars with large vent
+    /// gaps between them, so the booster's exhaust plume is visible through
+    /// the mount at liftoff. A thin mid-height cross-brace hints at
+    /// structural framework without obstructing the flame.
+    private func ensureOLM() {
+        guard olmNode == nil else { return }
+
+        let fill  = NSColor(red: 0.42, green: 0.42, blue: 0.45, alpha: 1.0)
+        let outline = NSColor(red: 0.18, green: 0.18, blue: 0.20, alpha: 1.0)
+        let accent  = NSColor(red: 0.22, green: 0.22, blue: 0.24, alpha: 1.0)
+
+        let root = SKNode()
+        root.zPosition = -0.2
+
+        // Top deck (booster rests on this): 22pt wide, 2pt tall at y=4..6.
+        // Wider than before so it spans the outer legs with a slight overhang.
+        let plate = SKSpriteNode(color: fill, size: CGSize(width: 22, height: 2))
+        plate.position = CGPoint(x: 0, y: 5)
+        root.addChild(plate)
+        // Dark deflector stripe along the deck's underside
+        let plateAccent = SKSpriteNode(color: accent, size: CGSize(width: 22, height: 1))
+        plateAccent.position = CGPoint(x: 0, y: 5.5)
+        root.addChild(plateAccent)
+
+        // Three SKINNY pillars — narrower than the previous trapezoids, with
+        // a gentle flare at the base for stance. Lots of open space between
+        // for flame to pass through.
+        //   top x-range  →  bottom x-range
+        //   left:   -10..-8  →  -11..-8
+        //   center: -1..+1   →  -1..+1   (thin central column)
+        //   right:  +8..+10  →  +8..+11
+        let legs: [(topL: CGFloat, topR: CGFloat, botL: CGFloat, botR: CGFloat)] = [
+            (-10, -8, -11, -8),
+            ( -1,  1,  -1,  1),
+            (  8, 10,   8, 11),
+        ]
+        for leg in legs {
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: leg.botL, y: 0))
+            path.addLine(to: CGPoint(x: leg.botR, y: 0))
+            path.addLine(to: CGPoint(x: leg.topR, y: 4))
+            path.addLine(to: CGPoint(x: leg.topL, y: 4))
+            path.closeSubpath()
+
+            let legNode = SKShapeNode(path: path)
+            legNode.fillColor = fill
+            legNode.strokeColor = outline
+            legNode.lineWidth = 1
+            legNode.isAntialiased = false
+            root.addChild(legNode)
+        }
+
+        // Horizontal cross-brace (thin metallic strut) between the outer
+        // pillars at y=2 — reads as structural framework without masking
+        // the exhaust vents significantly.
+        let brace = SKSpriteNode(color: accent, size: CGSize(width: 22, height: 1))
+        brace.position = CGPoint(x: 0, y: 2)
+        root.addChild(brace)
+
+        // Align under Starship spawn x (see addEntity / Starship.rightTowerPadding).
+        let spawnX = activityBounds.upperBound - RocketConstants.Starship.rightTowerPadding
+        root.position = CGPoint(x: spawnX, y: 0)
+        addChild(root)
+        olmNode = root
     }
 }
 

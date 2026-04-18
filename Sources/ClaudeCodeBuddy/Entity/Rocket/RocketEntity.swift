@@ -196,9 +196,52 @@ extension RocketEntity: SessionEntity {
     }
 
     func exitScene(sceneWidth: CGFloat, completion: @escaping () -> Void) {
-        let fade = SKAction.fadeOut(withDuration: 0.2)
+        // Hot-switch exit: every rocket — regardless of current state
+        // (onPad / cruising / abort / landing / liftoff) — takes off
+        // straight up and out of the scene. Abandons any in-flight state
+        // actions and tears down scene-level dressing (OLM flame, booster
+        // separation tumble, chopstick animation) so the sprite leaves
+        // cleanly.
+
+        // 1) Cancel all current-state animations on ship + container + pad.
+        containerNode.removeAllActions()
+        node.removeAllActions()
+        padNode.removeAllActions()
+
+        // 2) Starship dressing cleanup — extinguish the scene-level flame
+        //    plume and the embedded booster-flame texture before lifting.
+        if kind == .starship3 {
+            setBoosterIgnited(false)
+            boosterNode?.removeAllActions()
+            // Let the scene swing chopsticks shut so the right tower
+            // doesn't freeze mid-animation.
+            (containerNode.scene as? BuddyScene)?.setChopsticks(open: false)
+        }
+
+        // 3) Liftoff escape — move up past the top of whatever scene we're
+        //    in (sceneHeight isn't directly exposed; use a generous 200pt
+        //    which clears any current Dock-window expansion).
+        let ascentDistance: CGFloat = 200
+        let ascentDuration: TimeInterval = 0.7
+        let ascend = SKAction.moveBy(x: 0, y: ascentDistance, duration: ascentDuration)
+        ascend.timingMode = .easeIn
+
+        // 4) Fade during the last 0.3s so the sprite disappears off-screen
+        //    instead of popping out.
+        let fade = SKAction.sequence([
+            SKAction.wait(forDuration: ascentDuration - 0.3),
+            SKAction.fadeOut(withDuration: 0.3)
+        ])
+
         let done = SKAction.run { completion() }
-        containerNode.run(SKAction.sequence([fade, done]))
+        containerNode.run(SKAction.sequence([
+            SKAction.group([ascend, fade]),
+            done
+        ]), withKey: "hotSwitchExit")
+
+        // Pad sprite stays behind — the scene ground is unchanged — so
+        // fade it out concurrently to avoid orphaned art.
+        padNode.run(SKAction.fadeOut(withDuration: 0.3))
     }
 
     func updateSceneSize(_ size: CGSize) {

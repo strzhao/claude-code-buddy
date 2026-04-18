@@ -109,6 +109,7 @@ final class MockScene: SceneControlling {
     func replaceAllEntities(with mode: EntityMode,
                             infos: [SessionInfo],
                             lastEvents: [String: EntityInputEvent],
+                            onOldEntitiesExited: (() -> Void)?,
                             completion: @escaping () -> Void) {
         replaceAllCalled = true
         lastReplacementMode = mode
@@ -117,10 +118,16 @@ final class MockScene: SceneControlling {
         if let block = replaceAllBlock {
             DispatchQueue.global().async {
                 block()
-                DispatchQueue.main.async { completion() }
+                DispatchQueue.main.async {
+                    onOldEntitiesExited?()
+                    completion()
+                }
             }
         } else {
-            DispatchQueue.main.async { completion() }
+            DispatchQueue.main.async {
+                onOldEntitiesExited?()
+                completion()
+            }
         }
     }
 

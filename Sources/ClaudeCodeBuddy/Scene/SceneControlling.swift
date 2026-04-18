@@ -67,6 +67,7 @@ protocol SceneControlling: AnyObject {
     func replaceAllEntities(with mode: EntityMode,
                             infos: [SessionInfo],
                             lastEvents: [String: EntityInputEvent],
+                            onOldEntitiesExited: (() -> Void)?,
                             completion: @escaping () -> Void)
     func dispatchEntityEvent(sessionId: String, event: EntityInputEvent)
 }

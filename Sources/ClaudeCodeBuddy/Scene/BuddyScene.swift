@@ -379,6 +379,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     func replaceAllEntities(with mode: EntityMode,
                             infos: [SessionInfo],
                             lastEvents: [String: EntityInputEvent],
+                            onOldEntitiesExited: (() -> Void)? = nil,
                             completion: @escaping () -> Void) {
         let group = DispatchGroup()
         let snapshot = entities
@@ -392,12 +393,29 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 entity.containerNode.removeFromParent()
                 if let rocket = entity as? RocketEntity {
                     rocket.padNode.removeFromParent()
+                    rocket.setBoosterIgnited(false)  // tear down scene-level plume
                 }
                 group.leave()
             }
         }
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
+
+            // Clean up lingering scene-level decorations that were owned
+            // by the old mode's entities but parented to the scene
+            // directly (and therefore survived containerNode removal):
+            //   - Cat beds (named "bed_<sessionId>") from CatTaskCompleteState
+            for child in self.children where child.name?.hasPrefix("bed_") == true {
+                child.removeFromParent()
+            }
+            self.activeBedSlots.removeAll()
+
+            // Midway hook — after old entities have finished exiting and
+            // old-mode decorations are cleaned up, BEFORE new entities spawn.
+            // SessionManager uses this to swap boundary artwork so rockets
+            // don't briefly stand next to cat-mode trees (or vice versa).
+            onOldEntitiesExited?()
+
             for info in infos {
                 self.addEntity(info: info, mode: mode)
                 if let e = lastEvents[info.sessionId] {

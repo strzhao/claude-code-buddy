@@ -178,17 +178,25 @@ class SessionManager {
         currentMode = newMode
         isTransitioning = true
         let infos = Array(sessions.values)
-        scene.replaceAllEntities(with: newMode,
-                                 infos: infos,
-                                 lastEvents: lastEvents) { [weak self] in
+        scene.replaceAllEntities(
+            with: newMode,
+            infos: infos,
+            lastEvents: lastEvents,
+            onOldEntitiesExited: {
+                // Fires between old entities fully exiting and new ones
+                // spawning — emit the mode-change event HERE so BuddyScene
+                // swaps the boundary dressing before new entities appear,
+                // preventing the "tree-next-to-rocket" frame flash.
+                EventBus.shared.entityModeChanged.send(
+                    EntityModeChangeEvent(previous: prev, next: newMode)
+                )
+            }
+        ) { [weak self] in
             guard let self = self else { return }
             self.isTransitioning = false
             let queued = self.queuedMessages
             self.queuedMessages.removeAll()
             for m in queued { self.handle(message: m) }
-            EventBus.shared.entityModeChanged.send(
-                EntityModeChangeEvent(previous: prev, next: newMode)
-            )
         }
     }
 

@@ -255,9 +255,11 @@ func render(to relativePath: String, _ body: (CGContext) -> Void) {
 // MARK: - Frames
 
 // Idle: Raptors off — ship settles 2pt below cruise altitude, no flame,
-// no motion. Reads as "resting on the pad / waiting for input".
+// but a small wisp of residual smoke at the base reads as "just powered
+// down / waiting on the pad".
 render(to: "menubar-rocket-idle-1.png") { ctx in
     drawRocket(ctx, yShift: -2)
+    drawSmoke(ctx)
 }
 
 // Walk (6 frames): rocket hovering with small / medium flame flickering.

@@ -10,6 +10,7 @@ enum HookEvent: String, Codable {
     case idle       = "idle"
     case sessionEnd = "session_end"
     case setLabel   = "set_label"
+    case setTokens  = "set_tokens"
     case permissionRequest = "permission_request"
     case taskComplete = "task_complete"
 }
@@ -26,6 +27,7 @@ struct HookMessage: Codable {
     let pid: Int?
     let terminalId: String?
     let description: String?
+    let totalTokens: Int?
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
@@ -37,6 +39,7 @@ struct HookMessage: Codable {
         case pid        = "pid"
         case terminalId = "terminal_id"
         case description = "description"
+        case totalTokens = "total_tokens"
     }
 
     // MARK: - State Mapping
@@ -51,6 +54,7 @@ struct HookMessage: Codable {
         case .idle:       return .idle
         case .sessionEnd: return nil
         case .setLabel:   return nil
+        case .setTokens:  return nil
         case .permissionRequest: return .permissionRequest
         case .taskComplete: return .taskComplete
         }

@@ -299,18 +299,36 @@ for frame in 0..<5 {
         drawRocket(ctx, yShift: -2)
 
         var rng = SeededRNG(UInt64(frame + 1))
-        // Anchor each puff inside the mid-lower vent band. Main 7×5
-        // stays within 1 column of the body edge; trail 5×3 sits further
-        // out. Ranges picked so none of the puffs clip the canvas or
-        // overlap the body rectangle (x=18..31, body at y=7..30).
+        // Split the vent band into 3 vertical zones so left and right
+        // puffs are never at the same height. Each frame picks a
+        // contrasting pair (upper / mid / lower) — guarantees clear
+        // asymmetry no matter how the RNG rolls.
+        struct VentZone {
+            let mainY:  ClosedRange<Int>
+            let trailY: ClosedRange<Int>
+        }
+        let upper = VentZone(mainY:  9...10, trailY: 10...12)
+        let mid   = VentZone(mainY: 12...13, trailY: 13...15)
+        let lower = VentZone(mainY: 15...16, trailY: 15...17)
+        // Per-frame (leftZone, rightZone) pairings — all 5 keep left
+        // and right in DIFFERENT zones.
+        let zonePairs: [(VentZone, VentZone)] = [
+            (upper, lower),
+            (lower, upper),
+            (mid,   lower),
+            (upper, mid),
+            (lower, mid),
+        ]
+        let (leftZone, rightZone) = zonePairs[frame]
+
         let leftMainX  = rng.nextInt(in:  7...10)
-        let leftMainY  = rng.nextInt(in:  9...12)
+        let leftMainY  = rng.nextInt(in:  leftZone.mainY)
         let leftTrailX = rng.nextInt(in:  1...5)
-        let leftTrailY = rng.nextInt(in: 11...15)
+        let leftTrailY = rng.nextInt(in:  leftZone.trailY)
         let rightMainX  = rng.nextInt(in: 33...36)
-        let rightMainY  = rng.nextInt(in:  9...12)
+        let rightMainY  = rng.nextInt(in:  rightZone.mainY)
         let rightTrailX = rng.nextInt(in: 40...44)
-        let rightTrailY = rng.nextInt(in: 11...15)
+        let rightTrailY = rng.nextInt(in:  rightZone.trailY)
 
         drawFalconPuffs(ctx,
                         leftMainX: leftMainX,   leftMainY: leftMainY,

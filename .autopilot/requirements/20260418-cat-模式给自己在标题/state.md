@@ -1,8 +1,8 @@
 ---
-active: true
+active: false
 phase: "done"
 gate: ""
-iteration: 1
+iteration: 2
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: true
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/lilei03/netease-ai/ClaudeCodeBuddy/claude-code-buddy/.worktrees/rocket-step1/.autopilot/requirements/20260418-cat-模式给自己在标题"
 session_id: 
 started_at: "2026-04-18T04:06:38Z"

@@ -70,3 +70,19 @@
 **影响文件**: Sources/ClaudeCodeBuddy/Skin/SkinPack.swift（新建），以及所有纹理加载调用点
 
 **约束**: 新增纹理加载点时，必须通过 `SkinPackManager.shared.activeSkin.url(...)` 而非 `ResourceBundle.bundle.url(...)`。内置皮肤的 subdirectory 不要手动加 `"Assets/"` 前缀——SkinPack.url() 内部处理。
+
+## 2026-04-18: rocket 模式 / 系统级资源绕过 SkinPack，直接走 Bundle
+
+**决策**: rocket 形态的所有纹理资源（`rocket_*.png`、`boundary-mechazilla*.png`、`menubar-rocket-*.png`）都通过 `ResourceBundle.bundle.url(...)` 直接加载，不经过 `SkinPackManager.shared.activeSkin.url(...)`。cat 侧资源仍按 2026-04-16 的决策走 SkinPack。
+
+**否决**: 把 rocket 资源也纳入 `SkinPackManifest`，让用户皮肤包可覆盖。
+
+**理由**:
+- 用户皮肤包是 cat 主题的自定义入口（肉球、食物、灌木），rocket 是独立的系统功能（工作状态的另一种表达），两者受众不同
+- rocket 资源数量多（多 kind × 多 state × 多帧 ≈ 80+ PNG）且和 sprite generator + 状态机几何常量强耦合，第三方无法有意义地替换
+- 保留 bundle 直连让 SkinPack manifest 保持小而专（仅 cat），上传/审核流程更简单
+
+**约束**:
+- 新增 rocket 相关纹理加载点时，直接用 `ResourceBundle.bundle.url(forResource:withExtension:subdirectory:)`，路径写 `"Assets/Sprites"` / `"Assets/Sprites/Menubar"` 等完整前缀
+- 共用资源（例如 boundary）需要按 mode 分别处理：cat 模式走 SkinPack（允许皮肤覆盖 boundary-bush），rocket 模式用固定 name 走 bundle 查找 + bundle 回退（参见 `BuddyScene.loadBoundaryTexture`）
+- MenuBarAnimator 是典型对偶：`loadCatFrames` 走 SkinPack，`loadRocketFrames` 走 bundle

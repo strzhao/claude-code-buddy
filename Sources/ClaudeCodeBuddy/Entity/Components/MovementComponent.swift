@@ -180,7 +180,7 @@ class MovementComponent {
     // MARK: - Walk To Food
 
     func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
-        guard entity.currentState == .idle else { return }
+        guard [.idle, .thinking, .toolUse].contains(entity.currentState) else { return }
         entity.currentTargetFood = food
 
         let containerNode = entity.containerNode
@@ -191,6 +191,12 @@ class MovementComponent {
 
         // Update facing direction via unified path
         entity.face(towardX: targetX)
+
+        // Clean up state-specific animations before stopping actions
+        containerNode.removeAction(forKey: "randomWalk")  // toolUse random walk
+        node.zRotation = 0                                 // reset sway rotation
+        node.yScale = 1.0                                  // reset scale before action cleanup
+        node.position.y = 0                               // prevent residual offset
 
         // Stop idle animations
         node.removeAllActions()
@@ -209,8 +215,8 @@ class MovementComponent {
                 node.colorBlendFactor = sessionTintFactor
             }
 
-            // Speed: base 120 px/s, +30% for distance > 200px
-            let baseSpeed: CGFloat = 120
+            // Speed: base foodWalkSpeed px/s, +30% for distance > 200px
+            let baseSpeed: CGFloat = CatConstants.Movement.foodWalkSpeed
             let speed = distance > 200 ? baseSpeed * 1.3 : baseSpeed
             let duration = max(0.2, Double(distance) / Double(speed))
             let move = SKAction.moveTo(x: targetX, duration: duration)

@@ -84,9 +84,9 @@ class FoodManager {
 
     private func notifyIdleCats(about food: FoodSprite) {
         guard let scene = scene else { return }
-        let idleCats = scene.idleCats()
+        let eligibleCats = scene.foodEligibleCats()
         let sceneWidth = scene.size.width
-        for cat in idleCats {
+        for cat in eligibleCats {
             // Distance-based excitement delay: farther cats react slightly later (0–0.3s)
             let distance = abs(food.node.position.x - cat.containerNode.position.x)
             let delay = Double(distance / sceneWidth) * 0.3
@@ -118,8 +118,9 @@ class FoodManager {
 
     // MARK: - Notify Single Cat About Landed Food
 
-    /// When a cat becomes idle, check for existing landed food and direct it there.
+    /// When a cat enters a food-eligible state (idle/thinking/toolUse), check for existing landed food.
     func notifyCatAboutLandedFood(_ cat: CatSprite) {
+        guard cat.currentTargetFood == nil else { return }
         let landedFoods = activeFoods.filter { $0.state == .landed }
         guard let food = landedFoods.min(by: {
             abs($0.node.position.x - cat.containerNode.position.x)

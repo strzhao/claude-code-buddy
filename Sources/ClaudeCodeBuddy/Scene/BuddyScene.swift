@@ -221,8 +221,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         guard let cat = cats[sessionId] else { return }
         cat.switchState(to: state, toolDescription: toolDescription)
         foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
-        // When a cat becomes idle, check for existing landed food
-        if state == .idle {
+        // When a cat becomes idle/thinking/toolUse, check for existing landed food
+        if state == .idle || state == .thinking || state == .toolUse {
             foodManager.notifyCatAboutLandedFood(cat)
         }
     }
@@ -486,6 +486,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func idleCats() -> [CatSprite] {
         cats.values.filter { $0.currentState == .idle }
+    }
+
+    func foodEligibleCats() -> [CatSprite] {
+        cats.values.filter { [.idle, .thinking, .toolUse].contains($0.currentState) }
     }
 
     // MARK: - Skin Hot-Swap

@@ -73,6 +73,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
+        // Honour `zPosition` as the sole render-order key across siblings.
+        // Required so the Starship liftoff flame (z=-0.3) renders BEHIND the
+        // OLM (z=-0.2) regardless of which was added to the scene first.
+        view.ignoresSiblingOrder = true
         setupPhysics()
         setupGround()
         setupBoundaryDecorations()
@@ -386,7 +390,13 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         entities.removeAll()
         cats.removeAll()
         activeStarshipSessionId = nil
-        applyStarshipSceneAdjustments()
+        // Tear down the OLM now (it belongs to the soon-to-exit Starship)
+        // but LEAVE the boundary textures alone — we don't want to swap
+        // the right tower to Mechazilla mid cat-exit-animation while the
+        // left side is still a tree. The midway hook below drives the
+        // coordinated left+right swap via applyBoundaryTexture.
+        olmNode?.removeFromParent()
+        olmNode = nil
         for (_, entity) in snapshot {
             group.enter()
             entity.exitScene(sceneWidth: size.width) {

@@ -40,6 +40,11 @@ final class RocketStateTransitionTests: XCTestCase {
 
     func testTaskComplete_entersPropulsiveLanding() {
         let r = RocketEntity(sessionId: "t4")
+        // Landing.didEnterConventional short-circuits to OnPad when already
+        // at/below ground; put the rocket "in flight" so the transition is
+        // observable (this is the case that matters at runtime too — landing
+        // only fires while the rocket is airborne).
+        r.containerNode.position.y = r.kind.containerInitY + 50
         r.handle(event: .taskComplete)
         XCTAssertEqual(r.currentState, .propulsiveLanding)
     }

@@ -192,4 +192,15 @@ class FoodManager {
     private func removeFood(_ food: FoodSprite) {
         activeFoods.removeAll { $0 === food }
     }
+
+    /// Tears down all in-flight and landed food. Called on mode switch so
+    /// cat-mode food doesn't linger in rocket mode.
+    func clearAll() {
+        for food in activeFoods {
+            food.node.removeAllActions()
+            food.node.removeFromParent()
+        }
+        activeFoods.removeAll()
+        idleStartTimes.removeAll()
+    }
 }

@@ -77,6 +77,15 @@ class SessionManager {
             }
     }
 
+    /// Drops the EntityModeStore subscription. Used by the relaunch flow:
+    /// the caller is about to persist a new mode and restart the process,
+    /// and we don't want the in-process hot-switch to race with the
+    /// relaunch's exit animation.
+    func unbindModeStore() {
+        modeStoreCancellable?.cancel()
+        modeStoreCancellable = nil
+    }
+
     /// Spawns one debug session per RocketKind with a random state, so every
     /// variant is visible side-by-side for comparison. Only runs in rocket mode
     /// (morphs there first if not already). Running again resets the display.

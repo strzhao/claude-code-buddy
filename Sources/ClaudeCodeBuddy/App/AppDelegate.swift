@@ -30,6 +30,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupSceneExpansion()
         setupStatusBarIconMode()
         setupSkinHotSwap()
+        setupRelaunchHandler()
 
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
@@ -209,6 +210,62 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.menuBarAnimator?.reloadSprites()
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Relaunch (mode switch via settings / manual reset)
+
+    private var isRelaunching = false
+
+    private func setupRelaunchHandler() {
+        EventBus.shared.relaunchRequested
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newMode in
+                self?.performRelaunch(newMode: newMode)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Plays the exit animation on all current entities, then spawns a fresh
+    /// copy of this executable and terminates. The new process reads the
+    /// persisted EntityMode and spawns entities from scratch — this avoids
+    /// the race conditions seen with rapid in-process hot-switches.
+    private func performRelaunch(newMode: EntityMode?) {
+        guard !isRelaunching else { return }
+        isRelaunching = true
+
+        // Drop the in-process hot-switch subscription so setting the new
+        // mode below doesn't kick off a parallel replaceAllEntities.
+        sessionManager?.unbindModeStore()
+
+        if let newMode = newMode, newMode != EntityModeStore.shared.current {
+            EntityModeStore.shared.set(newMode)
+        }
+
+        let launchNewProcess = { [weak self] in
+            self?.spawnRelaunchedProcess()
+            NSApp.terminate(nil)
+        }
+
+        if let scene = scene {
+            scene.exitAllEntities { launchNewProcess() }
+        } else {
+            launchNewProcess()
+        }
+    }
+
+    /// Forks a detached shell that waits briefly (for this process's socket
+    /// teardown + NSApp.terminate) and then execs our own binary. Using a
+    /// small sleep avoids a race on /tmp/claude-buddy.sock bind.
+    private func spawnRelaunchedProcess() {
+        guard let exePath = Bundle.main.executablePath else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.6 && exec \"$0\"", exePath]
+        do {
+            try task.run()
+        } catch {
+            NSLog("[AppDelegate] failed to spawn relaunched process: \(error)")
+        }
     }
 
     // MARK: - Settings

@@ -130,6 +130,16 @@ extension RocketEntity: SessionEntity {
         containerNode.position = CGPoint(x: containerNode.position.x,
                                          y: kind.containerInitY)
         stateMachine.enter(RocketOnPadState.self)
+
+        // Fade in the sprite + pad so mode-switch appearance feels smooth
+        // rather than a hard pop. Short enough to stay snappy.
+        let fadeDuration: TimeInterval = 0.35
+        containerNode.alpha = 0
+        containerNode.run(SKAction.fadeIn(withDuration: fadeDuration))
+        if !padNode.isHidden {
+            padNode.alpha = 0
+            padNode.run(SKAction.fadeIn(withDuration: fadeDuration))
+        }
     }
 
     /// Called by BuddyScene when the Dock/screen changes mid-session.
@@ -220,17 +230,24 @@ extension RocketEntity: SessionEntity {
 
         // 3) Liftoff escape — move up past the top of whatever scene we're
         //    in (sceneHeight isn't directly exposed; use a generous 200pt
-        //    which clears any current Dock-window expansion).
+        //    which clears any current Dock-window expansion). Speed matches
+        //    Starship's OLM-approach cadence (landingApproachSpeed pt/s +
+        //    landingApproachMinDuration floor) so rocket-mode exits read as
+        //    "flying away" rather than a snap.
         let ascentDistance: CGFloat = 200
-        let ascentDuration: TimeInterval = 0.7
+        let ascentDuration: TimeInterval = max(
+            RocketConstants.Starship.landingApproachMinDuration,
+            Double(ascentDistance / RocketConstants.Starship.landingApproachSpeed)
+        )
         let ascend = SKAction.moveBy(x: 0, y: ascentDistance, duration: ascentDuration)
         ascend.timingMode = .easeIn
 
-        // 4) Fade during the last 0.3s so the sprite disappears off-screen
+        // 4) Fade during the last 0.4s so the sprite disappears off-screen
         //    instead of popping out.
+        let fadeTail: TimeInterval = 0.4
         let fade = SKAction.sequence([
-            SKAction.wait(forDuration: ascentDuration - 0.3),
-            SKAction.fadeOut(withDuration: 0.3)
+            SKAction.wait(forDuration: max(0, ascentDuration - fadeTail)),
+            SKAction.fadeOut(withDuration: fadeTail)
         ])
 
         let done = SKAction.run { completion() }
@@ -241,7 +258,7 @@ extension RocketEntity: SessionEntity {
 
         // Pad sprite stays behind — the scene ground is unchanged — so
         // fade it out concurrently to avoid orphaned art.
-        padNode.run(SKAction.fadeOut(withDuration: 0.3))
+        padNode.run(SKAction.fadeOut(withDuration: fadeTail))
     }
 
     func updateSceneSize(_ size: CGSize) {

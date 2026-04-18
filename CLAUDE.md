@@ -67,6 +67,29 @@ make release        # 编译 release
 make bundle         # 打包 .app
 ```
 
+## 环境变量
+
+开发 / 调试用的后门，从终端启动时生效（Finder 双击启动的 .app 读不到，如需请用 `launchctl setenv`）：
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `BUDDY_WIDTH_SCALE` | `1.0` | 整体宽度占屏幕比例，clamp 到 `0.2–1.0`。例：`0.5` = 半屏宽 |
+| `BUDDY_OFFSET_X` | `0` | 水平偏移点数，正值向右负值向左。相对屏幕居中后的位置 |
+| `BUDDY_ROCKET_UNLOCK` | `on` | 分层解锁开关。`off / 0 / false / no`（大小写不敏感）关闭，火箭种类池直接开满四种 |
+| `BUDDY_ROCKET_WEIGHTS` | `classic=50,shuttle=25,falcon9=15,starship3=10` | 四种火箭的抽取权重。格式 `kind=weight` 逗号分隔。未提到的 kind 默认 0；非法 token 被忽略并 log 警告；全为 0 或剩余池总权重 0 时按等概率兜底 |
+
+典型用法：
+
+```bash
+# 调试时强制抽 starship3（第 1 只 starship3，之后受 1-cap 退化成另外三种等概率）
+BUDDY_ROCKET_UNLOCK=off \
+BUDDY_ROCKET_WEIGHTS=classic=0,shuttle=0,falcon9=0,starship3=100 \
+make run
+
+# 窄屏居左
+BUDDY_WIDTH_SCALE=0.5 BUDDY_OFFSET_X=-200 make run
+```
+
 ### CLI 工具
 
 `buddy` 命令行工具（安装后位于 `ClaudeCodeBuddy.app/Contents/MacOS/buddy`，Homebrew 自动 symlink 到 `/usr/local/bin/buddy`）用于方便地操作猫咪：

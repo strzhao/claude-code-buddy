@@ -87,6 +87,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         EntityFactory.hasActiveStarship = { [weak self] in
             self?.hasStarship() ?? false
         }
+        // Tier unlock uses the current rocket count to decide which kinds
+        // are eligible. `entities.count` is safe — cat mode never routes
+        // through `rocketKind(for:)`.
+        EntityFactory.activeRocketCount = { [weak self] in
+            self?.entities.count ?? 0
+        }
 
         sceneEnvironment.start()
 
@@ -380,6 +386,56 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    /// Plays the exit animation on every current entity and tears down all
+    /// scene-level decorations, without spawning new entities. Used by the
+    /// relaunch flow (mode-switch via settings / reset button) so the
+    /// current process can terminate with a clean visual beat instead of
+    /// popping away.
+    func exitAllEntities(completion: @escaping () -> Void) {
+        let group = DispatchGroup()
+        let snapshot = entities
+        entities.removeAll()
+        cats.removeAll()
+        activeStarshipSessionId = nil
+        olmNode?.removeFromParent()
+        olmNode = nil
+
+        if snapshot.isEmpty {
+            // Nothing to animate — still clear scene-level leftovers.
+            cleanupSceneDecorations()
+            DispatchQueue.main.async(execute: completion)
+            return
+        }
+
+        for (_, entity) in snapshot {
+            group.enter()
+            entity.exitScene(sceneWidth: size.width) {
+                entity.containerNode.removeFromParent()
+                if let rocket = entity as? RocketEntity {
+                    rocket.padNode.removeFromParent()
+                    rocket.setBoosterIgnited(false)
+                }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            self?.cleanupSceneDecorations()
+            completion()
+        }
+    }
+
+    private func cleanupSceneDecorations() {
+        for child in children where child.name?.hasPrefix("bed_") == true {
+            child.removeFromParent()
+        }
+        activeBedSlots.removeAll()
+        foodManager.clearAll()
+        for child in children where child.name?.hasPrefix("abort_badge_") == true {
+            child.removeAllActions()
+            child.removeFromParent()
+        }
+    }
+
     func replaceAllEntities(with mode: EntityMode,
                             infos: [SessionInfo],
                             lastEvents: [String: EntityInputEvent],
@@ -413,12 +469,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
             // Clean up lingering scene-level decorations that were owned
             // by the old mode's entities but parented to the scene
-            // directly (and therefore survived containerNode removal):
-            //   - Cat beds (named "bed_<sessionId>") from CatTaskCompleteState
-            for child in self.children where child.name?.hasPrefix("bed_") == true {
-                child.removeFromParent()
-            }
-            self.activeBedSlots.removeAll()
+            // directly (beds / food / abort badges).
+            self.cleanupSceneDecorations()
 
             // Midway hook — after old entities have finished exiting and
             // old-mode decorations are cleaned up, BEFORE new entities spawn.

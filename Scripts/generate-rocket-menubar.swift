@@ -71,57 +71,69 @@ func drawRocket(_ ctx: CGContext) {
     let cx = 25
     let baseY = 7          // ship body bottom row (engines sit at baseY-1 = 6)
 
-    // ── Ship body — 10 wide (cx-5..cx+4), 16 rows tall ───────────────
-    px(ctx, cx - 5, baseY, 10, 16, hullWhite)
-    // Right-side shadow band for volume (3pt to match wider body)
-    px(ctx, cx + 2, baseY, 3, 16, hullShadow)
+    // ── Ship body — 12 wide (cx-6..cx+5), 16 rows tall (y=7..22) ─────
+    px(ctx, cx - 6, baseY, 12, 16, hullWhite)
+    // Right-side shadow band (4pt — 1/3 of body width)
+    px(ctx, cx + 2, baseY, 4, 16, hullShadow)
     // Left + right outlines
-    px(ctx, cx - 5, baseY, 1, 16, outline)
-    px(ctx, cx + 4, baseY, 1, 16, outline)
+    px(ctx, cx - 6, baseY, 1, 16, outline)
+    px(ctx, cx + 5, baseY, 1, 16, outline)
 
-    // ── Aft flaps — wider blades near base. 3 wide × 3 rows + tip pixels
-    px(ctx, cx - 8, baseY + 1, 3, 3, hullShadow)
-    p(ctx,  cx - 9, baseY + 1, outline)
-    p(ctx,  cx - 9, baseY + 2, outline)
-    px(ctx, cx + 5, baseY + 1, 3, 3, hullShadow)
-    p(ctx,  cx + 8, baseY + 1, outline)
-    p(ctx,  cx + 8, baseY + 2, outline)
+    // ── Aft flaps — large blades near base. 4 wide × 3 rows + tip ────
+    px(ctx, cx - 10, baseY + 1, 4, 3, hullShadow)
+    p(ctx,  cx - 11, baseY + 1, outline)
+    p(ctx,  cx - 11, baseY + 2, outline)
+    px(ctx, cx + 6,  baseY + 1, 4, 3, hullShadow)
+    p(ctx,  cx + 10, baseY + 1, outline)
+    p(ctx,  cx + 10, baseY + 2, outline)
 
-    // ── Forward flaps — smaller, near the nose. 2 wide × 2 rows ──────
-    px(ctx, cx - 7, baseY + 13, 2, 2, hullShadow)
-    p(ctx,  cx - 8, baseY + 13, outline)
-    px(ctx, cx + 5, baseY + 13, 2, 2, hullShadow)
-    p(ctx,  cx + 7, baseY + 13, outline)
+    // ── Forward flaps — 3 wide × 2 rows ──────────────────────────────
+    px(ctx, cx - 9, baseY + 13, 3, 2, hullShadow)
+    p(ctx,  cx - 10, baseY + 13, outline)
+    px(ctx, cx + 6,  baseY + 13, 3, 2, hullShadow)
+    p(ctx,  cx + 9,  baseY + 13, outline)
 
-    // ── Cockpit window band (dark horizontal bar, 6 wide) ────────────
-    px(ctx, cx - 3, baseY + 11, 6, 1, ringBlack)
-    px(ctx, cx - 1, baseY + 11, 2, 1, windowLit)
+    // ── Cockpit window band (dark horizontal bar, 8 wide) ────────────
+    px(ctx, cx - 4, baseY + 11, 8, 1, ringBlack)
+    px(ctx, cx - 2, baseY + 11, 4, 1, windowLit)
 
-    // ── Nose cone — 5 tapering rows from 8 wide to 1-pixel tip ───────
-    // y+16: 8 wide (continues body width)
-    px(ctx, cx - 4, baseY + 16, 8, 1, hullWhite)
-    p(ctx,  cx - 4, baseY + 16, outline)
-    p(ctx,  cx + 3, baseY + 16, outline)
-    // y+17: 6 wide
-    px(ctx, cx - 3, baseY + 17, 6, 1, hullWhite)
-    p(ctx,  cx - 3, baseY + 17, outline)
-    p(ctx,  cx + 2, baseY + 17, outline)
-    // y+18: 4 wide
-    px(ctx, cx - 2, baseY + 18, 4, 1, hullWhite)
-    p(ctx,  cx - 2, baseY + 18, outline)
-    p(ctx,  cx + 1, baseY + 18, outline)
-    // y+19: 2 wide
-    px(ctx, cx - 1, baseY + 19, 2, 1, hullWhite)
-    p(ctx,  cx - 1, baseY + 19, outline)
-    p(ctx,  cx,     baseY + 19, outline)
-    // y+20: 1-pixel tip
-    p(ctx, cx, baseY + 20, hullWhite)
+    // ── Nose cone — 11 rows tapering from 12 wide to 1-pixel tip at
+    //    the very top of the canvas (y=33). Curve dwells at wider
+    //    widths early for a gentle Starship-ogive silhouette.
+    let noseRows: [(width: Int, rows: Int)] = [
+        (12, 2),  // y+16..+17: flush with body
+        (10, 2),  // y+18..+19
+        ( 8, 1),  // y+20
+        ( 6, 1),  // y+21
+        ( 4, 1),  // y+22
+        ( 3, 1),  // y+23
+        ( 2, 1),  // y+24
+        ( 1, 2),  // y+25..+26 (tip)
+    ]
+    var dy = 16
+    for (w, rows) in noseRows {
+        for _ in 0..<rows {
+            let rowY = baseY + dy
+            let leftX = cx - (w - 1) / 2 - (w.isMultiple(of: 2) ? 1 : 0)
+            // Fill
+            px(ctx, leftX, rowY, w, 1, hullWhite)
+            // Small right-side shadow band keeps volume on the nose
+            if w >= 6 { p(ctx, leftX + w - 2, rowY, hullShadow) }
+            // Outlines along both edges (skip for 1-wide tip — single pixel)
+            if w > 1 {
+                p(ctx, leftX,          rowY, outline)
+                p(ctx, leftX + w - 1,  rowY, outline)
+            }
+            dy += 1
+        }
+    }
 
-    // ── Raptor engine nozzles — 4 metal bells at the ship base ───────
-    px(ctx, cx - 4, baseY - 1, 2, 1, exhaust)
-    px(ctx, cx - 2, baseY - 1, 2, 1, exhaust)
-    px(ctx, cx,     baseY - 1, 2, 1, exhaust)
-    px(ctx, cx + 2, baseY - 1, 2, 1, exhaust)
+    // ── Raptor engine cluster — continuous dark ring 10 wide ─────────
+    px(ctx, cx - 5, baseY - 1, 10, 1, exhaust)
+    // Three-dot texture hint across the ring
+    p(ctx, cx - 3, baseY - 1, ringBlack)
+    p(ctx, cx,     baseY - 1, ringBlack)
+    p(ctx, cx + 3, baseY - 1, ringBlack)
 }
 
 // MARK: - Flame variants

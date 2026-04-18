@@ -43,14 +43,10 @@ let flameOrng  = rgb(255, 160, 40)
 let flameYel   = rgb(255, 220, 90)
 let flameCore  = rgb(255, 250, 220)
 
-// Chunky smoke puff — matches `smokePuff` in
+// Chunky smoke puff — identical to `smokePuff` in
 // Scripts/generate-rocket-sprites-v2.swift (Falcon 9 liftoff style).
+// Keep this in sync so the two rocket sets read the same.
 let smokePuff  = rgb(140, 140, 150, 0.9)
-// Cold gas vapor from the cryogenic propellant vents mid-hull on the
-// ship (LOX/LNG boil-off). Whiter and softer than exhaust smoke.
-let vaporBright = rgb(232, 238, 248, 0.92)
-let vaporMid    = rgb(210, 218, 232, 0.75)
-let vaporFade   = rgb(200, 210, 225, 0.40)
 
 // MARK: - Pixel helpers
 
@@ -218,35 +214,31 @@ func drawMotionStreaks(_ ctx: CGContext, intensity: Int) {
 
 // MARK: - Smoke puffs (run mode)
 
-/// Billowing smoke at the rocket base — proportional to the 14-wide
-/// Starship body. Mirrors F9 liftoff's drawSmoke layout (main + trailing
-/// puff) but scaled up: each side gets a 7×3 main billow flush against
-/// the body, a 3×2 trailing puff further out, and a couple of accent
-/// pixels for texture. Reads as a solid grey cloud, not sparse dots.
-///
-/// Canvas layout (Starship body = x=18..31):
-///   • Left billow:  main 7×3 at x=11..17, trail 3×2 at x=7..9
-///   • Right billow: main 7×3 at x=32..38, trail 3×2 at x=40..42
-func drawSmoke(_ ctx: CGContext) {
-    // ── LEFT side ────────────────────────────────────────────────────
-    // Main billow: 7 wide, 3 tall, flush against body left edge
-    px(ctx, 11, 1, 7, 3, smokePuff)
-    // Upper hint (narrower cloud top)
-    px(ctx, 13, 4, 4, 1, smokePuff)
-    // Trailing puff further out
-    px(ctx,  7, 2, 3, 2, smokePuff)
-    p(ctx,   6, 2, smokePuff)
-    p(ctx,  10, 4, smokePuff)
-    // Bottom feathering (ground haze)
-    px(ctx,  9, 0, 8, 1, smokePuff)
+/// Direct port of F9's `drawSmoke` shape — two symmetrical puffs per side:
+/// a main 4×3 block plus a 3×2 trailing puff. Call sites pass explicit
+/// (x, y) anchor positions so the same shape can be placed anywhere and
+/// repeated across frames at varied locations (used for the idle 5-frame
+/// vent animation).
+func drawFalconPuffs(_ ctx: CGContext,
+                     leftMainX: Int,   leftMainY: Int,
+                     leftTrailX: Int,  leftTrailY: Int,
+                     rightMainX: Int,  rightMainY: Int,
+                     rightTrailX: Int, rightTrailY: Int) {
+    // Left side
+    px(ctx, leftMainX,  leftMainY,  4, 3, smokePuff)
+    px(ctx, leftTrailX, leftTrailY, 3, 2, smokePuff)
+    // Right side
+    px(ctx, rightMainX,  rightMainY,  4, 3, smokePuff)
+    px(ctx, rightTrailX, rightTrailY, 3, 2, smokePuff)
+}
 
-    // ── RIGHT side (mirror) ──────────────────────────────────────────
-    px(ctx, 32, 1, 7, 3, smokePuff)
-    px(ctx, 33, 4, 4, 1, smokePuff)
-    px(ctx, 40, 2, 3, 2, smokePuff)
-    p(ctx,  43, 2, smokePuff)
-    p(ctx,  39, 4, smokePuff)
-    px(ctx, 33, 0, 8, 1, smokePuff)
+/// Legacy single-frame smoke (run state) — F9 placement at the base.
+func drawSmoke(_ ctx: CGContext) {
+    drawFalconPuffs(ctx,
+                    leftMainX: 13,   leftMainY: 1,
+                    leftTrailX: 9,   leftTrailY: 2,
+                    rightMainX: 33,  rightMainY: 1,
+                    rightTrailX: 38, rightTrailY: 2)
 }
 
 // MARK: - Render
@@ -281,87 +273,50 @@ func render(to relativePath: String, _ body: (CGContext) -> Void) {
 // MARK: - Frames
 
 // ─────────────────────────────────────────────────────────────────────
-// Cryogenic vent animation — 5 frames of cold LOX/LNG vapor drifting
-// sideways from the ship's mid-lower body (NOT the base, which is where
-// engine exhaust would go). The 5-frame cycle shows wisps spawning at
-// the vent points (x=17 on the left flank, x=32 on the right), drifting
-// outward + upward, and fading. Reads as "fueled ship sitting on the
-// pad, ready to launch".
+// Idle animation: Raptors OFF, ship sits 2pt below cruise with F9-style
+// smoke puffs (reused `drawFalconPuffs`) venting from the MID-LOWER hull
+// rather than the base. 5 frames place the same 4×3 main + 3×2 trail
+// F9 smoke shape at deterministically-randomized y rows inside the vent
+// band (y=9..17) with slight x jitter — reads as propellant cryo-vent
+// clouds drifting around the tanks.
 //
-// Ship body occupies x=18..31, y=7..30 (after idle yShift=-2 applied it
-// sits at y=5..28). Vents punch out sideways around the MID-LOWER body
-// (y ≈ 10..16) to match real Starship LOX tank venting visuals.
+// Ship body spans x=18..31 so the left puffs sit at x≈11..17 (flush
+// with body left edge + one puff further out); right mirrors.
 
-/// Draws one animated frame of cryogenic vapor wisps on both sides of
-/// the ship. `frame` is 0..4.
-func drawVapor(_ ctx: CGContext, frame: Int) {
-    // Each entry: age-in-frames before this frame → wisp kept alive if
-    // (frame - birthFrame + 5) % 5 == age. Wisps are born on every frame
-    // so at any given snapshot ages 0/1/2/3/4 are simultaneously visible.
-    //
-    // Trajectory (relative to vent at (vx, vy)):
-    //   age 0: puff right at the vent (2×2, vaporBright)
-    //   age 1: drift −1/+1 outward+up, thins to 2×1 (vaporMid)
-    //   age 2: drift −2/+2 outward+up, single pixel cluster (vaporMid)
-    //   age 3: drift −3/+3, fading to vaporFade (1 pixel)
-    //   age 4: drift −4/+4, almost gone (single vaporFade pixel)
-    //
-    // To introduce jitter so the cycle doesn't feel mechanical, every
-    // other frame nudges fresh puffs one row down.
-    let jitter = (frame % 2 == 0) ? 0 : -1
-
-    func paintLeftWisps(ventX vx: Int, ventY vy: Int) {
-        // age 0 — freshly vented, opaque
-        px(ctx, vx - 1, vy + jitter,     2, 2, vaporBright)
-        // age 1
-        px(ctx, vx - 3, vy + 1 + jitter, 2, 1, vaporMid)
-        p(ctx,  vx - 3, vy + 2 + jitter, vaporMid)
-        // age 2
-        p(ctx,  vx - 5, vy + 3 + jitter, vaporMid)
-        p(ctx,  vx - 4, vy + 3 + jitter, vaporMid)
-        // age 3
-        p(ctx,  vx - 7, vy + 4 + jitter, vaporFade)
-        p(ctx,  vx - 6, vy + 4 + jitter, vaporFade)
-        // age 4 — nearly gone
-        p(ctx,  vx - 8, vy + 5 + jitter, vaporFade)
-    }
-
-    func paintRightWisps(ventX vx: Int, ventY vy: Int) {
-        px(ctx, vx,     vy + jitter,     2, 2, vaporBright)
-        px(ctx, vx + 2, vy + 1 + jitter, 2, 1, vaporMid)
-        p(ctx,  vx + 3, vy + 2 + jitter, vaporMid)
-        p(ctx,  vx + 4, vy + 3 + jitter, vaporMid)
-        p(ctx,  vx + 5, vy + 3 + jitter, vaporMid)
-        p(ctx,  vx + 6, vy + 4 + jitter, vaporFade)
-        p(ctx,  vx + 7, vy + 4 + jitter, vaporFade)
-        p(ctx,  vx + 8, vy + 5 + jitter, vaporFade)
-    }
-
-    // Alternate vent altitude per frame so the wisps look like they come
-    // from different LOX tank level vents, breaking repetitive symmetry.
-    let ventRows: [Int] = [12, 11, 13, 12, 14]
-    let vy = ventRows[frame]
-
-    paintLeftWisps(ventX: 17, ventY: vy)   // left flank vent
-    paintRightWisps(ventX: 32, ventY: vy)  // right flank vent
-
-    // Secondary smaller vent higher up on alternate frames — hints at
-    // upper-stage LOX vent (realistic Starship has vents at multiple levels).
-    if frame == 1 || frame == 3 {
-        px(ctx, 16, 18, 2, 1, vaporMid)
-        p(ctx,  14, 19, vaporFade)
-        px(ctx, 32, 18, 2, 1, vaporMid)
-        p(ctx,  34, 19, vaporFade)
+// Seed a simple deterministic PRNG so sprite regeneration is repeatable.
+// (linear congruential — good enough for picking pixel offsets.)
+struct SeededRNG {
+    var state: UInt64
+    init(_ seed: UInt64) { state = seed &+ 0x9E3779B97F4A7C15 }
+    mutating func nextInt(in range: ClosedRange<Int>) -> Int {
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        let span = UInt64(range.upperBound - range.lowerBound + 1)
+        return range.lowerBound + Int(state >> 33 % span)
     }
 }
 
-// Idle: Raptors OFF — ship settles 2pt below cruise altitude, no flame.
-// 5-frame animation of cryogenic vapor venting from the mid-lower hull
-// loops at ~6 fps giving a subtle "fueled and waiting" feel.
 for frame in 0..<5 {
     render(to: "menubar-rocket-idle-\(frame + 1).png") { ctx in
         drawRocket(ctx, yShift: -2)
-        drawVapor(ctx, frame: frame)
+
+        var rng = SeededRNG(UInt64(frame + 1))
+        // Anchor each puff inside the mid-lower vent band. Main puffs
+        // stick close to body edges (x=11..13 on left, x=31..34 on right)
+        // and trail puffs sit further out.
+        let leftMainX  = rng.nextInt(in: 11...13)
+        let leftMainY  = rng.nextInt(in: 10...16)
+        let leftTrailX = rng.nextInt(in:  6...9)
+        let leftTrailY = rng.nextInt(in: 11...17)
+        let rightMainX  = rng.nextInt(in: 31...34)
+        let rightMainY  = rng.nextInt(in: 10...16)
+        let rightTrailX = rng.nextInt(in: 38...41)
+        let rightTrailY = rng.nextInt(in: 11...17)
+
+        drawFalconPuffs(ctx,
+                        leftMainX: leftMainX,   leftMainY: leftMainY,
+                        leftTrailX: leftTrailX, leftTrailY: leftTrailY,
+                        rightMainX: rightMainX, rightMainY: rightMainY,
+                        rightTrailX: rightTrailX, rightTrailY: rightTrailY)
     }
 }
 

@@ -71,49 +71,57 @@ func drawRocket(_ ctx: CGContext) {
     let cx = 25
     let baseY = 7          // ship body bottom row (engines sit at baseY-1 = 6)
 
-    // ── Ship body — 8 wide (cx-4..cx+3), 16 rows tall ────────────────
-    px(ctx, cx - 4, baseY, 8, 16, hullWhite)
-    // Right-side shadow band for volume
-    px(ctx, cx + 2, baseY, 2, 16, hullShadow)
+    // ── Ship body — 10 wide (cx-5..cx+4), 16 rows tall ───────────────
+    px(ctx, cx - 5, baseY, 10, 16, hullWhite)
+    // Right-side shadow band for volume (3pt to match wider body)
+    px(ctx, cx + 2, baseY, 3, 16, hullShadow)
     // Left + right outlines
-    px(ctx, cx - 4, baseY, 1, 16, outline)
-    px(ctx, cx + 3, baseY, 1, 16, outline)
+    px(ctx, cx - 5, baseY, 1, 16, outline)
+    px(ctx, cx + 4, baseY, 1, 16, outline)
 
-    // ── Aft flaps — wider, near base. 2×3 main blades + tip pixels ───
-    px(ctx, cx - 6, baseY + 1, 2, 3, hullShadow)
-    p(ctx,  cx - 7, baseY + 1, outline)
-    p(ctx,  cx - 7, baseY + 2, outline)
-    px(ctx, cx + 4, baseY + 1, 2, 3, hullShadow)
-    p(ctx,  cx + 6, baseY + 1, outline)
-    p(ctx,  cx + 6, baseY + 2, outline)
+    // ── Aft flaps — wider blades near base. 3 wide × 3 rows + tip pixels
+    px(ctx, cx - 8, baseY + 1, 3, 3, hullShadow)
+    p(ctx,  cx - 9, baseY + 1, outline)
+    p(ctx,  cx - 9, baseY + 2, outline)
+    px(ctx, cx + 5, baseY + 1, 3, 3, hullShadow)
+    p(ctx,  cx + 8, baseY + 1, outline)
+    p(ctx,  cx + 8, baseY + 2, outline)
 
-    // ── Forward flaps — smaller, near the nose. 1×2 each ─────────────
-    px(ctx, cx - 5, baseY + 13, 1, 2, hullShadow)
-    p(ctx,  cx - 6, baseY + 13, outline)
-    px(ctx, cx + 4, baseY + 13, 1, 2, hullShadow)
-    p(ctx,  cx + 5, baseY + 13, outline)
+    // ── Forward flaps — smaller, near the nose. 2 wide × 2 rows ──────
+    px(ctx, cx - 7, baseY + 13, 2, 2, hullShadow)
+    p(ctx,  cx - 8, baseY + 13, outline)
+    px(ctx, cx + 5, baseY + 13, 2, 2, hullShadow)
+    p(ctx,  cx + 7, baseY + 13, outline)
 
-    // ── Cockpit window band near the top third (dark horizontal bar) ──
-    px(ctx, cx - 2, baseY + 11, 4, 1, ringBlack)
-    p(ctx,  cx - 1, baseY + 11, windowLit)
+    // ── Cockpit window band (dark horizontal bar, 6 wide) ────────────
+    px(ctx, cx - 3, baseY + 11, 6, 1, ringBlack)
+    px(ctx, cx - 1, baseY + 11, 2, 1, windowLit)
 
-    // ── Nose cone — 4 tapering rows + 1px tip (matches drawStarship3Body)
-    px(ctx, cx - 3, baseY + 16, 6, 1, hullWhite)
-    p(ctx, cx - 3, baseY + 16, outline)
-    p(ctx, cx + 2, baseY + 16, outline)
-    px(ctx, cx - 2, baseY + 17, 4, 1, hullWhite)
-    p(ctx, cx - 2, baseY + 17, outline)
-    p(ctx, cx + 1, baseY + 17, outline)
-    px(ctx, cx - 1, baseY + 18, 2, 1, hullWhite)
-    p(ctx, cx - 1, baseY + 18, outline)
-    p(ctx, cx,     baseY + 18, outline)
-    // Pointy tip
-    p(ctx, cx, baseY + 19, hullWhite)
+    // ── Nose cone — 5 tapering rows from 8 wide to 1-pixel tip ───────
+    // y+16: 8 wide (continues body width)
+    px(ctx, cx - 4, baseY + 16, 8, 1, hullWhite)
+    p(ctx,  cx - 4, baseY + 16, outline)
+    p(ctx,  cx + 3, baseY + 16, outline)
+    // y+17: 6 wide
+    px(ctx, cx - 3, baseY + 17, 6, 1, hullWhite)
+    p(ctx,  cx - 3, baseY + 17, outline)
+    p(ctx,  cx + 2, baseY + 17, outline)
+    // y+18: 4 wide
+    px(ctx, cx - 2, baseY + 18, 4, 1, hullWhite)
+    p(ctx,  cx - 2, baseY + 18, outline)
+    p(ctx,  cx + 1, baseY + 18, outline)
+    // y+19: 2 wide
+    px(ctx, cx - 1, baseY + 19, 2, 1, hullWhite)
+    p(ctx,  cx - 1, baseY + 19, outline)
+    p(ctx,  cx,     baseY + 19, outline)
+    // y+20: 1-pixel tip
+    p(ctx, cx, baseY + 20, hullWhite)
 
-    // ── Raptor engine nozzles — 3 tiny metal bells at the ship base ──
-    px(ctx, cx - 3, baseY - 1, 2, 1, exhaust)
-    px(ctx, cx - 1, baseY - 1, 2, 1, exhaust)
-    px(ctx, cx + 1, baseY - 1, 2, 1, exhaust)
+    // ── Raptor engine nozzles — 4 metal bells at the ship base ───────
+    px(ctx, cx - 4, baseY - 1, 2, 1, exhaust)
+    px(ctx, cx - 2, baseY - 1, 2, 1, exhaust)
+    px(ctx, cx,     baseY - 1, 2, 1, exhaust)
+    px(ctx, cx + 2, baseY - 1, 2, 1, exhaust)
 }
 
 // MARK: - Flame variants
@@ -157,18 +165,18 @@ func drawFlame(_ ctx: CGContext, size: FlameSize, flicker: Bool = false) {
             p(ctx, cx + 3, 3, flameRed)
         }
     case .huge:
-        // 8 wide, 6 tall — y=0..5
-        px(ctx, cx - 4, 2, 8, 4, flameRed)
-        px(ctx, cx - 3, 1, 6, 1, flameRed)
-        px(ctx, cx - 3, 2, 6, 3, flameOrng)
+        // 10 wide, 6 tall — y=0..5 (widened to match 10pt body)
+        px(ctx, cx - 5, 2, 10, 4, flameRed)
+        px(ctx, cx - 4, 1, 8, 1, flameRed)
+        px(ctx, cx - 4, 2, 8, 3, flameOrng)
         px(ctx, cx - 2, 3, 4, 2, flameYel)
         px(ctx, cx - 1, 4, 2, 1, flameCore)
         px(ctx, cx - 1, 0, 2, 1, flameRed)
         if flicker {
-            p(ctx, cx - 5, 3, flameRed)
-            p(ctx, cx + 4, 3, flameRed)
-            p(ctx, cx - 4, 1, flameRed)
-            p(ctx, cx + 3, 1, flameRed)
+            p(ctx, cx - 6, 3, flameRed)
+            p(ctx, cx + 5, 3, flameRed)
+            p(ctx, cx - 5, 1, flameRed)
+            p(ctx, cx + 4, 1, flameRed)
         }
     }
 }

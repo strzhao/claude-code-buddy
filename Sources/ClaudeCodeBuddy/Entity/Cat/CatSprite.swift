@@ -83,6 +83,7 @@ class CatSprite {
         set { labelComponent?.updateLabel(newValue) }
     }
     var alertOverlayNode: SKNode? { labelComponent?.alertOverlayNode }
+    var persistentBadgeNode: SKNode? { labelComponent?.persistentBadgeNode }
 
     var sessionColor: SessionColor?
     var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
@@ -208,6 +209,7 @@ class CatSprite {
         shadowLabelNode?.xScale = xScale
         tabNameNode?.xScale = xScale
         tabNameShadowNode?.xScale = xScale
+        persistentBadgeNode?.xScale = xScale
     }
 
     func updateSceneSize(_ size: CGSize) {
@@ -348,6 +350,22 @@ class CatSprite {
 
     func removeAlertOverlay() {
         labelComponent.removeAlertOverlay()
+    }
+
+    // MARK: - Persistent Badge
+
+    func addPersistentBadge() {
+        labelComponent.addPersistentBadge()
+    }
+
+    func removePersistentBadge() {
+        labelComponent.removePersistentBadge()
+    }
+
+    // MARK: - Tab Name
+
+    func showTabName() {
+        labelComponent.showTabName()
     }
 
     // MARK: - Food Interaction

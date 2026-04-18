@@ -26,6 +26,7 @@ final class CatPermissionRequestState: GKState, ResumableState {
     // MARK: - Entry
 
     override func didEnter(from previousState: GKState?) {
+        entity.removePersistentBadge()
         let toolDescription = entity.pendingToolDescription
         startPermissionRequestLoop(toolDescription: toolDescription)
     }
@@ -41,6 +42,8 @@ final class CatPermissionRequestState: GKState, ResumableState {
         // Restore color to session tint
         entity.node.color = entity.sessionColor?.nsColor ?? .orange
         entity.node.colorBlendFactor = entity.sessionTintFactor
+        // Leave a persistent "!" badge so user can see permission was requested
+        entity.addPersistentBadge()
     }
 
     // MARK: - ResumableState

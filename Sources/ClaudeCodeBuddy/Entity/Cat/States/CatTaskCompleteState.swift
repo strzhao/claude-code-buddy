@@ -141,6 +141,9 @@ final class CatTaskCompleteState: GKState, ResumableState {
             node.color = entity.sessionColor?.nsColor ?? .white
             node.colorBlendFactor = entity.sessionTintFactor
         }
+
+        // Show tab name so user can identify which task completed
+        entity.showTabName()
     }
 
     // MARK: - Bed Node

@@ -9,13 +9,23 @@ enum EntityFactory {
         }
     }
 
-    /// Round-robin assignment across all rocket kinds (classic → shuttle → F9 → starship3 → repeat).
-    /// Same sessionId always returns the same kind (cached) so hot-switches don't flip it.
+    /// Weighted-random assignment per rocket kind. Same sessionId always
+    /// returns the same kind (cached) so hot-switches don't flip it.
     ///
-    /// CONSTRAINT: `.starship3` may only be assigned once at a time. If the scene already
-    /// hosts a Starship via `hasActiveStarship`, we skip to the next kind in the rotation.
+    ///   classic 50 | shuttle 30 | falcon9 20 | starship3 10
+    ///
+    /// CONSTRAINT: `.starship3` is capped at one instance at a time. When the
+    /// scene already hosts a Starship (`hasActiveStarship`), it drops out of
+    /// the pool and the remaining three kinds are re-rolled by their weights
+    /// (showcase uses `presetKind` to bypass this path entirely).
     private static var kindCache: [String: RocketKind] = [:]
-    private static var rocketCounter = 0
+
+    private static let kindWeights: [(RocketKind, Int)] = [
+        (.classic,   50),
+        (.shuttle,   30),
+        (.falcon9,   20),
+        (.starship3, 10),
+    ]
 
     /// Hook wired by BuddyScene so the factory can check whether a Starship is
     /// already on scene. Defaults to `false` for tests / early boot.
@@ -23,18 +33,18 @@ enum EntityFactory {
 
     private static func rocketKind(for sessionId: String) -> RocketKind {
         if let cached = kindCache[sessionId] { return cached }
-        let all = RocketKind.allCases
-        // Try at most `all.count` times to find a kind that isn't blocked by the
-        // starship uniqueness rule.
-        var chosen: RocketKind = all[rocketCounter % all.count]
-        for _ in 0..<all.count {
-            let candidate = all[rocketCounter % all.count]
-            rocketCounter += 1
-            if candidate == .starship3 && hasActiveStarship() {
-                continue   // skip, try next rotation slot
+        let pool = hasActiveStarship()
+            ? kindWeights.filter { $0.0 != .starship3 }
+            : kindWeights
+        let total = pool.reduce(0) { $0 + $1.1 }
+        var roll = Int.random(in: 0..<total)
+        var chosen = pool.first!.0
+        for (kind, weight) in pool {
+            if roll < weight {
+                chosen = kind
+                break
             }
-            chosen = candidate
-            break
+            roll -= weight
         }
         kindCache[sessionId] = chosen
         return chosen

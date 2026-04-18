@@ -219,11 +219,12 @@ class MenuBarAnimator {
     }
 
     private func updateInterval(immediate: Bool = true) {
-        // Rocket idle animates slowly (~6 fps, 160ms/frame) so the vent
-        // wisps drift gently. Active states scale faster with session count.
+        // Rocket idle animates slowly (~2.5 fps, 400ms/frame) so vent
+        // wisps drift gently without feeling like they're thrumming.
+        // Active states scale faster with session count.
         let interval: Double
         if activeCatCount == 0 {
-            interval = 0.16
+            interval = 0.4
         } else {
             interval = max(0.04, 0.15 / Double(activeCatCount))
         }

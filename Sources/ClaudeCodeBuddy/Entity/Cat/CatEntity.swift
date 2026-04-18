@@ -132,7 +132,7 @@ class CatEntity {
         animationComponent = AnimationComponent(node: node)
 
         setupPhysicsBody()
-        animationComponent.loadTextures(prefix: "cat", bundle: ResourceBundle.bundle)
+        animationComponent.loadTextures(from: SkinPackManager.shared.activeSkin)
 
         // Initialize movement component after animationComponent is ready
         movementComponent = MovementComponent(entity: self)
@@ -161,7 +161,7 @@ class CatEntity {
         let body = SKPhysicsBody(rectangleOf: CatConstants.Physics.bodySize)
         body.allowsRotation = false
         body.categoryBitMask    = PhysicsCategory.cat
-        body.collisionBitMask   = PhysicsCategory.cat | PhysicsCategory.ground
+        body.collisionBitMask   = PhysicsCategory.ground
         body.contactTestBitMask = PhysicsCategory.ground
         body.restitution = CatConstants.Physics.restitution
         body.friction    = CatConstants.Physics.friction

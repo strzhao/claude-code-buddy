@@ -56,20 +56,17 @@
 
 **约束**: Hook 消息永远不应包含 `"action"` 字段。新增协议消息类型时必须保持这条分离规则。
 
-## 2026-04-17: Phase 1 Rocket Morph — SessionEntity 抽象层
+## 2026-04-16: SkinPack 资源解析采用 builtIn/local 分支而非统一 Bundle
 
-**决策**: 引入 `SessionEntity` 薄协议（≤30 行）作为 SessionManager / BuddyScene 与具体 Entity 的边界；`CatEntity`、`RocketEntity` 并列实现；全局只一种形态，通过 `EntityModeStore`（Combine publisher）切换。
+**决策**: `SkinPack` 通过 `SkinSource` enum 区分两种资源解析路径：`builtIn(Bundle)` 走 `Bundle.url(forResource:withExtension:subdirectory:)` 且自动补 `"Assets/"` 前缀；`local(URL)` 走 `FileManager` 直接拼接 `baseURL + subdirectory + name.ext`。
+
+**否决**: 让所有皮肤（含下载的）都创建 `Bundle(url:)` 实例。创建 Bundle 需要 `Info.plist` 且初始化可能失败，对用户下载的 .zip 解压目录不友好。
 
 **理由**:
-- 协议零形态专属词（cat / rocket / paw / fuel），避免接口腐化
-- `EntityInputEvent` 通用事件枚举；每个 Entity 内部翻译到自己的 GKStateMachine
-- 热切换通过 `SceneControlling.replaceAllEntities` 统一编排：exit 全体 → 按新 mode 重建 → 回放 lastEvents
-- `cats: [String: CatEntity]` 保留作为类型化视图（现有 cat-specific 代码不动）；新增 `entities: [String: SessionEntity]` 作为权威镜像
+- SPM 内置资源通过 `.copy("Assets")` 放入 bundle，路径带 `Assets/` 前缀；下载皮肤的目录结构是 `Sprites/`、`Food/` 直接在根目录
+- `SkinPack.url()` 方法签名与 `Bundle.url()` 一致，消费方调用方式不变，只需把 `ResourceBundle.bundle` 替换为 `skinPack`
+- builtIn 路径覆盖了现有所有 `ResourceBundle.bundle.url(...)` 调用点（AnimationComponent、CatTaskCompleteState、BuddyScene、FoodSprite、MenuBarAnimator）
 
-**影响文件**: SessionEntity.swift, EntityInputEvent.swift, EntityMode.swift, EntityModeStore.swift, EntityFactory.swift, RocketEntity.swift, RocketState 6 个子类, BuddyScene.swift, SessionManager.swift, SceneControlling.swift, AppDelegate.swift
+**影响文件**: Sources/ClaudeCodeBuddy/Skin/SkinPack.swift（新建），以及所有纹理加载调用点
 
-**约束**:
-- `SessionEntity` 协议必须保持 ≤30 行，禁止引入形态专属方法
-- 新增事件先加到 `EntityInputEvent`，再让各 Entity 翻译
-- Rocket 不引入 `Cat*` 头文件即可编译
-- 全局只一种形态；不做"混合场景"
+**约束**: 新增纹理加载点时，必须通过 `SkinPackManager.shared.activeSkin.url(...)` 而非 `ResourceBundle.bundle.url(...)`。内置皮肤的 subdirectory 不要手动加 `"Assets/"` 前缀——SkinPack.url() 内部处理。

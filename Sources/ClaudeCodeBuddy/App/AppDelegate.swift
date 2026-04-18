@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SpriteKit
+import Combine
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
     var window: BuddyWindow?
@@ -16,6 +17,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
     private var cancellables = Set<AnyCancellable>()
+    private var settingsWindowController: SettingsWindowController?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EntityModeStore.shared
@@ -27,6 +29,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupDockMonitoring()
         setupSceneExpansion()
         setupStatusBarIconMode()
+        setupSkinHotSwap()
+
+        // Initialize sound manager (subscribes to EventBus for audio playback)
+        _ = SoundManager.shared
 
         // Request Accessibility permission (non-blocking prompt)
         DispatchQueue.main.async {
@@ -141,6 +147,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             NSApplication.shared.terminate(nil)
         }
 
+        popoverController.onSettings = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.showSettings()
+        }
+
         popoverController.onSessionClicked = { [weak self] session in
             self?.popover.performClose(nil)
             guard let adapters = self?.terminalAdapters else { return }
@@ -188,6 +199,28 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         sessionManager = manager
         manager.bind(modeStore: EntityModeStore.shared)
         manager.start()
+    }
+
+    private func setupSkinHotSwap() {
+        SkinPackManager.shared.skinChanged
+            .receive(on: RunLoop.main)
+            .sink { [weak self] skin in
+                self?.scene?.reloadSkin(skin)
+                self?.menuBarAnimator?.reloadSprites()
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Settings
+
+    private func showSettings() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.center()
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - Dock Monitoring

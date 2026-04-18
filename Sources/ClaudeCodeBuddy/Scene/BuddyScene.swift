@@ -140,10 +140,19 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
-    private func loadBoundaryTexture(named: String) -> SKTexture? {
-        guard let url = ResourceBundle.bundle.url(forResource: named,
-                                          withExtension: "png",
-                                          subdirectory: "Assets/Sprites"),
+    /// Loads a boundary-strip texture by name. Tries the active skin pack
+    /// first (user-skinnable cat boundary art), falling back to the built-in
+    /// bundle so rocket-mode assets (boundary-mechazilla*) — which are not
+    /// part of user-uploaded skins — still resolve.
+    private func loadBoundaryTexture(named name: String) -> SKTexture? {
+        let skin = SkinPackManager.shared.activeSkin
+        let url = skin.url(forResource: name,
+                           withExtension: "png",
+                           subdirectory: skin.manifest.spriteDirectory)
+            ?? ResourceBundle.bundle.url(forResource: name,
+                                         withExtension: "png",
+                                         subdirectory: "Assets/Sprites")
+        guard let url,
               let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
             return nil
@@ -237,7 +246,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.configure(color: info.color, labelText: info.label)
 
         // Random horizontal spawn position within activity bounds
-        let spawnX = CGFloat.random(in: activityBounds)
+        let spawnX = findNonOverlappingSpawnX()
         cat.containerNode.position = CGPoint(x: spawnX, y: CatConstants.Visual.groundY) // ground level
 
         addChild(cat.containerNode)
@@ -629,6 +638,99 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 cat.outOfBoundsSince = nil
             }
         }
+        applySoftSeparation()
+    }
+
+    /// Gently push overlapping cats apart each frame (spring-damper model).
+    private func applySoftSeparation() {
+        let catArray = Array(cats.values)
+        let count = catArray.count
+        guard count >= 2 else { return }
+
+        let minDist = CatConstants.Separation.minDistance
+        let nudgeSpeed = CatConstants.Separation.nudgeSpeed
+
+        // Accumulate nudge deltas to avoid order bias
+        var nudges = [ObjectIdentifier: CGFloat]()
+
+        for i in 0..<count {
+            let catA = catArray[i]
+            guard catA.currentState != .taskComplete,
+                  catA.currentState != .eating,
+                  catA.containerNode.action(forKey: "frightMove") == nil,
+                  catA.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil
+            else { continue }
+
+            for j in (i + 1)..<count {
+                let catB = catArray[j]
+                guard catB.currentState != .taskComplete,
+                      catB.currentState != .eating,
+                      catB.containerNode.action(forKey: "frightMove") == nil,
+                      catB.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil
+                else { continue }
+
+                let xA = catA.containerNode.position.x
+                let xB = catB.containerNode.position.x
+                let dist = abs(xA - xB)
+
+                guard dist < minDist else { continue }
+
+                let overlap = minDist - dist
+                let nudgeMag = min(overlap * 0.1, nudgeSpeed)
+
+                let direction: CGFloat
+                if xA < xB {
+                    direction = -1
+                } else if xA > xB {
+                    direction = 1
+                } else {
+                    direction = Bool.random() ? 1 : -1
+                }
+
+                let idA = ObjectIdentifier(catA)
+                let idB = ObjectIdentifier(catB)
+                nudges[idA, default: 0] += nudgeMag * direction
+                nudges[idB, default: 0] -= nudgeMag * direction
+            }
+        }
+
+        // Apply accumulated nudges, clamped to activity bounds
+        for cat in catArray {
+            let id = ObjectIdentifier(cat)
+            guard let nudge = nudges[id], abs(nudge) > 0.01 else { continue }
+
+            let currentX = cat.containerNode.position.x
+            let newX = max(cat.activityMin, min(cat.effectiveActivityMax, currentX + nudge))
+            cat.containerNode.position.x = newX
+        }
+    }
+
+    /// Find a spawn X that is at least minSpawnDistance from any existing cat.
+    private func findNonOverlappingSpawnX() -> CGFloat {
+        let minDist = CatConstants.Separation.minSpawnDistance
+        let existingPositions = cats.values.map { $0.containerNode.position.x }
+
+        guard !existingPositions.isEmpty else {
+            return CGFloat.random(in: activityBounds)
+        }
+
+        var bestX = CGFloat.random(in: activityBounds)
+        var bestMinDist: CGFloat = existingPositions.map { abs($0 - bestX) }.min() ?? .infinity
+
+        for _ in 0..<CatConstants.Separation.maxSpawnAttempts {
+            let candidateX = CGFloat.random(in: activityBounds)
+            let nearestDist = existingPositions.map { abs($0 - candidateX) }.min() ?? .infinity
+
+            if nearestDist >= minDist {
+                return candidateX
+            }
+            if nearestDist > bestMinDist {
+                bestMinDist = nearestDist
+                bestX = candidateX
+            }
+        }
+
+        return bestX
     }
 
     // MARK: - Scene Resize
@@ -684,6 +786,46 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats.values.filter { $0.currentState == .idle }
     }
 
+    // MARK: - Skin Hot-Swap
+
+    func reloadSkin(_ skin: SkinPack) {
+        // 1. Reload boundary decoration textures — honors current entity mode
+        // so skin hot-swap doesn't drop the Mechazilla dressing on rocket side.
+        let mode = EntityModeStore.shared.current
+        if let tex = loadBoundaryTexture(named: boundaryTextureName(for: mode)) {
+            leftBoundaryNode?.texture = tex
+            rightBoundaryNode?.texture = tex
+        }
+
+        // 2. Reload each cat's textures and restart animations
+        for cat in cats.values {
+            // Clean up all running actions to prevent stale frame references
+            cat.node.removeAllActions()
+            cat.containerNode.removeAction(forKey: "randomWalk")
+            cat.containerNode.removeAction(forKey: "foodWalk")
+
+            // Reload textures from the new skin
+            cat.animationComponent.loadTextures(from: skin)
+
+            // Skip eating cats — CatEatingState has no ResumableState;
+            // eating animation completes naturally, next state uses new textures
+            if cat.currentState == .eating { continue }
+
+            // Reload bed texture for sleeping cats
+            if cat.currentState == .taskComplete {
+                (cat.stateMachine?.currentState as? CatTaskCompleteState)?
+                    .reloadBedTexture(from: skin)
+            }
+
+            // Restart current state animation via ResumableState
+            (cat.stateMachine?.currentState as? ResumableState)?.resume()
+
+            // Reapply session color tint
+            cat.node.color = cat.sessionColor?.nsColor ?? .white
+            cat.node.colorBlendFactor = cat.sessionTintFactor
+        }
+    }
+
     // MARK: - Bed Slot Management
 
     func assignBedSlot(for sessionId: String) -> CGFloat? {
@@ -706,7 +848,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func bedColorName(for sessionId: String) -> String? {
         guard let slot = activeBedSlots[sessionId] else { return nil }
-        let names = CatConstants.TaskComplete.bedNames
+        let names = SkinPackManager.shared.activeSkin.manifest.bedNames
         return names[slot % names.count]
     }
 

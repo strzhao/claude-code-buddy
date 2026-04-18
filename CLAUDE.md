@@ -163,3 +163,35 @@ echo '{"event":"session_end","session_id":"debug-A","timestamp":0,"cwd":"/tmp/a"
 后续所有任务创建和进度更新都应同步到该任务空间：
 - 创建任务时使用 `--parent_id 1f6cacb2-006f-4fc6-9126-bffb2e711743` 归属到此空间
 - 完成工作后及时更新进度和日志
+
+## 皮肤包商店 (Web)
+
+独立 Next.js 项目，提供皮肤包上传、校验、审核、分发服务。
+
+- **线上地址**: https://buddy.stringzhao.life
+- **GitHub**: https://github.com/strzhao/claude-code-buddy-web
+- **Vercel 项目**: claude-code-buddy-web (daniel21436-9089s-projects)
+- **技术栈**: Next.js (App Router) + TypeScript + Tailwind + Upstash Redis + Vercel Blob
+
+### API 端点
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/skins` | 公开目录，返回 `RemoteSkinEntry[]`（桌面端直接消费） |
+| `POST /api/upload` | 上传皮肤包 zip（multipart/form-data） |
+| `GET /api/admin/skins?status=` | 管理员列表（pending/approved/rejected/all） |
+| `POST /api/admin/skins/[id]/approve` | 批准皮肤包 |
+| `POST /api/admin/skins/[id]/reject` | 拒绝皮肤包（body: `{reason}`) |
+| `DELETE /api/admin/skins/[id]` | 删除皮肤包 |
+
+### CLI 工具
+
+```bash
+cd claude-code-buddy-web/cli && npm run build
+node dist/index.js upload <skin-directory> --server https://buddy.stringzhao.life
+```
+
+### 注意事项
+
+- Admin 页面当前无认证（middleware.ts 占位），后续需接入用户系统
+- 桌面端 `SkinGalleryViewController` 的 `catalogURL` 需改为指向 `https://buddy.stringzhao.life/api/skins`

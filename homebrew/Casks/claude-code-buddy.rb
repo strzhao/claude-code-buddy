@@ -1,7 +1,6 @@
 cask "claude-code-buddy" do
-  version "0.7.0"
-  # NOTE: sha256 auto-updated by release workflow after v0.7.0 zip is published.
-  sha256 :no_check
+  version "0.11.0"
+  sha256 "439c1cff3fee8edda9dc3ccda7476f0552e42ba6485bfc7316972278ccafe8c2"
 
   url "https://github.com/strzhao/claude-code-buddy/releases/download/v#{version}/ClaudeCodeBuddy-v#{version}.zip"
   name "Claude Code Buddy"

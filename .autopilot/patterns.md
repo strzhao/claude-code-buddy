@@ -1,5 +1,11 @@
 # Patterns & Lessons
 
+### [2026-04-17] SpriteKit 物理碰撞掩码与 SKAction.moveTo 不兼容
+<!-- tags: spritekit, physics, collision, skaction, movement -->
+**Scenario**: 多只猫设置了 `collisionBitMask = .cat`，但实际移动用 `SKAction.moveTo(x:)` 直接设位置，绕过物理引擎
+**Lesson**: `SKAction.moveTo/moveBy` 直接修改节点 position，不经过物理引擎的碰撞检测。如果需要实体间防重叠，必须在 update 循环中用代码实现（如弹簧阻尼软分离），而非依赖 SpriteKit 物理碰撞。物理碰撞只在纯物理驱动（施加力/速度）时有效。
+**Evidence**: CatSprite.collisionBitMask 设了 .cat 但猫咪仍然穿越重叠。改用 applySoftSeparation() 帧更新推力后解决。
+
 ### [2026-04-16] 像素精灵图重处理需同步所有 UI 偏移和字号
 <!-- tags: spritekit, sprites, reprocessing, labels, constants -->
 **Scenario**: 像素精灵图（48×48 画布）的实际内容远小于画布，需要裁剪透明填充并缩放
@@ -54,18 +60,8 @@
 **Lesson**: `Darwin.write()` 可能返回比请求更少的字节数（部分写入）。必须循环写入直到全部数据发送完毕或发生错误。单次 `write` 并不保证完整发送。这在本地 socket 上较少见但并非不可能（内核缓冲区满、信号中断等）。
 **Evidence**: SocketServer.swift `sendResponse(data:to:)` 方法 — 从单次 write 改为 while 循环
 
-## Pattern: 事件驱动 Entity（取代命令式 switchState）
-
-**场景**: 多态 Entity（猫 / 火箭 / 未来扩展）需要对外统一接口，内部各自翻译到私有状态机。
-
-**做法**:
-1. 定义通用事件 enum（`EntityInputEvent`：sessionStart / thinking / toolStart / taskComplete / ...）
-2. `SessionEntity` 协议只暴露 `handle(event:)`（以及生命周期方法如 enterScene/exitScene）
-3. 每个具体 Entity 内部 `switch(event)`，`stateMachine.enter(XxxState.self)`
-
-**好处**:
-- 协议薄（≤30 行），形态独立演化
-- Phase 2 加新事件不破坏已有调用者
-- 热切换时回放 lastEvents 天然可行（缓存 event → new entity 消化）
-
-**反例**: SessionManager 直接调 `scene.updateCatState(sid, state: .thinking)` — 这种形态专属 API 无法无缝换成 RocketState；所以 Phase 1 并存两条路径（cat mode 走 updateCatState，rocket mode 走 dispatchEntityEvent），Phase 2 应收敛为单一 entity.handle(event:) 路径。
+### [2026-04-16] CatEatingState 未实现 ResumableState，热替换需特殊处理
+<!-- tags: spritekit, state-machine, hotswap, eating, resumable -->
+**Scenario**: 设计皮肤热替换机制时，计划对所有活跃猫调用 `(stateMachine.currentState as? ResumableState)?.resume()` 重启动画
+**Lesson**: 6 个 GKState 中，CatEatingState 是唯一不实现 ResumableState 的状态。热替换（或任何需要 `resume()` 的机制）必须对 eating 状态做特殊处理：跳过 resume，让 eating 动画自然完成，完成后的 `switchState(to: .idle)` 会自动使用新纹理。在 `reloadSkin()` 中需要先 `node.removeAllActions()` 清理旧动画帧引用，再 `loadTextures()`，最后才 `resume()`——顺序不能错。
+**Evidence**: Plan Review 发现 CatEatingState.swift:4 仅 `final class CatEatingState: GKState`，无 ResumableState 协议。Grep 确认 5 个状态实现 ResumableState，eating 缺席。

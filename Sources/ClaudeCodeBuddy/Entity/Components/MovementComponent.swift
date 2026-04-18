@@ -289,10 +289,11 @@ class MovementComponent {
         let node = entity.node
         node.removeAllActions()
         containerNode.removeAllActions()
-        containerNode.setScale(1.0)
+        containerNode.setScale(entity.tokenScale)
 
-        // Walk to the nearest edge
-        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -CatConstants.Movement.exitOffscreenOffset : sceneWidth + CatConstants.Movement.exitOffscreenOffset
+        // Walk to the nearest edge (scaled offset for larger cats)
+        let offset = CatConstants.Movement.exitOffscreenOffset * entity.tokenScale
+        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -offset : sceneWidth + offset
         let duration = Double(abs(edgeX - containerNode.position.x)) / CatConstants.Movement.exitWalkSpeed
 
         // Face the exit direction
@@ -346,14 +347,15 @@ class MovementComponent {
         let node = entity.node
         node.removeAllActions()
         containerNode.removeAllActions()
-        containerNode.setScale(1.0)
+        containerNode.setScale(entity.tokenScale)
         containerNode.physicsBody?.isDynamic = false
         containerNode.physicsBody?.collisionBitMask = 0
 
         let myX = containerNode.position.x
         let groundY = containerNode.position.y  // actual resting Y (gravity-settled)
         let goingRight = myX >= sceneWidth / 2
-        let edgeX: CGFloat = goingRight ? sceneWidth + CatConstants.Movement.exitOffscreenOffset : -CatConstants.Movement.exitOffscreenOffset
+        let offset = CatConstants.Movement.exitOffscreenOffset * entity.tokenScale
+        let edgeX: CGFloat = goingRight ? sceneWidth + offset : -offset
 
         // Face exit direction
         entity.face(right: goingRight)

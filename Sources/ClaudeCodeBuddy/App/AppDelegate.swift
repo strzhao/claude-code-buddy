@@ -12,6 +12,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private let dockTracker = DockTracker()
     private var dockPollTimer: Timer?
     private var cachedActivityBounds: ClosedRange<CGFloat>?
+    private var currentWindowHeight: CGFloat = 80
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
@@ -56,7 +57,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Window
 
     private func setupWindow() {
-        let windowFrame = dockTracker.buddyWindowFrame()
+        let windowFrame = dockTracker.buddyWindowFrame(height: currentWindowHeight)
 
         let win = BuddyWindow(contentRect: windowFrame)
         window = win
@@ -111,7 +112,17 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screenParametersChanged() {
         guard let win = window else { return }
-        let newFrame = dockTracker.buddyWindowFrame()
+        let newFrame = dockTracker.buddyWindowFrame(height: currentWindowHeight)
+        win.setFrame(newFrame, display: true)
+        scene?.size = newFrame.size
+        refreshActivityBounds(windowOriginX: newFrame.origin.x)
+    }
+
+    private func updateWindowHeight(_ height: CGFloat) {
+        guard height != currentWindowHeight else { return }
+        currentWindowHeight = height
+        guard let win = window else { return }
+        let newFrame = dockTracker.buddyWindowFrame(height: height)
         win.setFrame(newFrame, display: true)
         scene?.size = newFrame.size
         refreshActivityBounds(windowOriginX: newFrame.origin.x)
@@ -188,6 +199,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
         sessionManager = manager
         manager.start()
+
+        // Window height callback for token level changes
+        scene.onWindowHeightNeeded = { [weak self] height in
+            self?.updateWindowHeight(height)
+        }
     }
 
     private func setupSkinHotSwap() {

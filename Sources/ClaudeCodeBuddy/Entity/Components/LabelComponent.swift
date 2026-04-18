@@ -126,6 +126,29 @@ class LabelComponent {
         tabNameShadowNode?.isHidden = false
     }
 
+    // MARK: - Scale Compensation
+
+    /// Counteract containerNode's token scale so labels stay at consistent visual size.
+    /// Also handles facing-direction flip (xScale sign).
+    func updateScaleCompensation(tokenScale: CGFloat, facingRight: Bool) {
+        let facingSign: CGFloat = facingRight ? 1.0 : -1.0
+        let compensatedX = facingSign / tokenScale
+        let compensatedY = 1.0 / tokenScale
+
+        labelNode?.xScale = compensatedX
+        labelNode?.yScale = compensatedY
+        shadowLabelNode?.xScale = compensatedX
+        shadowLabelNode?.yScale = compensatedY
+        tabNameNode?.xScale = compensatedX
+        tabNameNode?.yScale = compensatedY
+        tabNameShadowNode?.xScale = compensatedX
+        tabNameShadowNode?.yScale = compensatedY
+        alertOverlayNode?.xScale = compensatedX
+        alertOverlayNode?.yScale = compensatedY
+        persistentBadgeNode?.xScale = compensatedX
+        persistentBadgeNode?.yScale = compensatedY
+    }
+
     // MARK: - Alert Overlay
 
     func addAlertOverlay(afterLabel text: String) {

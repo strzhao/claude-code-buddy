@@ -8,12 +8,17 @@ class MenuBarAnimator {
 
     private weak var button: NSStatusBarButton?
 
-    /// 走路动画帧（menubar-walk-{1..6}）— 少量活跃时使用
+    /// 走路动画帧（menubar-walk-{1..6}）— 少量活跃时使用（cat）
     private var walkFrames: [NSImage] = []
-    /// 跑步动画帧（menubar-run-{1..5}）— 大量活跃时使用
+    /// 跑步动画帧（menubar-run-{1..5}）— 大量活跃时使用（cat）
     private var runFrames: [NSImage] = []
-    /// 静止图标（menubar-idle-1 或降级 SF Symbol）
+    /// 静止图标（cat）
     private var idleImage: NSImage?
+
+    /// Rocket 模式对应的三组帧（nativecompose 不走 skin pack）。
+    private var rocketWalkFrames: [NSImage] = []
+    private var rocketRunFrames: [NSImage] = []
+    private var rocketIdleImage: NSImage?
 
     private var currentFrame: Int = 0
     private var activeCatCount: Int = 0
@@ -82,36 +87,62 @@ class MenuBarAnimator {
     // MARK: - Private Helpers
 
     private func loadSprites() {
-        let skin = SkinPackManager.shared.activeSkin
-        let menuBarConfig = skin.manifest.menuBar
-
         // 菜单栏高度 22pt，图标用满高度，宽度按比例
         let iconHeight: CGFloat = 22
         let iconWidth: CGFloat = 32  // 50:34 ≈ 32:22
-
         let iconSize = NSSize(width: iconWidth, height: iconHeight)
 
-        // 加载走路帧
-        walkFrames = loadFrameSequence(prefix: menuBarConfig.walkPrefix,
-                                       count: menuBarConfig.walkFrameCount,
-                                       size: iconSize, skin: skin)
+        // 两套帧：cat 走 skin manifest（可被用户皮肤包覆盖），rocket 走内置
+        // 资源（不 skinnable）。MenuBarAnimator 根据 `mode` 挑选哪一套。
+        (walkFrames, runFrames, idleImage) = loadCatFrames(iconSize: iconSize)
+        (rocketWalkFrames, rocketRunFrames, rocketIdleImage) = loadRocketFrames(iconSize: iconSize)
+    }
 
-        // 加载跑步帧
-        runFrames = loadFrameSequence(prefix: menuBarConfig.runPrefix,
-                                      count: menuBarConfig.runFrameCount,
-                                      size: iconSize, skin: skin)
-
-        // 加载静止图标
+    private func loadCatFrames(iconSize: NSSize) -> (walk: [NSImage], run: [NSImage], idle: NSImage?) {
+        let skin = SkinPackManager.shared.activeSkin
+        let menuBarConfig = skin.manifest.menuBar
+        let walk = loadFrameSequence(prefix: menuBarConfig.walkPrefix,
+                                     count: menuBarConfig.walkFrameCount,
+                                     size: iconSize, skin: skin)
+        let run = loadFrameSequence(prefix: menuBarConfig.runPrefix,
+                                    count: menuBarConfig.runFrameCount,
+                                    size: iconSize, skin: skin)
+        let idle: NSImage?
         if let url = skin.url(forResource: menuBarConfig.idleFrame,
                               withExtension: "png",
                               subdirectory: menuBarConfig.directory),
            let img = NSImage(contentsOf: url) {
             img.size = iconSize
-            idleImage = img
+            idle = img
         } else {
-            idleImage = NSImage(systemSymbolName: "cat.fill",
-                                accessibilityDescription: "Claude Code Buddy")
+            idle = NSImage(systemSymbolName: "cat.fill",
+                           accessibilityDescription: "Claude Code Buddy")
         }
+        return (walk, run, idle)
+    }
+
+    /// Loads the rocket menubar set from the built-in bundle (Assets/Sprites/Menubar/
+    /// menubar-rocket-*.png). These are NOT part of user skin packs — rocket
+    /// mode is a system feature, not a customization surface.
+    private func loadRocketFrames(iconSize: NSSize) -> (walk: [NSImage], run: [NSImage], idle: NSImage?) {
+        let directory = "Assets/Sprites/Menubar"
+        let walk = (1...6).compactMap { loadBundleImage("menubar-rocket-walk-\($0)", dir: directory, size: iconSize) }
+        let run  = (1...5).compactMap { loadBundleImage("menubar-rocket-run-\($0)",  dir: directory, size: iconSize) }
+        let idle = loadBundleImage("menubar-rocket-idle-1", dir: directory, size: iconSize)
+            ?? NSImage(systemSymbolName: "airplane",
+                       accessibilityDescription: "Claude Code Buddy (Rocket)")
+        return (walk, run, idle)
+    }
+
+    private func loadBundleImage(_ name: String, dir: String, size: NSSize) -> NSImage? {
+        guard let url = ResourceBundle.bundle.url(forResource: name,
+                                                  withExtension: "png",
+                                                  subdirectory: dir),
+              let img = NSImage(contentsOf: url) else {
+            return nil
+        }
+        img.size = size
+        return img
     }
 
     /// Reload all sprites from the current skin (called during skin hot-swap).
@@ -140,7 +171,12 @@ class MenuBarAnimator {
     }
 
     private func switchFrames(for count: Int) {
-        let newFrames = count >= runThreshold ? runFrames : walkFrames
+        let running = count >= runThreshold
+        let newFrames: [NSImage]
+        switch mode {
+        case .cat:    newFrames = running ? runFrames       : walkFrames
+        case .rocket: newFrames = running ? rocketRunFrames : rocketWalkFrames
+        }
         if activeFrames.count != newFrames.count || activeFrames.first !== newFrames.first {
             activeFrames = newFrames
             currentFrame = 0
@@ -163,19 +199,28 @@ class MenuBarAnimator {
     }
 
     private func tick() {
-        guard mode == .cat, !activeFrames.isEmpty else { return }
+        guard !activeFrames.isEmpty else { return }
         currentFrame = (currentFrame + 1) % activeFrames.count
         button?.image = activeFrames[currentFrame]
     }
 
     private func applyIdleImage() {
-        guard mode == .cat else { return }
-        button?.image = idleImage
+        button?.image = (mode == .rocket) ? rocketIdleImage : idleImage
     }
 
-    // MARK: - Mode-aware icon (Step 7.2)
+    // MARK: - Mode-aware icon
 
-    /// Current entity mode. In .rocket mode the animator yields control
-    /// of button.image; the owner (AppDelegate) sets a rocket-specific symbol.
-    var mode: EntityMode = .cat
+    /// Current entity mode. Changing this re-picks the frame set (walk/run/idle)
+    /// so the menu bar icon swaps smoothly between the pixel cat and the
+    /// pixel rocket without losing the animation cadence.
+    var mode: EntityMode = .cat {
+        didSet {
+            guard oldValue != mode else { return }
+            if activeCatCount > 0 {
+                switchFrames(for: activeCatCount)
+            } else {
+                applyIdleImage()
+            }
+        }
+    }
 }

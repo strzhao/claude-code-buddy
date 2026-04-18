@@ -259,13 +259,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusBarIcon(for mode: EntityMode) {
+        // Animator now owns the image in BOTH modes: cat frames for .cat,
+        // rocket frames (idle / walk / run) for .rocket. Changing `mode`
+        // swaps frame sets and refreshes the icon accordingly.
         menuBarAnimator?.mode = mode
-        guard mode == .rocket else { return }
-        // In cat mode the animator owns the image; in rocket mode we set a static symbol.
-        statusItem?.button?.image = NSImage(
-            systemSymbolName: "airplane",
-            accessibilityDescription: mode.rawValue
-        )
     }
 
     private func setupSceneExpansion() {

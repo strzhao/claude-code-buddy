@@ -54,39 +54,23 @@ class MenuBarAnimator {
 
     // MARK: - Public Interface
 
-    /// Debug override. When set via env var `BUDDY_LOCK_MENUBAR` to
-    /// `idle` / `walk` / `run`, the animator ignores the real session
-    /// count and locks to that state — useful while iterating on pixel art.
-    /// Unset / empty / unknown value = no lock.
-    private static let lockedCount: Int? = {
-        guard let raw = ProcessInfo.processInfo.environment["BUDDY_LOCK_MENUBAR"]?.lowercased(),
-              !raw.isEmpty else { return nil }
-        switch raw {
-        case "idle": return 0
-        case "walk": return 2
-        case "run":  return 4
-        default:     return nil
-        }
-    }()
-
     /// 更新活跃会话数，可在任意线程调用。
     func updateActiveCatCount(_ count: Int) {
-        let effectiveCount = Self.lockedCount ?? count
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let oldCount = self.activeCatCount
-            self.activeCatCount = effectiveCount
+            self.activeCatCount = count
 
             // Rocket idle is a 5-frame vent loop; cat idle is a single
             // static sprite. When idle animates we keep the timer running
             // (on a slow ~6 fps tick); otherwise we suspend it.
-            let shouldAnimate = effectiveCount > 0
+            let shouldAnimate = count > 0
                 || (self.mode == .rocket && self.rocketIdleFrames.count > 1)
 
-            self.switchFrames(for: effectiveCount)
+            self.switchFrames(for: count)
 
             if shouldAnimate {
-                self.updateInterval(immediate: oldCount != effectiveCount)
+                self.updateInterval(immediate: oldCount != count)
                 if self.timerSuspended {
                     self.timer?.resume()
                     self.timerSuspended = false

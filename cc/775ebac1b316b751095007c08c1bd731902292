@@ -1,0 +1,33 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatPermissionRequestState.swift
+  0f99d6fac0042070 29,45-46
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  0f99d6fac0042070 86,212,355-370
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  0f99d6fac0042070 320-337
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatTaskCompleteState.swift
+  0f99d6fac0042070 144-146
+tests/BuddyCoreTests/PersistentBadgeTests.swift
+  0f99d6fac0042070 1-162
+Sources/ClaudeCodeBuddy/Entity/Components/LabelComponent.swift
+  0f99d6fac0042070 19,124-128,169-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "cc775ebac1b316b751095007c08c1bd731902292",
+  "prompts": {
+    "0f99d6fac0042070": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "332ab600-b782-4cae-a34b-3da47682c688",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 413,
+      "total_deletions": 0,
+      "accepted_lines": 413,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -329,22 +329,22 @@ for (i, plan) in walkPlan.enumerated() {
 }
 
 // Run (5 frames): Raptors at MAX thrust — huge flame on every frame.
-// Flicker / streaks / smoke vary so successive frames read as animated
-// turbulence rather than a static image.
-let runPlan: [(FlameSize, Bool, Int, Bool)] = [
-    // flame,  flicker, streak count, smoke
-    (.huge,   false, 3, false),
-    (.huge,   true,  3, true),
-    (.huge,   false, 3, true),
-    (.huge,   true,  3, false),
-    (.huge,   false, 3, true),
+// Flicker + smoke alternate so successive frames read as animated
+// turbulence rather than a static image. No motion streaks (the flame
+// pulse + smoke billow already sell the speed without them).
+let runPlan: [(FlameSize, Bool, Bool)] = [
+    // flame,  flicker, smoke
+    (.huge,   false, false),
+    (.huge,   true,  true),
+    (.huge,   false, true),
+    (.huge,   true,  false),
+    (.huge,   false, true),
 ]
 for (i, plan) in runPlan.enumerated() {
     render(to: "menubar-rocket-run-\(i + 1).png") { ctx in
         drawRocket(ctx)
         drawFlame(ctx, size: plan.0, flicker: plan.1)
-        drawMotionStreaks(ctx, intensity: plan.2)
-        if plan.3 {
+        if plan.2 {
             drawSmoke(ctx)
         }
     }

@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/Resources/Info.plist
+  7283a90ae2de6fdd 12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "752038bc8c3c7a64e1ec2958764c25dff7224c93",
+  "prompts": {
+    "7283a90ae2de6fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73e3377d-a0bb-446d-aa04-8d5ae2ef362c",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}

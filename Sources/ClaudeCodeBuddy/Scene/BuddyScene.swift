@@ -915,18 +915,23 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     /// tower to Mechazilla while a Starship is on scene. Left boundary stays
     /// visible as the normal mode-decoration (both launch towers shown).
     private func applyStarshipSceneAdjustments() {
-        // The boundary towers are already Mechazilla in rocket mode — no
-        // texture swap needed when Starship comes/goes. Just manage OLM +
-        // make sure the right tower returns to CLOSED when Starship leaves.
+        // Two responsibilities:
+        //   1) Manage OLM lifecycle — only while a Starship is active.
+        //   2) Reset the right tower to the CLOSED Mechazilla texture when
+        //      the Starship leaves AND we're still in rocket mode. In cat
+        //      mode the right boundary is a bush, so we must NOT overwrite
+        //      it with Mechazilla (bug: previously this fired on every
+        //      entity add/remove regardless of mode).
         if activeStarshipSessionId != nil {
             ensureOLM()
         } else {
+            olmNode?.removeFromParent()
+            olmNode = nil
+            guard EntityModeStore.shared.current == .rocket else { return }
             loadMechazillaTexturesIfNeeded()
             if let tex = mechazillaClosedTexture {
                 rightBoundaryNode?.texture = tex
             }
-            olmNode?.removeFromParent()
-            olmNode = nil
         }
     }
 

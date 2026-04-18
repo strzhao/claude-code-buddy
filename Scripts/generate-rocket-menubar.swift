@@ -26,14 +26,16 @@ func rgb(_ r: Int, _ g: Int, _ b: Int, _ a: CGFloat = 1.0) -> CGColor {
     CGColor(red: CGFloat(r) / 255.0, green: CGFloat(g) / 255.0, blue: CGFloat(b) / 255.0, alpha: a)
 }
 
-let hullWhite  = rgb(240, 240, 245)
-let hullShadow = rgb(170, 170, 182)
-let hullDark   = rgb(95,  95, 108)
+// Starship stainless-steel palette (cooler / less saturated than classic white
+// rocket). Shadow band preserves the volumetric look on the booster/ship.
+let hullWhite  = rgb(222, 226, 234)
+let hullShadow = rgb(160, 168, 180)
+let hullDark   = rgb(72,  80,  96)
+let ringBlack  = rgb(28,  30,  38)
 let windowBlue = rgb(90,  175, 220)
 let windowLit  = rgb(200, 230, 250)
-let finRed     = rgb(220, 60,  55)
-let finShadow  = rgb(150, 35,  35)
-let outline    = rgb(25,  25,  35)
+let ventOrng   = rgb(255, 150, 60)
+let outline    = rgb(18,  20,  28)
 let exhaust    = rgb(130, 130, 140)
 
 let flameRed   = rgb(240, 80,  40)
@@ -56,79 +58,85 @@ func p(_ ctx: CGContext, _ x: Int, _ y: Int, _ color: CGColor) {
 
 // MARK: - Rocket body (shared across all frames)
 
-/// Draws a stylized rocket centered at x=25. Bottom engine nozzle ends at
-/// roughly y=10; flame is drawn separately below.
+/// Draws a stylized Starship (Super Heavy booster + Starship upper stage)
+/// centered at x=25. Engine bells sit at y≈5; flame is drawn separately
+/// below that. Overall silhouette is recognizable at 32×22 render size:
+/// wide booster → hot-staging ring → narrower ship → pointy nose.
 func drawRocket(_ ctx: CGContext) {
     let cx = 25
 
-    // Nose cone — pointy triangle at top (y=30..33). Width grows from 1 to 8.
-    p(ctx,  cx,     33, hullWhite)
-    p(ctx,  cx - 1, 32, hullWhite)
-    p(ctx,  cx,     32, hullWhite)
-    p(ctx,  cx + 1, 32, hullWhite)
-    p(ctx,  cx - 2, 31, hullWhite)
-    px(ctx, cx - 1, 31, 3, 1, hullWhite)
-    p(ctx,  cx + 2, 31, hullShadow)
-    p(ctx,  cx - 3, 30, hullWhite)
-    px(ctx, cx - 2, 30, 4, 1, hullWhite)
-    p(ctx,  cx + 2, 30, hullShadow)
-    p(ctx,  cx + 3, 30, hullDark)
-    // Nose outline
-    p(ctx,  cx - 3, 31, outline)
-    p(ctx,  cx + 3, 31, outline)
+    // ── Super Heavy booster ───────────────────────────────────────────
+    // Engine-bell ring: narrow dark band just below the booster body.
+    px(ctx, cx - 3, 4, 6, 1, exhaust)
+    px(ctx, cx - 3, 5, 6, 1, hullDark)
 
-    // Main body — 8pt wide (cx-4..cx+3), y=16..29 (14 rows tall)
-    px(ctx, cx - 4, 16, 8, 14, hullWhite)
-    // Right-side shadow band
-    px(ctx, cx + 2, 16, 2, 14, hullShadow)
-    // Left/right outline
-    px(ctx, cx - 4, 16, 1, 14, outline)
-    px(ctx, cx + 3, 16, 1, 14, outline)
-    // Dark accent band around mid-body (service ring)
-    px(ctx, cx - 4, 22, 8, 1, hullDark)
+    // Booster body — 8 wide (cx-4..cx+3), y=6..12 (7 rows).
+    px(ctx, cx - 4, 6, 8, 7, hullWhite)
+    // Shadow band on the right (volumetric hint)
+    px(ctx, cx + 2, 6, 2, 7, hullShadow)
+    // Outlines
+    px(ctx, cx - 4, 6, 1, 7, outline)
+    px(ctx, cx + 3, 6, 1, 7, outline)
 
-    // Cockpit window — small circular light 3pt wide at upper body (y=26..27)
-    px(ctx, cx - 1, 26, 3, 2, windowBlue)
-    p(ctx,  cx - 1, 27, windowLit)
+    // Grid fins — two small wings flared near booster top (y=10..11)
+    px(ctx, cx - 6, 10, 2, 2, hullShadow)
+    px(ctx, cx + 4, 10, 2, 2, hullShadow)
+    p(ctx,  cx - 6, 11, outline)
+    p(ctx,  cx + 5, 11, outline)
+
+    // Hot-staging ring — dark band at top of booster (y=13..14). Two
+    // small vent-lights glow orange to sell the engine-heat idea.
+    px(ctx, cx - 4, 13, 8, 2, ringBlack)
+    p(ctx,  cx - 2, 13, ventOrng)
+    p(ctx,  cx + 1, 13, ventOrng)
+
+    // ── Starship (upper stage) ────────────────────────────────────────
+    // Aft flaps — two short wings just above the hot-staging ring.
+    px(ctx, cx - 5, 15, 2, 1, hullShadow)
+    px(ctx, cx + 4, 15, 2, 1, hullShadow)
+    p(ctx,  cx - 5, 15, outline)
+    p(ctx,  cx + 5, 15, outline)
+
+    // Ship body — 6 wide (cx-3..cx+2), y=15..22 (8 rows).
+    px(ctx, cx - 3, 15, 6, 8, hullWhite)
+    // Shadow band
+    px(ctx, cx + 1, 15, 2, 8, hullShadow)
+    // Outlines
+    px(ctx, cx - 3, 15, 1, 8, outline)
+    px(ctx, cx + 2, 15, 1, 8, outline)
+
+    // Forward flaps — two short wings near top of ship body (y=20..21).
+    px(ctx, cx - 5, 20, 2, 1, hullShadow)
+    px(ctx, cx + 4, 20, 2, 1, hullShadow)
+    p(ctx,  cx - 5, 20, outline)
+    p(ctx,  cx + 5, 20, outline)
+
+    // Small flight-deck window (faint blue)
+    p(ctx, cx - 1, 19, windowBlue)
+    p(ctx, cx,     19, windowLit)
+
+    // ── Nose cone — tapering triangle from 6 wide to 1-pixel tip ─────
+    // y=23: 6 wide (continues body width)
+    px(ctx, cx - 3, 23, 6, 1, hullWhite)
+    px(ctx, cx + 1, 23, 2, 1, hullShadow)
+    p(ctx,  cx - 3, 23, outline)
+    p(ctx,  cx + 2, 23, outline)
+    // y=24: 5 wide
+    px(ctx, cx - 2, 24, 5, 1, hullWhite)
+    p(ctx,  cx + 2, 24, hullShadow)
+    p(ctx,  cx - 2, 24, outline)
+    p(ctx,  cx + 2, 24, outline)
+    // y=25: 4 wide
+    px(ctx, cx - 2, 25, 4, 1, hullWhite)
+    p(ctx,  cx + 1, 25, hullShadow)
+    p(ctx,  cx - 2, 25, outline)
+    p(ctx,  cx + 1, 25, outline)
+    // y=26: 2 wide
+    px(ctx, cx - 1, 26, 2, 1, hullWhite)
+    p(ctx,  cx - 1, 26, outline)
     p(ctx,  cx,     26, outline)
-
-    // Lower accent stripes (grid-fin hint) at y=19
-    p(ctx,  cx - 3, 19, hullDark)
-    p(ctx,  cx - 2, 19, hullShadow)
-    p(ctx,  cx + 1, 19, hullShadow)
-    p(ctx,  cx + 2, 19, hullDark)
-
-    // Side fins (red) — triangles flared to each side at y=12..17.
-    // Left fin: top at (cx-4, 17), bottom-out at (cx-8, 12)
-    for dy in 0..<6 {
-        let rowY = 12 + dy
-        let extend = 5 - dy           // 5,4,3,2,1,0
-        if extend > 0 {
-            px(ctx, cx - 4 - extend, rowY, extend, 1, finRed)
-            p(ctx,  cx - 4 - extend, rowY, outline)
-            p(ctx,  cx - 5 + 1,      rowY, finShadow)  // darker edge near body
-        }
-    }
-    // Right fin mirror
-    for dy in 0..<6 {
-        let rowY = 12 + dy
-        let extend = 5 - dy
-        if extend > 0 {
-            px(ctx, cx + 4, rowY, extend, 1, finRed)
-            p(ctx,  cx + 3 + extend, rowY, outline)
-            p(ctx,  cx + 4,          rowY, finShadow)
-        }
-    }
-
-    // Engine section below body — 6pt wide nozzle tapering (y=12..15)
-    px(ctx, cx - 3, 12, 6, 4, hullDark)
-    px(ctx, cx - 2, 11, 4, 1, hullDark)
-    px(ctx, cx - 2, 10, 4, 1, exhaust)
-    // Outline
-    p(ctx,  cx - 3, 12, outline)
-    p(ctx,  cx + 2, 12, outline)
-    p(ctx,  cx - 2, 10, outline)
-    p(ctx,  cx + 1, 10, outline)
+    // y=27: 1-pixel tip
+    p(ctx, cx, 27, hullWhite)
 }
 
 // MARK: - Flame variants

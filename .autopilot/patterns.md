@@ -1,5 +1,11 @@
 # Patterns & Lessons
 
+### [2026-04-18] 精灵帧内 yOff 偏移会被画布顶部静默裁切
+<!-- tags: spritekit, sprites, canvas, yoff, clipping, rocket -->
+**Scenario**: `generate-rocket-sprites-v2.swift` 里 `drawShuttleBody(ctx, yOff:)` 通过 `baseY = 4 + yOff` 让整个精灵在 48×48 画布内上移，用于表达 landing/liftoff 的"飞行中下坠/上升"帧间微位移。shuttle 的 ET 鼻锥最高像素在 `baseY+42`（=`46+yOff`），`yOff > 1` 就会被画布 y=47 的天花板裁掉。
+**Lesson**: 在像素精灵脚本里调高 yOff（或任何"帧内偏移"）之前，必须先算出该 kind 里**最高像素的 y 坐标 + yOff ≤ canvas_height - 1**。不满足就要先裁身高、要么不加 yOff、要么放大画布。裁切不会报错，只会让精灵顶端悄悄消失 —— 用户投诉才会被发现。另外：场景级（containerNode.moveTo）本来就能驱动垂直位移，sprite 内部 yOff 最多是辅助锦上添花，大幅 yOff 很容易弊大于利。
+**Evidence**: shuttle_landing_a 原 yOff=6 把橙色 ET 鼻锥 5 行整个裁掉，视觉上"中间外储罐被遮挡一半"。改回 yOff=1（landing_a）/ 0（landing_b）后 ET 完整，scene-level moveTo 继续承担下降动画。
+
 ### [2026-04-17] SpriteKit 物理碰撞掩码与 SKAction.moveTo 不兼容
 <!-- tags: spritekit, physics, collision, skaction, movement -->
 **Scenario**: 多只猫设置了 `collisionBitMask = .cat`，但实际移动用 `SKAction.moveTo(x:)` 直接设位置，绕过物理引擎

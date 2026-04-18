@@ -848,13 +848,17 @@ write("shuttle_abort_b") { ctx in
     drawShuttleFlame(ctx, yOff: 0, size: .small)
     drawWarningLight(ctx, on: false)
 }
+// Shuttle landing frames: keep yOff ≤ 1 so the ET nose cone
+// (drawn at baseY+42, i.e. sprite y = 46+yOff) doesn't get clipped
+// by the 48px canvas ceiling. The scene-level containerNode.moveTo
+// animation already carries the descent motion.
 write("shuttle_landing_a") { ctx in
-    drawShuttleBody(ctx, yOff: 6, windowLight: true)
-    drawShuttleFlame(ctx, yOff: 6, size: .small)
+    drawShuttleBody(ctx, yOff: 1, windowLight: true)
+    drawShuttleFlame(ctx, yOff: 1, size: .small)
 }
 write("shuttle_landing_b") { ctx in
-    drawShuttleBody(ctx, yOff: 3, windowLight: true)
-    drawShuttleFlame(ctx, yOff: 3, size: .small)
+    drawShuttleBody(ctx, yOff: 0, windowLight: true)
+    drawShuttleFlame(ctx, yOff: 0, size: .small)
 }
 write("shuttle_landing_c") { ctx in
     drawShuttleBody(ctx, yOff: 0, windowLight: true)

@@ -317,6 +317,24 @@ enum CatConstants {
         static let actionKey = "boundaryRecovery"
     }
 
+    // MARK: - PersistentBadge
+    enum PersistentBadge {
+        /// Radius of the persistent alert badge circle (smaller than animated badge)
+        static let radius: CGFloat = 7
+        /// X offset from sprite center for persistent badge position
+        static let xOffset: CGFloat = 22
+        /// Y offset from sprite center for persistent badge position
+        static let yOffset: CGFloat = 38
+        /// Duration of one pulse phase (total cycle = 2× this)
+        static let pulseDuration: TimeInterval = 0.75
+        /// Minimum alpha during pulse
+        static let minAlpha: CGFloat = 0.5
+        /// Font size for the "!" text in persistent badge
+        static let fontSize: CGFloat = 11
+        /// Stroke line width for persistent badge circle
+        static let lineWidth: CGFloat = 1.0
+    }
+
     // MARK: - Separation
     enum Separation {
         /// Minimum desired X distance between two cat centers (px).

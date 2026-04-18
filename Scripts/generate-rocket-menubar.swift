@@ -70,70 +70,60 @@ func p(_ ctx: CGContext, _ x: Int, _ y: Int, _ color: CGColor) {
 func drawRocket(_ ctx: CGContext) {
     let cx = 25
     let baseY = 7          // ship body bottom row (engines sit at baseY-1 = 6)
+    let bodyHeight = 24    // y=7..30 — cylinder runs almost to canvas top
 
-    // ── Ship body — 12 wide (cx-6..cx+5), 16 rows tall (y=7..22) ─────
-    px(ctx, cx - 6, baseY, 12, 16, hullWhite)
-    // Right-side shadow band (4pt — 1/3 of body width)
-    px(ctx, cx + 2, baseY, 4, 16, hullShadow)
+    // ── Ship body — 14 wide (cx-7..cx+6), 24 rows tall (y=7..30) ─────
+    px(ctx, cx - 7, baseY, 14, bodyHeight, hullWhite)
+    // Right-side shadow band (5pt — wider hull, wider shadow)
+    px(ctx, cx + 2, baseY, 5, bodyHeight, hullShadow)
     // Left + right outlines
-    px(ctx, cx - 6, baseY, 1, 16, outline)
-    px(ctx, cx + 5, baseY, 1, 16, outline)
+    px(ctx, cx - 7, baseY, 1, bodyHeight, outline)
+    px(ctx, cx + 6, baseY, 1, bodyHeight, outline)
 
-    // ── Aft flaps — large blades near base. 4 wide × 3 rows + tip ────
-    px(ctx, cx - 10, baseY + 1, 4, 3, hullShadow)
-    p(ctx,  cx - 11, baseY + 1, outline)
-    p(ctx,  cx - 11, baseY + 2, outline)
-    px(ctx, cx + 6,  baseY + 1, 4, 3, hullShadow)
-    p(ctx,  cx + 10, baseY + 1, outline)
-    p(ctx,  cx + 10, baseY + 2, outline)
+    // ── Aft flaps — 4 wide × 3 rows + tip pixels ─────────────────────
+    px(ctx, cx - 11, baseY + 1, 4, 3, hullShadow)
+    p(ctx,  cx - 12, baseY + 1, outline)
+    p(ctx,  cx - 12, baseY + 2, outline)
+    px(ctx, cx + 7,  baseY + 1, 4, 3, hullShadow)
+    p(ctx,  cx + 11, baseY + 1, outline)
+    p(ctx,  cx + 11, baseY + 2, outline)
 
-    // ── Forward flaps — 3 wide × 2 rows ──────────────────────────────
-    px(ctx, cx - 9, baseY + 13, 3, 2, hullShadow)
-    p(ctx,  cx - 10, baseY + 13, outline)
-    px(ctx, cx + 6,  baseY + 13, 3, 2, hullShadow)
-    p(ctx,  cx + 9,  baseY + 13, outline)
+    // ── Forward flaps — 3 wide × 2 rows, near upper body ─────────────
+    px(ctx, cx - 10, baseY + 18, 3, 2, hullShadow)
+    p(ctx,  cx - 11, baseY + 18, outline)
+    px(ctx, cx + 7,  baseY + 18, 3, 2, hullShadow)
+    p(ctx,  cx + 10, baseY + 18, outline)
 
-    // ── Cockpit window band (dark horizontal bar, 8 wide) ────────────
-    px(ctx, cx - 4, baseY + 11, 8, 1, ringBlack)
-    px(ctx, cx - 2, baseY + 11, 4, 1, windowLit)
+    // ── Cockpit window band (dark horizontal bar, 10 wide) ───────────
+    px(ctx, cx - 5, baseY + 15, 10, 1, ringBlack)
+    px(ctx, cx - 2, baseY + 15, 4, 1, windowLit)
 
-    // ── Nose cone — 11 rows tapering from 12 wide to 1-pixel tip at
-    //    the very top of the canvas (y=33). Curve dwells at wider
-    //    widths early for a gentle Starship-ogive silhouette.
-    let noseRows: [(width: Int, rows: Int)] = [
-        (12, 2),  // y+16..+17: flush with body
-        (10, 2),  // y+18..+19
-        ( 8, 1),  // y+20
-        ( 6, 1),  // y+21
-        ( 4, 1),  // y+22
-        ( 3, 1),  // y+23
-        ( 2, 1),  // y+24
-        ( 1, 2),  // y+25..+26 (tip)
-    ]
-    var dy = 16
-    for (w, rows) in noseRows {
-        for _ in 0..<rows {
-            let rowY = baseY + dy
-            let leftX = cx - (w - 1) / 2 - (w.isMultiple(of: 2) ? 1 : 0)
-            // Fill
-            px(ctx, leftX, rowY, w, 1, hullWhite)
-            // Small right-side shadow band keeps volume on the nose
-            if w >= 6 { p(ctx, leftX + w - 2, rowY, hullShadow) }
-            // Outlines along both edges (skip for 1-wide tip — single pixel)
-            if w > 1 {
-                p(ctx, leftX,          rowY, outline)
-                p(ctx, leftX + w - 1,  rowY, outline)
-            }
-            dy += 1
-        }
-    }
+    // ── Rounded top cap — 3 rows of mild corner rounding at y=31..33.
+    //    Replaces the pointy nose cone: no tip, just gentle curve into
+    //    the canvas top edge.
+    // Cap row 1: 12 wide (cx-6..cx+5) — shave 1 pixel off each side
+    px(ctx, cx - 6, baseY + bodyHeight,     12, 1, hullWhite)
+    px(ctx, cx + 2, baseY + bodyHeight,      4, 1, hullShadow)
+    p(ctx,  cx - 6, baseY + bodyHeight,     outline)
+    p(ctx,  cx + 5, baseY + bodyHeight,     outline)
+    // Cap row 2: 10 wide (cx-5..cx+4)
+    px(ctx, cx - 5, baseY + bodyHeight + 1, 10, 1, hullWhite)
+    px(ctx, cx + 2, baseY + bodyHeight + 1,  3, 1, hullShadow)
+    p(ctx,  cx - 5, baseY + bodyHeight + 1, outline)
+    p(ctx,  cx + 4, baseY + bodyHeight + 1, outline)
+    // Cap row 3 (canvas top, y=33): 8 wide (cx-4..cx+3) — flat-ish top
+    px(ctx, cx - 4, baseY + bodyHeight + 2,  8, 1, hullWhite)
+    px(ctx, cx + 2, baseY + bodyHeight + 2,  2, 1, hullShadow)
+    p(ctx,  cx - 4, baseY + bodyHeight + 2, outline)
+    p(ctx,  cx + 3, baseY + bodyHeight + 2, outline)
 
-    // ── Raptor engine cluster — continuous dark ring 10 wide ─────────
-    px(ctx, cx - 5, baseY - 1, 10, 1, exhaust)
-    // Three-dot texture hint across the ring
-    p(ctx, cx - 3, baseY - 1, ringBlack)
-    p(ctx, cx,     baseY - 1, ringBlack)
-    p(ctx, cx + 3, baseY - 1, ringBlack)
+    // ── Raptor engine cluster — continuous dark ring 12 wide ─────────
+    px(ctx, cx - 6, baseY - 1, 12, 1, exhaust)
+    // Four-dot texture hint across the ring
+    p(ctx, cx - 4, baseY - 1, ringBlack)
+    p(ctx, cx - 1, baseY - 1, ringBlack)
+    p(ctx, cx + 1, baseY - 1, ringBlack)
+    p(ctx, cx + 4, baseY - 1, ringBlack)
 }
 
 // MARK: - Flame variants
@@ -177,18 +167,18 @@ func drawFlame(_ ctx: CGContext, size: FlameSize, flicker: Bool = false) {
             p(ctx, cx + 3, 3, flameRed)
         }
     case .huge:
-        // 10 wide, 6 tall — y=0..5 (widened to match 10pt body)
-        px(ctx, cx - 5, 2, 10, 4, flameRed)
-        px(ctx, cx - 4, 1, 8, 1, flameRed)
-        px(ctx, cx - 4, 2, 8, 3, flameOrng)
-        px(ctx, cx - 2, 3, 4, 2, flameYel)
+        // 12 wide, 6 tall — y=0..5 (widened to match 12pt engine ring)
+        px(ctx, cx - 6, 2, 12, 4, flameRed)
+        px(ctx, cx - 5, 1, 10, 1, flameRed)
+        px(ctx, cx - 5, 2, 10, 3, flameOrng)
+        px(ctx, cx - 3, 3, 6, 2, flameYel)
         px(ctx, cx - 1, 4, 2, 1, flameCore)
         px(ctx, cx - 1, 0, 2, 1, flameRed)
         if flicker {
-            p(ctx, cx - 6, 3, flameRed)
-            p(ctx, cx + 5, 3, flameRed)
-            p(ctx, cx - 5, 1, flameRed)
-            p(ctx, cx + 4, 1, flameRed)
+            p(ctx, cx - 7, 3, flameRed)
+            p(ctx, cx + 6, 3, flameRed)
+            p(ctx, cx - 6, 1, flameRed)
+            p(ctx, cx + 5, 1, flameRed)
         }
     }
 }

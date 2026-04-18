@@ -58,150 +58,117 @@ func p(_ ctx: CGContext, _ x: Int, _ y: Int, _ color: CGColor) {
 
 // MARK: - Rocket body (shared across all frames)
 
-/// Draws a stylized Starship (Super Heavy booster + Starship upper stage)
-/// centered at x=25. Engine bells sit at y≈5; flame is drawn separately
-/// below that. Overall silhouette is recognizable at 32×22 render size:
-/// wide booster → hot-staging ring → narrower ship → pointy nose.
+/// Draws the Starship UPPER STAGE only (Ship, no booster), parallel to
+/// `drawStarshipShipAlone` in Scripts/generate-rocket-sprites-v2.swift.
+/// Scaled / repositioned for the 50×34 menubar canvas (cx=25); engine
+/// nozzles sit at y=6 so flame drawn below (y=0..5) reads as issuing from
+/// the Raptors.
+///
+/// Silhouette read at 32×22 render:
+///   narrow ship body (8 wide) · aft flaps wider at base · forward flaps
+///   higher · pointy nose cone · 3 tiny Raptor bells at bottom.
 func drawRocket(_ ctx: CGContext) {
     let cx = 25
+    let baseY = 7          // ship body bottom row (engines sit at baseY-1 = 6)
 
-    // ── Super Heavy booster ───────────────────────────────────────────
-    // Engine-bell ring: narrow dark band just below the booster body.
-    px(ctx, cx - 3, 4, 6, 1, exhaust)
-    px(ctx, cx - 3, 5, 6, 1, hullDark)
+    // ── Ship body — 8 wide (cx-4..cx+3), 16 rows tall ────────────────
+    px(ctx, cx - 4, baseY, 8, 16, hullWhite)
+    // Right-side shadow band for volume
+    px(ctx, cx + 2, baseY, 2, 16, hullShadow)
+    // Left + right outlines
+    px(ctx, cx - 4, baseY, 1, 16, outline)
+    px(ctx, cx + 3, baseY, 1, 16, outline)
 
-    // Booster body — 8 wide (cx-4..cx+3), y=6..12 (7 rows).
-    px(ctx, cx - 4, 6, 8, 7, hullWhite)
-    // Shadow band on the right (volumetric hint)
-    px(ctx, cx + 2, 6, 2, 7, hullShadow)
-    // Outlines
-    px(ctx, cx - 4, 6, 1, 7, outline)
-    px(ctx, cx + 3, 6, 1, 7, outline)
+    // ── Aft flaps — wider, near base. 2×3 main blades + tip pixels ───
+    px(ctx, cx - 6, baseY + 1, 2, 3, hullShadow)
+    p(ctx,  cx - 7, baseY + 1, outline)
+    p(ctx,  cx - 7, baseY + 2, outline)
+    px(ctx, cx + 4, baseY + 1, 2, 3, hullShadow)
+    p(ctx,  cx + 6, baseY + 1, outline)
+    p(ctx,  cx + 6, baseY + 2, outline)
 
-    // Grid fins — two small wings flared near booster top (y=10..11)
-    px(ctx, cx - 6, 10, 2, 2, hullShadow)
-    px(ctx, cx + 4, 10, 2, 2, hullShadow)
-    p(ctx,  cx - 6, 11, outline)
-    p(ctx,  cx + 5, 11, outline)
+    // ── Forward flaps — smaller, near the nose. 1×2 each ─────────────
+    px(ctx, cx - 5, baseY + 13, 1, 2, hullShadow)
+    p(ctx,  cx - 6, baseY + 13, outline)
+    px(ctx, cx + 4, baseY + 13, 1, 2, hullShadow)
+    p(ctx,  cx + 5, baseY + 13, outline)
 
-    // Hot-staging ring — dark band at top of booster (y=13..14). Two
-    // small vent-lights glow orange to sell the engine-heat idea.
-    px(ctx, cx - 4, 13, 8, 2, ringBlack)
-    p(ctx,  cx - 2, 13, ventOrng)
-    p(ctx,  cx + 1, 13, ventOrng)
+    // ── Cockpit window band near the top third (dark horizontal bar) ──
+    px(ctx, cx - 2, baseY + 11, 4, 1, ringBlack)
+    p(ctx,  cx - 1, baseY + 11, windowLit)
 
-    // ── Starship (upper stage) ────────────────────────────────────────
-    // Aft flaps — two short wings just above the hot-staging ring.
-    px(ctx, cx - 5, 15, 2, 1, hullShadow)
-    px(ctx, cx + 4, 15, 2, 1, hullShadow)
-    p(ctx,  cx - 5, 15, outline)
-    p(ctx,  cx + 5, 15, outline)
+    // ── Nose cone — 4 tapering rows + 1px tip (matches drawStarship3Body)
+    px(ctx, cx - 3, baseY + 16, 6, 1, hullWhite)
+    p(ctx, cx - 3, baseY + 16, outline)
+    p(ctx, cx + 2, baseY + 16, outline)
+    px(ctx, cx - 2, baseY + 17, 4, 1, hullWhite)
+    p(ctx, cx - 2, baseY + 17, outline)
+    p(ctx, cx + 1, baseY + 17, outline)
+    px(ctx, cx - 1, baseY + 18, 2, 1, hullWhite)
+    p(ctx, cx - 1, baseY + 18, outline)
+    p(ctx, cx,     baseY + 18, outline)
+    // Pointy tip
+    p(ctx, cx, baseY + 19, hullWhite)
 
-    // Ship body — 6 wide (cx-3..cx+2), y=15..22 (8 rows).
-    px(ctx, cx - 3, 15, 6, 8, hullWhite)
-    // Shadow band
-    px(ctx, cx + 1, 15, 2, 8, hullShadow)
-    // Outlines
-    px(ctx, cx - 3, 15, 1, 8, outline)
-    px(ctx, cx + 2, 15, 1, 8, outline)
-
-    // Forward flaps — two short wings near top of ship body (y=20..21).
-    px(ctx, cx - 5, 20, 2, 1, hullShadow)
-    px(ctx, cx + 4, 20, 2, 1, hullShadow)
-    p(ctx,  cx - 5, 20, outline)
-    p(ctx,  cx + 5, 20, outline)
-
-    // Small flight-deck window (faint blue)
-    p(ctx, cx - 1, 19, windowBlue)
-    p(ctx, cx,     19, windowLit)
-
-    // ── Nose cone — tapering triangle from 6 wide to 1-pixel tip ─────
-    // y=23: 6 wide (continues body width)
-    px(ctx, cx - 3, 23, 6, 1, hullWhite)
-    px(ctx, cx + 1, 23, 2, 1, hullShadow)
-    p(ctx,  cx - 3, 23, outline)
-    p(ctx,  cx + 2, 23, outline)
-    // y=24: 5 wide
-    px(ctx, cx - 2, 24, 5, 1, hullWhite)
-    p(ctx,  cx + 2, 24, hullShadow)
-    p(ctx,  cx - 2, 24, outline)
-    p(ctx,  cx + 2, 24, outline)
-    // y=25: 4 wide
-    px(ctx, cx - 2, 25, 4, 1, hullWhite)
-    p(ctx,  cx + 1, 25, hullShadow)
-    p(ctx,  cx - 2, 25, outline)
-    p(ctx,  cx + 1, 25, outline)
-    // y=26: 2 wide
-    px(ctx, cx - 1, 26, 2, 1, hullWhite)
-    p(ctx,  cx - 1, 26, outline)
-    p(ctx,  cx,     26, outline)
-    // y=27: 1-pixel tip
-    p(ctx, cx, 27, hullWhite)
+    // ── Raptor engine nozzles — 3 tiny metal bells at the ship base ──
+    px(ctx, cx - 3, baseY - 1, 2, 1, exhaust)
+    px(ctx, cx - 1, baseY - 1, 2, 1, exhaust)
+    px(ctx, cx + 1, baseY - 1, 2, 1, exhaust)
 }
 
 // MARK: - Flame variants
 
 enum FlameSize { case none, small, medium, large, huge }
 
+/// Raptor exhaust plume. Ship engines sit at y=6; flame extends DOWN from
+/// there into the canvas bottom (y=5..0). Widths tuned so the flame reads
+/// "thrust coming from the ship" rather than a vague glow.
 func drawFlame(_ ctx: CGContext, size: FlameSize, flicker: Bool = false) {
     let cx = 25
     switch size {
     case .none:
         break
     case .small:
-        // 2 wide, 3 tall — small flicker
-        px(ctx, cx - 1, 7, 2, 2, flameOrng)
-        p(ctx,  cx - 1, 9, flameRed)
-        p(ctx,  cx,     9, flameRed)
-        p(ctx,  cx,     6, flameRed)
-        if flicker {
-            p(ctx, cx - 2, 8, flameRed)
-        }
+        // 2 wide, 3 tall — y=3..5
+        px(ctx, cx - 1, 3, 2, 3, flameOrng)
+        p(ctx,  cx,     2, flameRed)
+        if flicker { p(ctx, cx - 2, 4, flameRed) }
     case .medium:
-        // 4 wide, 5 tall
-        px(ctx, cx - 2, 6, 4, 3, flameOrng)
-        px(ctx, cx - 1, 9, 2, 1, flameOrng)
-        p(ctx,  cx,     5, flameRed)
-        p(ctx,  cx - 1, 4, flameRed)
-        p(ctx,  cx - 1, 7, flameYel)
-        p(ctx,  cx,     7, flameYel)
+        // 4 wide, 5 tall — y=1..5
+        px(ctx, cx - 2, 2, 4, 4, flameOrng)
+        px(ctx, cx - 1, 1, 2, 1, flameRed)
+        p(ctx,  cx,     0, flameRed)
+        px(ctx, cx - 1, 3, 2, 2, flameYel)
         if flicker {
-            p(ctx, cx - 3, 7, flameRed)
-            p(ctx, cx + 2, 7, flameRed)
+            p(ctx, cx - 3, 4, flameRed)
+            p(ctx, cx + 2, 4, flameRed)
         }
     case .large:
-        // 6 wide, 7 tall
-        px(ctx, cx - 3, 5, 6, 4, flameRed)
-        px(ctx, cx - 2, 4, 4, 1, flameRed)
-        px(ctx, cx - 2, 6, 4, 3, flameOrng)
-        px(ctx, cx - 1, 7, 2, 2, flameYel)
-        p(ctx,  cx,     8, flameCore)
-        // Flame tail dripping downward
-        p(ctx,  cx - 1, 3, flameRed)
-        p(ctx,  cx,     2, flameRed)
-        p(ctx,  cx - 1, 1, flameOrng)
-        p(ctx,  cx,     1, flameOrng)
+        // 6 wide, 6 tall — y=0..5
+        px(ctx, cx - 3, 2, 6, 4, flameRed)
+        px(ctx, cx - 2, 1, 4, 1, flameRed)
+        px(ctx, cx - 2, 2, 4, 3, flameOrng)
+        px(ctx, cx - 1, 3, 2, 2, flameYel)
+        p(ctx,  cx,     4, flameCore)
+        p(ctx,  cx - 1, 0, flameRed)
+        p(ctx,  cx,     0, flameRed)
         if flicker {
-            p(ctx, cx - 4, 6, flameRed)
-            p(ctx, cx + 3, 6, flameRed)
-            p(ctx, cx - 3, 3, flameRed)
+            p(ctx, cx - 4, 3, flameRed)
+            p(ctx, cx + 3, 3, flameRed)
         }
     case .huge:
-        // 8 wide, 9 tall — hottest
-        px(ctx, cx - 4, 4, 8, 5, flameRed)
-        px(ctx, cx - 3, 3, 6, 1, flameRed)
-        px(ctx, cx - 3, 6, 6, 3, flameOrng)
-        px(ctx, cx - 2, 7, 4, 2, flameYel)
-        px(ctx, cx - 1, 8, 2, 1, flameCore)
-        // Long tail
-        px(ctx, cx - 1, 1, 2, 2, flameRed)
-        px(ctx, cx - 1, 0, 2, 1, flameOrng)
-        p(ctx,  cx,     2, flameOrng)
+        // 8 wide, 6 tall — y=0..5
+        px(ctx, cx - 4, 2, 8, 4, flameRed)
+        px(ctx, cx - 3, 1, 6, 1, flameRed)
+        px(ctx, cx - 3, 2, 6, 3, flameOrng)
+        px(ctx, cx - 2, 3, 4, 2, flameYel)
+        px(ctx, cx - 1, 4, 2, 1, flameCore)
+        px(ctx, cx - 1, 0, 2, 1, flameRed)
         if flicker {
-            p(ctx, cx - 5, 6, flameRed)
-            p(ctx, cx + 4, 6, flameRed)
-            p(ctx, cx - 4, 2, flameRed)
-            p(ctx, cx + 3, 2, flameRed)
+            p(ctx, cx - 5, 3, flameRed)
+            p(ctx, cx + 4, 3, flameRed)
+            p(ctx, cx - 4, 1, flameRed)
+            p(ctx, cx + 3, 1, flameRed)
         }
     }
 }

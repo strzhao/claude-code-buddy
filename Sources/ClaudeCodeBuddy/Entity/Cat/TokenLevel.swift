@@ -98,10 +98,8 @@ enum TokenLevel: Int, CaseIterable, Comparable {
     static func from(totalTokens: Int) -> TokenLevel {
         let tokens = max(0, totalTokens)
         // Walk levels in descending order to find the highest matching threshold
-        for level in Self.allCases.reversed() {
-            if tokens >= level.threshold {
-                return level
-            }
+        for level in Self.allCases.reversed() where tokens >= level.threshold {
+            return level
         }
         return .lv1
     }

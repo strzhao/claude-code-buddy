@@ -1,0 +1,25 @@
+Scripts/bundle.sh
+  5a160c84728c7e22 39-41
+.github/workflows/release.yml
+  5a160c84728c7e22 73-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "f2ed59d6b9999723ad0eb7de76213b28ca26b6bc",
+  "prompts": {
+    "5a160c84728c7e22": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9ec0e57a-f08b-4309-9809-ccb206389744",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 21,
+      "total_deletions": 5,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}

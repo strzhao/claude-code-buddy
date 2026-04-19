@@ -1,0 +1,28 @@
+.autopilot/decisions.md
+  90aad7a5418d7874 59-92
+.autopilot/index.md
+  90aad7a5418d7874 4-5,13-14
+.autopilot/patterns.md
+  1457fc68c75f4201 74,87-91
+  90aad7a5418d7874 75-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "a7b9e31175269394040b108ecc3ed1cbbb69addf",
+  "prompts": {
+    "90aad7a5418d7874": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e7c9876e-47d8-4424-b312-fadd24e57b24",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 50,
+      "overriden_lines": 0
+    }
+  }
+}

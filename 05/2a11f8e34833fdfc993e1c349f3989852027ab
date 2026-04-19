@@ -1,0 +1,47 @@
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  90aad7a5418d7874 228-229
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  90aad7a5418d7874 609,620-622,624-628,630-631,633-636,665
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  90aad7a5418d7874 210-214
+Sources/ClaudeCodeBuddy/Skin/SkinPackManager.swift
+  90aad7a5418d7874 35,39-41,61,68-74,80-124,189,192-193
+Sources/ClaudeCodeBuddy/Entity/Components/AnimationComponent.swift
+  90aad7a5418d7874 32,49-89
+Sources/ClaudeCodeBuddy/Skin/SkinPackStore.swift
+  90aad7a5418d7874 13,19
+Sources/ClaudeCodeBuddy/Skin/DefaultSkinManifest.swift
+  90aad7a5418d7874 68-70
+Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  90aad7a5418d7874 55,140-174,268-270
+Sources/ClaudeCodeBuddy/Skin/SkinPackManifest.swift
+  90aad7a5418d7874 3-22,41-44,62-99
+Sources/ClaudeCodeBuddy/Skin/SkinPack.swift
+  90aad7a5418d7874 9-11,19-30
+Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift
+  90aad7a5418d7874 5,18-35
+tests/BuddyCoreTests/SkinPackManagerTests.swift
+  90aad7a5418d7874 232-234
+Sources/ClaudeCodeBuddy/Settings/SkinCardItem.swift
+  90aad7a5418d7874 3-4,15-19,24-29,50,80-98,146-155,177-178,180,186-188,200-201,208-249,272-275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "052a11f8e34833fdfc993e1c349f3989852027ab",
+  "prompts": {
+    "90aad7a5418d7874": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e7c9876e-47d8-4424-b312-fadd24e57b24",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 365,
+      "overriden_lines": 0
+    }
+  }
+}

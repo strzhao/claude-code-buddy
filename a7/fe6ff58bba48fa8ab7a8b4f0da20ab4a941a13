@@ -1,0 +1,23 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/TokenLevel.swift
+  7ebbf73c26c4b1bc 101-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "a7fe6ff58bba48fa8ab7a8b4f0da20ab4a941a13",
+  "prompts": {
+    "7ebbf73c26c4b1bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9a81976-5738-4612-a48e-cc422de15544",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 4,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}

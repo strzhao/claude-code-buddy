@@ -275,16 +275,25 @@ extension RocketEntity: SessionEntity {
         case .sessionStart:
             stateMachine.enter(RocketOnPadState.self)
 
+        case .userPromptSubmit:
+            // The user kicking off a new turn is the one and only takeoff trigger.
+            // Abort is a "waiting for user" state — if the user's new prompt itself
+            // is the answer, we still treat it as approval and resume flight.
+            if currentState == .abortStandby {
+                stateMachine.enter(RocketCruisingState.self)
+            } else if !isInFlight {
+                stateMachine.enter(RocketCruisingState.self)
+            }
+
         case .thinking:
-            // Thinking heartbeat shouldn't dismiss the "!" badge: while abort is active
-            // we're still waiting for the user. Only real tool execution or completion
-            // should end the abort state.
-            if currentState == .abortStandby { break }
-            if !isInFlight { stateMachine.enter(RocketCruisingState.self) }
+            // `.thinking` now comes from Claude's Notification hook (e.g. session
+            // went idle, waiting-for-user prompt). It's NOT a new-turn signal, so
+            // rocket ignores it entirely — no takeoff, no abort dismissal.
+            break
 
         case .toolStart:
-            // Tool running is not a takeoff signal — only UserPromptSubmit (.thinking)
-            // lifts the rocket off the pad, so every turn tracks "user started talking"
+            // Tool running is not a takeoff signal — only .userPromptSubmit lifts
+            // the rocket off the pad, so every turn tracks "user started talking"
             // rather than Claude's internal tool churn. The one exception: if we're
             // currently in abortStandby, a tool running implies the user approved the
             // pending permission request, so resume flight.

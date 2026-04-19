@@ -15,6 +15,12 @@ final class EntityInputEventTests: XCTestCase {
         XCTFail("expected .thinking, got \(e)")
     }
 
+    func testFromHookEvent_userPromptSubmit() {
+        let e = EntityInputEvent.from(hookEvent: .userPromptSubmit, tool: nil, description: nil)
+        if case .userPromptSubmit = e { return }
+        XCTFail("expected .userPromptSubmit, got \(e)")
+    }
+
     func testFromHookEvent_toolStart_withTool() {
         let e = EntityInputEvent.from(hookEvent: .toolStart, tool: "Read", description: "Reading file")
         if case .toolStart(let name, let desc) = e {

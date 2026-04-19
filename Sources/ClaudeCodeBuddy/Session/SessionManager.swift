@@ -149,11 +149,11 @@ class SessionManager {
 
     /// Fixed showcase cycle — (event, wait-before-next).
     /// The session starts in OnPad automatically on spawn; after the initial
-    /// settle delay we emit `.thinking` to lift off, then cycle forever.
+    /// settle delay we emit `.userPromptSubmit` to lift off, then cycle forever.
     private static let showcaseCycleSteps: [(EntityInputEvent, TimeInterval)] = [
         // Settle on the pad before the first liftoff so the initial
         // state reads clearly.
-        (.thinking,                                       5.0),  // liftoff → cruising
+        (.userPromptSubmit,                               5.0),  // liftoff → cruising
         (.permissionRequest(description: "Confirm"),      3.5),  // "!" abort
         (.toolStart(name: "Read", description: nil),      3.5),  // resume flight
         (.taskComplete,                                   6.0),  // land → OnPad (2.8s anim + settle)

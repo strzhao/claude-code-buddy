@@ -54,20 +54,20 @@ final class RocketStateGuardTests: XCTestCase {
 
     // MARK: - Flight stickiness
 
-    func testRepeatedThinkingDuringCruising_staysInCruising() {
-        let r = makeRocket("flight-sticky-thinking")
-        r.handle(event: .thinking)
+    func testRepeatedUserPromptDuringCruising_staysInCruising() {
+        let r = makeRocket("flight-sticky-prompt")
+        r.handle(event: .userPromptSubmit)
         XCTAssertEqual(r.currentState, .cruising)
 
-        r.handle(event: .thinking)
-        r.handle(event: .thinking)
+        r.handle(event: .userPromptSubmit)
+        r.handle(event: .userPromptSubmit)
         XCTAssertEqual(r.currentState, .cruising,
-                       "duplicate thinking events must not restart liftoff")
+                       "duplicate userPromptSubmit must not restart liftoff while cruising")
     }
 
     func testToolEndDuringCruising_staysInCruising() {
         let r = makeRocket("flight-sticky-toolend")
-        r.handle(event: .thinking)
+        r.handle(event: .userPromptSubmit)
         XCTAssertEqual(r.currentState, .cruising)
 
         r.handle(event: .toolEnd(name: "Read"))
@@ -79,7 +79,7 @@ final class RocketStateGuardTests: XCTestCase {
 
     func testSessionStart_resetsToOnPad() {
         let r = makeRocket("lifecycle-reset")
-        r.handle(event: .thinking)
+        r.handle(event: .userPromptSubmit)
         XCTAssertEqual(r.currentState, .cruising)
 
         r.handle(event: .sessionStart)
@@ -96,7 +96,7 @@ final class RocketStateGuardTests: XCTestCase {
 
     func testHoverEnter_doesNotChangeState() {
         let r = makeRocket("hover-enter")
-        r.handle(event: .thinking)
+        r.handle(event: .userPromptSubmit)
         XCTAssertEqual(r.currentState, .cruising)
 
         r.handle(event: .hoverEnter)

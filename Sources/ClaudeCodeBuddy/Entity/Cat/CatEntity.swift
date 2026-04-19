@@ -273,6 +273,9 @@ class CatEntity {
         case .sessionStart:
             // Enter scene already handled by enterScene(); no-op here
             break
+        case .userPromptSubmit:
+            // Cats don't distinguish user-prompt vs notification: both show thinking pose.
+            switchState(to: .thinking)
         case .thinking:
             switchState(to: .thinking)
         case .toolStart(_, let desc):

@@ -51,7 +51,7 @@ desc = tool_input.get("description", "") if isinstance(tool_input, dict) else ""
 event_map = {
     "SessionStart":      "session_start",
     "Notification":      "thinking",
-    "UserPromptSubmit":  "thinking",
+    "UserPromptSubmit":  "user_prompt_submit",
     "PreToolUse":        "tool_start",
     "PostToolUse":       "tool_end",
     "PermissionRequest": "permission_request",

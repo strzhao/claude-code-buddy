@@ -4,6 +4,7 @@ import Foundation
 
 enum HookEvent: String, Codable {
     case sessionStart = "session_start"
+    case userPromptSubmit = "user_prompt_submit"
     case thinking   = "thinking"
     case toolStart  = "tool_start"
     case toolEnd    = "tool_end"
@@ -71,6 +72,7 @@ struct HookMessage: Codable {
     var entityState: EntityState? {
         switch event {
         case .sessionStart: return nil
+        case .userPromptSubmit: return .thinking  // user's turn-start shows the same "thinking" state in UI
         case .thinking:   return .thinking
         case .toolStart:  return .toolUse
         case .toolEnd:    return .thinking

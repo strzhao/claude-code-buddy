@@ -3,6 +3,11 @@
 /// Decoupled from HookEvent (network layer) and EntityState (display layer).
 enum EntityInputEvent {
     case sessionStart
+    /// The user started a new turn (hook: UserPromptSubmit). Distinct from
+    /// `.thinking` (which comes from Claude's Notification hook) so that the
+    /// rocket can gate takeoff purely to "user talked", while cats can treat
+    /// both as the same thinking-pose signal.
+    case userPromptSubmit
     case thinking
     case toolStart(name: String?, description: String?)
     case toolEnd(name: String?)
@@ -18,6 +23,7 @@ enum EntityInputEvent {
     static func from(hookEvent: HookEvent, tool: String?, description: String?) -> EntityInputEvent {
         switch hookEvent {
         case .sessionStart: return .sessionStart
+        case .userPromptSubmit: return .userPromptSubmit
         case .thinking:     return .thinking
         case .toolStart:    return .toolStart(name: tool, description: description)
         case .toolEnd:      return .toolEnd(name: tool)

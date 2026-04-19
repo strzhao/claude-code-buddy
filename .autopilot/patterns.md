@@ -89,3 +89,9 @@
 **Scenario**: 本地 `make bundle`（调用 Scripts/bundle.sh）打包的 .app 有 icon，但 GitHub CI release.yml 打包的 .app 缺少 icon
 **Lesson**: 项目有两条独立的 .app bundle 组装路径：`Scripts/bundle.sh`（本地）和 `.github/workflows/release.yml`（CI）。新增 bundle 内容（如资源文件、新的可执行文件）时，必须在两处同时添加 cp 步骤。排查"本地有 CI 没有"问题时，优先 diff 这两个文件。同类陷阱：plugin 缓存与源码不同步（见上方条目）。
 **Evidence**: bundle.sh:40-43 有 `cp AppIcon.icns`，release.yml:47-68 缺少该步骤。CI 产出的 .app 在 Finder 中显示通用白纸图标。
+
+### [2026-04-19] 精灵图 alpha 帧检测被粒子/特效残留误导
+<!-- tags: skin, sprite, slicing, alpha, frame-detection -->
+**Scenario**: 用 alpha 扫描（任意像素 alpha>10 即为有内容）自动检测精灵图每行帧数时，死亡/消散动画行的粒子残留被误判为有效帧
+**Lesson**: 纯 alpha 检测适合角色动画行，但对含 VFX（粒子、爆炸、光效）的行会过度计数。切片精灵图时，对已知有特效的行应设置 `max_frames` 上限，并在切片后目视验证末尾帧。另一方案是改用最小像素数阈值（如非透明像素 >50 才算有效帧），但手动 max_frames 更精准。
+**Evidence**: Satyr 精灵图 row 6（死亡动画）alpha 扫描检测到 10 帧，但帧 5+ 只有零星粒子点（jump-9.png/jump-10.png 几乎全透明）。添加 `"max_frames": 4` 后修复。

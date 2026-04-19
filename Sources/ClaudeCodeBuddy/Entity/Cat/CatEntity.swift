@@ -207,8 +207,11 @@ class CatEntity {
     }
 
     func applyFacingDirection() {
-        // Sprites face RIGHT by default (xScale=1.0), flip to face LEFT (xScale=-1.0)
-        let xScale: CGFloat = facingRight ? 1.0 : -1.0
+        // Check if the skin's sprites face right by default (true = right, false = left)
+        let spriteFacesRight = SkinPackManager.shared.activeSkin.manifest.spriteFacesRight ?? true
+        // When sprite faces right: facingRight=true → xScale=1, facingRight=false → xScale=-1
+        // When sprite faces left: facingRight=true → xScale=-1, facingRight=false → xScale=1
+        let xScale: CGFloat = (facingRight == spriteFacesRight) ? 1.0 : -1.0
         node.xScale = xScale
         // Update label scale compensation (handles both facing flip and token scale)
         labelComponent.updateScaleCompensation(tokenScale: tokenScale, facingRight: facingRight)

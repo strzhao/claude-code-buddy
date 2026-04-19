@@ -6,11 +6,28 @@ struct SkinPack {
     let manifest: SkinPackManifest
     let source: SkinSource
 
+    /// The currently selected variant ID, or nil for default/legacy behavior.
+    var selectedVariantId: String?
+
     // MARK: - SkinSource
 
     enum SkinSource {
         case builtIn(Bundle)
         case local(URL)
+    }
+
+    // MARK: - Effective Properties (variant-aware)
+
+    var effectiveSpritePrefix: String {
+        manifest.effectiveSpritePrefix(for: selectedVariantId)
+    }
+
+    var effectiveBedNames: [String] {
+        manifest.effectiveBedNames(for: selectedVariantId)
+    }
+
+    var effectivePreviewImage: String? {
+        manifest.effectivePreviewImage(for: selectedVariantId)
     }
 
     // MARK: - Resource URL

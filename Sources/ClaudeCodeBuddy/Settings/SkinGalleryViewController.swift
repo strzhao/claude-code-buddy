@@ -69,7 +69,7 @@ class SkinGalleryViewController: NSViewController {
 
     private func setupCollectionView(in container: NSView) {
         let layout = NSCollectionViewFlowLayout()
-        layout.itemSize = NSSize(width: 170, height: 200)
+        layout.itemSize = NSSize(width: 170, height: 224)
         layout.minimumInteritemSpacing = 12
         layout.minimumLineSpacing = 12
         layout.sectionInset = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
@@ -192,7 +192,41 @@ class SkinGalleryViewController: NSViewController {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Click Handling (called from SettingsPanel.sendEvent)
+
+    func handleClickAt(windowPoint: NSPoint) {
+        let cvPoint = collectionView.convert(windowPoint, from: nil)
+        guard let indexPath = collectionView.indexPathForItem(at: cvPoint) else { return }
+
+        let index = indexPath.item
+
+        // Check if click landed on an interactive control inside the card
+        if let item = collectionView.item(at: indexPath) {
+            let viewPoint = item.view.convert(windowPoint, from: nil)
+            if let hitView = item.view.hitTest(viewPoint),
+               hitView is NSButton || hitView is NSSegmentedControl {
+                return // Let the control handle it via its own target/action
+            }
+        }
+
+        if index < installedSkins.count {
+            let skin = installedSkins[index]
+            // Immediately update card highlights
+            for i in 0..<installedSkins.count {
+                let ip = IndexPath(item: i, section: 0)
+                (collectionView.item(at: ip) as? SkinCardItem)?.isSelectedSkin = (i == index)
+            }
+            SkinPackManager.shared.selectSkin(skin.manifest.id)
+        } else {
+            let remoteIndex = index - installedSkins.count
+            let available = availableRemoteSkins
+            guard remoteIndex < available.count else { return }
+            let entry = available[remoteIndex]
+            if !downloadingIds.contains(entry.id) {
+                downloadSkin(entry: entry, at: indexPath)
+            }
+        }
+    }
 
     @objc private func soundToggleChanged(_ sender: NSSwitch) {
         SoundManager.shared.isEnabled = sender.state == .on
@@ -270,9 +304,6 @@ extension SkinGalleryViewController: NSCollectionViewDataSource {
             cardItem.isInstalled = true
             cardItem.isSelectedSkin = skin.manifest.id == activeSkinId
             cardItem.isDownloading = false
-            cardItem.onSelect = {
-                SkinPackManager.shared.selectSkin(skin.manifest.id)
-            }
         } else {
             // Remote skin (not yet installed)
             let remoteIndex = index - installedSkins.count
@@ -299,15 +330,14 @@ extension SkinGalleryViewController: NSCollectionViewDataSource {
                     runPrefix: "", runFrameCount: 0,
                     idleFrame: "", directory: ""
                 ),
-                sounds: nil
+                sounds: nil,
+                variants: nil,
+                spriteFacesRight: nil
             )
             cardItem.configure(manifest: manifest, skin: nil)
             cardItem.isInstalled = false
             cardItem.isSelectedSkin = false
             cardItem.isDownloading = downloadingIds.contains(entry.id)
-            cardItem.onDownload = { [weak self] in
-                self?.downloadSkin(entry: entry, at: indexPath)
-            }
         }
 
         return cardItem

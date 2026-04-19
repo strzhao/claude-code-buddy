@@ -65,6 +65,8 @@ enum DefaultSkinManifest {
             taskComplete: "complete.mp3",
             permissionRequest: "confirm.mp3",
             directory: "Sounds"
-        )
+        ),
+        variants: nil,
+        spriteFacesRight: true
     )
 }

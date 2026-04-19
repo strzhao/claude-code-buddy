@@ -46,6 +46,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         didSet { propagateActivityBounds() }
     }
 
+    /// Called when the required window height changes due to token level changes.
+    var onWindowHeightNeeded: ((CGFloat) -> Void)?
+
+    /// Tracks the last known token level per session for change detection.
+    private var lastKnownTokenLevels: [String: TokenLevel] = [:]
+
     private var leftBoundaryNode: SKSpriteNode?
     private var rightBoundaryNode: SKSpriteNode?
 
@@ -67,6 +73,35 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
+
+        // Check for token level changes and apply scaling
+        var windowHeightChanged = false
+        for session in sessions {
+            guard let cat = cats[session.sessionId] else { continue }
+            let newLevel = TokenLevel.from(totalTokens: session.totalTokens)
+            let oldLevel = lastKnownTokenLevels[session.sessionId] ?? .lv1
+
+            if newLevel != oldLevel {
+                lastKnownTokenLevels[session.sessionId] = newLevel
+                cat.applyTokenLevel(totalTokens: session.totalTokens)
+
+                // Play level-up animation when level increases
+                if newLevel > oldLevel {
+                    cat.playLevelUpAnimation()
+                    showLevelUpPopup(
+                        at: cat.containerNode.position,
+                        level: newLevel,
+                        tokens: session.totalTokens,
+                        color: session.color
+                    )
+                }
+                windowHeightChanged = true
+            }
+        }
+
+        if windowHeightChanged {
+            recalculateWindowHeight()
+        }
     }
 
     // MARK: Lifecycle
@@ -296,6 +331,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         entities.removeValue(forKey: sessionId)
         foodManager.removeCatTracking(sessionId: sessionId)
         releaseBedSlot(for: sessionId)
+        lastKnownTokenLevels.removeValue(forKey: sessionId)
         // Keep a strong ref to cat until exit animation completes, then remove node
         if sessionId == hoveredCatSessionId {
             hoveredCatSessionId = nil
@@ -305,8 +341,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
             guard cat != nil else { return }
             jumpedCat.playFrightReaction(awayFromX: cat?.containerNode.position.x ?? 0)
-        }, completion: { [cat] in
+        }, completion: { [cat, weak self] in
             cat.containerNode.removeFromParent()
+            self?.recalculateWindowHeight()
         })
     }
 
@@ -314,8 +351,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         guard let cat = cats[sessionId] else { return }
         cat.switchState(to: state, toolDescription: toolDescription)
         foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
-        // When a cat becomes idle, check for existing landed food
-        if state == .idle {
+        // When a cat becomes idle/thinking/toolUse, check for existing landed food
+        if state == .idle || state == .thinking || state == .toolUse {
             foodManager.notifyCatAboutLandedFood(cat)
         }
     }
@@ -529,15 +566,22 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         return preferredX
     }
 
+    func removePersistentBadge(for sessionId: String) {
+        cats[sessionId]?.removePersistentBadge()
+    }
+
     func catAtPoint(_ point: CGPoint) -> String? {
-        let hitSize = CatEntity.hitboxSize
+        let baseSize = CatEntity.hitboxSize
         for (sessionId, cat) in cats {
             let catPos = cat.containerNode.position
+            let scale = cat.tokenScale
+            let scaledWidth = baseSize.width * scale
+            let scaledHeight = baseSize.height * scale
             let rect = CGRect(
-                x: catPos.x - hitSize.width / 2,
-                y: catPos.y - hitSize.height / 2,
-                width: hitSize.width,
-                height: hitSize.height
+                x: catPos.x - scaledWidth / 2,
+                y: catPos.y - scaledHeight / 2,
+                width: scaledWidth,
+                height: scaledHeight
             )
             if rect.contains(point) {
                 return sessionId
@@ -591,16 +635,20 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func showTooltip(for sessionId: String) {
         guard let info = cachedSessions.first(where: { $0.sessionId == sessionId }) else { return }
-        let shortLabel = Self.truncate(info.label, max: 12)
 
         if let cat = cats[sessionId] {
             guard cat.currentState != .permissionRequest else { return }
+            var label = info.label
+            if cat.currentTokenLevel.rawValue > 1 {
+                label += " | " + cat.currentTokenLevel.tooltipText(tokens: info.totalTokens)
+            }
             tooltipFollowSessionId = sessionId
-            tooltipNode.show(label: shortLabel, color: info.color,
+            tooltipNode.show(label: label, color: info.color,
                              at: cat.containerNode.position, sceneSize: size)
             return
         }
         if let rocket = entities[sessionId] as? RocketEntity {
+            let shortLabel = Self.truncate(info.label, max: 12)
             tooltipFollowSessionId = sessionId
             tooltipNode.show(label: shortLabel, color: info.color,
                              at: rocket.containerNode.position, sceneSize: size)
@@ -654,6 +702,57 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         tooltipNode.place(at: anchor, sceneSize: size)
+    }
+
+    // MARK: - Level-Up Popup
+
+    /// Show a temporary popup label above a cat when it levels up.
+    func showLevelUpPopup(at catPosition: CGPoint, level: TokenLevel, tokens: Int, color: SessionColor) {
+        let text = level.levelUpText(tokens: tokens)
+
+        let shadow = SKLabelNode(text: text)
+        shadow.fontName = NSFont.boldSystemFont(ofSize: CatConstants.LevelUp.popupFontSize).fontName
+        shadow.fontSize = CatConstants.LevelUp.popupFontSize
+        shadow.fontColor = color.nsColor.withAlphaComponent(0.5)
+        shadow.horizontalAlignmentMode = .center
+        shadow.verticalAlignmentMode = .bottom
+        shadow.position = CGPoint(x: 1, y: -1)
+        shadow.zPosition = 0
+
+        let label = SKLabelNode(text: text)
+        label.fontName = NSFont.boldSystemFont(ofSize: CatConstants.LevelUp.popupFontSize).fontName
+        label.fontSize = CatConstants.LevelUp.popupFontSize
+        label.fontColor = color.nsColor
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .bottom
+        label.zPosition = 1
+
+        let popup = SKNode()
+        popup.addChild(shadow)
+        popup.addChild(label)
+
+        // Position above cat, clamped to scene bounds
+        let x = max(40, min(catPosition.x, size.width - 40))
+        let y = catPosition.y + CatConstants.LevelUp.popupYOffset
+        popup.position = CGPoint(x: x, y: y)
+        popup.zPosition = 100
+        popup.alpha = 0
+
+        addChild(popup)
+
+        let fadeIn = SKAction.fadeIn(withDuration: 0.15)
+        let wait = SKAction.wait(forDuration: CatConstants.LevelUp.popupDisplayDuration)
+        let fadeOut = SKAction.fadeOut(withDuration: CatConstants.LevelUp.popupFadeOutDuration)
+        let remove = SKAction.removeFromParent()
+        popup.run(SKAction.sequence([fadeIn, wait, fadeOut, remove]))
+    }
+
+    // MARK: - Window Height Management
+
+    /// Recalculate the required window height based on the max token level of all cats.
+    private func recalculateWindowHeight() {
+        let maxLevel = cats.values.map(\.currentTokenLevel).max() ?? .lv1
+        onWindowHeightNeeded?(maxLevel.windowHeight)
     }
 
     // MARK: - Hover
@@ -727,7 +826,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let count = catArray.count
         guard count >= 2 else { return }
 
-        let minDist = CatConstants.Separation.minDistance
+        let baseMinDist = CatConstants.Separation.minDistance
         let nudgeSpeed = CatConstants.Separation.nudgeSpeed
 
         // Accumulate nudge deltas to avoid order bias
@@ -752,6 +851,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 let xA = catA.containerNode.position.x
                 let xB = catB.containerNode.position.x
                 let dist = abs(xA - xB)
+
+                // Scale-aware minimum distance
+                let minDist = max(catA.tokenScale, catB.tokenScale) * baseMinDist
 
                 guard dist < minDist else { continue }
 
@@ -866,6 +968,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats.values.filter { $0.currentState == .idle }
     }
 
+    func foodEligibleCats() -> [CatEntity] {
+        cats.values.filter { [.idle, .thinking, .toolUse].contains($0.currentState) }
+    }
+
     // MARK: - Skin Hot-Swap
 
     func reloadSkin(_ skin: SkinPack) {
@@ -903,6 +1009,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             // Reapply session color tint
             cat.node.color = cat.sessionColor?.nsColor ?? .white
             cat.node.colorBlendFactor = cat.sessionTintFactor
+
+            // Restore token scale (skin reload may reset containerNode scale)
+            cat.containerNode.setScale(cat.tokenScale)
         }
     }
 

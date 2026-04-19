@@ -369,6 +369,11 @@ class SessionManager {
                 writeColorFile()
             }
 
+        case .setTokens:
+            if let tokens = message.totalTokens {
+                sessions[sessionId]?.totalTokens = tokens
+            }
+
         default:
             // Create session on first message
             if sessions[sessionId] == nil {

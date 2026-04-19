@@ -32,7 +32,7 @@ enum CatConstants {
         /// Delta threshold for updating facing direction
         static let facingDirectionThreshold: CGFloat = 0.5
         /// Walk speed when moving toward food (px/s)
-        static let foodWalkSpeed: CGFloat = 55
+        static let foodWalkSpeed: CGFloat = 100
         /// Minimum food walk duration in seconds
         static let foodWalkMinDuration: Double = 0.3
         /// Walk speed during exit sequence (px/s)
@@ -295,7 +295,7 @@ enum CatConstants {
         /// Horizontal offset from activityBounds.upperBound for first bed slot (negative = left of boundary)
         static let firstSlotOffset: CGFloat = -60
         /// Horizontal spacing between bed slots (negative = extend leftward)
-        static let slotSpacing: CGFloat = -56
+        static let slotSpacing: CGFloat = -100
         /// Maximum number of bed slots
         static let maxSlots: Int = 4
         /// Z-position for the bed sprite (in front of cat so cat appears to sit inside)
@@ -315,6 +315,54 @@ enum CatConstants {
         static let gracePeriod: TimeInterval = 0.5
         /// Action key for the recovery walk on containerNode.
         static let actionKey = "boundaryRecovery"
+    }
+
+    // MARK: - PersistentBadge
+    enum PersistentBadge {
+        /// Radius of the persistent alert badge circle (smaller than animated badge)
+        static let radius: CGFloat = 7
+        /// X offset from sprite center for persistent badge position
+        static let xOffset: CGFloat = 22
+        /// Y offset from sprite center for persistent badge position
+        static let yOffset: CGFloat = 38
+        /// Duration of one pulse phase (total cycle = 2× this)
+        static let pulseDuration: TimeInterval = 0.75
+        /// Minimum alpha during pulse
+        static let minAlpha: CGFloat = 0.5
+        /// Font size for the "!" text in persistent badge
+        static let fontSize: CGFloat = 11
+        /// Stroke line width for persistent badge circle
+        static let lineWidth: CGFloat = 1.0
+    }
+
+    // MARK: - LevelUp
+    enum LevelUp {
+        /// Duration of the flash + scale animation
+        static let animationDuration: TimeInterval = 0.5
+        /// Peak color blend factor during flash
+        static let flashBlendFactor: CGFloat = 0.8
+        /// Duration of flash in phase
+        static let flashInDuration: TimeInterval = 0.1
+        /// Duration of flash out phase
+        static let flashOutDuration: TimeInterval = 0.2
+        /// Scale overshoot multiplier (applied on top of target tokenScale)
+        static let scaleOvershoot: CGFloat = 1.15
+        /// Duration of scale overshoot phase
+        static let scaleOvershootDuration: TimeInterval = 0.15
+        /// Duration of scale settle phase (overshoot → target)
+        static let scaleSettleDuration: TimeInterval = 0.2
+        /// SKAction key for level-up animation on containerNode
+        static let actionKey = "levelUp"
+        /// SKAction key for level-up flash animation on node
+        static let flashActionKey = "levelUpFlash"
+        /// Duration the popup label stays visible before fading
+        static let popupDisplayDuration: TimeInterval = 2.0
+        /// Duration of popup fade-out
+        static let popupFadeOutDuration: TimeInterval = 0.5
+        /// Y offset of popup label above cat center
+        static let popupYOffset: CGFloat = 40
+        /// Font size for popup label
+        static let popupFontSize: CGFloat = 12
     }
 
     // MARK: - Separation

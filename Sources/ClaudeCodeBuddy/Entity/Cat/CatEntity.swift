@@ -83,11 +83,19 @@ class CatEntity {
         set { labelComponent?.updateLabel(newValue) }
     }
     var alertOverlayNode: SKNode? { labelComponent?.alertOverlayNode }
+    var persistentBadgeNode: SKNode? { labelComponent?.persistentBadgeNode }
 
     var sessionColor: SessionColor?
     var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
     /// The X position when the cat was placed, used as anchor for random movement.
     var originX: CGFloat = 0
+
+    // MARK: - Token Level
+
+    /// Current token-driven scale factor. Drives containerNode.setScale().
+    private(set) var tokenScale: CGFloat = 1.0
+    /// Current discrete token level (Lv1–Lv8).
+    private(set) var currentTokenLevel: TokenLevel = .lv1
     /// The food this cat is currently walking toward or eating.
     var currentTargetFood: FoodSprite?
     /// Callback to release food when cat is interrupted.
@@ -202,12 +210,8 @@ class CatEntity {
         // Sprites face RIGHT by default (xScale=1.0), flip to face LEFT (xScale=-1.0)
         let xScale: CGFloat = facingRight ? 1.0 : -1.0
         node.xScale = xScale
-        // Child labels inherit parent xScale; applying the same value cancels the flip,
-        // keeping text readable regardless of facing direction.
-        labelNode?.xScale = xScale
-        shadowLabelNode?.xScale = xScale
-        tabNameNode?.xScale = xScale
-        tabNameShadowNode?.xScale = xScale
+        // Update label scale compensation (handles both facing flip and token scale)
+        labelComponent.updateScaleCompensation(tokenScale: tokenScale, facingRight: facingRight)
     }
 
     func updateSceneSize(_ size: CGSize) {
@@ -237,6 +241,85 @@ class CatEntity {
         } else {
             return effectiveActivityMax - margin
         }
+    }
+
+    // MARK: - Token Level
+
+    /// Update token level from total token count. Returns true if level changed.
+    @discardableResult
+    func applyTokenLevel(totalTokens: Int) -> Bool {
+        let newLevel = TokenLevel.from(totalTokens: totalTokens)
+        guard newLevel != currentTokenLevel else { return false }
+
+        currentTokenLevel = newLevel
+        tokenScale = newLevel.scale
+
+        // Cancel any running hover scale to avoid conflict
+        containerNode.removeAction(forKey: "hoverScale")
+
+        // Apply new base scale
+        containerNode.setScale(tokenScale)
+
+        // Rebuild physics body to match new size
+        rebuildPhysicsBody()
+
+        // Update label scale compensation
+        labelComponent.updateScaleCompensation(tokenScale: tokenScale, facingRight: facingRight)
+
+        return true
+    }
+
+    /// Play level-up animation on the sprite (flash + scale overshoot).
+    /// Call after applyTokenLevel returns true.
+    func playLevelUpAnimation() {
+        let targetScale = tokenScale
+
+        // Flash animation on node (white flash)
+        let originalBlend = node.colorBlendFactor
+        let flashIn = SKAction.customAction(withDuration: CatConstants.LevelUp.flashInDuration) { node, elapsed in
+            guard let sprite = node as? SKSpriteNode else { return }
+            let progress = elapsed / CGFloat(CatConstants.LevelUp.flashInDuration)
+            sprite.color = .white
+            sprite.colorBlendFactor = CatConstants.LevelUp.flashBlendFactor * progress
+        }
+        let flashOut = SKAction.customAction(withDuration: CatConstants.LevelUp.flashOutDuration) { [weak self] node, elapsed in
+            guard let sprite = node as? SKSpriteNode, let self = self else { return }
+            let progress = elapsed / CGFloat(CatConstants.LevelUp.flashOutDuration)
+            sprite.color = self.sessionColor?.nsColor ?? .white
+            sprite.colorBlendFactor = CatConstants.LevelUp.flashBlendFactor * (1.0 - progress) + originalBlend * progress
+        }
+        node.run(SKAction.sequence([flashIn, flashOut]), withKey: CatConstants.LevelUp.flashActionKey)
+
+        // Scale overshoot animation on containerNode
+        let overshoot = SKAction.scale(to: targetScale * CatConstants.LevelUp.scaleOvershoot,
+                                        duration: CatConstants.LevelUp.scaleOvershootDuration)
+        overshoot.timingMode = .easeOut
+        let settle = SKAction.scale(to: targetScale,
+                                     duration: CatConstants.LevelUp.scaleSettleDuration)
+        settle.timingMode = .easeInEaseOut
+        containerNode.run(SKAction.sequence([overshoot, settle]), withKey: CatConstants.LevelUp.actionKey)
+    }
+
+    /// Rebuild physics body scaled to current tokenScale, preserving velocity and dynamic state.
+    private func rebuildPhysicsBody() {
+        let oldVelocity = containerNode.physicsBody?.velocity ?? .zero
+        let wasDynamic = containerNode.physicsBody?.isDynamic ?? true
+
+        let scaledSize = CGSize(
+            width: CatConstants.Physics.bodySize.width * tokenScale,
+            height: CatConstants.Physics.bodySize.height * tokenScale
+        )
+        let body = SKPhysicsBody(rectangleOf: scaledSize)
+        body.allowsRotation = false
+        body.categoryBitMask    = PhysicsCategory.cat
+        body.collisionBitMask   = PhysicsCategory.ground
+        body.contactTestBitMask = PhysicsCategory.ground
+        body.restitution = CatConstants.Physics.restitution
+        body.friction    = CatConstants.Physics.friction
+        body.linearDamping = CatConstants.Physics.linearDamping
+        body.velocity = oldVelocity
+        body.isDynamic = wasDynamic
+        containerNode.physicsBody = body
     }
 
     // MARK: - Session Identity
@@ -386,6 +469,22 @@ class CatEntity {
         labelComponent.removeAlertOverlay()
     }
 
+    // MARK: - Persistent Badge
+
+    func addPersistentBadge() {
+        labelComponent.addPersistentBadge()
+    }
+
+    func removePersistentBadge() {
+        labelComponent.removePersistentBadge()
+    }
+
+    // MARK: - Tab Name
+
+    func showTabName() {
+        labelComponent.showTabName()
+    }
+
     // MARK: - Food Interaction
 
     func playExcitedReaction(delay: TimeInterval, completion: @escaping () -> Void) {
@@ -473,7 +572,7 @@ class CatEntity {
 
         // Place directly at ground level — no drop animation
         containerNode.position = CGPoint(x: containerNode.position.x, y: CatConstants.Visual.groundY)
-        containerNode.setScale(1.0)
+        containerNode.setScale(tokenScale)
         node.yScale = 1.0
         node.zRotation = 0
         removeAlertOverlay()

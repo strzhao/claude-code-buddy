@@ -11,6 +11,7 @@
 ## Patterns
 - [2026-04-18] 精灵帧内 yOff 偏移会被画布顶部静默裁切 | tags: spritekit, sprites, canvas, yoff, clipping, rocket | → patterns.md
 - [2026-04-18] 模式特定 helper 必须检查当前 EntityMode，不能假设调用时机永远对 | tags: mode, helper, entity-mode, scene, shared-nodes | → patterns.md
+- [2026-04-18] 中文标签间距需比拉丁字符预估值大 ~2 倍 | tags: spritekit, labels, spacing, cjk, font-size | → patterns.md
 - [2026-04-17] SpriteKit 物理碰撞掩码与 SKAction.moveTo 不兼容 | tags: spritekit, physics, collision, skaction, movement | → patterns.md
 - [2026-04-16] CatEatingState 未实现 ResumableState，热替换需跳过 | tags: spritekit, state-machine, hotswap, eating, resumable | → patterns.md
 - [2026-04-16] Unix socket write 必须循环处理部分写入 | tags: socket, posix, networking, write, partial-write | → patterns.md

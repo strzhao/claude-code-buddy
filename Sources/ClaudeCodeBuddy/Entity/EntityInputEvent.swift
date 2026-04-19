@@ -32,6 +32,7 @@ enum EntityInputEvent {
         case .sessionEnd:   return .sessionEnd
         case .idle:         return .thinking  // fallback; SessionManager normally filters this out
         case .setLabel:     return .thinking  // unreachable: SessionManager intercepts setLabel before calling from()
+        case .setTokens:    return .thinking  // unreachable: SessionManager intercepts setTokens before calling from()
         case .morph:        return .thinking  // unreachable: SessionManager intercepts morph before calling from()
         case .showcase:     return .thinking  // unreachable: SessionManager intercepts showcase before calling from()
         }

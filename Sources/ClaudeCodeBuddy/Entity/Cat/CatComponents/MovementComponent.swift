@@ -180,7 +180,7 @@ class MovementComponent {
     // MARK: - Walk To Food
 
     func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatEntity, FoodSprite) -> Void) {
-        guard entity.currentState == .idle else { return }
+        guard [.idle, .thinking, .toolUse].contains(entity.currentState) else { return }
         entity.currentTargetFood = food
 
         let containerNode = entity.containerNode
@@ -191,6 +191,12 @@ class MovementComponent {
 
         // Update facing direction via unified path
         entity.face(towardX: targetX)
+
+        // Clean up state-specific animations before stopping actions
+        containerNode.removeAction(forKey: "randomWalk")  // toolUse random walk
+        node.zRotation = 0                                 // reset sway rotation
+        node.yScale = 1.0                                  // reset scale before action cleanup
+        node.position.y = 0                               // prevent residual offset
 
         // Stop idle animations
         node.removeAllActions()
@@ -209,8 +215,8 @@ class MovementComponent {
                 node.colorBlendFactor = sessionTintFactor
             }
 
-            // Speed: base 120 px/s, +30% for distance > 200px
-            let baseSpeed: CGFloat = 120
+            // Speed: base foodWalkSpeed px/s, +30% for distance > 200px
+            let baseSpeed: CGFloat = CatConstants.Movement.foodWalkSpeed
             let speed = distance > 200 ? baseSpeed * 1.3 : baseSpeed
             let duration = max(0.2, Double(distance) / Double(speed))
             let move = SKAction.moveTo(x: targetX, duration: duration)
@@ -283,10 +289,11 @@ class MovementComponent {
         let node = entity.node
         node.removeAllActions()
         containerNode.removeAllActions()
-        containerNode.setScale(1.0)
+        containerNode.setScale(entity.tokenScale)
 
-        // Walk to the nearest edge
-        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -CatConstants.Movement.exitOffscreenOffset : sceneWidth + CatConstants.Movement.exitOffscreenOffset
+        // Walk to the nearest edge (scaled offset for larger cats)
+        let offset = CatConstants.Movement.exitOffscreenOffset * entity.tokenScale
+        let edgeX: CGFloat = containerNode.position.x < sceneWidth / 2 ? -offset : sceneWidth + offset
         let duration = Double(abs(edgeX - containerNode.position.x)) / CatConstants.Movement.exitWalkSpeed
 
         // Face the exit direction
@@ -340,14 +347,15 @@ class MovementComponent {
         let node = entity.node
         node.removeAllActions()
         containerNode.removeAllActions()
-        containerNode.setScale(1.0)
+        containerNode.setScale(entity.tokenScale)
         containerNode.physicsBody?.isDynamic = false
         containerNode.physicsBody?.collisionBitMask = 0
 
         let myX = containerNode.position.x
         let groundY = containerNode.position.y  // actual resting Y (gravity-settled)
         let goingRight = myX >= sceneWidth / 2
-        let edgeX: CGFloat = goingRight ? sceneWidth + CatConstants.Movement.exitOffscreenOffset : -CatConstants.Movement.exitOffscreenOffset
+        let offset = CatConstants.Movement.exitOffscreenOffset * entity.tokenScale
+        let edgeX: CGFloat = goingRight ? sceneWidth + offset : -offset
 
         // Face exit direction
         entity.face(right: goingRight)

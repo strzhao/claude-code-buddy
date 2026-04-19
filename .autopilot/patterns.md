@@ -24,6 +24,12 @@
 **Lesson**: 测试中查找节点应引用常量（如 CatConstants.Visual.tabLabelFontSize）而非硬编码魔法数字。常量变更时测试自然会使用新值，无需逐个修改。
 **Evidence**: CatSpriteTabNameTests.swift 中 4 处硬编码 fontSize==9 和 fontSize==11，常量改为 12/14 后 6 个测试失败。修复后使用 CatConstants.Visual.tabLabelFontSize 引用。
 
+### [2026-04-18] 中文标签间距需比拉丁字符预估值大 ~2 倍
+<!-- tags: spritekit, labels, spacing, cjk, font-size -->
+**Scenario**: 猫屋 bed slot 间距 -56px，改为 -80px 后中文标签仍重叠，最终需 -100px
+**Lesson**: 12pt 中文字符宽度约 12-14px/字，比拉丁字符（~7px/字）宽近 2 倍。估算中文标签所需间距时，不能按拉丁字符的 charWidth 预估——应以实际中文标签长度（字数 × 13px + padding）为基准，并留 20% 余量。对于 4-6 个中文字符的标签，100px 间距是安全下限。
+**Evidence**: slotSpacing -56 → -80 用户反馈仍重叠 → -100 通过验收
+
 ### [2026-04-13] SpriteKit moveBy 动画中断留下位置残留
 <!-- tags: spritekit, animation, switchState, moveBy -->
 **Scenario**: 在 CatSprite 的 `node`（子节点）上使用 `SKAction.moveBy` 做视觉动画（如小跳 Y+6px），期间 `switchState` 被调用

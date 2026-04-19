@@ -16,6 +16,7 @@ class LabelComponent {
     private(set) var tabNameNode: SKLabelNode?
     private(set) var tabNameShadowNode: SKLabelNode?
     private(set) var alertOverlayNode: SKNode?
+    private(set) var persistentBadgeNode: SKNode?
     private(set) var tabName: String = ""
 
     // MARK: - Init
@@ -120,6 +121,34 @@ class LabelComponent {
         }
     }
 
+    func showTabName() {
+        tabNameNode?.isHidden = false
+        tabNameShadowNode?.isHidden = false
+    }
+
+    // MARK: - Scale Compensation
+
+    /// Counteract containerNode's token scale so labels stay at consistent visual size.
+    /// Also handles facing-direction flip (xScale sign).
+    func updateScaleCompensation(tokenScale: CGFloat, facingRight: Bool) {
+        let facingSign: CGFloat = facingRight ? 1.0 : -1.0
+        let compensatedX = facingSign / tokenScale
+        let compensatedY = 1.0 / tokenScale
+
+        labelNode?.xScale = compensatedX
+        labelNode?.yScale = compensatedY
+        shadowLabelNode?.xScale = compensatedX
+        shadowLabelNode?.yScale = compensatedY
+        tabNameNode?.xScale = compensatedX
+        tabNameNode?.yScale = compensatedY
+        tabNameShadowNode?.xScale = compensatedX
+        tabNameShadowNode?.yScale = compensatedY
+        alertOverlayNode?.xScale = compensatedX
+        alertOverlayNode?.yScale = compensatedY
+        persistentBadgeNode?.xScale = compensatedX
+        persistentBadgeNode?.yScale = compensatedY
+    }
+
     // MARK: - Alert Overlay
 
     func addAlertOverlay(afterLabel text: String) {
@@ -159,5 +188,46 @@ class LabelComponent {
     func removeAlertOverlay() {
         alertOverlayNode?.removeFromParent()
         alertOverlayNode = nil
+    }
+
+    // MARK: - Persistent Badge
+
+    func addPersistentBadge() {
+        removePersistentBadge()
+
+        let overlay = SKNode()
+        overlay.zPosition = CatConstants.Visual.alertOverlayZPosition
+
+        let circle = SKShapeNode(circleOfRadius: CatConstants.PersistentBadge.radius)
+        circle.fillColor = CatConstants.Visual.alertBadgeColor
+        circle.strokeColor = .white
+        circle.lineWidth = CatConstants.PersistentBadge.lineWidth
+        circle.position = CGPoint(x: CatConstants.PersistentBadge.xOffset,
+                                  y: CatConstants.PersistentBadge.yOffset)
+        overlay.addChild(circle)
+
+        let label = SKLabelNode(text: "!")
+        label.fontName = NSFont.boldSystemFont(ofSize: CatConstants.PersistentBadge.fontSize).fontName
+        label.fontSize = CatConstants.PersistentBadge.fontSize
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: CatConstants.PersistentBadge.xOffset,
+                                 y: CatConstants.PersistentBadge.yOffset)
+        overlay.addChild(label)
+
+        let fadeOut = SKAction.fadeAlpha(to: CatConstants.PersistentBadge.minAlpha,
+                                        duration: CatConstants.PersistentBadge.pulseDuration)
+        let fadeIn = SKAction.fadeAlpha(to: 1.0,
+                                       duration: CatConstants.PersistentBadge.pulseDuration)
+        overlay.run(SKAction.repeatForever(SKAction.sequence([fadeOut, fadeIn])))
+
+        spriteNode.addChild(overlay)
+        persistentBadgeNode = overlay
+    }
+
+    func removePersistentBadge() {
+        persistentBadgeNode?.removeFromParent()
+        persistentBadgeNode = nil
     }
 }

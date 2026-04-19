@@ -283,9 +283,14 @@ extension RocketEntity: SessionEntity {
             if !isInFlight { stateMachine.enter(RocketCruisingState.self) }
 
         case .toolStart:
-            // Tool is actually running — this implies user already approved any pending
-            // permission request, so it's safe to exit abort and resume flight.
-            if !isInFlight { stateMachine.enter(RocketCruisingState.self) }
+            // Tool running is not a takeoff signal — only UserPromptSubmit (.thinking)
+            // lifts the rocket off the pad, so every turn tracks "user started talking"
+            // rather than Claude's internal tool churn. The one exception: if we're
+            // currently in abortStandby, a tool running implies the user approved the
+            // pending permission request, so resume flight.
+            if currentState == .abortStandby {
+                stateMachine.enter(RocketCruisingState.self)
+            }
 
         case .toolEnd:
             // Tool finished but task not complete yet — stay in the air.

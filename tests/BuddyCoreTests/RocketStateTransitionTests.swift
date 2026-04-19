@@ -26,8 +26,21 @@ final class RocketStateTransitionTests: XCTestCase {
         XCTAssertEqual(r.currentState, .cruising)
     }
 
-    func testToolStart_entersCruising() {
+    func testToolStart_onPad_doesNotLiftOff() {
+        // Takeoff is gated to UserPromptSubmit (.thinking). Internal tool churn
+        // (PreToolUse → .toolStart) must not lift an on-pad rocket.
         let r = RocketEntity(sessionId: "t2")
+        r.handle(event: .toolStart(name: "Read", description: nil))
+        XCTAssertEqual(r.currentState, .onPad)
+    }
+
+    func testToolStart_fromAbort_resumesCruising() {
+        // User approved the permission → tool is now running → rocket comes
+        // out of abortStandby back into flight.
+        let r = RocketEntity(sessionId: "t2b")
+        r.handle(event: .thinking)
+        r.handle(event: .permissionRequest(description: "x"))
+        XCTAssertEqual(r.currentState, .abortStandby)
         r.handle(event: .toolStart(name: "Read", description: nil))
         XCTAssertEqual(r.currentState, .cruising)
     }

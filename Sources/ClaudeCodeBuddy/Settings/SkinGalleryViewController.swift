@@ -16,6 +16,23 @@ class SkinGalleryViewController: NSViewController {
     private let soundSwitch = NSSwitch()
     private let soundLabel = NSTextField(labelWithString: "Sound Effects")
 
+    // Entity mode segmented control (placed under Sound Effects; changing it
+    // triggers a full app relaunch via EventBus.relaunchRequested — this is
+    // deliberate: rapid in-process hot-switches between cat / rocket modes
+    // surfaced subtle state-machine races, so we play the exit animation
+    // and restart the process instead).
+    private let modeLabel = NSTextField(labelWithString: "Entity")
+    private let modeSegment = NSSegmentedControl(
+        labels: ["🐱 Cat", "🚀 Rocket"],
+        trackingMode: .selectOne,
+        target: nil,
+        action: nil
+    )
+
+    // Reset button — relaunches the app without touching the persisted mode.
+    // Handy escape hatch if a UI animation / scene state gets wedged.
+    private let resetButton = NSButton(title: "Reset", target: nil, action: nil)
+
     // Catalog URL — can be overridden for testing
     // swiftlint:disable:next force_unwrapping
     var catalogURL: URL = URL(string: "https://buddy.stringzhao.life/api/skins")!
@@ -36,10 +53,10 @@ class SkinGalleryViewController: NSViewController {
     // MARK: - Lifecycle
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 480))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 520))
 
         setupCollectionView(in: container)
-        setupSoundToggle(in: container)
+        setupBottomBar(in: container)
 
         self.view = container
 
@@ -75,11 +92,12 @@ class SkinGalleryViewController: NSViewController {
             scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -40),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -80),
         ])
     }
 
-    private func setupSoundToggle(in container: NSView) {
+    private func setupBottomBar(in container: NSView) {
+        // Row 1 — Sound Effects (top of bottom bar)
         soundLabel.font = .systemFont(ofSize: 13)
         soundLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(soundLabel)
@@ -90,12 +108,49 @@ class SkinGalleryViewController: NSViewController {
         soundSwitch.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(soundSwitch)
 
+        // Row 2 — Entity mode segment + Reset (sits under Sound Effects)
+        modeLabel.font = .systemFont(ofSize: 13)
+        modeLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(modeLabel)
+
+        modeSegment.target = self
+        modeSegment.action = #selector(modeSegmentChanged(_:))
+        modeSegment.selectedSegment = EntityModeStore.shared.current == .cat ? 0 : 1
+        modeSegment.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(modeSegment)
+
+        // Keep the segment visually in sync with the persisted mode (e.g.
+        // the app's first boot writes a default value).
+        EntityModeStore.shared.publisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                self?.modeSegment.selectedSegment = mode == .cat ? 0 : 1
+            }
+            .store(in: &cancellables)
+
+        resetButton.target = self
+        resetButton.action = #selector(resetClicked)
+        resetButton.bezelStyle = .rounded
+        resetButton.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(resetButton)
+
         NSLayoutConstraint.activate([
+            // Row 1 — Sound
             soundLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -50),
 
             soundSwitch.leadingAnchor.constraint(equalTo: soundLabel.trailingAnchor, constant: 8),
             soundSwitch.centerYAnchor.constraint(equalTo: soundLabel.centerYAnchor),
+
+            // Row 2 — Mode + Reset
+            modeLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            modeLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+
+            modeSegment.leadingAnchor.constraint(equalTo: modeLabel.trailingAnchor, constant: 8),
+            modeSegment.centerYAnchor.constraint(equalTo: modeLabel.centerYAnchor),
+
+            resetButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            resetButton.centerYAnchor.constraint(equalTo: modeLabel.centerYAnchor),
         ])
     }
 
@@ -175,6 +230,16 @@ class SkinGalleryViewController: NSViewController {
 
     @objc private func soundToggleChanged(_ sender: NSSwitch) {
         SoundManager.shared.isEnabled = sender.state == .on
+    }
+
+    @objc private func modeSegmentChanged(_ sender: NSSegmentedControl) {
+        let newMode: EntityMode = sender.selectedSegment == 0 ? .cat : .rocket
+        guard EntityModeStore.shared.current != newMode else { return }
+        EventBus.shared.relaunchRequested.send(newMode)
+    }
+
+    @objc private func resetClicked() {
+        EventBus.shared.relaunchRequested.send(nil)
     }
 
     private func downloadSkin(entry: RemoteSkinEntry, at indexPath: IndexPath) {

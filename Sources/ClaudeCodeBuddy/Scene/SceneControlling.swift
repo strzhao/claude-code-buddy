@@ -59,4 +59,15 @@ protocol SceneControlling: AnyObject {
     func catSnapshot(for sessionId: String) -> CatSnapshot?
     func allCatSnapshots() -> [CatSnapshot]
     func sceneSnapshot() -> SceneSnapshot
+
+    // MARK: - Entity API (mode-agnostic, added in Step 4)
+
+    func addEntity(info: SessionInfo, mode: EntityMode)
+    func removeEntity(sessionId: String)
+    func replaceAllEntities(with mode: EntityMode,
+                            infos: [SessionInfo],
+                            lastEvents: [String: EntityInputEvent],
+                            onOldEntitiesExited: (() -> Void)?,
+                            completion: @escaping () -> Void)
+    func dispatchEntityEvent(sessionId: String, event: EntityInputEvent)
 }

@@ -6,7 +6,16 @@ class DockTracker {
 
     private let boundsProvider = DockIconBoundsProvider()
 
-    /// Returns the frame for the BuddyWindow: full-width strip sitting on top of the Dock.
+    /// When true, callers should skip repositioning the window.
+    /// Used during SceneExpansion animations to avoid jitter.
+    private(set) var isSuspended = false
+
+    func suspendRepositioning() { isSuspended = true }
+    func resumeRepositioning() { isSuspended = false }
+
+    /// Returns the frame for the BuddyWindow: a strip sitting on top of the Dock.
+    /// Width defaults to full screen but can be scaled via `BUDDY_WIDTH_SCALE` env var
+    /// (e.g. "0.5" = 50% width). Horizontal position shifts with `BUDDY_OFFSET_X` (points).
     func buddyWindowFrame(height: CGFloat = 80) -> NSRect {
         guard let screen = NSScreen.main else {
             return NSRect(x: 0, y: 0, width: 800, height: height)
@@ -17,14 +26,20 @@ class DockTracker {
 
         // When the Dock is at the bottom, visibleFrame.origin.y > screenFrame.origin.y
         let dockHeight = visibleFrame.origin.y - screenFrame.origin.y
-
-        // If Dock is hidden or on a side, dockHeight will be 0 or negative.
         let yOffset = max(dockHeight, 0)
 
+        // Horizontal scale + offset via env vars
+        let env = ProcessInfo.processInfo.environment
+        let rawScale = env["BUDDY_WIDTH_SCALE"].flatMap(Double.init) ?? 1.0
+        let scale = CGFloat(min(max(rawScale, 0.2), 1.0))   // clamp to [0.2, 1.0]
+        let offsetX = CGFloat(env["BUDDY_OFFSET_X"].flatMap(Double.init) ?? 0)
+
+        let width = screenFrame.width * scale
+        let centeredX = screenFrame.origin.x + (screenFrame.width - width) / 2
         return NSRect(
-            x: screenFrame.origin.x,
+            x: centeredX + offsetX,
             y: screenFrame.origin.y + yOffset,
-            width: screenFrame.width,
+            width: width,
             height: height
         )
     }

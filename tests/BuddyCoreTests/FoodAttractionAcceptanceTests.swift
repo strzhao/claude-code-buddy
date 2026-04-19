@@ -21,12 +21,12 @@ final class FoodAttractionAcceptanceTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// 构造一只已进入场景的 CatSprite
+    /// 构造一只已进入场景的 CatEntity
     private func makeCat(
         sessionId: String = "food-test",
         sceneSize: CGSize = CGSize(width: 800, height: 80)
-    ) -> CatSprite {
-        let cat = CatSprite(sessionId: sessionId)
+    ) -> CatEntity {
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: .sky, labelText: sessionId)
         cat.enterScene(sceneSize: sceneSize)
         return cat
@@ -275,7 +275,7 @@ final class FoodAttractionAcceptanceTests: XCTestCase {
         XCTAssertEqual(snapshots.count, 1, "前置条件：场景中应有 1 只猫")
 
         // 获取 cat 引用并设置 currentTargetFood
-        // 使用 foodEligibleCats() 来访问实际的 CatSprite 对象
+        // 使用 foodEligibleCats() 来访问实际的 CatEntity 对象
         let eligibleCats = scene.foodEligibleCats()
         guard let cat = eligibleCats.first(where: { $0.sessionId == "busy-cat" }) else {
             XCTFail("前置条件：应能通过 foodEligibleCats() 访问到 busy-cat")

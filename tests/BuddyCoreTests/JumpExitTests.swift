@@ -6,21 +6,21 @@ import SpriteKit
 
 private extension JumpExitTests {
 
-    /// 构造已配置的 CatSprite，初始化时给定位置
+    /// 构造已配置的 CatEntity，初始化时给定位置
     func makeCat(
         sessionId: String = "test-cat",
         color: SessionColor = .sky,
         label: String = "test",
         x: CGFloat = 100
-    ) -> CatSprite {
-        let cat = CatSprite(sessionId: sessionId)
+    ) -> CatEntity {
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: color, labelText: label)
         cat.containerNode.position = CGPoint(x: x, y: 48)
         return cat
     }
 
-    /// 将 CatSprite 数组转换为 exitScene 所需的 obstacles 格式
-    func obstacleEntries(_ cats: [CatSprite]) -> [(cat: CatSprite, x: CGFloat)] {
+    /// 将 CatEntity 数组转换为 exitScene 所需的 obstacles 格式
+    func obstacleEntries(_ cats: [CatEntity]) -> [(cat: CatEntity, x: CGFloat)] {
         cats.map { (cat: $0, x: $0.containerNode.position.x) }
     }
 }
@@ -58,12 +58,12 @@ final class JumpExitTests: XCTestCase {
     // MARK: - 验收标准 2：有障碍物时触发跳跃回调（不是推过去）
 
     func testExitWithSingleObstacleTriggerJumpOverCallback() {
-        // 验收：onJumpOver 在跳过障碍物时触发，且传入正确的障碍物 CatSprite
+        // 验收：onJumpOver 在跳过障碍物时触发，且传入正确的障碍物 CatEntity
         // exitCat 在右半边 → 向右退出，obstacle 在其右侧路径上
         let exitCat = makeCat(sessionId: "exit-cat", x: 250)
         let obstacle = makeCat(sessionId: "obstacle-cat", x: 350)
 
-        var jumpedOverCat: CatSprite?
+        var jumpedOverCat: CatEntity?
         let exp = expectation(description: "onJumpOver callback triggered with obstacle")
 
         exitCat.exitScene(
@@ -116,7 +116,7 @@ final class JumpExitTests: XCTestCase {
         let cat = makeCat(sessionId: "exit-dynamic", x: 100)
 
         guard cat.containerNode.physicsBody != nil else {
-            throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
+            throw XCTSkip("CatEntity 未配置 physicsBody，跳过测试")
         }
 
         cat.exitScene(sceneWidth: 400, obstacles: [], onJumpOver: { _ in }) {}
@@ -146,7 +146,7 @@ final class JumpExitTests: XCTestCase {
     ///
     /// 设计文档要求新增此重载：
     ///   func playFrightReaction(frightenedBy: ExitDirection)
-    /// 当前已实现的是 frightenedBy: CatSprite 版本。
+    /// 当前已实现的是 frightenedBy: CatEntity 版本。
     /// 蓝队实现该 ExitDirection 重载后，取消注释下方两个测试。
     ///
     func testFrightReactionViaExitDirectionLeftConvenience() {
@@ -283,7 +283,7 @@ final class JumpExitTests: XCTestCase {
         let cat = makeCat(sessionId: "fright-restore-dynamic", x: 200)
 
         guard cat.containerNode.physicsBody != nil else {
-            throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
+            throw XCTSkip("CatEntity 未配置 physicsBody，跳过测试")
         }
 
         let exp = expectation(description: "isDynamic = true after fright animation completes")
@@ -347,7 +347,7 @@ final class JumpExitTests: XCTestCase {
         let cat = makeCat(sessionId: "switch-safeguard", x: 200)
 
         guard cat.containerNode.physicsBody != nil else {
-            throw XCTSkip("CatSprite 未配置 physicsBody，跳过测试")
+            throw XCTSkip("CatEntity 未配置 physicsBody，跳过测试")
         }
 
         // 模拟受惊期间 isDynamic 被置为 false

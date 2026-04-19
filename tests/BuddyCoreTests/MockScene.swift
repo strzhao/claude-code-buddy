@@ -82,4 +82,56 @@ final class MockScene: SceneControlling {
     func sceneSnapshot() -> SceneSnapshot {
         return stubbedSceneSnapshot
     }
+
+    // MARK: - Entity API (Step 4)
+
+    var addEntityCalls: [(info: SessionInfo, mode: EntityMode)] = []
+    var removeEntityCalls: [String] = []
+    var dispatchEventCalls: [(sessionId: String, event: EntityInputEvent)] = []
+
+    var replaceAllCalled = false
+    var lastReplacementMode: EntityMode?
+    var lastReplacementSessionIds: [String] = []
+    var lastReplacementEvents: [String: EntityInputEvent] = [:]
+    /// Optional hook to block `replaceAllEntities` until signaled (for queue tests).
+    var replaceAllBlock: (() -> Void)?
+
+    func addEntity(info: SessionInfo, mode: EntityMode) {
+        addEntityCalls.append((info, mode))
+        if mode == .cat { addCat(info: info) } else { stubbedActiveCatCount += 1 }
+    }
+
+    func removeEntity(sessionId: String) {
+        removeEntityCalls.append(sessionId)
+        removeCat(sessionId: sessionId)
+    }
+
+    func replaceAllEntities(with mode: EntityMode,
+                            infos: [SessionInfo],
+                            lastEvents: [String: EntityInputEvent],
+                            onOldEntitiesExited: (() -> Void)?,
+                            completion: @escaping () -> Void) {
+        replaceAllCalled = true
+        lastReplacementMode = mode
+        lastReplacementSessionIds = infos.map(\.sessionId)
+        lastReplacementEvents = lastEvents
+        if let block = replaceAllBlock {
+            DispatchQueue.global().async {
+                block()
+                DispatchQueue.main.async {
+                    onOldEntitiesExited?()
+                    completion()
+                }
+            }
+        } else {
+            DispatchQueue.main.async {
+                onOldEntitiesExited?()
+                completion()
+            }
+        }
+    }
+
+    func dispatchEntityEvent(sessionId: String, event: EntityInputEvent) {
+        dispatchEventCalls.append((sessionId, event))
+    }
 }

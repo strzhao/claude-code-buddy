@@ -33,7 +33,7 @@ class FoodSprite {
             texture.filteringMode = .nearest
             node = SKSpriteNode(texture: texture, size: Self.renderSize)
         } else {
-            // Fallback: colored square (same pattern as CatSprite)
+            // Fallback: colored square (same pattern as CatEntity)
             node = SKSpriteNode(color: .brown, size: Self.renderSize)
         }
         node.name = "food_\(textureName)"

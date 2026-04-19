@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 FOOD_SPRITE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/FoodSprite.swift"
 FOOD_MANAGER="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/FoodManager.swift"
-CAT_SPRITE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatSprite.swift"
+CAT_SPRITE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatEntity.swift"
 BUDDY_SCENE="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift"
 SESSION_MANAGER="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Session/SessionManager.swift"
 SESSION_ROW_VIEW="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/MenuBar/SessionRowView.swift"
@@ -195,20 +195,20 @@ check_grep "FoodManager.toolEndSpawnProbability constant exists" \
 
 echo ""
 
-# ── Section 7: CatSprite food methods ────────────────────────────────────────
+# ── Section 7: CatEntity food methods ────────────────────────────────────────
 
-echo "--- [Section 7] CatSprite food methods ---"
+echo "--- [Section 7] CatEntity food methods ---"
 
-check_grep "CatSprite.walkToFood method exists" \
+check_grep "CatEntity.walkToFood method exists" \
     "func[[:space:]]+walkToFood" "$CAT_SPRITE"
 
-check_grep "CatSprite.startEating method exists" \
+check_grep "CatEntity.startEating method exists" \
     "func[[:space:]]+startEating" "$CAT_SPRITE"
 
-check_grep "CatSprite.currentTargetFood property exists" \
+check_grep "CatEntity.currentTargetFood property exists" \
     "currentTargetFood" "$CAT_SPRITE"
 
-check_grep "CatSprite.onFoodAbandoned callback exists" \
+check_grep "CatEntity.onFoodAbandoned callback exists" \
     "onFoodAbandoned" "$CAT_SPRITE"
 
 echo ""

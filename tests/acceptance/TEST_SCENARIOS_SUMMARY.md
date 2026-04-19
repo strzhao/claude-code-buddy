@@ -302,7 +302,7 @@ make run
 - **MovementComponent.swift** (lines 87-95): Random walk jump logic - where fix is applied
 - **MovementComponent.swift** (line 259): Exit scene jump with `isDynamic = false` - reference implementation
 - **JumpComponent.swift** (`buildJumpActions`): Bezier arc jump action builder
-- **CatSprite.swift**: Physics body setup (44x44) and state machine
+- **CatEntity.swift**: Physics body setup (44x44) and state machine
 - **CatToolUseState.swift**: ToolUse state entry/exit handling
 
 ## Physics Behavior
@@ -339,4 +339,4 @@ The bug fix is considered successful when:
 - Bug Fix Location: `Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift`
 - Reference Implementation: MovementComponent.swift:259 (exit scene jumps)
 - Constants: `Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift`
-- Physics Setup: `Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift:156` (setupPhysicsBody)
+- Physics Setup: `Sources/ClaudeCodeBuddy/Entity/Cat/CatEntity.swift:156` (setupPhysicsBody)

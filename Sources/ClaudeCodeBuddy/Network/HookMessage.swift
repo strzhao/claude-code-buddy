@@ -4,6 +4,7 @@ import Foundation
 
 enum HookEvent: String, Codable {
     case sessionStart = "session_start"
+    case userPromptSubmit = "user_prompt_submit"
     case thinking   = "thinking"
     case toolStart  = "tool_start"
     case toolEnd    = "tool_end"
@@ -13,6 +14,8 @@ enum HookEvent: String, Codable {
     case setTokens  = "set_tokens"
     case permissionRequest = "permission_request"
     case taskComplete = "task_complete"
+    case morph      = "morph"
+    case showcase   = "showcase"
 }
 
 // MARK: - HookMessage
@@ -27,7 +30,32 @@ struct HookMessage: Codable {
     let pid: Int?
     let terminalId: String?
     let description: String?
+    let mode: String?
     let totalTokens: Int?
+
+    init(sessionId: String,
+         event: HookEvent,
+         tool: String?,
+         timestamp: TimeInterval,
+         cwd: String?,
+         label: String?,
+         pid: Int?,
+         terminalId: String?,
+         description: String?,
+         mode: String? = nil,
+         totalTokens: Int? = nil) {
+        self.sessionId = sessionId
+        self.event = event
+        self.tool = tool
+        self.timestamp = timestamp
+        self.cwd = cwd
+        self.label = label
+        self.pid = pid
+        self.terminalId = terminalId
+        self.description = description
+        self.mode = mode
+        self.totalTokens = totalTokens
+    }
 
     enum CodingKeys: String, CodingKey {
         case sessionId  = "session_id"
@@ -39,6 +67,7 @@ struct HookMessage: Codable {
         case pid        = "pid"
         case terminalId = "terminal_id"
         case description = "description"
+        case mode       = "mode"
         case totalTokens = "total_tokens"
     }
 
@@ -48,6 +77,7 @@ struct HookMessage: Codable {
     var entityState: EntityState? {
         switch event {
         case .sessionStart: return nil
+        case .userPromptSubmit: return .thinking  // user's turn-start shows the same "thinking" state in UI
         case .thinking:   return .thinking
         case .toolStart:  return .toolUse
         case .toolEnd:    return .thinking
@@ -57,6 +87,8 @@ struct HookMessage: Codable {
         case .setTokens:  return nil
         case .permissionRequest: return .permissionRequest
         case .taskComplete: return .taskComplete
+        case .morph:      return nil
+        case .showcase:   return nil
         }
     }
 }

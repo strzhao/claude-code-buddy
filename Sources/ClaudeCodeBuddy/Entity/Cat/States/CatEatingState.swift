@@ -3,9 +3,9 @@ import SpriteKit
 
 final class CatEatingState: GKState {
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
     }
 
@@ -19,7 +19,7 @@ final class CatEatingState: GKState {
     // MARK: - Entry
 
     override func didEnter(from previousState: GKState?) {
-        // Actual eating animation is driven by CatSprite.startEating()
+        // Actual eating animation is driven by CatEntity.startEating()
         // which starts the animation sequence and then calls switchState(.idle)
         // Nothing to do here — startEating() sets up the animation directly
     }

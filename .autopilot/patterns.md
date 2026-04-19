@@ -1,5 +1,11 @@
 # Patterns & Lessons
 
+### [2026-04-18] 精灵帧内 yOff 偏移会被画布顶部静默裁切
+<!-- tags: spritekit, sprites, canvas, yoff, clipping, rocket -->
+**Scenario**: `generate-rocket-sprites-v2.swift` 里 `drawShuttleBody(ctx, yOff:)` 通过 `baseY = 4 + yOff` 让整个精灵在 48×48 画布内上移，用于表达 landing/liftoff 的"飞行中下坠/上升"帧间微位移。shuttle 的 ET 鼻锥最高像素在 `baseY+42`（=`46+yOff`），`yOff > 1` 就会被画布 y=47 的天花板裁掉。
+**Lesson**: 在像素精灵脚本里调高 yOff（或任何"帧内偏移"）之前，必须先算出该 kind 里**最高像素的 y 坐标 + yOff ≤ canvas_height - 1**。不满足就要先裁身高、要么不加 yOff、要么放大画布。裁切不会报错，只会让精灵顶端悄悄消失 —— 用户投诉才会被发现。另外：场景级（containerNode.moveTo）本来就能驱动垂直位移，sprite 内部 yOff 最多是辅助锦上添花，大幅 yOff 很容易弊大于利。
+**Evidence**: shuttle_landing_a 原 yOff=6 把橙色 ET 鼻锥 5 行整个裁掉，视觉上"中间外储罐被遮挡一半"。改回 yOff=1（landing_a）/ 0（landing_b）后 ET 完整，scene-level moveTo 继续承担下降动画。
+
 ### [2026-04-17] SpriteKit 物理碰撞掩码与 SKAction.moveTo 不兼容
 <!-- tags: spritekit, physics, collision, skaction, movement -->
 **Scenario**: 多只猫设置了 `collisionBitMask = .cat`，但实际移动用 `SKAction.moveTo(x:)` 直接设位置，绕过物理引擎
@@ -71,6 +77,25 @@
 **Scenario**: 设计皮肤热替换机制时，计划对所有活跃猫调用 `(stateMachine.currentState as? ResumableState)?.resume()` 重启动画
 **Lesson**: 6 个 GKState 中，CatEatingState 是唯一不实现 ResumableState 的状态。热替换（或任何需要 `resume()` 的机制）必须对 eating 状态做特殊处理：跳过 resume，让 eating 动画自然完成，完成后的 `switchState(to: .idle)` 会自动使用新纹理。在 `reloadSkin()` 中需要先 `node.removeAllActions()` 清理旧动画帧引用，再 `loadTextures()`，最后才 `resume()`——顺序不能错。
 **Evidence**: Plan Review 发现 CatEatingState.swift:4 仅 `final class CatEatingState: GKState`，无 ResumableState 协议。Grep 确认 5 个状态实现 ResumableState，eating 缺席。
+
+## 2026-04-18: 模式特定 helper 必须检查当前 EntityMode，不能假设"调用时机永远对"
+
+**教训**: 合并 main 后 cat 模式右边界的灌木变成了 Mechazilla 发射架。根因是 `BuddyScene.applyStarshipSceneAdjustments` 的 else 分支（无活跃 Starship 时）盲目把 `rightBoundaryNode.texture` 写成 `mechazillaClosedTexture`，注释里假设"我们一定在 rocket 模式"。但这个方法在 `addEntity` / `removeEntity` / 模式切换等多处触发，cat 模式也会走到它。
+
+**背景**: 实体分离重构后，BuddyScene 的 entities/cats 字典、mode 切换、starship 生命周期事件都可能触发 `applyStarshipSceneAdjustments`。开发者写这个方法时脑子里只想着 rocket 场景，忘了 cat 模式下也会被调用到"非 starship"分支。
+
+**症状**:
+- cat 模式启动时右侧本应是灌木，实际是 Mechazilla 发射塔
+- 从 rocket 切回 cat 时右边界变成塔，左边界仍是灌木（因为 `applyBoundaryTexture` 先跑了正确的 cat 贴图，`applyStarshipSceneAdjustments` 后跑覆盖了右侧）
+
+**修复**: else 分支里显式 `guard EntityModeStore.shared.current == .rocket else { return }`，只在 rocket 模式才更新右塔贴图。
+
+**规则**:
+- 任何"按形态定制视觉"的 helper（applyStarshipSceneAdjustments、setChopsticks、ensureOLM），若可能被多个生命周期事件触发，必须在内部显式判断 `EntityModeStore.shared.current`，不能依赖调用点的假设
+- 注释里"我们在 X 模式"之类的前置假设是代码异味：把它变成运行时 guard 或把 helper 拆成 mode-specific 的两个函数
+- 边界/装饰类共享节点（`leftBoundaryNode` / `rightBoundaryNode` / `olmNode`）被多个 mode 的代码路径修改时，特别容易出这种跨模式污染
+
+**相关文件**: Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift (`applyStarshipSceneAdjustments`)
 
 ### [2026-04-19] LSUIElement app 中 NSCollectionView 选择机制不工作
 <!-- tags: appkit, lsuielement, nscollectionview, key-window, nswindow, click -->

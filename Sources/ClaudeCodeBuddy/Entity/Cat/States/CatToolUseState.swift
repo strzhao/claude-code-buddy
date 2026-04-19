@@ -3,9 +3,9 @@ import SpriteKit
 
 final class CatToolUseState: GKState, ResumableState {
 
-    unowned let entity: CatSprite
+    unowned let entity: CatEntity
 
-    init(entity: CatSprite) {
+    init(entity: CatEntity) {
         self.entity = entity
     }
 

@@ -32,4 +32,28 @@ class BuddyWindow: NSWindow {
     func setInteractive(_ interactive: Bool) {
         ignoresMouseEvents = !interactive
     }
+
+    /// Temporarily grow the window upward by `delta` pts for `duration` seconds,
+    /// then animate back to the original frame. Anchored to the bottom (Dock top).
+    /// Caller is responsible for suspending DockTracker during the animation.
+    func expandHeightTemporarily(by delta: CGFloat, duration: TimeInterval) {
+        let original = self.frame
+        let expanded = NSRect(
+            x: original.origin.x,
+            y: original.origin.y,
+            width: original.size.width,
+            height: original.size.height + delta
+        )
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = duration / 2
+            ctx.allowsImplicitAnimation = true
+            self.setFrame(expanded, display: true, animate: true)
+        }, completionHandler: { [weak self] in
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = duration / 2
+                ctx.allowsImplicitAnimation = true
+                self?.setFrame(original, display: true, animate: true)
+            })
+        })
+    }
 }

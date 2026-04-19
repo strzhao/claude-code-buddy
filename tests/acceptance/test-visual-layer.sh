@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Acceptance Test: Visual Layer (003-visual-layer)
-# Verifies that CatSprite gains hitbox constant, label/color properties, configure
+# Verifies that CatEntity gains hitbox constant, label/color properties, configure
 # and updateLabel methods, and that all colorBlendFactor = 0 literals are replaced
 # with sessionTintFactor.  Also verifies BuddyScene wires up configure and
 # implements updateCatLabel (not a stub).
@@ -8,7 +8,7 @@
 PASS=0
 FAIL=0
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-CAT_SRC="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatSprite.swift"
+CAT_SRC="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/CatEntity.swift"
 SCENE_SRC="$PROJECT_ROOT/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift"
 
 pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
@@ -31,65 +31,65 @@ else
     exit 1
 fi
 
-# ── Assertion 2: CatSprite.hitboxSize constant ───────────────────────────────
-echo "[2] CatSprite declares static let hitboxSize..."
+# ── Assertion 2: CatEntity.hitboxSize constant ───────────────────────────────
+echo "[2] CatEntity declares static let hitboxSize..."
 if grep -q 'static let hitboxSize' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.hitboxSize constant found"
+    pass "CatEntity.hitboxSize constant found"
 else
-    fail "CatSprite.hitboxSize NOT found in $CAT_SRC"
+    fail "CatEntity.hitboxSize NOT found in $CAT_SRC"
 fi
 
-# ── Assertion 3: CatSprite.labelNode property ────────────────────────────────
-echo "[3] CatSprite declares labelNode as SKLabelNode?..."
+# ── Assertion 3: CatEntity.labelNode property ────────────────────────────────
+echo "[3] CatEntity declares labelNode as SKLabelNode?..."
 if grep -qE 'labelNode.*SKLabelNode' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.labelNode: SKLabelNode? property found"
+    pass "CatEntity.labelNode: SKLabelNode? property found"
 else
-    fail "CatSprite.labelNode (SKLabelNode?) NOT found in $CAT_SRC"
+    fail "CatEntity.labelNode (SKLabelNode?) NOT found in $CAT_SRC"
 fi
 
-# ── Assertion 4: CatSprite.sessionColor property ────────────────────────────
-echo "[4] CatSprite declares sessionColor as SessionColor?..."
+# ── Assertion 4: CatEntity.sessionColor property ────────────────────────────
+echo "[4] CatEntity declares sessionColor as SessionColor?..."
 if grep -qE 'sessionColor.*SessionColor' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.sessionColor: SessionColor? property found"
+    pass "CatEntity.sessionColor: SessionColor? property found"
 else
-    fail "CatSprite.sessionColor (SessionColor?) NOT found in $CAT_SRC"
+    fail "CatEntity.sessionColor (SessionColor?) NOT found in $CAT_SRC"
 fi
 
-# ── Assertion 5: CatSprite.sessionTintFactor default value ──────────────────
-echo "[5] CatSprite declares sessionTintFactor = 0.3..."
+# ── Assertion 5: CatEntity.sessionTintFactor default value ──────────────────
+echo "[5] CatEntity declares sessionTintFactor = 0.3..."
 if grep -qE 'sessionTintFactor.*0\.3' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.sessionTintFactor = 0.3 found"
+    pass "CatEntity.sessionTintFactor = 0.3 found"
 else
-    fail "CatSprite.sessionTintFactor = 0.3 NOT found in $CAT_SRC"
+    fail "CatEntity.sessionTintFactor = 0.3 NOT found in $CAT_SRC"
 fi
 
-# ── Assertion 6: CatSprite.configure method ──────────────────────────────────
-echo "[6] CatSprite has func configure..."
+# ── Assertion 6: CatEntity.configure method ──────────────────────────────────
+echo "[6] CatEntity has func configure..."
 if grep -q 'func configure' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.configure method found"
+    pass "CatEntity.configure method found"
 else
-    fail "CatSprite.configure method NOT found in $CAT_SRC"
+    fail "CatEntity.configure method NOT found in $CAT_SRC"
 fi
 
-# ── Assertion 7: CatSprite.updateLabel method ────────────────────────────────
-echo "[7] CatSprite has func updateLabel..."
+# ── Assertion 7: CatEntity.updateLabel method ────────────────────────────────
+echo "[7] CatEntity has func updateLabel..."
 if grep -q 'func updateLabel' "$CAT_SRC" 2>/dev/null; then
-    pass "CatSprite.updateLabel method found"
+    pass "CatEntity.updateLabel method found"
 else
-    fail "CatSprite.updateLabel method NOT found in $CAT_SRC"
+    fail "CatEntity.updateLabel method NOT found in $CAT_SRC"
 fi
 
 # ── Assertion 8: No bare colorBlendFactor = 0 literals remain ───────────────
-echo "[8] No remaining 'colorBlendFactor = 0' literals in CatSprite..."
+echo "[8] No remaining 'colorBlendFactor = 0' literals in CatEntity..."
 # grep exits 0 if a match IS found (bad), exits 1 if no match found (good).
 if grep -q 'colorBlendFactor = 0' "$CAT_SRC" 2>/dev/null; then
     REMAINING=$(grep -n 'colorBlendFactor = 0' "$CAT_SRC")
     fail "Found bare 'colorBlendFactor = 0' that should have been replaced with sessionTintFactor:"$'\n'"$REMAINING"
 else
-    pass "No bare 'colorBlendFactor = 0' literals remain in CatSprite"
+    pass "No bare 'colorBlendFactor = 0' literals remain in CatEntity"
 fi
 
-# ── Assertion 9: sessionTintFactor appears 8+ times in CatSprite ─────────────
+# ── Assertion 9: sessionTintFactor appears 8+ times in CatEntity ─────────────
 echo "[9] sessionTintFactor used 8+ times in state transitions..."
 TINT_COUNT=$(grep -c 'sessionTintFactor' "$CAT_SRC" 2>/dev/null || echo 0)
 if [ "$TINT_COUNT" -ge 8 ]; then

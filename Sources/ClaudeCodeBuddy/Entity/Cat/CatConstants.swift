@@ -1,7 +1,7 @@
 import SpriteKit
 
 // MARK: - CatConstants
-// All magic numbers used in CatSprite and BuddyScene, organized by concern.
+// All magic numbers used in CatEntity and BuddyScene, organized by concern.
 
 enum CatConstants {
 

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 class SessionPopoverController: NSViewController {
 
@@ -6,9 +7,11 @@ class SessionPopoverController: NSViewController {
     private static let popoverWidth: CGFloat = 320
     private static let rowHeight: CGFloat = 76
     private static let separatorGap: CGFloat = 3      // stackView.spacing + NSBox separator + spacing
-    private static let chromeHeight: CGFloat = 93      // header + footer with safety margin
-    private static let emptyStateHeight: CGFloat = 130
+    private static let chromeHeight: CGFloat = 100     // header + footer with safety margin
+    private static let emptyStateHeight: CGFloat = 140
     private static let maxVisibleSessions = 6
+
+    private var cancellables = Set<AnyCancellable>()
 
     private func idealHeight(for count: Int) -> CGFloat {
         guard count > 0 else { return Self.emptyStateHeight }
@@ -105,7 +108,7 @@ class SessionPopoverController: NSViewController {
             headerSeparator.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             headerSeparator.trailingAnchor.constraint(equalTo: container.trailingAnchor),
 
-            scrollView.topAnchor.constraint(equalTo: headerSeparator.bottomAnchor, constant: 4),
+            scrollView.topAnchor.constraint(equalTo: headerSeparator.bottomAnchor, constant: 6),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: footerSeparator.topAnchor, constant: -4),

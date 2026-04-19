@@ -530,4 +530,4 @@ ps aux | grep ClaudeCodeBuddy
 - Bug Description: See test script header for original bug report
 - Fix Location: `Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift`
 - Constants: `Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift`
-- Physics Setup: `Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift` (setupPhysicsBody)
+- Physics Setup: `Sources/ClaudeCodeBuddy/Entity/Cat/CatEntity.swift` (setupPhysicsBody)

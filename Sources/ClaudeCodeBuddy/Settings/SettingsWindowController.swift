@@ -3,7 +3,7 @@ import AppKit
 class SettingsWindowController: NSWindowController {
     convenience init() {
         let panel = SettingsPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 540),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: true

@@ -6,8 +6,8 @@ import SpriteKit
 
 private extension PersistentBadgeTests {
 
-    func makeCat(sessionId: String = "test-badge") -> CatSprite {
-        let cat = CatSprite(sessionId: sessionId)
+    func makeCat(sessionId: String = "test-badge") -> CatEntity {
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: .sky, labelText: "test-project")
         return cat
     }

@@ -4,21 +4,21 @@ import SpriteKit
 
 // MARK: - Helpers
 
-private extension CatSpriteStateGuardTests {
+private extension CatEntityStateGuardTests {
 
-    func makeCat(sessionId: String = "test-guard") -> CatSprite {
-        let cat = CatSprite(sessionId: sessionId)
+    func makeCat(sessionId: String = "test-guard") -> CatEntity {
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: .sky, labelText: "test")
         return cat
     }
 }
 
-// MARK: - CatSpriteStateGuardTests
+// MARK: - CatEntityStateGuardTests
 
 /// Tests that switchState with the same state does NOT clear running animations.
 /// Bug: GKStateMachine rejects same-state transitions, but switchState's cleanup
 /// (removeAllActions) runs before enter(), leaving the cat frozen.
-final class CatSpriteStateGuardTests: XCTestCase {
+final class CatEntityStateGuardTests: XCTestCase {
 
     // MARK: - Same-State Guard: idle → idle
 

@@ -135,10 +135,10 @@ final class TokenLevelTests: XCTestCase {
         XCTAssertFalse(TokenLevel.lv3 < TokenLevel.lv1)
     }
 
-    // MARK: - CatSprite Integration
+    // MARK: - CatEntity Integration
 
     func testApplyTokenLevelIdempotent() {
-        let cat = CatSprite(sessionId: "test-token")
+        let cat = CatEntity(sessionId: "test-token")
         let changed = cat.applyTokenLevel(totalTokens: 150_000)
         XCTAssertTrue(changed)
         XCTAssertEqual(cat.currentTokenLevel, .lv2)
@@ -149,7 +149,7 @@ final class TokenLevelTests: XCTestCase {
     }
 
     func testApplyTokenLevelProgression() {
-        let cat = CatSprite(sessionId: "test-token")
+        let cat = CatEntity(sessionId: "test-token")
         XCTAssertEqual(cat.currentTokenLevel, .lv1)
         XCTAssertEqual(cat.tokenScale, 1.0)
 
@@ -163,7 +163,7 @@ final class TokenLevelTests: XCTestCase {
     }
 
     func testEnterSceneUsesTokenScale() {
-        let cat = CatSprite(sessionId: "test-token")
+        let cat = CatEntity(sessionId: "test-token")
         cat.applyTokenLevel(totalTokens: 5_000_000)
 
         cat.enterScene(sceneSize: CGSize(width: 800, height: 120))

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SpriteKit
 import Combine
 
@@ -20,11 +21,17 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = EntityModeStore.shared
+        NSLog("[AppDelegate] EntityMode at launch: \(EntityModeStore.shared.current.rawValue)")
+
         setupWindow()
         setupMenuBar()
         setupSessionManager()
         setupDockMonitoring()
+        setupSceneExpansion()
+        setupStatusBarIconMode()
         setupSkinHotSwap()
+        setupRelaunchHandler()
 
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
@@ -71,8 +78,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         scene = buddyScene
         skView.presentScene(buddyScene)
 
-        // Apply initial activity bounds
-        let bounds = dockTracker.activityBounds(windowOriginX: windowFrame.origin.x)
+        // Apply initial activity bounds (clamped so boundary decorations stay visible).
+        var bounds = dockTracker.activityBounds(windowOriginX: windowFrame.origin.x)
+        let decorationMargin: CGFloat = 36
+        let minX = max(bounds.lowerBound, decorationMargin)
+        let maxX = min(bounds.upperBound, windowFrame.size.width - decorationMargin)
+        if minX < maxX { bounds = minX...maxX }
         buddyScene.activityBounds = bounds
         buddyScene.foodManager.activityBounds = bounds
         cachedActivityBounds = bounds
@@ -112,6 +123,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screenParametersChanged() {
         guard let win = window else { return }
+        guard !dockTracker.isSuspended else { return }
         let newFrame = dockTracker.buddyWindowFrame(height: currentWindowHeight)
         win.setFrame(newFrame, display: true)
         scene?.size = newFrame.size
@@ -198,6 +210,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         sessionManager = manager
+        manager.bind(modeStore: EntityModeStore.shared)
         manager.start()
 
         // Window height callback for token level changes
@@ -214,6 +227,62 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.menuBarAnimator?.reloadSprites()
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Relaunch (mode switch via settings / manual reset)
+
+    private var isRelaunching = false
+
+    private func setupRelaunchHandler() {
+        EventBus.shared.relaunchRequested
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newMode in
+                self?.performRelaunch(newMode: newMode)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Plays the exit animation on all current entities, then spawns a fresh
+    /// copy of this executable and terminates. The new process reads the
+    /// persisted EntityMode and spawns entities from scratch — this avoids
+    /// the race conditions seen with rapid in-process hot-switches.
+    private func performRelaunch(newMode: EntityMode?) {
+        guard !isRelaunching else { return }
+        isRelaunching = true
+
+        // Drop the in-process hot-switch subscription so setting the new
+        // mode below doesn't kick off a parallel replaceAllEntities.
+        sessionManager?.unbindModeStore()
+
+        if let newMode = newMode, newMode != EntityModeStore.shared.current {
+            EntityModeStore.shared.set(newMode)
+        }
+
+        let launchNewProcess = { [weak self] in
+            self?.spawnRelaunchedProcess()
+            NSApp.terminate(nil)
+        }
+
+        if let scene = scene {
+            scene.exitAllEntities { launchNewProcess() }
+        } else {
+            launchNewProcess()
+        }
+    }
+
+    /// Forks a detached shell that waits briefly (for this process's socket
+    /// teardown + NSApp.terminate) and then execs our own binary. Using a
+    /// small sleep avoids a race on /tmp/claude-buddy.sock bind.
+    private func spawnRelaunchedProcess() {
+        guard let exePath = Bundle.main.executablePath else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.6 && exec \"$0\"", exePath]
+        do {
+            try task.run()
+        } catch {
+            NSLog("[AppDelegate] failed to spawn relaunched process: \(error)")
+        }
     }
 
     // MARK: - Settings
@@ -255,8 +324,47 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func setupStatusBarIconMode() {
+        updateStatusBarIcon(for: EntityModeStore.shared.current)
+        EntityModeStore.shared.publisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                self?.updateStatusBarIcon(for: mode)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func updateStatusBarIcon(for mode: EntityMode) {
+        // Animator now owns the image in BOTH modes: cat frames for .cat,
+        // rocket frames (idle / walk / run) for .rocket. Changing `mode`
+        // swaps frame sets and refreshes the icon accordingly.
+        menuBarAnimator?.mode = mode
+    }
+
+    private func setupSceneExpansion() {
+        EventBus.shared.sceneExpansionRequested
+            .receive(on: RunLoop.main)
+            .sink { [weak self] req in
+                guard let self = self, let win = self.window else { return }
+                self.dockTracker.suspendRepositioning()
+                win.expandHeightTemporarily(by: req.height, duration: req.duration)
+                DispatchQueue.main.asyncAfter(deadline: .now() + req.duration + 0.1) { [weak self] in
+                    self?.dockTracker.resumeRepositioning()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
     private func refreshActivityBounds(windowOriginX: CGFloat) {
-        let newBounds = dockTracker.activityBounds(windowOriginX: windowOriginX)
+        var newBounds = dockTracker.activityBounds(windowOriginX: windowOriginX)
+
+        // Clamp to scene width minus a margin for boundary decorations (~36 per side).
+        if let sceneWidth = scene?.size.width {
+            let decorationMargin: CGFloat = 36
+            let minX = max(newBounds.lowerBound, decorationMargin)
+            let maxX = min(newBounds.upperBound, sceneWidth - decorationMargin)
+            if minX < maxX { newBounds = minX...maxX }
+        }
 
         // Only propagate if changed
         if let cached = cachedActivityBounds,

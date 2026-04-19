@@ -4,18 +4,18 @@ import SpriteKit
 
 // MARK: - Helpers
 
-private extension CatSpriteTabNameTests {
+private extension CatEntityTabNameTests {
 
     /// 在 node.children 中找到 fontSize=12 且 zPosition=10 的 SKLabelNode（主 tab name 节点）
-    func findTabNameNode(in cat: CatSprite) -> SKLabelNode? {
+    func findTabNameNode(in cat: CatEntity) -> SKLabelNode? {
         cat.node.children.compactMap { $0 as? SKLabelNode }.first {
             $0.fontSize == CatConstants.Visual.tabLabelFontSize && $0.zPosition == 10
         }
     }
 
-    /// 构造已配置的 CatSprite（idle 状态）
-    func makeCat(label: String = "my-project") -> CatSprite {
-        let cat = CatSprite(sessionId: "test-\(label)")
+    /// 构造已配置的 CatEntity（idle 状态）
+    func makeCat(label: String = "my-project") -> CatEntity {
+        let cat = CatEntity(sessionId: "test-\(label)")
         cat.configure(color: .sky, labelText: label)
         return cat
     }
@@ -24,14 +24,14 @@ private extension CatSpriteTabNameTests {
     /// 以确保不会因 guard newState != currentState 短路。
     /// 实际上 idle → permissionRequest 之间没有 guard 阻断（初始状态是 idle，
     /// permissionRequest 不等于 idle），可直接切换。
-    func switchToPermissionRequest(_ cat: CatSprite, toolDescription: String = "Run command") {
+    func switchToPermissionRequest(_ cat: CatEntity, toolDescription: String = "Run command") {
         cat.switchState(to: .permissionRequest, toolDescription: toolDescription)
     }
 }
 
-// MARK: - CatSpriteTabNameTests
+// MARK: - CatEntityTabNameTests
 
-final class CatSpriteTabNameTests: XCTestCase {
+final class CatEntityTabNameTests: XCTestCase {
 
     // MARK: - 场景 1：permissionRequest 状态下 tab name 可见
 
@@ -133,7 +133,7 @@ final class CatSpriteTabNameTests: XCTestCase {
 
     func testUpdateLabelBeforeConfigureHasNoEffect() {
         // configure 之前调用 updateLabel 不应崩溃（tabNameNode 为 nil）
-        let cat = CatSprite(sessionId: "bare")
+        let cat = CatEntity(sessionId: "bare")
         cat.updateLabel("anything") // 不应崩溃
         XCTAssertNil(findTabNameNode(in: cat),
                      "未 configure 时不应存在 tab name 节点")

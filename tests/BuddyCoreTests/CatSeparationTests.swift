@@ -6,15 +6,15 @@ import SpriteKit
 
 private extension CatSeparationTests {
 
-    /// 构造一只独立的 CatSprite（不挂载到 BuddyScene）
+    /// 构造一只独立的 CatEntity（不挂载到 BuddyScene）
     func makeCat(
         sessionId: String = "sep-test",
         x: CGFloat = 200,
         sceneWidth: CGFloat = 800,
         activityMin: CGFloat = 48,
         activityMax: CGFloat = 752
-    ) -> CatSprite {
-        let cat = CatSprite(sessionId: sessionId)
+    ) -> CatEntity {
+        let cat = CatEntity(sessionId: sessionId)
         cat.configure(color: .sky, labelText: sessionId)
         cat.containerNode.position = CGPoint(x: x, y: CatConstants.Visual.groundY)
         cat.sceneWidth = sceneWidth
@@ -62,7 +62,7 @@ private extension CatSeparationTests {
 ///
 /// 策略：
 /// - A/B/C/D 组：通过 BuddyScene 公开 API（addCat / update）间接验证 applySoftSeparation 与 findNonOverlappingSpawnX
-/// - 物理掩码：直接检查 CatSprite 的 physicsBody.collisionBitMask
+/// - 物理掩码：直接检查 CatEntity 的 physicsBody.collisionBitMask
 /// - 常量组：验证 CatConstants.Separation 的常量存在且合理
 final class CatSeparationTests: XCTestCase {
 
@@ -116,7 +116,7 @@ final class CatSeparationTests: XCTestCase {
         let scene = makeScene()
 
         // 手动放置远离的两只猫，但 addCat 使用随机位置，我们通过独立测试猫的方式验证
-        // 此测试验证"不重叠的猫不被推动"的逻辑通过独立 CatSprite 验证
+        // 此测试验证"不重叠的猫不被推动"的逻辑通过独立 CatEntity 验证
         let cat1 = makeCat(sessionId: "distant-A", x: 200)
         let cat2 = makeCat(sessionId: "distant-B", x: 400)
 
@@ -241,12 +241,12 @@ final class CatSeparationTests: XCTestCase {
 
     // MARK: - C. 物理掩码测试
 
-    /// C1：CatSprite 的 physicsBody.collisionBitMask 不应包含 PhysicsCategory.cat
+    /// C1：CatEntity 的 physicsBody.collisionBitMask 不应包含 PhysicsCategory.cat
     func testCatPhysicsBodyDoesNotCollideWithCats() {
         let cat = makeCat(sessionId: "physics-mask-test")
 
         guard let body = cat.containerNode.physicsBody else {
-            XCTFail("CatSprite 应有 physicsBody")
+            XCTFail("CatEntity 应有 physicsBody")
             return
         }
 
@@ -255,22 +255,22 @@ final class CatSeparationTests: XCTestCase {
         let collisionWithCat = body.collisionBitMask & PhysicsCategory.cat
         XCTAssertEqual(
             collisionWithCat, 0,
-            "CatSprite 的 collisionBitMask 不应与其他 cat 物理碰撞（实际掩码: \(body.collisionBitMask)）"
+            "CatEntity 的 collisionBitMask 不应与其他 cat 物理碰撞（实际掩码: \(body.collisionBitMask)）"
         )
     }
 
-    /// C2：CatSprite 的 categoryBitMask 仍应为 PhysicsCategory.cat
+    /// C2：CatEntity 的 categoryBitMask 仍应为 PhysicsCategory.cat
     func testCatPhysicsBodyCategoryIsStillCat() {
         let cat = makeCat(sessionId: "category-mask-test")
 
         guard let body = cat.containerNode.physicsBody else {
-            XCTFail("CatSprite 应有 physicsBody")
+            XCTFail("CatEntity 应有 physicsBody")
             return
         }
 
         XCTAssertEqual(
             body.categoryBitMask, PhysicsCategory.cat,
-            "CatSprite 的 categoryBitMask 应为 PhysicsCategory.cat"
+            "CatEntity 的 categoryBitMask 应为 PhysicsCategory.cat"
         )
     }
 

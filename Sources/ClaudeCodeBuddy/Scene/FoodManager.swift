@@ -119,7 +119,7 @@ class FoodManager {
     // MARK: - Notify Single Cat About Landed Food
 
     /// When a cat enters a food-eligible state (idle/thinking/toolUse), check for existing landed food.
-    func notifyCatAboutLandedFood(_ cat: CatSprite) {
+    func notifyCatAboutLandedFood(_ cat: CatEntity) {
         guard cat.currentTargetFood == nil else { return }
         let landedFoods = activeFoods.filter { $0.state == .landed }
         guard let food = landedFoods.min(by: {
@@ -192,5 +192,16 @@ class FoodManager {
 
     private func removeFood(_ food: FoodSprite) {
         activeFoods.removeAll { $0 === food }
+    }
+
+    /// Tears down all in-flight and landed food. Called on mode switch so
+    /// cat-mode food doesn't linger in rocket mode.
+    func clearAll() {
+        for food in activeFoods {
+            food.node.removeAllActions()
+            food.node.removeFromParent()
+        }
+        activeFoods.removeAll()
+        idleStartTimes.removeAll()
     }
 }

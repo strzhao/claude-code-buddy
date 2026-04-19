@@ -9,7 +9,7 @@ private let appVersion = "0.7.0"
 // MARK: - Message Types
 
 private let validEvents = [
-    "thinking", "tool_start", "tool_end", "idle",
+    "thinking", "user_prompt_submit", "tool_start", "tool_end", "idle",
     "session_start", "session_end", "set_label", "set_tokens",
     "permission_request", "task_complete"
 ]

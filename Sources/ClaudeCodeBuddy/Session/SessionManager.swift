@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 // MARK: - SessionManager
 
@@ -36,7 +37,7 @@ class SessionManager {
     /// After this interval with no messages, the cat reverts to idle.
     private let idleTimeout: TimeInterval   = 5 * 60    // 5 minutes
     /// After this interval, the session is auto-removed.
-    private let removeTimeout: TimeInterval = 15 * 60   // 15 minutes
+    private let removeTimeout: TimeInterval = 30 * 60   // 30 minutes
 
     // MARK: - Color File
 
@@ -315,13 +316,25 @@ class SessionManager {
 
     // MARK: - Timeouts
 
+    private func isProcessAlive(pid: Int) -> Bool {
+        return kill(Int32(pid), 0) == 0 || errno == EPERM
+    }
+
     func checkTimeouts() {
         let now = Date()
         var toRemove: [String] = []
         for (sessionId, session) in sessions {
             let elapsed = now.timeIntervalSince(session.lastActivity)
             if elapsed >= removeTimeout {
-                toRemove.append(sessionId)
+                if let pid = session.pid, isProcessAlive(pid: pid) {
+                    // Process still alive — keep the session, just ensure idle state
+                    if session.state != .idle {
+                        sessions[sessionId]?.state = .idle
+                        scene.updateCatState(sessionId: sessionId, state: catState(from: .idle), toolDescription: nil)
+                    }
+                } else {
+                    toRemove.append(sessionId)
+                }
             } else if elapsed >= idleTimeout {
                 sessions[sessionId]?.state = .idle
                 scene.updateCatState(sessionId: sessionId, state: catState(from: .idle), toolDescription: nil)

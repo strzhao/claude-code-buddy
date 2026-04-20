@@ -273,6 +273,9 @@ extension SkinGalleryViewController: NSCollectionViewDataSource {
             cardItem.isInstalled = false
             cardItem.isSelectedSkin = false
             cardItem.isDownloading = downloadingIds.contains(entry.id)
+            cardItem.onDownload = { [weak self] in
+                self?.downloadSkin(entry: entry, at: indexPath)
+            }
         }
 
         return cardItem

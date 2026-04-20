@@ -1,0 +1,25 @@
+.autopilot/index.md
+  5ff7e4b873c60c25 16
+.autopilot/patterns.md
+  5ff7e4b873c60c25 69-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "ffee5a447f744bbc80219f176b5027f38189aa30",
+  "prompts": {
+    "5ff7e4b873c60c25": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbb22561-5eff-49dc-9cbb-0a1c536c5380",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -90,9 +90,28 @@ buddy test --delay 2
 ## 测试
 
 - `swift test` — XCTest 单元测试 (Tests/BuddyCoreTests/)
+- `swift test --filter Snapshot` — 视觉快照回归测试
 - `tests/acceptance/run-all.sh` — Shell 验收测试
 - CLI 自动测试: `buddy test --delay 2` — 遍历所有状态
 - 手动测试 socket: `echo '{"event":"session_start","session_id":"test","timestamp":0,"cwd":"/tmp"}' | nc -U /tmp/claude-buddy.sock`
+
+### 快照测试 (swift-snapshot-testing)
+
+视觉回归测试位于 `Tests/BuddyCoreTests/SnapshotTests/`，基线图存储在 `__Snapshots__/` 子目录（已提交到 git）。
+
+**覆盖范围**:
+- `SkinCardSnapshotTests` — 皮肤卡片各状态（选中/未选中/远程/下载中/变体）
+- `SkinGallerySnapshotTests` — 皮肤市场整体布局
+- `CatSpriteSnapshotTests` — 猫咪 6 种状态（idle/thinking/toolUse/permissionRequest/eating/taskComplete）
+
+**使用规范**:
+- 修改 UI 组件后必须运行 `swift test --filter Snapshot` 验证无回归
+- 如果 UI 变更是预期的，删除对应 `__Snapshots__/` 下的旧基线图后重新运行测试录制新基线
+- 新增 UI 组件时应同步新增快照测试用例
+- SpriteKit 测试使用 `precision: 0.90` 容差（GPU 渲染固有微小差异）
+- AppKit 测试使用默认精确比对（渲染完全确定性）
+
+**autopilot 集成**: 后续 autopilot QA 阶段应包含 `swift test --filter Snapshot` 作为验证步骤之一。
 
 ## Hook 插件
 

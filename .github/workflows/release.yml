@@ -70,6 +70,24 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $TAG" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TAG" "$APP/Contents/Info.plist"
 
+      - name: Verify bundle integrity
+        run: |
+          APP="ClaudeCodeBuddy.app"
+          echo "Checking bundle integrity..."
+          for f in \
+            "$APP/Contents/MacOS/ClaudeCodeBuddy" \
+            "$APP/Contents/MacOS/buddy" \
+            "$APP/Contents/Info.plist" \
+            "$APP/Contents/Resources/AppIcon.icns" \
+            "$APP/Contents/Resources/ClaudeCodeBuddy_BuddyCore.bundle"; do
+            if [ ! -e "$f" ]; then
+              echo "MISSING: $f"
+              exit 1
+            fi
+            echo "  OK: $f"
+          done
+          echo "Bundle integrity check passed."
+
       - name: Ad-hoc code sign
         run: codesign --force --deep --sign - ClaudeCodeBuddy.app
 

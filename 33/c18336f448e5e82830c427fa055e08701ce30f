@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "33c18336f448e5e82830c427fa055e08701ce30f",
+  "prompts": {
+    "b3588efd852aaf07": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b50fb793-a7ab-47a0-995b-47aebd2d0bc1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}

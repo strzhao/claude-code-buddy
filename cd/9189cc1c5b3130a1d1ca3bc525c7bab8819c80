@@ -1,0 +1,29 @@
+.autopilot/requirements/20260420-给猫咪增加长按拖拽的/state.md
+  12133cb14b930ed4 3,5,14
+.autopilot/patterns.md
+  12133cb14b930ed4 107-118
+.autopilot/decisions.md
+  12133cb14b930ed4 93-107
+.autopilot/index.md
+  12133cb14b930ed4 5,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "cd9189cc1c5b3130a1d1ca3bc525c7bab8819c80",
+  "prompts": {
+    "12133cb14b930ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b626498-16b3-496b-900f-767b7f161524",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 33,
+      "total_deletions": 3,
+      "accepted_lines": 32,
+      "overriden_lines": 0
+    }
+  }
+}

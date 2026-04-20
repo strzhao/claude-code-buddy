@@ -1,0 +1,31 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  dd2ed7784b012ca9 236
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  dd2ed7784b012ca9 68-70
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  dd2ed7784b012ca9 273-277
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatPermissionRequestState.swift
+  dd2ed7784b012ca9 29,47-50
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  dd2ed7784b012ca9 98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "a355e7b35dcb72a96930ce2757c7fbbaa2b7c6a4",
+  "prompts": {
+    "dd2ed7784b012ca9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04d44b14-b245-490b-8493-4e2d78612c00",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 15,
+      "total_deletions": 2,
+      "accepted_lines": 15,
+      "overriden_lines": 0
+    }
+  }
+}

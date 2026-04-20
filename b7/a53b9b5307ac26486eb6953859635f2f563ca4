@@ -1,0 +1,25 @@
+.autopilot/index.md
+  ea309f288081f846 12
+.autopilot/patterns.md
+  ea309f288081f846 69-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "b7a53b9b5307ac26486eb6953859635f2f563ca4",
+  "prompts": {
+    "ea309f288081f846": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cda99bb-914f-435e-bd9c-690d640a1915",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

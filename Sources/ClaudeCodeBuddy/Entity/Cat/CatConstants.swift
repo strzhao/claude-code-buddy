@@ -365,6 +365,32 @@ enum CatConstants {
         static let popupFontSize: CGFloat = 12
     }
 
+    // MARK: - Drag
+    enum Drag {
+        /// Long-press duration (seconds) before drag activates.
+        static let longPressThreshold: TimeInterval = 0.3
+        /// Gravity for free-fall after drop (px/s²). Higher than jump gravity for snappier feel.
+        static let dropGravity: CGFloat = 1200
+        /// Bounce damping coefficient (velocity retained per bounce).
+        static let bounceRestitution: CGFloat = 0.35
+        /// Minimum impact velocity (px/s) to produce a bounce.
+        static let minBounceVelocity: CGFloat = 40
+        /// Landing squash scaleX (widening).
+        static let landingSquashScaleX: CGFloat = 1.35
+        /// Landing squash scaleY (compression).
+        static let landingSquashScaleY: CGFloat = 0.55
+        /// Duration of landing squash hold (seconds).
+        static let landingSquashDuration: Double = 0.10
+        /// Duration of landing recovery back to 1.0 scale (seconds).
+        static let landingRecoveryDuration: Double = 0.15
+        /// Number of dust particles spawned at each ground contact.
+        static let dustParticleCount: Int = 8
+        /// Frame duration for grabbed/scared animation during drag.
+        static let frameTimeGrabbed: TimeInterval = 0.12
+        /// Delay (seconds) after landing before restoring previous state.
+        static let restoreDelay: TimeInterval = 0.3
+    }
+
     // MARK: - Separation
     enum Separation {
         /// Minimum desired X distance between two cat centers (px).

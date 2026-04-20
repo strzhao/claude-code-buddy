@@ -270,6 +270,11 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats[sessionId]?.removePersistentBadge()
     }
 
+    func acknowledgePermission(for sessionId: String) {
+        guard let cat = cats[sessionId], cat.currentState == .permissionRequest else { return }
+        cat.permissionAcknowledged = true
+    }
+
     func catAtPoint(_ point: CGPoint) -> String? {
         let baseSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {

@@ -13,6 +13,7 @@
 - [2026-04-19] LSUIElement app 中 NSCollectionView 选择不工作，用 sendEvent 绕过 | tags: appkit, lsuielement, nscollectionview, key-window, click | → patterns.md
 - [2026-04-19] 第三方精灵朝向需 manifest sprite_faces_right 声明 | tags: skin, sprite, facing, manifest | → patterns.md
 - [2026-04-18] 中文标签间距需比拉丁字符预估值大 ~2 倍 | tags: spritekit, labels, spacing, cjk, font-size | → patterns.md
+- [2026-04-19] 外部 sprite sheet → 皮肤包处理流水线（切帧/trim/缩放/画布对齐/manifest 校验） | tags: skin, sprite-sheet, pillow, upload, manifest, skin-pack | → patterns.md
 - [2026-04-17] SpriteKit 物理碰撞掩码与 SKAction.moveTo 不兼容 | tags: spritekit, physics, collision, skaction, movement | → patterns.md
 - [2026-04-16] CatEatingState 未实现 ResumableState，热替换需跳过 | tags: spritekit, state-machine, hotswap, eating, resumable | → patterns.md
 - [2026-04-18] release.yml 与 bundle.sh 打包步骤不同步导致 CI 产物缺资源 | tags: ci, release, packaging, bundle, icon, if-guard, integrity-check | → patterns.md

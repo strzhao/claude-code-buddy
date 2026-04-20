@@ -98,6 +98,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 self.scene?.removePersistentBadge(for: sessionId)
                 for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
             }
+            tracker.onDragStart = { [weak self] sessionId, point in
+                self?.scene?.startDrag(sessionId: sessionId, at: point)
+            }
+            tracker.onDragUpdate = { [weak self] point in
+                self?.scene?.updateDrag(to: point)
+            }
+            tracker.onDragEnd = { [weak self] in
+                self?.scene?.endDrag()
+            }
             mouseTracker = tracker
         }
 
@@ -126,6 +135,25 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         win.setFrame(newFrame, display: true)
         scene?.size = newFrame.size
         refreshActivityBounds(windowOriginX: newFrame.origin.x)
+    }
+
+    private func handleDragWindowExpand(_ expand: Bool) {
+        guard let win = window, let screen = NSScreen.main else { return }
+        if expand {
+            let screenFrame = screen.frame
+            let dockHeight = max(screen.visibleFrame.origin.y - screenFrame.origin.y, 0)
+            let expandedHeight = screenFrame.height - dockHeight
+            let newFrame = NSRect(
+                x: screenFrame.origin.x,
+                y: screenFrame.origin.y + dockHeight,
+                width: screenFrame.width,
+                height: expandedHeight
+            )
+            win.setFrame(newFrame, display: true)
+            scene?.size = newFrame.size
+        } else {
+            updateWindowHeight(currentWindowHeight)
+        }
     }
 
     // MARK: - Menu Bar
@@ -203,6 +231,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // Window height callback for token level changes
         scene.onWindowHeightNeeded = { [weak self] height in
             self?.updateWindowHeight(height)
+        }
+        scene.onDragWindowExpand = { [weak self] expand in
+            self?.handleDragWindowExpand(expand)
         }
     }
 

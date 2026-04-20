@@ -55,6 +55,9 @@ class CatSprite {
     /// Component that owns fright reaction and hover scale behaviours.
     private(set) var interactionComponent: InteractionComponent!
 
+    /// Component that owns drag, drop, and bounce behaviours.
+    private(set) var dragComponent: DragComponent!
+
     /// Component that owns all label and alert overlay nodes.
     private(set) var labelComponent: LabelComponent!
 
@@ -71,6 +74,14 @@ class CatSprite {
     /// State queued during eating — applied after eating animation completes.
     private var pendingStateAfterEating: CatState?
     private var pendingToolDescriptionAfterEating: String?
+
+    /// State queued during drag — applied after landing completes.
+    var pendingStateAfterDrag: CatState?
+    var pendingToolDescriptionAfterDrag: String?
+
+    /// Whether this cat is being dragged or landing from a drag drop.
+    var isDragging: Bool { dragComponent?.isDragging ?? false }
+    var isDragOccupied: Bool { dragComponent?.isOccupied ?? false }
 
     // MARK: - Session Identity
 
@@ -150,6 +161,9 @@ class CatSprite {
 
         // Initialize interaction component
         interactionComponent = InteractionComponent(entity: self)
+
+        // Initialize drag component
+        dragComponent = DragComponent(entity: self)
 
         // Initialize label component
         labelComponent = LabelComponent(spriteNode: node)
@@ -365,6 +379,14 @@ class CatSprite {
     // MARK: - State Machine
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
+        // Drag is a physical override that must complete before any state change.
+        // Queue ALL state changes during drag+landing (including .idle).
+        if isDragOccupied {
+            pendingStateAfterDrag = newState
+            pendingToolDescriptionAfterDrag = toolDescription
+            return
+        }
+
         // Eating is a brief animation (~0.7s) that must complete for proper food cleanup.
         // Queue non-idle state changes; the done block in startEating will apply them.
         if currentState == .eating && newState != .idle {

@@ -90,6 +90,21 @@
 
 **约束**: 任何需要在 Settings 面板中处理点击的新控件，都应通过 SettingsPanel.sendEvent → Gallery.handleClickAt 链路，不要依赖 NSCollectionView 的选择机制。
 
+## 2026-04-21: 拖拽采用 DragComponent 组件而非新增 GKState
+
+**决策**: 新增 DragComponent（类比 InteractionComponent），通过 isDragging/isLanding/isOccupied 三态管理拖拽生命周期，不在 GKStateMachine 中新增 CatDraggedState。
+
+**否决**: 新增第 7 个 GKState (CatDraggedState)，需修改所有 6 个现有状态的 isValidNextState。
+
+**理由**:
+- 拖拽是物理交互（暂停→恢复），不是业务状态——与 InteractionComponent 的 fright reaction 模式一致
+- 不触动现有 6 个 GKState 的转换矩阵，降低回归风险
+- isOccupied 统一暴露 isDragging||isLanding，让 BuddyScene.update/switchState/playFrightReaction 等多处消费方用单一检查覆盖整个拖拽+落体周期
+
+**影响文件**: DragComponent.swift(新建), CatSprite.swift, MouseTracker.swift, BuddyScene.swift, AppDelegate.swift, InteractionComponent.swift, CatConstants.swift
+
+**约束**: 新增物理交互行为（如抛掷、弹射）应优先考虑组件模式而非新 GKState。isDragOccupied 的所有消费点在扩展时需同步检查。
+
 ## 2026-04-16: SkinPack 资源解析采用 builtIn/local 分支而非统一 Bundle
 
 **决策**: `SkinPack` 通过 `SkinSource` enum 区分两种资源解析路径：`builtIn(Bundle)` 走 `Bundle.url(forResource:withExtension:subdirectory:)` 且自动补 `"Assets/"` 前缀；`local(URL)` 走 `FileManager` 直接拼接 `baseURL + subdirectory + name.ext`。

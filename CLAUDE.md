@@ -85,6 +85,12 @@ buddy status
 
 # 自动测试（遍历所有状态）
 buddy test --delay 2
+
+# 查询猫咪可视状态（JSON 输出）
+buddy inspect --id <session-id>
+
+# 模拟点击猫咪（触发 acknowledgePermission + removePersistentBadge）
+buddy click --id <session-id>
 ```
 
 ## 测试
@@ -93,6 +99,14 @@ buddy test --delay 2
 - `tests/acceptance/run-all.sh` — Shell 验收测试
 - CLI 自动测试: `buddy test --delay 2` — 遍历所有状态
 - 手动测试 socket: `echo '{"event":"session_start","session_id":"test","timestamp":0,"cwd":"/tmp"}' | nc -U /tmp/claude-buddy.sock`
+
+### QA 验证优先级
+
+AI 在 QA 阶段验证 SpriteKit 可视状态时，按以下优先级自主验证，**不要依赖用户手动截图或目视确认**：
+
+1. **首选 `buddy inspect --id <session>`** — 返回机器可读 JSON，可直接断言 state、label_text、tab_name、has_alert_overlay、has_persistent_badge、permission_acknowledged 等字段
+2. **次选 `buddy click --id <session>`** — 模拟用户点击，触发交互逻辑后立即 inspect 验证副作用
+3. **兜底：人工确认** — 仅当 inspect 无法覆盖的纯视觉效果（动画帧率、颜色渐变、像素对齐）时才使用 AskUserQuestion
 
 ## Hook 插件
 

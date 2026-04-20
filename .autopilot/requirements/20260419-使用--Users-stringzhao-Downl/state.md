@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 3
 max_iterations: 30
@@ -64,3 +64,5 @@ started_at: "2026-04-19T09:15:37Z"
 - [2026-04-19T09:28:00Z] 进入 QA 阶段
 - [2026-04-19T09:30:00Z] QA 全部通过，任务完成
 - [2026-04-19T09:32:00Z] 知识提取：新增 pattern「精灵图 alpha 帧检测被粒子残留误导」→ 主仓库 patterns.md + index.md (48f983f)
+- [2026-04-19T09:35:00Z] commit agent: 1210785 chore(scripts): 新增 SATYR 精灵图切片脚本
+- [2026-04-19T09:36:00Z] 产出物归档完成，phase: done

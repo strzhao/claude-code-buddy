@@ -43,6 +43,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     /// Called when the required window height changes due to token level changes.
     var onWindowHeightNeeded: ((CGFloat) -> Void)?
 
+    /// Called to expand or restore window height during drag.
+    var onDragWindowExpand: ((Bool) -> Void)?
+
+    /// The cat currently being dragged (nil when no drag active).
+    private(set) var draggedCat: CatSprite?
+
     /// Tracks the last known token level per session for change detection.
     private var lastKnownTokenLevels: [String: TokenLevel] = [:]
 
@@ -239,10 +245,17 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         foodManager.removeCatTracking(sessionId: sessionId)
         releaseBedSlot(for: sessionId)
         lastKnownTokenLevels.removeValue(forKey: sessionId)
-        // Keep a strong ref to cat until exit animation completes, then remove node
         if sessionId == hoveredCatSessionId {
             hoveredCatSessionId = nil
         }
+
+        // If cat is being dragged or landing, cancel drag and let it finish before exiting
+        if cat.isDragOccupied {
+            cat.dragComponent.cancelDrag()
+            draggedCat = nil
+        }
+
+        // Keep a strong ref to cat until exit animation completes, then remove node
         // Collect remaining cats as obstacles for the jump animation
         let obstacles: [(cat: CatSprite, x: CGFloat)] = cats.values.map { ($0, $0.containerNode.position.x) }
         cat.exitScene(sceneWidth: size.width, obstacles: obstacles, onJumpOver: { [weak cat] jumpedCat in
@@ -274,6 +287,34 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         guard let cat = cats[sessionId], cat.currentState == .permissionRequest else { return }
         cat.permissionAcknowledged = true
     }
+
+    // MARK: - Drag
+
+    func startDrag(sessionId: String, at point: CGPoint) {
+        guard draggedCat == nil else { return }
+        guard let cat = cats[sessionId] else { return }
+        guard !cat.isDragOccupied else { return }
+
+        draggedCat = cat
+        cat.dragComponent.onWindowExpand = { [weak self] expand in
+            self?.onDragWindowExpand?(expand)
+        }
+        cat.dragComponent.onLandingComplete = { [weak self] in
+            self?.draggedCat = nil
+        }
+        cat.dragComponent.startDrag(at: point)
+    }
+
+    func updateDrag(to point: CGPoint) {
+        draggedCat?.dragComponent.updatePosition(to: point)
+    }
+
+    func endDrag() {
+        guard let cat = draggedCat else { return }
+        cat.dragComponent.endDrag()
+    }
+
+    // MARK: - Hit Testing
 
     func catAtPoint(_ point: CGPoint) -> String? {
         let baseSize = CatSprite.hitboxSize
@@ -421,6 +462,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             // Skip cats in taskComplete state (beds are outside activityBounds)
             guard cat.currentState != .taskComplete else { continue }
 
+            // Skip cats being dragged or landing from drag
+            guard !cat.isDragOccupied else { continue }
+
             // Skip cats already running a boundary recovery
             guard cat.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil else {
                 continue
@@ -466,6 +510,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             let catA = catArray[i]
             guard catA.currentState != .taskComplete,
                   catA.currentState != .eating,
+                  !catA.isDragOccupied,
                   catA.containerNode.action(forKey: "frightMove") == nil,
                   catA.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil
             else { continue }
@@ -474,6 +519,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 let catB = catArray[j]
                 guard catB.currentState != .taskComplete,
                       catB.currentState != .eating,
+                      !catB.isDragOccupied,
                       catB.containerNode.action(forKey: "frightMove") == nil,
                       catB.containerNode.action(forKey: CatConstants.BoundaryRecovery.actionKey) == nil
                 else { continue }

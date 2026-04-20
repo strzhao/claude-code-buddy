@@ -110,3 +110,15 @@
 **Scenario**: 用 alpha 扫描（任意像素 alpha>10 即为有内容）自动检测精灵图每行帧数时，死亡/消散动画行的粒子残留被误判为有效帧
 **Lesson**: 纯 alpha 检测适合角色动画行，但对含 VFX（粒子、爆炸、光效）的行会过度计数。切片精灵图时，对已知有特效的行应设置 `max_frames` 上限，并在切片后目视验证末尾帧。另一方案是改用最小像素数阈值（如非透明像素 >50 才算有效帧），但手动 max_frames 更精准。
 **Evidence**: Satyr 精灵图 row 6（死亡动画）alpha 扫描检测到 10 帧，但帧 5+ 只有零星粒子点（jump-9.png/jump-10.png 几乎全透明）。添加 `"max_frames": 4` 后修复。
+
+### [2026-04-21] switchState same-state guard 阻止拖拽后状态恢复
+<!-- tags: spritekit, state-machine, drag, same-state, restore -->
+**Scenario**: 拖拽猫咪时不改变 GKStateMachine 的 currentState，松手后 restoreState 调用 switchState(to: preState)，但 preState == currentState 触发 same-state guard 直接 return，导致动画不恢复、taskComplete 猫不回猫屋。
+**Lesson**: GKStateMachine 的 same-state guard 会阻止任何"恢复到当前状态"的尝试。当某个机制（拖拽、暂停等）需要在不改变 GKState 的情况下中断并恢复时，恢复逻辑必须绕过 same-state guard：先 switchState(.idle) 强制触发 willExit/didEnter 生命周期，再 switchState(targetState)。对于简单状态（idle/thinking/toolUse）也可用 ResumableState.resume()，但 taskComplete 等需要完整 didEnter 流程（请求床位、走路）的状态必须走强制重入。
+**Evidence**: 拖拽 taskComplete 猫松手后不回猫屋。修复：restoreState 检测 targetState == currentState 时先 switchState(.idle) 再切回。
+
+### [2026-04-21] ignoresMouseEvents 在拖拽后未恢复导致窗口拦截点击
+<!-- tags: appkit, window, mouse-events, drag, click-through -->
+**Scenario**: BuddyWindow 默认 ignoresMouseEvents=true（点击穿透），hover 时切为 false。拖拽结束后 MouseTracker 的 isDragging 置 false 但没有恢复 ignoresMouseEvents=true，导致整个窗口持续拦截鼠标事件，用户无法点击窗口后面的应用。
+**Lesson**: 任何修改 ignoresMouseEvents 的代码路径，必须有配对的恢复逻辑。拖拽结束（mouseUp）时应立即恢复 ignoresMouseEvents=true 并清除 hover 状态。落体+弹跳动画完全由 SKAction 驱动，不需要鼠标事件。通用规则：临时打开 mouse event 接收后，确认每个退出路径（正常结束、app 失焦、取消）都会恢复 click-through。
+**Evidence**: 用户报告拖拽松手后无法点击其他窗口。mouseUp 中添加 `window?.setInteractive(false)` + `hoveredSessionId = nil` 后修复。

@@ -2,6 +2,7 @@
 
 ## Decisions
 - [2026-04-19] 皮肤颜色变体采用 manifest variants 数组 | tags: skin, variant, manifest, architecture | → decisions.md
+- [2026-04-21] 拖拽采用 DragComponent 组件而非新增 GKState | tags: architecture, drag, component, state-machine | → decisions.md
 - [2026-04-19] Settings 面板点击通过 Panel.sendEvent 而非 NSCollectionView | tags: appkit, lsuielement, panel, click, settings | → decisions.md
 - [2026-04-16] SkinPack 资源解析：builtIn(Bundle+Assets前缀) vs local(FileManager拼接) | tags: skin, resource, bundle, assets | → decisions.md
 - [2026-04-16] Socket 双向通信：在现有 socket 上通过 action 字段扩展 | tags: socket, protocol, query, bidirectional | → decisions.md
@@ -27,3 +28,5 @@
 - [2026-04-16] 测试中不应硬编码常量值来查找节点 | tags: testing, constants, spritekit, font-size | → patterns.md
 - [2026-04-16] 垂直动画峰值由窗口高度和地面位置共同决定 | tags: window, bounds, animation, jump, physics | → patterns.md
 - [2026-04-19] 精灵图 alpha 帧检测被粒子/特效残留误导 | tags: skin, sprite, slicing, alpha, frame-detection | → patterns.md
+- [2026-04-21] switchState same-state guard 阻止拖拽后状态恢复 | tags: spritekit, state-machine, drag, same-state, restore | → patterns.md
+- [2026-04-21] ignoresMouseEvents 在拖拽后未恢复导致窗口拦截点击 | tags: appkit, window, mouse-events, drag, click-through | → patterns.md

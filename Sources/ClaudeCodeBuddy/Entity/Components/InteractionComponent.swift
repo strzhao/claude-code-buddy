@@ -43,8 +43,8 @@ class InteractionComponent {
 
     /// Primary entry: called on the cat that was jumped over, passing the jumper's x position.
     func playFrightReaction(awayFromX jumperX: CGFloat) {
-        // Don't interrupt permission-request state (it's already alert)
         guard entity.currentState != .permissionRequest else { return }
+        guard !entity.isDragOccupied else { return }
 
         entity.containerNode.physicsBody?.isDynamic = false
         entity.node.removeAllActions()

@@ -229,9 +229,9 @@ final class SessionManagerTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(sessionId: "stale", event: "thinking", cwd: "/b"))
         manager.sessions["stale"]?.lastActivity = Date(timeIntervalSinceNow: -(6 * 60))
 
-        // Remove-timeout session (16 min)
+        // Remove-timeout session (31 min)
         manager.handle(message: TestHelpers.makeMessage(sessionId: "dead", event: "thinking", cwd: "/c"))
-        manager.sessions["dead"]?.lastActivity = Date(timeIntervalSinceNow: -(16 * 60))
+        manager.sessions["dead"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
         manager.checkTimeouts()
 
@@ -254,14 +254,48 @@ final class SessionManagerTests: XCTestCase {
     func testCheckTimeoutsReleasesColor() {
         manager.handle(message: TestHelpers.makeMessage(sessionId: "s1", event: "thinking", cwd: "/p"))
         let color = manager.sessions["s1"]!.color
-        manager.sessions["s1"]?.lastActivity = Date(timeIntervalSinceNow: -(16 * 60))
+        manager.sessions["s1"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
         manager.checkTimeouts()
         XCTAssertFalse(manager.usedColors.contains(color))
     }
 
-    func testCheckTimeoutsNoRemovalDoesNotFireCallbacks() {
-        manager.handle(message: TestHelpers.makeMessage(sessionId: "s1", event: "thinking"))
+    func testCheckTimeoutsKeepsSessionWithAliveProcess() {
+        // Session with PID of current process (definitely alive)
+        manager.handle(message: TestHelpers.makeMessage(sessionId: "alive", event: "thinking", cwd: "/a"))
+        manager.sessions["alive"]?.pid = Int(ProcessInfo.processInfo.processIdentifier)  // current process, always alive
+        manager.sessions["alive"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
+
+        manager.checkTimeouts()
+
+        XCTAssertNotNil(manager.sessions["alive"], "Session with alive process should not be removed")
+        XCTAssertEqual(manager.sessions["alive"]?.state, .idle, "Should be set to idle")
+        XCTAssertFalse(scene.removeCatCalls.contains("alive"))
+    }
+
+    func testCheckTimeoutsRemovesSessionWithDeadProcess() {
+        manager.handle(message: TestHelpers.makeMessage(sessionId: "dead", event: "thinking", cwd: "/a"))
+        manager.sessions["dead"]?.pid = 99999  // very likely not running
+        manager.sessions["dead"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
+
+        manager.checkTimeouts()
+
+        XCTAssertNil(manager.sessions["dead"], "Session with dead process should be removed")
+        XCTAssertTrue(scene.removeCatCalls.contains("dead"))
+    }
+
+    func testCheckTimeoutsRemovesSessionWithNoPid() {
+        manager.handle(message: TestHelpers.makeMessage(sessionId: "nopid", event: "thinking", cwd: "/a"))
+        manager.sessions["nopid"]?.pid = nil
+        manager.sessions["nopid"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
+
+        manager.checkTimeouts()
+
+        XCTAssertNil(manager.sessions["nopid"], "Session with no PID should be removed after timeout")
+        XCTAssertTrue(scene.removeCatCalls.contains("nopid"))
+    }
+
+    func testCheckTimeoutsNoRemovalDoesNotFireCallbacks() {        manager.handle(message: TestHelpers.makeMessage(sessionId: "s1", event: "thinking"))
         var callbackFired = false
         manager.onSessionCountChanged = { _ in callbackFired = true }
 

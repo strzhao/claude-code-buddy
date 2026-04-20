@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/sleepy-forging-toucan/.autopilot/requirements/20260420-接入-swift-snapshot-testing"
 session_id: b8885ab6-090d-45da-98bf-2af753e66740
 started_at: "2026-04-20T15:37:07Z"
@@ -81,3 +81,4 @@ started_at: "2026-04-20T15:37:07Z"
 - [2026-04-20T15:45:00Z] design 阶段完成，方案通过审批，进入 implement 阶段
 - [2026-04-21T00:02:00Z] implement 完成：Package.swift + 4 个测试文件 + CLAUDE.md 更新。406 tests 0 failures。进入 QA
 - [2026-04-21T00:05:00Z] QA 全部通过，等待审批合并
+- [2026-04-21T00:08:00Z] merge 完成：93c544e feat(test) + 28896ba docs(autopilot)。phase: done

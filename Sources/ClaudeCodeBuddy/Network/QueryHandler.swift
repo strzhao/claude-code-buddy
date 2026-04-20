@@ -24,6 +24,8 @@ final class QueryHandler {
         switch action {
         case "inspect":
             return handleInspect(query: query)
+        case "click":
+            return handleClick(query: query)
         case "events":
             return handleEvents(query: query)
         case "health":
@@ -75,6 +77,20 @@ final class QueryHandler {
             "sessions": sessionDicts,
             "total": sessionDicts.count,
         ])
+    }
+
+    // MARK: - Click
+
+    private func handleClick(query: [String: Any]) -> Data {
+        guard let sessionId = query["session_id"] as? String else {
+            return errorResponse(message: "click requires 'session_id'")
+        }
+        let success = scene.simulateClick(sessionId: sessionId)
+        if success {
+            return okResponse(data: ["clicked": sessionId])
+        } else {
+            return errorResponse(message: "session not found: \(sessionId)")
+        }
     }
 
     // MARK: - Events

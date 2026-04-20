@@ -233,7 +233,7 @@ enum CatConstants {
         /// Alpha for label shadow
         static let labelShadowAlpha: CGFloat = 0.4
         /// Position offset for label shadow
-        static let labelShadowOffset = CGPoint(x: 1.5, y: 1.5)
+        static let labelShadowOffset = CGPoint(x: 1.5, y: 27)
         /// Z-position for label shadow node
         static let labelShadowZPosition: CGFloat = 9
         /// Y offset for main label above sprite

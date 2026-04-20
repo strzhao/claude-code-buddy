@@ -270,6 +270,11 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         cats[sessionId]?.removePersistentBadge()
     }
 
+    func acknowledgePermission(for sessionId: String) {
+        guard let cat = cats[sessionId], cat.currentState == .permissionRequest else { return }
+        cat.permissionAcknowledged = true
+    }
+
     func catAtPoint(_ point: CGPoint) -> String? {
         let baseSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {
@@ -677,6 +682,8 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 extension BuddyScene: SceneControlling {
     func catSnapshot(for sessionId: String) -> CatSnapshot? {
         guard let cat = cats[sessionId] else { return nil }
+        let labelHidden = cat.labelNode?.isHidden ?? true
+        let tabHidden = cat.tabNameNode?.isHidden ?? true
         return CatSnapshot(
             sessionId: cat.sessionId,
             x: cat.containerNode.position.x,
@@ -685,13 +692,20 @@ extension BuddyScene: SceneControlling {
             facingRight: cat.facingRight,
             isDebug: cat.isDebugCat,
             activityBoundsMin: cat.activityMin,
-            activityBoundsMax: cat.activityMax
+            activityBoundsMax: cat.activityMax,
+            labelText: labelHidden ? nil : cat.labelNode?.text,
+            tabName: tabHidden ? nil : cat.tabNameNode?.text,
+            hasAlertOverlay: cat.alertOverlayNode != nil,
+            hasPersistentBadge: cat.persistentBadgeNode != nil,
+            permissionAcknowledged: cat.permissionAcknowledged
         )
     }
 
     func allCatSnapshots() -> [CatSnapshot] {
         cats.values.map { cat in
-            CatSnapshot(
+            let labelHidden = cat.labelNode?.isHidden ?? true
+            let tabHidden = cat.tabNameNode?.isHidden ?? true
+            return CatSnapshot(
                 sessionId: cat.sessionId,
                 x: cat.containerNode.position.x,
                 y: cat.containerNode.position.y,
@@ -699,7 +713,12 @@ extension BuddyScene: SceneControlling {
                 facingRight: cat.facingRight,
                 isDebug: cat.isDebugCat,
                 activityBoundsMin: cat.activityMin,
-                activityBoundsMax: cat.activityMax
+                activityBoundsMax: cat.activityMax,
+                labelText: labelHidden ? nil : cat.labelNode?.text,
+                tabName: tabHidden ? nil : cat.tabNameNode?.text,
+                hasAlertOverlay: cat.alertOverlayNode != nil,
+                hasPersistentBadge: cat.persistentBadgeNode != nil,
+                permissionAcknowledged: cat.permissionAcknowledged
             )
         }
     }
@@ -711,5 +730,12 @@ extension BuddyScene: SceneControlling {
             boundsMin: activityBounds.lowerBound,
             boundsMax: activityBounds.upperBound
         )
+    }
+
+    func simulateClick(sessionId: String) -> Bool {
+        guard cats[sessionId] != nil else { return false }
+        acknowledgePermission(for: sessionId)
+        removePersistentBadge(for: sessionId)
+        return true
     }
 }

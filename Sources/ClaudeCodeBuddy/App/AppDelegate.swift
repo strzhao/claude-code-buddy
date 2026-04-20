@@ -95,6 +95,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             tracker.onClick = { [weak self] sessionId in
                 guard let self = self,
                       let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
+                self.scene?.acknowledgePermission(for: sessionId)
                 self.scene?.removePersistentBadge(for: sessionId)
                 for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
             }

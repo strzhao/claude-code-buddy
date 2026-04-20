@@ -82,4 +82,12 @@ final class MockScene: SceneControlling {
     func sceneSnapshot() -> SceneSnapshot {
         return stubbedSceneSnapshot
     }
+
+    var simulateClickCalls: [String] = []
+    var stubbedSimulateClickResult = true
+
+    func simulateClick(sessionId: String) -> Bool {
+        simulateClickCalls.append(sessionId)
+        return stubbedSimulateClickResult
+    }
 }

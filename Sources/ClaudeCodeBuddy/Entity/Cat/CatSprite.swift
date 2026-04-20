@@ -65,6 +65,9 @@ class CatSprite {
     /// Pending tool description passed through to CatPermissionRequestState.
     var pendingToolDescription: String?
 
+    /// Set to true when user clicks the cat during permissionRequest, so willExit skips the persistent badge.
+    var permissionAcknowledged = false
+
     /// State queued during eating — applied after eating animation completes.
     private var pendingStateAfterEating: CatState?
     private var pendingToolDescriptionAfterEating: String?

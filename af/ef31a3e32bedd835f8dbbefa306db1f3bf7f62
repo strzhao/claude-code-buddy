@@ -1,0 +1,35 @@
+plugin/hooks/hooks.json
+  4c2061143c5c6112 75-86
+hooks/buddy-hook.sh
+  4c2061143c5c6112 68-70
+tests/BuddyCoreTests/TimeoutAcceptanceTests.swift
+  4c2061143c5c6112 1-241
+tests/BuddyCoreTests/SessionManagerAcceptanceTests.swift
+  4c2061143c5c6112 197-198,203,474
+tests/BuddyCoreTests/SessionManagerTests.swift
+  4c2061143c5c6112 232,234,257,263-298
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  4c2061143c5c6112 2,40,319-322,329-337
+plugin/scripts/buddy-hook.sh
+  4c2061143c5c6112 68-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "afef31a3e32bedd835f8dbbefa306db1f3bf7f62",
+  "prompts": {
+    "4c2061143c5c6112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f60f1819-0311-4b7a-9762-9ddbc5ebbd61",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 840,
+      "total_deletions": 52,
+      "accepted_lines": 799,
+      "overriden_lines": 0
+    }
+  }
+}

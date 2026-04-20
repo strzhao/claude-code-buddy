@@ -473,6 +473,24 @@ private func cmdInspect(_ opts: CLIOptions) {
     }
 }
 
+private func cmdClick(_ opts: CLIOptions) {
+    guard let sid = opts.sessionId else {
+        fputs("Usage: buddy click --id <session_id>\n", stderr)
+        exit(2)
+    }
+
+    let query: [String: Any] = ["action": "click", "session_id": sid]
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
 private func cmdEvents(_ opts: CLIOptions) {
     var query: [String: Any] = ["action": "events"]
     if let sid = opts.sessionId {
@@ -744,6 +762,8 @@ private func main() {
         cmdStatus()
     case "inspect":
         cmdInspect(opts)
+    case "click":
+        cmdClick(opts)
     case "events":
         cmdEvents(opts)
     case "health":

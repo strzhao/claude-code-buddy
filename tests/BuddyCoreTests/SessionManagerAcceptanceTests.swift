@@ -194,13 +194,13 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         XCTAssertEqual(manager.sessions[sid]?.state, .idle,
                        "State should transition to idle after 5-minute idle timeout")
 
-        // Age to just over 15 minutes — session should be removed
-        let sixteenMinutesAgo = Date(timeIntervalSinceNow: -(16 * 60))
+        // Age to just over 30 minutes — session should be removed
+        let sixteenMinutesAgo = Date(timeIntervalSinceNow: -(31 * 60))
         manager.sessions[sid]?.lastActivity = sixteenMinutesAgo
 
         manager.checkTimeouts()
 
-        XCTAssertNil(manager.sessions[sid], "Session should be removed after 15-minute remove timeout")
+        XCTAssertNil(manager.sessions[sid], "Session should be removed after 30-minute remove timeout")
         XCTAssertTrue(manager.usedColors.isEmpty || !manager.usedColors.contains(
             manager.sessions[sid]?.color ?? .coral
         ), "Color should be released after session removed by timeout")
@@ -471,7 +471,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         manager.onSessionsChanged     = { _ in sessionsFired = true }
 
         // Age past remove threshold
-        manager.sessions[sid]?.lastActivity = Date(timeIntervalSinceNow: -(16 * 60))
+        manager.sessions[sid]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
         manager.checkTimeouts()
 
         XCTAssertTrue(countFired,   "onSessionCountChanged should fire after timeout removal")

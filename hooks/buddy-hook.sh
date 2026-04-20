@@ -65,6 +65,9 @@ msg = {
     "event": event,
     "timestamp": int(time.time()),
 }
+pid = d.get("pid")
+if pid:
+    msg["pid"] = pid
 if tool:
     msg["tool"] = tool
 if cwd:

@@ -1,8 +1,8 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: "review-accept"
-iteration: 1
+iteration: 2
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: "deep"
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/jolly-sniffing-mitten/.autopilot/requirements/20260420-给猫咪增加长按拖拽的"
 session_id: 0b626498-16b3-496b-900f-767b7f161524
 started_at: "2026-04-20T15:39:26Z"

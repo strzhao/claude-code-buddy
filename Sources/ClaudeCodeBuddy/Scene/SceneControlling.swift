@@ -10,9 +10,14 @@ struct CatSnapshot {
     let isDebug: Bool
     let activityBoundsMin: CGFloat
     let activityBoundsMax: CGFloat
+    let labelText: String?
+    let tabName: String?
+    let hasAlertOverlay: Bool
+    let hasPersistentBadge: Bool
+    let permissionAcknowledged: Bool
 
     func toDict() -> [String: Any] {
-        [
+        var dict: [String: Any] = [
             "session_id": sessionId,
             "x": x,
             "y": y,
@@ -20,7 +25,13 @@ struct CatSnapshot {
             "facing_right": facingRight,
             "is_debug": isDebug,
             "activity_bounds": [activityBoundsMin, activityBoundsMax],
+            "has_alert_overlay": hasAlertOverlay,
+            "has_persistent_badge": hasPersistentBadge,
+            "permission_acknowledged": permissionAcknowledged,
         ]
+        if let text = labelText { dict["label_text"] = text }
+        if let name = tabName { dict["tab_name"] = name }
+        return dict
     }
 }
 
@@ -59,4 +70,5 @@ protocol SceneControlling: AnyObject {
     func catSnapshot(for sessionId: String) -> CatSnapshot?
     func allCatSnapshots() -> [CatSnapshot]
     func sceneSnapshot() -> SceneSnapshot
+    func simulateClick(sessionId: String) -> Bool
 }

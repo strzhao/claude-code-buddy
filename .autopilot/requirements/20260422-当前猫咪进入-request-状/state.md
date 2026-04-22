@@ -1,7 +1,7 @@
 ---
 active: true
-phase: "qa"
-gate: "review-accept"
+phase: "merge"
+gate: ""
 iteration: 1
 max_iterations: 30
 max_retries: 3
@@ -85,6 +85,7 @@ started_at: "2026-04-22T15:21:45Z"
 全部 ✅，无阻塞问题。
 
 ## 变更日志
+- [2026-04-22T17:11:33Z] 用户批准验收，进入合并阶段
 - [2026-04-22T15:21:45Z] autopilot 初始化
 - [2026-04-22T15:25:00Z] design 阶段完成，方案通过 plan-reviewer 审查（PASS）
 - [2026-04-22T15:58:00Z] implement 阶段完成：BuddyScene.updateCatState() auto-acknowledge + 3 新测试，418 tests all passed

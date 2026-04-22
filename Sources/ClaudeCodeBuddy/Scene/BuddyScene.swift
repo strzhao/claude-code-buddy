@@ -269,6 +269,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func updateCatState(sessionId: String, state: CatState, toolDescription: String? = nil) {
         guard let cat = cats[sessionId] else { return }
+        // Hook 驱动状态离开 permissionRequest 时自动 acknowledge，
+        // 避免持久徽章残留（用户已在 Claude Code 终端回答了权限）
+        if cat.currentState == .permissionRequest && state != .permissionRequest {
+            cat.permissionAcknowledged = true
+            removePersistentBadge(for: sessionId)
+        }
         cat.switchState(to: state, toolDescription: toolDescription)
         foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
         // When a cat becomes idle/thinking/toolUse, check for existing landed food

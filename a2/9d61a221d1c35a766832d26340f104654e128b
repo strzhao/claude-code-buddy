@@ -1,0 +1,23 @@
+.autopilot/requirements/20260423-去掉辅助功能权限请求/state.md
+  34b85908d073e172 1-13,15-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "a29d61a221d1c35a766832d26340f104654e128b",
+  "prompts": {
+    "34b85908d073e172": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eb9775c1-d2f6-4068-b2a8-dc73cf032fe0",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 30,
+      "overriden_lines": 1
+    }
+  }
+}

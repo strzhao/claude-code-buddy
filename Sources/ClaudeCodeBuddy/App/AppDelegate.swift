@@ -29,11 +29,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
 
-        // Request Accessibility permission (non-blocking prompt)
-        DispatchQueue.main.async {
-            let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
-            AXIsProcessTrustedWithOptions(options)
-        }
 
         // Ensure socket cleanup on any exit
         atexit {

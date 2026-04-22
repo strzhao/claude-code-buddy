@@ -1,0 +1,27 @@
+tests/BuddyCoreTests/PersistentBadgeTests.swift
+  4918c9bac5f18c00 162-232
+CLAUDE.md
+  4918c9bac5f18c00 130-139
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  4918c9bac5f18c00 272-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "f8322a3d168df2fb5bd70aa9483a75bb60b33cc1",
+  "prompts": {
+    "4918c9bac5f18c00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8906740e-c6cb-4698-8c6d-e6cdc5477804",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 0,
+      "accepted_lines": 87,
+      "overriden_lines": 0
+    }
+  }
+}

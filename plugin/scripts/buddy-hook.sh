@@ -17,9 +17,16 @@ HOOK_INPUT="$(cat)"
 # Get hook event name (needed to decide whether to fetch terminal ID)
 HOOK_EVENT_NAME="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('hook_event_name',''))" 2>/dev/null)"
 
-# Get Ghostty terminal ID on SessionStart
+# Extract session_id for cache lookup
+SESSION_ID="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('session_id','') or str(d.get('pid','')))" 2>/dev/null)"
+
+# Get Ghostty terminal ID — cached per session, captured on first event
+TERMINAL_CACHE_DIR="/tmp/claude-buddy-terminals"
+TERMINAL_CACHE="$TERMINAL_CACHE_DIR/$SESSION_ID"
 TERMINAL_ID=""
-if [ "$HOOK_EVENT_NAME" = "SessionStart" ]; then
+if [ -f "$TERMINAL_CACHE" ]; then
+    TERMINAL_ID=$(cat "$TERMINAL_CACHE")
+else
     TERMINAL_ID=$(osascript -e '
       tell application "Ghostty"
         set t to selected tab of front window
@@ -27,6 +34,15 @@ if [ "$HOOK_EVENT_NAME" = "SessionStart" ]; then
         return id of term
       end tell
     ' 2>/dev/null)
+    if [ -n "$TERMINAL_ID" ]; then
+        mkdir -p "$TERMINAL_CACHE_DIR" 2>/dev/null
+        echo "$TERMINAL_ID" > "$TERMINAL_CACHE"
+    fi
+fi
+
+# Clean up cache on SessionEnd
+if [ "$HOOK_EVENT_NAME" = "SessionEnd" ]; then
+    rm -f "$TERMINAL_CACHE" 2>/dev/null
 fi
 
 # Python does all JSON building, socket sending, and AI awareness output

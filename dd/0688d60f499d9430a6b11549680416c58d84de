@@ -1,0 +1,40 @@
+Sources/BuddyCLI/main.swift
+  a55fb81d8c57a9bf 237,729-759,793-794
+Sources/ClaudeCodeBuddy/Entity/Cat/TokenLevel.swift
+  a55fb81d8c57a9bf 7,54-68,76-90
+tests/BuddyCoreTests/TokenLevelTests.swift
+  d1e508953b601c91 60,79,145,158,162,170-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "dd0688d60f499d9430a6b11549680416c58d84de",
+  "prompts": {
+    "a55fb81d8c57a9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2cab02b-b424-479f-ae4c-e2df5f38df6a",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 67,
+      "total_deletions": 33,
+      "accepted_lines": 65,
+      "overriden_lines": 0
+    },
+    "d1e508953b601c91": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f2c154be-94b8-4a20-b8c0-8f1c1d46105e",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 7,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

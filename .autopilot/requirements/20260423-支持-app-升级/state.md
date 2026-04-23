@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 2
 max_iterations: 30
@@ -11,7 +11,7 @@ plan_mode: "deep"
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.claude/worktrees/upgrade/.autopilot/requirements/20260423-支持-app-升级"
 session_id: 852d4a05-0c59-4768-9b35-426760bc32c3
 started_at: "2026-04-23T15:14:28Z"
@@ -101,3 +101,4 @@ started_at: "2026-04-23T15:14:28Z"
 - [2026-04-23T15:30:00Z] design 阶段完成：事件驱动架构，GitHub Releases API + brew upgrade，Plan Reviewer PASS
 - [2026-04-23T16:25:00Z] implement 阶段完成：7 个任务全部完成，418 测试通过 + 7 新测试通过，编译通过
 - [2026-04-23T16:35:00Z] qa 阶段完成：Wave 1（425 tests 0 failures）+ Wave 1.5（10/10 场景通过）+ Wave 2（代码质量 OK）
+- [2026-04-23T16:42:00Z] merge 阶段完成：commit 28f4f53，产出物归档，phase: done

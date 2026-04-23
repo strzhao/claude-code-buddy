@@ -31,6 +31,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupUpdateChecker()
 
+        // Initialize notification manager (subscribes to EventBus for push notifications)
+        NotificationManager.shared.setup()
+        NotificationManager.shared.onNotificationClicked = { [weak self] sessionId in
+            guard let self = self,
+                  let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
+            self.scene?.acknowledgePermission(for: sessionId)
+            self.scene?.removePersistentBadge(for: sessionId)
+            for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
+        }
 
         // Ensure socket cleanup on any exit
         atexit {

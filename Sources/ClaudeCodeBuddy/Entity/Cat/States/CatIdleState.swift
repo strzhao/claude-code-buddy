@@ -86,13 +86,22 @@ final class CatIdleState: GKState, ResumableState {
     }
 
     func pickNextIdleSubState() -> IdleSubState {
-        // Weighted random: sleep 70%, breathe 10%, blink 10%, clean 10%
+        // Personality-modified idle weights
+        let weights = entity.personality.modifiedIdleWeights(
+            baseSleep: CatConstants.Idle.sleepWeight,
+            baseBreathe: CatConstants.Idle.breatheWeightCumulative - CatConstants.Idle.sleepWeight,
+            baseBlink: CatConstants.Idle.blinkWeightCumulative - CatConstants.Idle.breatheWeightCumulative,
+            baseClean: 1.0 - CatConstants.Idle.blinkWeightCumulative
+        )
         let roll = Float.random(in: 0..<1)
+        let sleepThreshold = weights.sleep
+        let breatheThreshold = sleepThreshold + weights.breathe
+        let blinkThreshold = breatheThreshold + weights.blink
         switch roll {
-        case ..<CatConstants.Idle.sleepWeight:             return .sleep
-        case ..<CatConstants.Idle.breatheWeightCumulative: return .breathe
-        case ..<CatConstants.Idle.blinkWeightCumulative:   return .blink
-        default:                                           return .clean
+        case ..<sleepThreshold:   return .sleep
+        case ..<breatheThreshold: return .breathe
+        case ..<blinkThreshold:   return .blink
+        default:                  return .clean
         }
     }
 

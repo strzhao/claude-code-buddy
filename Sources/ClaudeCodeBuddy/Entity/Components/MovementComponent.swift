@@ -25,7 +25,8 @@ class MovementComponent {
         self.jumpComponent = JumpComponent(
             containerNode: entity.containerNode,
             spriteNode: entity.node,
-            animationComponent: entity.animationComponent
+            animationComponent: entity.animationComponent,
+            personality: entity.personality
         )
     }
 
@@ -68,7 +69,7 @@ class MovementComponent {
         entity.face(towardX: target)
 
         // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) // px/s
+        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) * Double(entity.personality.walkSpeedMultiplier) // px/s
         let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
 
         // Start walk animation
@@ -215,9 +216,9 @@ class MovementComponent {
                 node.colorBlendFactor = sessionTintFactor
             }
 
-            // Speed: base foodWalkSpeed px/s, +30% for distance > 200px
+            // Speed: base foodWalkSpeed px/s, +30% for distance > 200px, personality modifier
             let baseSpeed: CGFloat = CatConstants.Movement.foodWalkSpeed
-            let speed = distance > 200 ? baseSpeed * 1.3 : baseSpeed
+            let speed = (distance > 200 ? baseSpeed * 1.3 : baseSpeed) * entity.personality.walkSpeedMultiplier
             let duration = max(0.2, Double(distance) / Double(speed))
             let move = SKAction.moveTo(x: targetX, duration: duration)
             move.timingMode = .easeIn

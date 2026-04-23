@@ -52,9 +52,14 @@ class DragComponent {
 
     func updatePosition(to scenePoint: CGPoint) {
         guard isDragging else { return }
-        let x = scenePoint.x - dragOffset.x
-        let y = max(scenePoint.y - dragOffset.y, CatConstants.Visual.groundY)
-        entity.containerNode.position = CGPoint(x: x, y: y)
+        let targetX = scenePoint.x - dragOffset.x
+        let targetY = max(scenePoint.y - dragOffset.y, CatConstants.Visual.groundY)
+        // Weight feel: lerp toward target instead of instant snap
+        let weightFactor: CGFloat = 1.0 - entity.personality.playfulness * 0.15
+        let currentPos = entity.containerNode.position
+        let newX = currentPos.x + (targetX - currentPos.x) * weightFactor
+        let newY = currentPos.y + (targetY - currentPos.y) * weightFactor
+        entity.containerNode.position = CGPoint(x: newX, y: newY)
     }
 
     func endDrag() {
@@ -218,8 +223,8 @@ class DragComponent {
             let sign = self.facingSign()
             let recoverX = SKAction.scaleX(to: 1.0 * sign, duration: CatConstants.Drag.landingRecoveryDuration)
             let recoverY = SKAction.scaleY(to: 1.0, duration: CatConstants.Drag.landingRecoveryDuration)
-            recoverX.timingMode = .easeOut
-            recoverY.timingMode = .easeOut
+            recoverX.timingMode = EasingCurves.catLand.timingMode
+            recoverY.timingMode = EasingCurves.catLand.timingMode
             self.entity.node.run(SKAction.group([recoverX, recoverY]), withKey: "landingRecovery")
         }
 

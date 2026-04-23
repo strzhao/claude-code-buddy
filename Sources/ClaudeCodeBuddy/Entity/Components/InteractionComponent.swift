@@ -47,6 +47,18 @@ class InteractionComponent {
         guard !entity.isDragOccupied else { return }
 
         entity.containerNode.physicsBody?.isDynamic = false
+
+        // Startle anticipation: brief freeze before reacting
+        let anticipationDuration = 0.05 * Double(entity.personality.timidness)
+        if let current = entity.node.action(forKey: "animation") {
+            current.speed = 0.0
+        }
+        let unfreeze = SKAction.run { [weak self] in
+            if let current = self?.entity.node.action(forKey: "animation") {
+                current.speed = 1.0
+            }
+        }
+        entity.node.run(SKAction.sequence([SKAction.wait(forDuration: anticipationDuration), unfreeze]), withKey: "startleAnticipation")
         entity.node.removeAllActions()
 
         // Decide escape direction: flee away from jumper
@@ -56,8 +68,8 @@ class InteractionComponent {
         // Check if fleeing direction has another cat; flip if opposite is clear
         if let obstacles = entity.nearbyObstacles?() {
             let fleeTarget = fleeRight
-                ? myX + CatConstants.Fright.fleeDistance
-                : myX - CatConstants.Fright.fleeDistance
+                ? myX + CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
+                : myX - CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
             let minDist = CatConstants.Separation.minDistance
 
             let hasObstacleInFleeDir = obstacles.contains { obs in
@@ -71,8 +83,8 @@ class InteractionComponent {
 
             if hasObstacleInFleeDir {
                 let oppositeTarget = fleeRight
-                    ? myX - CatConstants.Fright.fleeDistance
-                    : myX + CatConstants.Fright.fleeDistance
+                    ? myX - CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
+                    : myX + CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
                 let hasObstacleInOpposite = obstacles.contains { obs in
                     let obsX = obs.x
                     if fleeRight {
@@ -87,7 +99,9 @@ class InteractionComponent {
             }
         }
 
-        let rawTarget = fleeRight ? myX + CatConstants.Fright.fleeDistance : myX - CatConstants.Fright.fleeDistance
+        let rawTarget = fleeRight
+            ? myX + CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
+            : myX - CatConstants.Fright.fleeDistance * entity.personality.frightDistanceMultiplier
         let clampedTarget: CGFloat
         if entity.sceneWidth > 0 {
             clampedTarget = max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
@@ -108,7 +122,7 @@ class InteractionComponent {
 
         let scaredAnim = SKAction.animate(with: scaredFrames, timePerFrame: CatConstants.Animation.frameTimeScared)
         let slide      = SKAction.moveBy(x: slideDelta, y: 0, duration: CatConstants.Fright.slideDuration)
-        slide.timingMode = .easeOut
+        slide.timingMode = EasingCurves.catStartle.timingMode
         let rebound    = SKAction.moveBy(x: reboundDelta, y: 0, duration: CatConstants.Fright.reboundDuration)
         rebound.timingMode = .easeInEaseOut
 

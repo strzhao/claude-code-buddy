@@ -29,6 +29,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
 
+        setupUpdateChecker()
+
 
         // Ensure socket cleanup on any exit
         atexit {
@@ -295,5 +297,31 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         cachedActivityBounds = newBounds
         scene?.activityBounds = newBounds
         scene?.foodManager.activityBounds = newBounds
+    }
+
+    // MARK: - Update Checker
+
+    private func setupUpdateChecker() {
+        EventBus.shared.upgradeCompleted
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in
+                self?.restartApp()
+            }
+            .store(in: &cancellables)
+
+        UpdateChecker.shared.scheduleInitialCheck()
+    }
+
+    private func restartApp() {
+        let bundleURL = Bundle.main.bundleURL
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, error in
+            if let error = error {
+                NSLog("[AppDelegate] Restart failed: \(error)")
+            }
+        }
+        NSApplication.shared.terminate(nil)
     }
 }

@@ -90,6 +90,37 @@
 
 **约束**: 任何需要在 Settings 面板中处理点击的新控件，都应通过 SettingsPanel.sendEvent → Gallery.handleClickAt 链路，不要依赖 NSCollectionView 的选择机制。
 
+## 2026-04-23: AnimationTransitionManager 采用每猫实例而非单例
+
+**决策**: AnimationTransitionManager 由每只 CatSprite 在 init 中创建并持有（`unowned` 引用 node/containerNode/personality），不做全局单例。
+
+**否决**: 全局单例 AnimationTransitionManager，接受 node 引用参数。
+
+**理由**:
+- 单例持有 `unowned` 引用多只猫的 node，生命周期管理复杂（猫移除时需手动清理）
+- 每猫实例天然隔离状态，无需管理共享 action key 命名空间
+- 实例创建成本极低（仅存储引用 + personality 值），8 只猫 8 个实例无性能问题
+- 与 DragComponent、InteractionComponent 等现有组件模式一致（每实体独立实例）
+
+**影响文件**: AnimationTransitionManager.swift(新建), CatSprite.swift
+
+**约束**: AnimationTransitionManager 只通过 `unowned` 引用外部节点，不拥有任何节点。新增强化动画方法时必须保持在 0.15-0.3s 范围内以避免状态切换冲突。
+
+## 2026-04-23: CatPersonality 随机生成不持久化
+
+**决策**: 每只猫在 init 时通过 `CatPersonality.random()` 随机生成性格参数，不持久化到磁盘。每次 app 重启所有猫获得新性格。
+
+**否决**: 将性格参数写入 UserDefaults 或文件持久化，重启后恢复。
+
+**理由**:
+- 持久化增加复杂度（需关联 session_id、处理清理），收益仅为"猫的性格跨重启一致"
+- 桌面宠物的乐趣之一是不可预测性，每次随机反而增加趣味
+- 测试用 `CatPersonality.balanced` 固定值，不受随机影响
+
+**影响文件**: CatPersonality.swift(新建), CatSprite.swift
+
+**约束**: 如果未来需要"记住猫的性格"，添加 `Codable` 一行即可序列化。当前不预留序列化接口。
+
 ## 2026-04-21: 拖拽采用 DragComponent 组件而非新增 GKState
 
 **决策**: 新增 DragComponent（类比 InteractionComponent），通过 isDragging/isLanding/isOccupied 三态管理拖拽生命周期，不在 GKStateMachine 中新增 CatDraggedState。

@@ -117,6 +117,18 @@
 **Lesson**: GKStateMachine 的 same-state guard 会阻止任何"恢复到当前状态"的尝试。当某个机制（拖拽、暂停等）需要在不改变 GKState 的情况下中断并恢复时，恢复逻辑必须绕过 same-state guard：先 switchState(.idle) 强制触发 willExit/didEnter 生命周期，再 switchState(targetState)。对于简单状态（idle/thinking/toolUse）也可用 ResumableState.resume()，但 taskComplete 等需要完整 didEnter 流程（请求床位、走路）的状态必须走强制重入。
 **Evidence**: 拖拽 taskComplete 猫松手后不回猫屋。修复：restoreState 检测 targetState == currentState 时先 switchState(.idle) 再切回。
 
+### [2026-04-23] smoothTurn 必须检查 display link 可用性
+<!-- tags: spritekit, animation, skaction, testing, display-link -->
+**Scenario**: `smoothTurn` 使用 `SKAction.customAction(withDuration:actionBlock:)` 渐进改变 xScale 实现方向翻转，但测试环境无 display link，SKAction 从不执行，导致 xScale 永远不变、测试失败。
+**Lesson**: SKAction 的执行依赖 `SKView.displayLink` 驱动 `update(_:for:)` 回调。测试环境（无 scene/view）中 `node.run(action)` 会入队但不执行。任何基于 SKAction 的视觉增强必须检查 `containerNode.scene?.view != nil`，不可用时回退到即时赋值。同理，`SKAction.waitForDuration` 在无 display link 时也永远不完成。
+**Evidence**: FacingDirectionTests 5 个测试失败——smoothTurn 的 customAction 从不触发 actionBlock，xScale 保持初始值。添加 `let hasDisplayLink = containerNode.scene?.view != nil` 检查后回退到 instant xScale。
+
+### [2026-04-23] SwiftLint large_tuple 用内部结构体替代多元组返回
+<!-- tags: swiftlint, tuples, struct, code-quality -->
+**Scenario**: `CatPersonality.modifiedIdleWeights()` 返回 4 元素命名元组 `(sleep: Float, breathe: Float, blink: Float, clean: Float)`，SwiftLint 报 `large_tuple` 违规（>3 元素）。
+**Lesson**: SwiftLint `large_tuple` 规则限制元组元素不超过 3 个。返回 4+ 值时，在类型内部定义 `struct IdleWeights { let sleep, breathe, blink, clean: Float }` 替代元组。结构体有命名参数、可扩展、不触发 lint 违规，且调用方代码几乎不变（`.sleep` vs `.0`）。
+**Evidence**: CatPersonality.swift 从 `func modifiedIdleWeights(...) -> (sleep: Float, breathe: Float, blink: Float, clean: Float)` 改为返回 `IdleWeights` 结构体，lint 违规消失。
+
 ### [2026-04-21] ignoresMouseEvents 在拖拽后未恢复导致窗口拦截点击
 <!-- tags: appkit, window, mouse-events, drag, click-through -->
 **Scenario**: BuddyWindow 默认 ignoresMouseEvents=true（点击穿透），hover 时切为 false。拖拽结束后 MouseTracker 的 isDragging 置 false 但没有恢复 ignoresMouseEvents=true，导致整个窗口持续拦截鼠标事件，用户无法点击窗口后面的应用。

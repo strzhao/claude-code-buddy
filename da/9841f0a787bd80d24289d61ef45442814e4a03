@@ -1,0 +1,29 @@
+tests/BuddyCoreTests/EventBusTests.swift
+  29081db4507e59c3 25,43
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  29081db4507e59c3 34-42
+Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  29081db4507e59c3 266-267
+Sources/ClaudeCodeBuddy/Event/BuddyEvent.swift
+  29081db4507e59c3 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "da9841f0a787bd80d24289d61ef45442814e4a03",
+  "prompts": {
+    "29081db4507e59c3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "663b70c7-aee8-4a02-baf9-6baf5e8f4a69",
+        "model": "glm-5.1"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}

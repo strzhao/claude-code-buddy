@@ -58,6 +58,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private let sceneEnvironment = SceneEnvironment()
     private var cancellables = Set<AnyCancellable>()
 
+    /// Tracks whether an update is available (version info).
+    private(set) var updateAvailable: (current: String, new: String)?
+
     func updateSessionsCache(_ sessions: [SessionInfo]) {
         cachedSessions = sessions
 
@@ -120,6 +123,15 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 for cat in self.cats.values {
                     cat.onTimeOfDayChanged(time)
                 }
+            }
+            .store(in: &cancellables)
+
+        EventBus.shared.updateAvailable
+            .receive(on: RunLoop.main)
+            .sink { [weak self] event in
+                guard let self = self else { return }
+                self.updateAvailable = (event.currentVersion, event.newVersion)
+                self.showUpdateBadgesOnAllCats()
             }
             .store(in: &cancellables)
     }
@@ -230,6 +242,10 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 .map { ($0, $0.containerNode.position.x) }
         }
         cat.enterScene(sceneSize: size, activityBounds: activityBounds)
+
+        if updateAvailable != nil {
+            cat.addUpdateBadge()
+        }
     }
 
     func updateCatLabel(sessionId: String, label: String) {
@@ -242,6 +258,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     func removeCat(sessionId: String) {
         guard let cat = cats.removeValue(forKey: sessionId) else { return }
+        cat.removeUpdateBadge()
         foodManager.removeCatTracking(sessionId: sessionId)
         releaseBedSlot(for: sessionId)
         lastKnownTokenLevels.removeValue(forKey: sessionId)
@@ -727,6 +744,28 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         activityBounds.upperBound + CatConstants.TaskComplete.firstSlotOffset
             + CGFloat(slot) * CatConstants.TaskComplete.slotSpacing
     }
+
+    // MARK: - Update Badge Management
+
+    private func showUpdateBadgesOnAllCats() {
+        guard updateAvailable != nil else { return }
+        for cat in cats.values {
+            cat.addUpdateBadge()
+        }
+    }
+
+    private func removeAllUpdateBadges() {
+        for cat in cats.values {
+            cat.removeUpdateBadge()
+        }
+    }
+
+    private func putAllCatsInUpgradeMode() {
+        for cat in cats.values {
+            guard [.idle, .thinking, .toolUse, .permissionRequest].contains(cat.currentState) else { continue }
+            cat.startUpgradeAnimation()
+        }
+    }
 }
 
 // MARK: - SceneControlling
@@ -749,6 +788,7 @@ extension BuddyScene: SceneControlling {
             tabName: tabHidden ? nil : cat.tabNameNode?.text,
             hasAlertOverlay: cat.alertOverlayNode != nil,
             hasPersistentBadge: cat.persistentBadgeNode != nil,
+            hasUpdateBadge: cat.updateBadgeNode != nil,
             permissionAcknowledged: cat.permissionAcknowledged
         )
     }
@@ -770,6 +810,7 @@ extension BuddyScene: SceneControlling {
                 tabName: tabHidden ? nil : cat.tabNameNode?.text,
                 hasAlertOverlay: cat.alertOverlayNode != nil,
                 hasPersistentBadge: cat.persistentBadgeNode != nil,
+                hasUpdateBadge: cat.updateBadgeNode != nil,
                 permissionAcknowledged: cat.permissionAcknowledged
             )
         }
@@ -785,7 +826,16 @@ extension BuddyScene: SceneControlling {
     }
 
     func simulateClick(sessionId: String) -> Bool {
-        guard cats[sessionId] != nil else { return false }
+        guard let cat = cats[sessionId] else { return false }
+
+        // Handle update badge click — takes priority
+        if cat.updateBadgeNode != nil {
+            removeAllUpdateBadges()
+            putAllCatsInUpgradeMode()
+            UpdateChecker.shared.startUpgrade()
+            return true
+        }
+
         acknowledgePermission(for: sessionId)
         removePersistentBadge(for: sessionId)
         return true

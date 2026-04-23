@@ -263,7 +263,8 @@ class SessionManager {
                 scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
                 // Publish to EventBus for future subscribers
                 EventBus.shared.stateChanged.send(StateChangeEvent(
-                    sessionId: sessionId, newState: entityState, toolDescription: desc
+                    sessionId: sessionId, newState: entityState, toolDescription: desc,
+                    label: sessions[sessionId]?.label
                 ))
             }
 

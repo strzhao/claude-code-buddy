@@ -61,6 +61,9 @@ class CatSprite {
     /// Component that owns all label and alert overlay nodes.
     private(set) var labelComponent: LabelComponent!
 
+    /// Per-cat personality traits influencing behavior parameters.
+    let personality: CatPersonality
+
     // MARK: - GKStateMachine
 
     private(set) var stateMachine: GKStateMachine!
@@ -121,7 +124,7 @@ class CatSprite {
     /// Single source of truth for horizontal facing direction.
     /// didSet auto-applies xScale so callers never forget to sync visuals.
     var facingRight: Bool = false {
-        didSet { applyFacingDirection() }
+        didSet { applyFacingDirection(animated: facingRight != oldValue) }
     }
     /// Cached scene width for boundary clamping during random walk.
     var sceneWidth: CGFloat = 0
@@ -143,6 +146,7 @@ class CatSprite {
 
     init(sessionId: String) {
         self.sessionId = sessionId
+        self.personality = CatPersonality.random()
 
         // Start with a placeholder 48x48 colored square if textures are missing
         node = SKSpriteNode(color: .orange, size: CatConstants.Physics.placeholderSize)
@@ -151,7 +155,7 @@ class CatSprite {
         containerNode.name = "cat_\(sessionId)"
         containerNode.addChild(node)
 
-        animationComponent = AnimationComponent(node: node)
+        animationComponent = AnimationComponent(node: node, personality: personality)
 
         setupPhysicsBody()
         animationComponent.loadTextures(from: SkinPackManager.shared.activeSkin)
@@ -223,13 +227,21 @@ class CatSprite {
         facingRight = right
     }
 
-    func applyFacingDirection() {
+    func applyFacingDirection(animated: Bool = false) {
         // Check if the skin's sprites face right by default (true = right, false = left)
         let spriteFacesRight = SkinPackManager.shared.activeSkin.manifest.spriteFacesRight ?? true
-        // When sprite faces right: facingRight=true → xScale=1, facingRight=false → xScale=-1
-        // When sprite faces left: facingRight=true → xScale=-1, facingRight=false → xScale=1
-        let xScale: CGFloat = (facingRight == spriteFacesRight) ? 1.0 : -1.0
-        node.xScale = xScale
+        let shouldFaceRight = facingRight == spriteFacesRight
+
+        // Only animate when in a live scene (has display link); tests need instant xScale
+        let hasDisplayLink = containerNode.scene?.view != nil
+        if animated && hasDisplayLink {
+            let tm = AnimationTransitionManager(
+                node: node, containerNode: containerNode, personality: personality
+            )
+            tm.smoothTurn(toRight: shouldFaceRight)
+        } else {
+            node.xScale = shouldFaceRight ? 1.0 : -1.0
+        }
         // Update label scale compensation (handles both facing flip and token scale)
         labelComponent.updateScaleCompensation(tokenScale: tokenScale, facingRight: facingRight)
     }
@@ -481,10 +493,11 @@ class CatSprite {
 
     func playExcitedReaction(delay: TimeInterval, completion: @escaping () -> Void) {
         let wait = SKAction.wait(forDuration: delay)
-        // Small hop on node (not containerNode) to avoid affecting physics position
-        let hopUp = SKAction.moveBy(x: 0, y: 6, duration: 0.1)
-        hopUp.timingMode = .easeOut
-        let hopDown = SKAction.moveBy(x: 0, y: -6, duration: 0.1)
+        // Personality-based hop height
+        let hopHeight = personality.excitedHopHeight
+        let hopUp = SKAction.moveBy(x: 0, y: hopHeight, duration: 0.1)
+        hopUp.timingMode = EasingCurves.catExcited.timingMode
+        let hopDown = SKAction.moveBy(x: 0, y: -hopHeight, duration: 0.1)
         hopDown.timingMode = .easeIn
         let hop = SKAction.sequence([hopUp, hopDown])
         // Flash paw frame briefly
@@ -624,6 +637,12 @@ extension CatSprite: EnvironmentResponder {
         // Apply behavior modifier to movement speed
         let modifier = weather.behaviorModifier
         movementComponent.speedMultiplier = modifier.walkSpeedMultiplier
+
+        // Visual weather reaction
+        let tm = AnimationTransitionManager(
+            node: node, containerNode: containerNode, personality: personality
+        )
+        tm.playWeatherReaction(for: weather)
     }
 
     func onTimeOfDayChanged(_ time: TimeOfDay) {

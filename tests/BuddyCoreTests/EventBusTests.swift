@@ -22,7 +22,7 @@ final class EventBusTests: XCTestCase {
             .sink { received = $0 }
             .store(in: &cancellables)
 
-        let event = StateChangeEvent(sessionId: "s1", newState: .thinking, toolDescription: "desc")
+        let event = StateChangeEvent(sessionId: "s1", newState: .thinking, toolDescription: "desc", label: nil)
         EventBus.shared.stateChanged.send(event)
 
         XCTAssertNotNil(received)
@@ -40,7 +40,7 @@ final class EventBusTests: XCTestCase {
         }
 
         EventBus.shared.stateChanged.send(
-            StateChangeEvent(sessionId: "s1", newState: .idle, toolDescription: nil)
+            StateChangeEvent(sessionId: "s1", newState: .idle, toolDescription: nil, label: nil)
         )
         XCTAssertEqual(count, 3)
     }

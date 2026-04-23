@@ -4,7 +4,7 @@ import Foundation
 
 /// Discrete growth levels driven by cumulative token usage.
 /// Each level maps to a visual scale factor and required window height.
-/// 16 levels with gradual growth — Lv16 at 100M+ tokens reaches 1.8x max.
+/// 16 levels with gradual growth — Lv16 at 100M+ tokens reaches 1.35x max.
 enum TokenLevel: Int, CaseIterable, Comparable {
     case lv1 = 1
     case lv2 = 2
@@ -51,21 +51,21 @@ enum TokenLevel: Int, CaseIterable, Comparable {
     var scale: CGFloat {
         switch self {
         case .lv1:  return 1.00
-        case .lv2:  return 1.05
-        case .lv3:  return 1.10
-        case .lv4:  return 1.15
-        case .lv5:  return 1.20
-        case .lv6:  return 1.25
-        case .lv7:  return 1.30
-        case .lv8:  return 1.35
-        case .lv9:  return 1.40
-        case .lv10: return 1.45
-        case .lv11: return 1.50
-        case .lv12: return 1.55
-        case .lv13: return 1.60
-        case .lv14: return 1.65
-        case .lv15: return 1.72
-        case .lv16: return 1.80
+        case .lv2:  return 1.02
+        case .lv3:  return 1.05
+        case .lv4:  return 1.07
+        case .lv5:  return 1.10
+        case .lv6:  return 1.12
+        case .lv7:  return 1.15
+        case .lv8:  return 1.17
+        case .lv9:  return 1.19
+        case .lv10: return 1.21
+        case .lv11: return 1.23
+        case .lv12: return 1.26
+        case .lv13: return 1.28
+        case .lv14: return 1.30
+        case .lv15: return 1.33
+        case .lv16: return 1.35
         }
     }
 
@@ -73,21 +73,21 @@ enum TokenLevel: Int, CaseIterable, Comparable {
     var windowHeight: CGFloat {
         switch self {
         case .lv1:  return 80
-        case .lv2:  return 84
-        case .lv3:  return 89
-        case .lv4:  return 93
-        case .lv5:  return 98
-        case .lv6:  return 102
-        case .lv7:  return 106
-        case .lv8:  return 111
-        case .lv9:  return 115
-        case .lv10: return 119
-        case .lv11: return 124
-        case .lv12: return 128
-        case .lv13: return 132
-        case .lv14: return 137
-        case .lv15: return 143
-        case .lv16: return 150
+        case .lv2:  return 82
+        case .lv3:  return 84
+        case .lv4:  return 86
+        case .lv5:  return 88
+        case .lv6:  return 90
+        case .lv7:  return 92
+        case .lv8:  return 93
+        case .lv9:  return 95
+        case .lv10: return 97
+        case .lv11: return 98
+        case .lv12: return 100
+        case .lv13: return 102
+        case .lv14: return 104
+        case .lv15: return 106
+        case .lv16: return 108
         }
     }
 

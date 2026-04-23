@@ -15,16 +15,18 @@ class JumpComponent {
     unowned let containerNode: SKNode
     unowned let spriteNode: SKSpriteNode
     let animationComponent: AnimationComponent
+    let personality: CatPersonality
 
     /// True when running in a real SpriteKit scene with display link (not in XCTest).
     var hasDisplayLink: Bool { containerNode.scene?.view != nil }
 
     // MARK: - Init
 
-    init(containerNode: SKNode, spriteNode: SKSpriteNode, animationComponent: AnimationComponent) {
+    init(containerNode: SKNode, spriteNode: SKSpriteNode, animationComponent: AnimationComponent, personality: CatPersonality) {
         self.containerNode = containerNode
         self.spriteNode = spriteNode
         self.animationComponent = animationComponent
+        self.personality = personality
     }
 
     // MARK: - Trajectory Model
@@ -63,7 +65,7 @@ class JumpComponent {
         groundY: CGFloat,
         goingRight: Bool
     ) -> JumpTrajectory {
-        let v0y = CGFloat.random(in: CatConstants.PhysicsJump.velocityYRange)
+        let v0y = CGFloat.random(in: CatConstants.PhysicsJump.velocityYRange) * personality.jumpVelocityMultiplier
         let horizontalDistance = abs(landX - approachX)
         let directionSign: CGFloat = goingRight ? 1 : -1
 
@@ -93,13 +95,13 @@ class JumpComponent {
     private func buildCrouchActions() -> [SKAction] {
         let crouchDuration = Double.random(in: CatConstants.PhysicsJump.crouchDurationRange)
         let crouch = SKAction.scaleY(to: CatConstants.PhysicsJump.crouchScaleY, duration: crouchDuration)
-        crouch.timingMode = .easeIn
+        crouch.timingMode = EasingCurves.catJump.timingMode
 
         let stretch = SKAction.scaleY(
             to: CatConstants.PhysicsJump.launchStretchScaleY,
             duration: CatConstants.PhysicsJump.launchStretchDuration
         )
-        stretch.timingMode = .easeOut
+        stretch.timingMode = EasingCurves.catJump.timingMode
 
         return [crouch, stretch]
     }
@@ -158,17 +160,18 @@ class JumpComponent {
             self?.spawnDustParticles()
         }
 
-        // Hold squash briefly
-        let hold = SKAction.wait(forDuration: CatConstants.PhysicsJump.landingSquashDuration)
+        // Hold squash briefly, modified by personality
+        let holdDuration = CatConstants.PhysicsJump.landingSquashDuration * (1.0 + Double(personality.playfulness) * 0.3)
+        let hold = SKAction.wait(forDuration: holdDuration)
 
-        // Recover to normal scale
+        // Recover to normal scale with easing curve
         let recover = SKAction.run { [weak self] in
             guard let self = self else { return }
             let facingSign: CGFloat = self.spriteNode.xScale > 0 ? 1 : -1
             let recoverX = SKAction.scaleX(to: 1.0 * facingSign, duration: CatConstants.PhysicsJump.landingRecoveryDuration)
             let recoverY = SKAction.scaleY(to: 1.0, duration: CatConstants.PhysicsJump.landingRecoveryDuration)
-            recoverX.timingMode = .easeOut
-            recoverY.timingMode = .easeOut
+            recoverX.timingMode = EasingCurves.catLand.timingMode
+            recoverY.timingMode = EasingCurves.catLand.timingMode
             self.spriteNode.run(SKAction.group([recoverX, recoverY]), withKey: "landingRecovery")
         }
 

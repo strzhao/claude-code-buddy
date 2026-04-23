@@ -10,6 +10,7 @@ class AnimationComponent {
     // MARK: - Properties
 
     unowned let node: SKSpriteNode
+    let personality: CatPersonality
 
     /// Animation texture arrays keyed by animation name string.
     /// Known names: "idle-a", "idle-b", "clean", "sleep", "scared", "paw", "walk-a", "walk-b", "jump"
@@ -17,8 +18,9 @@ class AnimationComponent {
 
     // MARK: - Init
 
-    init(node: SKSpriteNode) {
+    init(node: SKSpriteNode, personality: CatPersonality) {
         self.node = node
+        self.personality = personality
     }
 
     // MARK: - Texture Loading
@@ -149,12 +151,9 @@ class AnimationComponent {
 
     /// Start a subtle Y-scale oscillation (breathing) on the node.
     func startBreathing() {
-        let breatheIn = SKAction.scaleY(to: CatConstants.Animation.breatheScaleY, duration: CatConstants.Animation.breatheDuration)
-        breatheIn.timingMode = .easeInEaseOut
-        let breatheOut = SKAction.scaleY(to: 1.0, duration: CatConstants.Animation.breatheDuration)
-        breatheOut.timingMode = .easeInEaseOut
-        let breathe = SKAction.repeatForever(SKAction.sequence([breatheIn, breatheOut]))
-        node.run(breathe, withKey: "breathing")
+        let baseAmplitude = CatConstants.Animation.breatheScaleY - 1.0
+        let tm = AnimationTransitionManager(node: node, containerNode: SKNode(), personality: personality)
+        tm.startEnhancedBreathing(baseAmplitude: baseAmplitude, duration: CatConstants.Animation.breatheDuration)
     }
 
     // MARK: - Action Management

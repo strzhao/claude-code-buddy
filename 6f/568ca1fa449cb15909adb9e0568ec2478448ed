@@ -1,0 +1,48 @@
+.autopilot/patterns.md
+  a02d31d3d27797a0 120-131
+.autopilot/requirements/20260423-深入分析下当猫咪有哪/completion-report.md
+  a02d31d3d27797a0 1-29
+.autopilot/requirements/20260423-深入分析下当猫咪有哪/state.md
+  a02d31d3d27797a0 3,14,79
+.autopilot/requirements/20260423-深入分析下当猫咪有哪/design.md
+  a02d31d3d27797a0 1-30
+.autopilot/requirements/20260423-深入分析下当猫咪有哪/qa-report.md
+  a02d31d3d27797a0 1-20
+.autopilot/index.md
+  a02d31d3d27797a0 4-5,16-17
+.autopilot/decisions.md
+  a02d31d3d27797a0 93-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "6f568ca1fa449cb15909adb9e0568ec2478448ed",
+  "prompts": {
+    "0e85b2d5097813de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "304389f9-40e2-477e-bcd7-d3630e135387",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 1,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "a02d31d3d27797a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "322cb052-d594-4222-b31d-c9ad2c00ee43",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 129,
+      "total_deletions": 2,
+      "accepted_lines": 129,
+      "overriden_lines": 0
+    }
+  }
+}

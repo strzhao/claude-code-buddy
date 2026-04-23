@@ -1,0 +1,43 @@
+Sources/ClaudeCodeBuddy/Event/EventBus.swift
+  cbda5bb32eedaf97 19-22
+Sources/ClaudeCodeBuddy/Event/BuddyEvent.swift
+  cbda5bb32eedaf97 24-29
+tests/BuddyCoreTests/UpdateCheckerTests.swift
+  cbda5bb32eedaf97 1-61
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  cbda5bb32eedaf97 406-424
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  cbda5bb32eedaf97 101,475-500
+Sources/ClaudeCodeBuddy/Entity/Components/LabelComponent.swift
+  cbda5bb32eedaf97 20,151-152,236-276
+Sources/ClaudeCodeBuddy/Update/UpdateChecker.swift
+  cbda5bb32eedaf97 1-202
+Sources/ClaudeCodeBuddy/Scene/SceneControlling.swift
+  cbda5bb32eedaf97 17,31
+.autopilot/requirements/20260423-支持-app-升级/brainstorm.md
+  cbda5bb32eedaf97 1-53
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  cbda5bb32eedaf97 32-33,301-326
+Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  cbda5bb32eedaf97 61-63,128-136,245-248,261,747-768,791,813,829-838
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "28f4f5355351afd70342d13a2443b261f514846b",
+  "prompts": {
+    "cbda5bb32eedaf97": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "852d4a05-0c59-4768-9b35-426760bc32c3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1823,
+      "total_deletions": 50,
+      "accepted_lines": 1774,
+      "overriden_lines": 0
+    }
+  }
+}

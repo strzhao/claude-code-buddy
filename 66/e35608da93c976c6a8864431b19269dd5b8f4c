@@ -1,0 +1,29 @@
+.autopilot/requirements/20260423-支持-app-升级/qa-report.md
+  cbda5bb32eedaf97 1-28
+.autopilot/requirements/20260423-支持-app-升级/completion-report.md
+  cbda5bb32eedaf97 1-31
+.autopilot/requirements/20260423-支持-app-升级/design.md
+  cbda5bb32eedaf97 1-26
+.autopilot/requirements/20260423-支持-app-升级/state.md
+  cbda5bb32eedaf97 3,14,104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "66e35608da93c976c6a8864431b19269dd5b8f4c",
+  "prompts": {
+    "cbda5bb32eedaf97": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "852d4a05-0c59-4768-9b35-426760bc32c3",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 88,
+      "total_deletions": 2,
+      "accepted_lines": 1365,
+      "overriden_lines": 0
+    }
+  }
+}

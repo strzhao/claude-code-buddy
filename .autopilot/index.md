@@ -1,6 +1,8 @@
 # Knowledge Index
 
 ## Decisions
+- [2026-04-23] AnimationTransitionManager 每猫实例而非单例 | tags: animation, spritekit, transition, personality | → decisions.md
+- [2026-04-23] CatPersonality 随机生成不持久化 | tags: personality, random, persistence | → decisions.md
 - [2026-04-19] 皮肤颜色变体采用 manifest variants 数组 | tags: skin, variant, manifest, architecture | → decisions.md
 - [2026-04-21] 拖拽采用 DragComponent 组件而非新增 GKState | tags: architecture, drag, component, state-machine | → decisions.md
 - [2026-04-19] Settings 面板点击通过 Panel.sendEvent 而非 NSCollectionView | tags: appkit, lsuielement, panel, click, settings | → decisions.md
@@ -11,6 +13,8 @@
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions.md
 
 ## Patterns
+- [2026-04-23] smoothTurn 必须检查 display link 可用性 | tags: spritekit, animation, skaction, testing, display-link | → patterns.md
+- [2026-04-23] SwiftLint large_tuple 用内部结构体替代多元组返回 | tags: swiftlint, tuples, struct, code-quality | → patterns.md
 - [2026-04-20] SpriteKit 标签阴影常量命名与用法不一致导致阴影错位 | tags: spritekit, labels, shadow, constants, position | → patterns.md
 - [2026-04-19] LSUIElement app 中 NSCollectionView 选择不工作，用 sendEvent 绕过 | tags: appkit, lsuielement, nscollectionview, key-window, click | → patterns.md
 - [2026-04-19] 第三方精灵朝向需 manifest sprite_faces_right 声明 | tags: skin, sprite, facing, manifest | → patterns.md

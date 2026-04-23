@@ -21,6 +21,12 @@ struct FoodSpawnEvent {
     let nearX: CGFloat
 }
 
+struct UpdateAvailableEvent {
+    let currentVersion: String
+    let newVersion: String
+    let htmlURL: URL
+}
+
 // Placeholder types for task 008
 enum WeatherState: String, CaseIterable {
     case clear, cloudy, rain, snow, wind

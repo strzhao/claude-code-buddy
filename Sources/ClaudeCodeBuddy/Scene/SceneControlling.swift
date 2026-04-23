@@ -14,6 +14,7 @@ struct CatSnapshot {
     let tabName: String?
     let hasAlertOverlay: Bool
     let hasPersistentBadge: Bool
+    let hasUpdateBadge: Bool
     let permissionAcknowledged: Bool
 
     func toDict() -> [String: Any] {
@@ -27,6 +28,7 @@ struct CatSnapshot {
             "activity_bounds": [activityBoundsMin, activityBoundsMax],
             "has_alert_overlay": hasAlertOverlay,
             "has_persistent_badge": hasPersistentBadge,
+            "has_update_badge": hasUpdateBadge,
             "permission_acknowledged": permissionAcknowledged,
         ]
         if let text = labelText { dict["label_text"] = text }

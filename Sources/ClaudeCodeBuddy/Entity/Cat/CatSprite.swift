@@ -98,6 +98,7 @@ class CatSprite {
     }
     var alertOverlayNode: SKNode? { labelComponent?.alertOverlayNode }
     var persistentBadgeNode: SKNode? { labelComponent?.persistentBadgeNode }
+    var updateBadgeNode: SKNode? { labelComponent?.updateBadgeNode }
 
     var sessionColor: SessionColor?
     var sessionTintFactor: CGFloat = CatConstants.Visual.tintFactor
@@ -469,6 +470,32 @@ class CatSprite {
 
     func removePersistentBadge() {
         labelComponent.removePersistentBadge()
+    }
+
+    // MARK: - Update Badge
+
+    func addUpdateBadge() {
+        labelComponent.addUpdateBadge()
+    }
+
+    func removeUpdateBadge() {
+        labelComponent.removeUpdateBadge()
+    }
+
+    // MARK: - Upgrade Animation
+
+    func startUpgradeAnimation() {
+        guard let frames = animationComponent.textures(for: "paw"), !frames.isEmpty else { return }
+        node.removeAllActions()
+        let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimePaw)
+        node.run(SKAction.repeatForever(animate), withKey: "upgradeAnimation")
+        node.texture = frames[0]
+        node.color = sessionColor?.nsColor ?? .white
+        node.colorBlendFactor = sessionTintFactor
+    }
+
+    func stopUpgradeAnimation() {
+        node.removeAction(forKey: "upgradeAnimation")
     }
 
     // MARK: - Tab Name

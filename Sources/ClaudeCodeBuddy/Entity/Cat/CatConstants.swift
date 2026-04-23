@@ -403,4 +403,23 @@ enum CatConstants {
         /// Maximum spawn placement attempts.
         static let maxSpawnAttempts: Int = 10
     }
+
+    // MARK: - UpdateBadge
+    enum UpdateBadge {
+        /// Radius of the update badge circle
+        static let radius: CGFloat = 10
+        /// Position offset from sprite center
+        static let xOffset: CGFloat = 22
+        static let yOffset: CGFloat = 38
+        /// Duration of one pulse phase (total cycle = 2x this)
+        static let pulseDuration: TimeInterval = 1.0
+        /// Minimum alpha during pulse
+        static let minAlpha: CGFloat = 0.5
+        /// Font size for the arrow text
+        static let fontSize: CGFloat = 14
+        /// Stroke line width
+        static let lineWidth: CGFloat = 1.5
+        /// Fill color (green)
+        static let fillColor = NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1)
+    }
 }

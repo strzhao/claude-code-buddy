@@ -17,6 +17,7 @@ class LabelComponent {
     private(set) var tabNameShadowNode: SKLabelNode?
     private(set) var alertOverlayNode: SKNode?
     private(set) var persistentBadgeNode: SKNode?
+    private(set) var updateBadgeNode: SKNode?
     private(set) var tabName: String = ""
 
     // MARK: - Init
@@ -147,6 +148,8 @@ class LabelComponent {
         alertOverlayNode?.yScale = compensatedY
         persistentBadgeNode?.xScale = compensatedX
         persistentBadgeNode?.yScale = compensatedY
+        updateBadgeNode?.xScale = compensatedX
+        updateBadgeNode?.yScale = compensatedY
     }
 
     // MARK: - Alert Overlay
@@ -229,5 +232,46 @@ class LabelComponent {
     func removePersistentBadge() {
         persistentBadgeNode?.removeFromParent()
         persistentBadgeNode = nil
+    }
+
+    // MARK: - Update Badge
+
+    func addUpdateBadge() {
+        removeUpdateBadge()
+
+        let overlay = SKNode()
+        overlay.zPosition = CatConstants.Visual.alertOverlayZPosition
+
+        let circle = SKShapeNode(circleOfRadius: CatConstants.UpdateBadge.radius)
+        circle.fillColor = CatConstants.UpdateBadge.fillColor
+        circle.strokeColor = .white
+        circle.lineWidth = CatConstants.UpdateBadge.lineWidth
+        circle.position = CGPoint(x: CatConstants.UpdateBadge.xOffset,
+                                  y: CatConstants.UpdateBadge.yOffset)
+        overlay.addChild(circle)
+
+        let label = SKLabelNode(text: "↑")
+        label.fontName = NSFont.boldSystemFont(ofSize: CatConstants.UpdateBadge.fontSize).fontName
+        label.fontSize = CatConstants.UpdateBadge.fontSize
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: CatConstants.UpdateBadge.xOffset,
+                                 y: CatConstants.UpdateBadge.yOffset)
+        overlay.addChild(label)
+
+        let fadeOut = SKAction.fadeAlpha(to: CatConstants.UpdateBadge.minAlpha,
+                                         duration: CatConstants.UpdateBadge.pulseDuration)
+        let fadeIn = SKAction.fadeAlpha(to: 1.0,
+                                        duration: CatConstants.UpdateBadge.pulseDuration)
+        overlay.run(SKAction.repeatForever(SKAction.sequence([fadeOut, fadeIn])))
+
+        spriteNode.addChild(overlay)
+        updateBadgeNode = overlay
+    }
+
+    func removeUpdateBadge() {
+        updateBadgeNode?.removeFromParent()
+        updateBadgeNode = nil
     }
 }

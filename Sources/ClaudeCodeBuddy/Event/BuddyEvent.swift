@@ -10,6 +10,7 @@ struct StateChangeEvent {
     let sessionId: String
     let newState: EntityState
     let toolDescription: String?
+    let label: String?
 }
 
 struct LabelChangeEvent {

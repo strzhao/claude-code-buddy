@@ -16,5 +16,9 @@ final class EventBus {
     let weatherChanged = PassthroughSubject<WeatherState, Never>()
     let timeOfDayChanged = PassthroughSubject<TimeOfDay, Never>()
 
+    // Update events
+    let updateAvailable = PassthroughSubject<UpdateAvailableEvent, Never>()
+    let upgradeCompleted = PassthroughSubject<Void, Never>()
+
     private init() {}
 }

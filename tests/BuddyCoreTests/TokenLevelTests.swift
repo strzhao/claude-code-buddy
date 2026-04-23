@@ -57,7 +57,7 @@ final class TokenLevelTests: XCTestCase {
 
     func testScaleStartAndEnd() {
         XCTAssertEqual(TokenLevel.lv1.scale, 1.0)
-        XCTAssertEqual(TokenLevel.lv16.scale, 1.8)
+        XCTAssertEqual(TokenLevel.lv16.scale, 1.35)
     }
 
     func testScaleMonotonicallyIncreasing() {
@@ -76,7 +76,7 @@ final class TokenLevelTests: XCTestCase {
 
     func testWindowHeightValues() {
         XCTAssertEqual(TokenLevel.lv1.windowHeight, 80)
-        XCTAssertEqual(TokenLevel.lv16.windowHeight, 150)
+        XCTAssertEqual(TokenLevel.lv16.windowHeight, 108)
     }
 
     func testWindowHeightMonotonicallyIncreasing() {
@@ -142,7 +142,7 @@ final class TokenLevelTests: XCTestCase {
         let changed = cat.applyTokenLevel(totalTokens: 150_000)
         XCTAssertTrue(changed)
         XCTAssertEqual(cat.currentTokenLevel, .lv2)
-        XCTAssertEqual(cat.tokenScale, 1.05, accuracy: 0.001)
+        XCTAssertEqual(cat.tokenScale, 1.02, accuracy: 0.001)
 
         let unchanged = cat.applyTokenLevel(totalTokens: 200_000)
         XCTAssertFalse(unchanged)
@@ -155,11 +155,11 @@ final class TokenLevelTests: XCTestCase {
 
         cat.applyTokenLevel(totalTokens: 2_500_000)
         XCTAssertEqual(cat.currentTokenLevel, .lv7)
-        XCTAssertEqual(cat.tokenScale, 1.30, accuracy: 0.001)
+        XCTAssertEqual(cat.tokenScale, 1.15, accuracy: 0.001)
 
         cat.applyTokenLevel(totalTokens: 200_000_000)
         XCTAssertEqual(cat.currentTokenLevel, .lv16)
-        XCTAssertEqual(cat.tokenScale, 1.8, accuracy: 0.001)
+        XCTAssertEqual(cat.tokenScale, 1.35, accuracy: 0.001)
     }
 
     func testEnterSceneUsesTokenScale() {
@@ -167,7 +167,7 @@ final class TokenLevelTests: XCTestCase {
         cat.applyTokenLevel(totalTokens: 5_000_000)
 
         cat.enterScene(sceneSize: CGSize(width: 800, height: 120))
-        XCTAssertEqual(cat.containerNode.xScale, 1.4, accuracy: 0.001)
-        XCTAssertEqual(cat.containerNode.yScale, 1.4, accuracy: 0.001)
+        XCTAssertEqual(cat.containerNode.xScale, 1.19, accuracy: 0.001)
+        XCTAssertEqual(cat.containerNode.yScale, 1.19, accuracy: 0.001)
     }
 }

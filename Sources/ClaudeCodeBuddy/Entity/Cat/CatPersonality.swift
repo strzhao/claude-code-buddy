@@ -87,4 +87,9 @@ struct CatPersonality {
     var jumpVelocityMultiplier: CGFloat {
         0.9 + (playfulness * 0.25)
     }
+
+    /// Shift in step-size probability: higher activity biases toward larger steps.
+    var stepSizeActivityShift: Float {
+        Float(max(0, activity - 0.3)) * 0.28
+    }
 }

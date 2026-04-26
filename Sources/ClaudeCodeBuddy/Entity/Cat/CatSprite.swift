@@ -82,6 +82,12 @@ class CatSprite {
     var pendingStateAfterDrag: CatState?
     var pendingToolDescriptionAfterDrag: String?
 
+    /// True during the handoff window (0.15s). Rapid state changes queue here.
+    private var isTransitioningOut = false
+    /// State queued while isTransitioningOut is true (last-wins).
+    private var pendingStateAfterTransition: CatState?
+    private var pendingToolDescriptionAfterTransition: String?
+
     /// Whether this cat is being dragged or landing from a drag drop.
     var isDragging: Bool { dragComponent?.isDragging ?? false }
     var isDragOccupied: Bool { dragComponent?.isOccupied ?? false }
@@ -392,32 +398,28 @@ class CatSprite {
     // MARK: - State Machine
 
     func switchState(to newState: CatState, toolDescription: String? = nil) {
-        // Drag is a physical override that must complete before any state change.
-        // Queue ALL state changes during drag+landing (including .idle).
         if isDragOccupied {
             pendingStateAfterDrag = newState
             pendingToolDescriptionAfterDrag = toolDescription
             return
         }
 
-        // Eating is a brief animation (~0.7s) that must complete for proper food cleanup.
-        // Queue non-idle state changes; the done block in startEating will apply them.
         if currentState == .eating && newState != .idle {
             pendingStateAfterEating = newState
             pendingToolDescriptionAfterEating = toolDescription
             return
         }
 
-        // Safety net: always restore physics dynamics regardless of whether state actually changes
-        containerNode.physicsBody?.isDynamic = true
+        if isTransitioningOut {
+            pendingStateAfterTransition = newState
+            pendingToolDescriptionAfterTransition = toolDescription
+            return
+        }
 
-        // Store tool description before guard — permissionRequest resume() reads this
+        containerNode.physicsBody?.isDynamic = true
         pendingToolDescription = toolDescription
 
-        // Same-state guard: GKStateMachine rejects same-state transitions, but the cleanup
-        // below (removeAllActions) runs before enter(), leaving the cat frozen with no animation.
         if currentState == newState {
-            // permissionRequest may need label refresh when toolDescription changes
             if newState == .permissionRequest {
                 removeAlertOverlay()
                 (stateMachine.currentState as? CatPermissionRequestState)?.resume()
@@ -425,35 +427,116 @@ class CatSprite {
             return
         }
 
-        // Release any claimed food when switching to a different state
         if currentTargetFood != nil {
             currentTargetFood = nil
             onFoodAbandoned?(sessionId)
         }
 
-        // Clean up common animation keys before entering new state
-        node.removeAllActions()
+        // Stop positional actions immediately
         containerNode.removeAction(forKey: "randomWalk")
         containerNode.removeAction(forKey: "foodWalk")
         containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)
+        containerNode.removeAction(forKey: "bedWalk")
         removeAlertOverlay()
         hideLabel()
-        // Reset transform but preserve facing direction
-        node.position.y = 0  // clear any residual hop offset from playExcitedReaction
-        node.yScale = 1.0
-        node.zRotation = 0
-        applyFacingDirection()
 
-        let stateClass: AnyClass
-        switch newState {
-        case .idle:              stateClass = CatIdleState.self
-        case .thinking:          stateClass = CatThinkingState.self
-        case .toolUse:           stateClass = CatToolUseState.self
-        case .permissionRequest: stateClass = CatPermissionRequestState.self
-        case .eating:            stateClass = CatEatingState.self
-        case .taskComplete:      stateClass = CatTaskCompleteState.self
+        let hasDisplayLink = containerNode.scene?.view != nil
+        if !hasDisplayLink {
+            node.removeAllActions()
+            node.position.y = 0
+            node.yScale = 1.0
+            node.zRotation = 0
+            applyFacingDirection()
+            stateMachine.enter(stateClass(for: newState))
+            return
         }
-        stateMachine.enter(stateClass)
+
+        // Collect state-specific exit overlay actions
+        let exitActions = currentExitActions()
+
+        isTransitioningOut = true
+
+        // Speed up the primary looping animation
+        let primaryKey = primaryAnimationKey(for: currentState)
+        if let current = node.action(forKey: primaryKey) {
+            current.speed = CatConstants.Transition.exitAnimationSpeed
+        }
+
+        for (key, action) in exitActions {
+            node.run(action, withKey: key)
+        }
+
+        // Animate transform reset
+        if node.yScale != 1.0 {
+            let resetY = SKAction.scaleY(to: 1.0, duration: CatConstants.Transition.transformResetDuration)
+            resetY.timingMode = .easeOut
+            node.run(resetY, withKey: "transformResetY")
+        }
+        if node.zRotation != 0 {
+            let resetRot = SKAction.rotate(toAngle: 0, duration: CatConstants.Transition.transformResetDuration)
+            resetRot.timingMode = .easeOut
+            node.run(resetRot, withKey: "transformResetRot")
+        }
+        node.position.y = 0
+
+        let targetStateClass: AnyClass = stateClass(for: newState)
+
+        let dispatch = SKAction.sequence([
+            SKAction.wait(forDuration: CatConstants.Transition.handoffDuration),
+            SKAction.run { [weak self] in
+                guard let self = self else { return }
+                self.isTransitioningOut = false
+
+                self.node.removeAllActions()
+                self.node.yScale = 1.0
+                self.node.zRotation = 0
+                self.applyFacingDirection()
+
+                self.stateMachine.enter(targetStateClass)
+
+                if let pending = self.pendingStateAfterTransition {
+                    self.pendingStateAfterTransition = nil
+                    let desc = self.pendingToolDescriptionAfterTransition
+                    self.pendingToolDescriptionAfterTransition = nil
+                    self.switchState(to: pending, toolDescription: desc)
+                }
+            }
+        ])
+        node.run(dispatch, withKey: CatConstants.Transition.pendingDispatchKey)
+    }
+
+    private func primaryAnimationKey(for state: CatState) -> String {
+        switch state {
+        case .idle:              return "idleLoop"
+        case .thinking:          return "animation"
+        case .toolUse:           return "animation"
+        case .permissionRequest: return "animation"
+        case .eating:            return "animation"
+        case .taskComplete:      return "animation"
+        }
+    }
+
+    private func currentExitActions() -> [String: SKAction] {
+        switch stateMachine.currentState {
+        case let s as CatIdleState:              return s.prepareExitActions()
+        case let s as CatThinkingState:          return s.prepareExitActions()
+        case let s as CatToolUseState:           return s.prepareExitActions()
+        case let s as CatPermissionRequestState: return s.prepareExitActions()
+        case let s as CatTaskCompleteState:      return s.prepareExitActions()
+        case let s as CatEatingState:            return s.prepareExitActions()
+        default:                                 return [:]
+        }
+    }
+
+    private func stateClass(for state: CatState) -> AnyClass {
+        switch state {
+        case .idle:              return CatIdleState.self
+        case .thinking:          return CatThinkingState.self
+        case .toolUse:           return CatToolUseState.self
+        case .permissionRequest: return CatPermissionRequestState.self
+        case .eating:            return CatEatingState.self
+        case .taskComplete:      return CatTaskCompleteState.self
+        }
     }
 
     // MARK: - Organic Random Walk (toolUse)

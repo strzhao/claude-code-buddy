@@ -29,4 +29,8 @@ final class CatEatingState: GKState {
     override func willExit(to nextState: GKState) {
         entity.node.removeAction(forKey: "animation")
     }
+
+    func prepareExitActions() -> [String: SKAction] {
+        [:]
+    }
 }

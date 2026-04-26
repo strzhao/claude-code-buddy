@@ -47,6 +47,10 @@ final class CatToolUseState: GKState, ResumableState {
         entity.node.removeAction(forKey: "breathing")
     }
 
+    func prepareExitActions() -> [String: SKAction] {
+        [:]
+    }
+
     // MARK: - ResumableState
 
     func resume() {

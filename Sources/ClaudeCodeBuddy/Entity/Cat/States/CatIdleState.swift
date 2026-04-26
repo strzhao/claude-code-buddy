@@ -70,6 +70,10 @@ final class CatIdleState: GKState, ResumableState {
         entity.node.removeAction(forKey: "transition")
     }
 
+    func prepareExitActions() -> [String: SKAction] {
+        [:]
+    }
+
     // MARK: - ResumableState
 
     func resume() {

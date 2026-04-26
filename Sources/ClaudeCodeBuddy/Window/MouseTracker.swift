@@ -1,6 +1,19 @@
 import AppKit
 import SpriteKit
 
+func clickLog(_ msg: String) {
+    let ts = ISO8601DateFormatter().string(from: Date())
+    let line = "[\(ts)] \(msg)\n"
+    let path = "/tmp/claude-buddy-click.log"
+    if let fh = FileHandle(forWritingAtPath: path) {
+        fh.seekToEndOfFile()
+        fh.write(line.data(using: .utf8)!)
+        fh.closeFile()
+    } else {
+        FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
+    }
+}
+
 class MouseTracker {
 
     private var globalMonitor: Any?
@@ -184,7 +197,10 @@ class MouseTracker {
             cancelLongPress()
             // Fire regular click if mouse was pressed on a cat
             if let sessionId = dragCandidateSessionId {
+                clickLog("MouseTracker.onClick fired for session: \(sessionId)")
                 onClick?(sessionId)
+            } else {
+                clickLog("MouseTracker.mouseUp but no dragCandidateSessionId")
             }
         }
         dragCandidateSessionId = nil

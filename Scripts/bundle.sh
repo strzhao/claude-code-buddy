@@ -52,6 +52,10 @@ if [ -f "$CLI_EXEC_PATH" ]; then
     echo "==> CLI tool bundled: Contents/MacOS/buddy"
 fi
 
+# Ad-hoc sign so macOS preserves automation permissions across rebuilds
+codesign --force --deep -s - "$BUNDLE_DIR"
+echo "==> Ad-hoc signed"
+
 echo "==> Bundle created: $BUNDLE_DIR"
 echo ""
 echo "To launch: open '$BUNDLE_DIR'"

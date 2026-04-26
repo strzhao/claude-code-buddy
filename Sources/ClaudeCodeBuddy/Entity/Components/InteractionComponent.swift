@@ -59,6 +59,13 @@ class InteractionComponent {
             }
         }
         entity.node.run(SKAction.sequence([SKAction.wait(forDuration: anticipationDuration), unfreeze]), withKey: "startleAnticipation")
+
+        // Release food resources before killing actions so eating state can recover
+        if entity.currentState == .eating {
+            entity.currentTargetFood = nil
+            entity.onFoodAbandoned?(entity.sessionId)
+        }
+
         entity.node.removeAllActions()
 
         // Decide escape direction: flee away from jumper

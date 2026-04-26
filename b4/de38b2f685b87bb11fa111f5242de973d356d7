@@ -1,0 +1,27 @@
+Sources/ClaudeCodeBuddy/Window/MouseTracker.swift
+  c99d7482c956b680 10
+Sources/ClaudeCodeBuddy/Update/UpdateChecker.swift
+  c99d7482c956b680 128-130,134,137-138,140-141
+Sources/BuddyCLI/main.swift
+  c99d7482c956b680 755-771,781
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "b4de38b2f685b87bb11fa111f5242de973d356d7",
+  "prompts": {
+    "c99d7482c956b680": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "564d7809-3358-4d85-a379-a176651c05d2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 29,
+      "total_deletions": 29,
+      "accepted_lines": 27,
+      "overriden_lines": 0
+    }
+  }
+}

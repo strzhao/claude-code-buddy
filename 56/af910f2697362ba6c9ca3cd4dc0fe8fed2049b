@@ -1,0 +1,33 @@
+Sources/ClaudeCodeBuddy/Window/MouseTracker.swift
+  ad8e8bb03aa916a1 4-16,200,202-203
+Sources/ClaudeCodeBuddy/Terminal/GhosttyAdapter.swift
+  ad8e8bb03aa916a1 10,12-17,20-25,27,60-62,64-66,68
+.autopilot/patterns.md
+  ad8e8bb03aa916a1 132-137
+Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  ad8e8bb03aa916a1 102,104-108,111-123
+Scripts/bundle.sh
+  ad8e8bb03aa916a1 55-58
+.autopilot/requirements/20260426-深入了解当前的实现，/state.md
+  ad8e8bb03aa916a1 3,5,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "56af910f2697362ba6c9ca3cd4dc0fe8fed2049b",
+  "prompts": {
+    "ad8e8bb03aa916a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "70354370-f2f7-4214-b273-0709d44b32cd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 105,
+      "total_deletions": 46,
+      "accepted_lines": 68,
+      "overriden_lines": 0
+    }
+  }
+}

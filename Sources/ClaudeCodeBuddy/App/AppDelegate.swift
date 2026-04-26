@@ -99,11 +99,28 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             tracker.onClick = { [weak self] sessionId in
+                clickLog("AppDelegate.onClick received for session: \(sessionId)")
                 guard let self = self,
-                      let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
+                      let info = self.sessionManager?.sessionInfo(for: sessionId) else {
+                    clickLog("AppDelegate.onClick BAIL — self or sessionInfo is nil for: \(sessionId)")
+                    return
+                }
+                clickLog("SessionInfo — label: \(info.label), terminalId: \(info.terminalId ?? "NIL"), cwd: \(info.cwd ?? "NIL")")
                 self.scene?.acknowledgePermission(for: sessionId)
                 self.scene?.removePersistentBadge(for: sessionId)
-                for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
+                var activated = false
+                for adapter in self.terminalAdapters {
+                    clickLog("Trying adapter: \(type(of: adapter))")
+                    if adapter.activateTab(for: info) {
+                        clickLog("Adapter \(type(of: adapter)) returned TRUE")
+                        activated = true
+                        break
+                    }
+                    clickLog("Adapter \(type(of: adapter)) returned FALSE")
+                }
+                if !activated {
+                    clickLog("No adapter activated tab for session: \(sessionId)")
+                }
             }
             tracker.onDragStart = { [weak self] sessionId, point in
                 self?.scene?.startDrag(sessionId: sessionId, at: point)

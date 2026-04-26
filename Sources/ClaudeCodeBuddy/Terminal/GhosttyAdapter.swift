@@ -7,13 +7,24 @@ class GhosttyAdapter: TerminalAdapter {
     }
 
     func activateTab(for session: SessionInfo) -> Bool {
-        // Try terminal_id first, then fall back to cwd matching
+        clickLog("GhosttyAdapter.activateTab — terminalId: \(session.terminalId ?? "NIL"), cwd: \(session.cwd ?? "NIL")")
         if let terminalId = session.terminalId {
-            if activateByTerminalId(terminalId) { return true }
+            clickLog("Trying activateByTerminalId: \(terminalId)")
+            if activateByTerminalId(terminalId) {
+                clickLog("activateByTerminalId SUCCESS")
+                return true
+            }
+            clickLog("activateByTerminalId FAILED")
         }
         if let cwd = session.cwd {
-            if activateByCwd(cwd) { return true }
+            clickLog("Trying activateByCwd: \(cwd)")
+            if activateByCwd(cwd) {
+                clickLog("activateByCwd SUCCESS")
+                return true
+            }
+            clickLog("activateByCwd FAILED")
         }
+        clickLog("Falling back to activateGhosttyOnly")
         return activateGhosttyOnly()
     }
 
@@ -46,10 +57,15 @@ class GhosttyAdapter: TerminalAdapter {
         var error: NSDictionary?
         if let appleScript = NSAppleScript(source: script) {
             let result = appleScript.executeAndReturnError(&error)
-            if error == nil && result.booleanValue {
-                return true
+            if let error = error {
+                clickLog("activateByTerminalId AppleScript error: \(error)")
+                return false
             }
+            let success = result.booleanValue
+            clickLog("activateByTerminalId AppleScript result: \(success)")
+            return success
         }
+        clickLog("activateByTerminalId failed to create NSAppleScript")
         return false
     }
 

@@ -1,5 +1,17 @@
 # Patterns & Lessons
 
+### [2026-04-26] smoothTurn 动画与即时位移并发导致猫咪反向行走
+<!-- tags: spritekit, animation, facing, movement, smoothturn, xscale -->
+**Scenario**: `doRandomWalkStep()` 调用 `face(towardX:)` 触发 `smoothTurn`（0.2s 渐进 xScale 插值），但 `moveTo` 位移立即开始。0.2s 窗口内猫身体朝旧方向但脚往新方向跑。`walkStartSlowFactor` 放慢前两帧使不一致更明显。
+**Lesson**: `smoothTurn` 适合状态转换等不涉及即时位移的场景。走路方向切换时必须 snap（取消 smoothTurn + 即时设置 xScale），因为 `moveTo` 在 containerNode 上立即生效，与 node 上的渐进动画存在不可调和的时序竞争。修复模式：`face(towardX:)` 后检查 `node.action(forKey: "smoothTurn") != nil`，若存在则 `removeAction` + `applyFacingDirection(animated: false)`。
+**Evidence**: 用户报告猫咪反着跑。分析发现 smoothTurn(0.2s) 在 node 上插值 xScale，同时 moveTo 在 containerNode 上位移，两者并发。新增 `testRandomWalkFacingMatchesDirection` 验证 xScale 在走路时必须为 ±1.0。
+
+### [2026-04-26] switchState 渐进式 Handoff 需要 display link 降级路径
+<!-- tags: spritekit, state-machine, transition, testing, display-link -->
+**Scenario**: `switchState()` 从即时 `removeAllActions()` 改为 0.15s handoff 窗口（加速旧动画 → dispatch 清理 → 进入新状态），但测试环境无 display link，SKAction 不执行，`isTransitioningOut` 永远为 true。
+**Lesson**: 任何依赖 SKAction 时序的行为逻辑，必须检查 `containerNode.scene?.view != nil`（display link 可用性），不可用时回退到即时路径。这与 `smoothTurn` 的降级模式一致（patterns.md [2026-04-23]）。通用规则：SKAction 是视觉增强手段，不是逻辑保证——逻辑路径必须有不依赖 SKAction 的 fallback。
+**Evidence**: 测试中 `switchState` 的 dispatch SKAction 从不执行，`isTransitioningOut` 保持 true，后续所有 switchState 调用被队列吞噬。添加 `hasDisplayLink` 检查后走即时路径，427 测试全部通过。
+
 ### [2026-04-20] SpriteKit 标签阴影常量命名与用法不一致导致阴影错位
 <!-- tags: spritekit, labels, shadow, constants, position -->
 **Scenario**: `labelShadowOffset` 命名暗示相对偏移量，但代码中作为 `shadow.position` 的绝对坐标使用。值 `(1.5, 1.5)` 将阴影放到了精灵脚部而非主标签附近，在 permissionRequest 状态同时显示时导致文字重复。

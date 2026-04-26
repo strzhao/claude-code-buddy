@@ -20,20 +20,37 @@ HOOK_EVENT_NAME="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; print(json.
 # Extract session_id for cache lookup
 SESSION_ID="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('session_id','') or str(d.get('pid','')))" 2>/dev/null)"
 
+# Extract cwd for terminal matching
+HOOK_CWD="$(echo "$HOOK_INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cwd','') or d.get('project_path',''))" 2>/dev/null)"
+
 # Get Ghostty terminal ID — cached per session, captured on first event
 TERMINAL_CACHE_DIR="/tmp/claude-buddy-terminals"
+find "$TERMINAL_CACHE_DIR" -type f -mmin +1440 -delete 2>/dev/null
 TERMINAL_CACHE="$TERMINAL_CACHE_DIR/$SESSION_ID"
 TERMINAL_ID=""
 if [ -f "$TERMINAL_CACHE" ]; then
     TERMINAL_ID=$(cat "$TERMINAL_CACHE")
 else
-    TERMINAL_ID=$(osascript -e '
-      tell application "Ghostty"
-        set t to selected tab of front window
-        set term to focused terminal of t
-        return id of term
-      end tell
-    ' 2>/dev/null)
+    if [ -n "$HOOK_CWD" ]; then
+        TERMINAL_ID=$(osascript -e "
+          tell application \"Ghostty\"
+            repeat with t in terminals of every tab of every window
+              if working directory of t is \"$HOOK_CWD\" then
+                return id of t
+              end if
+            end repeat
+          end tell
+        " 2>/dev/null)
+    fi
+    if [ -z "$TERMINAL_ID" ]; then
+        TERMINAL_ID=$(osascript -e '
+          tell application "Ghostty"
+            set t to selected tab of front window
+            set term to focused terminal of t
+            return id of term
+          end tell
+        ' 2>/dev/null)
+    fi
     if [ -n "$TERMINAL_ID" ]; then
         mkdir -p "$TERMINAL_CACHE_DIR" 2>/dev/null
         echo "$TERMINAL_ID" > "$TERMINAL_CACHE"

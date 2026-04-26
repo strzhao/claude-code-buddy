@@ -1,0 +1,25 @@
+.autopilot/decisions.md
+  8e85ee40671e0116 3-17
+.autopilot/index.md
+  8e85ee40671e0116 4,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "94712badf10fc546c86978c30e33b222bf1f8718",
+  "prompts": {
+    "8e85ee40671e0116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a938ab3e-56f6-499f-b215-038c42c4e6e2",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 17,
+      "total_deletions": 0,
+      "accepted_lines": 17,
+      "overriden_lines": 0
+    }
+  }
+}

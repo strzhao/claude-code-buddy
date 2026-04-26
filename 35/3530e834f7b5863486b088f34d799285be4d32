@@ -1,0 +1,23 @@
+.autopilot/patterns.md
+  8e85ee40671e0116 3-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "353530e834f7b5863486b088f34d799285be4d32",
+  "prompts": {
+    "8e85ee40671e0116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a938ab3e-56f6-499f-b215-038c42c4e6e2",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 1,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}

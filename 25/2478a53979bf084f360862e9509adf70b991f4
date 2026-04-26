@@ -1,0 +1,23 @@
+homebrew/Casks/claude-code-buddy.rb
+  40fdcf4a6a70ff4e 2-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "252478a53979bf084f360862e9509adf70b991f4",
+  "prompts": {
+    "40fdcf4a6a70ff4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e925fc5f-1961-443b-b6fe-13352993a4d1",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}

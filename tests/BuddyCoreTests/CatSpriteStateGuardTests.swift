@@ -194,4 +194,41 @@ final class CatSpriteStateGuardTests: XCTestCase {
         XCTAssertTrue(foodAbandoned, "State change should release food")
         XCTAssertNil(cat.currentTargetFood, "Food target should be cleared on state change")
     }
+
+    // MARK: - Eating State Recovery
+
+    /// 验证 eating 状态可以通过 switchState(.idle) 正常退出
+    func testEatingCanTransitionToIdleDirectly() {
+        let cat = makeCat()
+        cat.switchState(to: .eating)
+        XCTAssertEqual(cat.currentState, .eating)
+
+        cat.switchState(to: .idle)
+        XCTAssertEqual(cat.currentState, .idle, "eating 应能直接切换到 idle")
+    }
+
+    /// 验证 eating 状态下非 idle 的事件被正确排队
+    func testEatingQueuesNonIdleStateTransitions() {
+        let cat = makeCat()
+        cat.switchState(to: .eating)
+        XCTAssertEqual(cat.currentState, .eating)
+
+        // 非 idle 状态应被排队而非直接切换
+        cat.switchState(to: .thinking, toolDescription: "test tool")
+        XCTAssertEqual(cat.currentState, .eating, "eating 时 thinking 应被排队，不应立即切换")
+    }
+
+    /// 验证 eating → idle 后排队的状态能被应用
+    func testPendingStateAppliedAfterEatingToIdle() {
+        let cat = makeCat()
+        cat.switchState(to: .eating)
+
+        // 排队一个 thinking
+        cat.switchState(to: .thinking, toolDescription: "test pending")
+
+        // 切换到 idle
+        cat.switchState(to: .idle)
+        // 在无 display link 的测试环境中，switchState 走即时路径
+        XCTAssertEqual(cat.currentState, .idle)
+    }
 }

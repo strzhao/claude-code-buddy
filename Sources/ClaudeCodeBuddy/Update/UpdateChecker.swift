@@ -125,20 +125,20 @@ final class UpdateChecker {
     func compareVersions(_ a: String, _ b: String) -> ComparisonResult {
         let va = parseVersion(a)
         let vb = parseVersion(b)
-        if va.major != vb.major { return va.major < vb.major ? .orderedAscending : .orderedDescending }
-        if va.minor != vb.minor { return va.minor < vb.minor ? .orderedAscending : .orderedDescending }
-        if va.patch != vb.patch { return va.patch < vb.patch ? .orderedAscending : .orderedDescending }
+        for (x, y) in zip(va, vb) where x != y {
+            return x < y ? .orderedAscending : .orderedDescending
+        }
         return .orderedSame
     }
 
-    private func parseVersion(_ version: String) -> (major: Int, minor: Int, patch: Int) {
+    private func parseVersion(_ version: String) -> [Int] {
         let cleaned = version.hasPrefix("v") ? String(version.dropFirst()) : version
         let parts = cleaned.split(separator: ".").compactMap { Int($0) }
-        return (
-            parts.count > 0 ? parts[0] : 0,
+        return [
+            parts.isEmpty ? 0 : parts[0],
             parts.count > 1 ? parts[1] : 0,
-            parts.count > 2 ? parts[2] : 0
-        )
+            parts.count > 2 ? parts[2] : 0,
+        ]
     }
 
     // MARK: - Homebrew

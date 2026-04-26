@@ -752,23 +752,23 @@ private func cmdTestTokens(_ opts: CLIOptions) {
 }
 
 private func cmdSizes() {
-    let levels: [(name: String, threshold: String, scale: String, height: String)] = [
-        ("Lv1", "0", "1.00x", "80pt"),
-        ("Lv2", "100K", "1.02x", "82pt"),
-        ("Lv3", "300K", "1.05x", "84pt"),
-        ("Lv4", "500K", "1.07x", "86pt"),
-        ("Lv5", "800K", "1.10x", "88pt"),
-        ("Lv6", "1.2M", "1.12x", "90pt"),
-        ("Lv7", "2M", "1.15x", "92pt"),
-        ("Lv8", "3M", "1.17x", "93pt"),
-        ("Lv9", "5M", "1.19x", "95pt"),
-        ("Lv10", "7M", "1.21x", "97pt"),
-        ("Lv11", "10M", "1.23x", "98pt"),
-        ("Lv12", "15M", "1.26x", "100pt"),
-        ("Lv13", "20M", "1.28x", "102pt"),
-        ("Lv14", "30M", "1.30x", "104pt"),
-        ("Lv15", "50M", "1.33x", "106pt"),
-        ("Lv16", "100M", "1.35x", "108pt"),
+    let levels: [[String]] = [
+        ["Lv1", "0", "1.00x", "80pt"],
+        ["Lv2", "100K", "1.02x", "82pt"],
+        ["Lv3", "300K", "1.05x", "84pt"],
+        ["Lv4", "500K", "1.07x", "86pt"],
+        ["Lv5", "800K", "1.10x", "88pt"],
+        ["Lv6", "1.2M", "1.12x", "90pt"],
+        ["Lv7", "2M", "1.15x", "92pt"],
+        ["Lv8", "3M", "1.17x", "93pt"],
+        ["Lv9", "5M", "1.19x", "95pt"],
+        ["Lv10", "7M", "1.21x", "97pt"],
+        ["Lv11", "10M", "1.23x", "98pt"],
+        ["Lv12", "15M", "1.26x", "100pt"],
+        ["Lv13", "20M", "1.28x", "102pt"],
+        ["Lv14", "30M", "1.30x", "104pt"],
+        ["Lv15", "50M", "1.33x", "106pt"],
+        ["Lv16", "100M", "1.35x", "108pt"],
     ]
 
     func pad(_ s: String, _ width: Int) -> String {
@@ -778,7 +778,7 @@ private func cmdSizes() {
     print("\(pad("Level", 6)) \(pad("Threshold", 11)) \(pad("Scale", 6)) \(pad("Height", 6))")
     print(String(repeating: "\u{2500}", count: 33))
     for lv in levels {
-        print("\(pad(lv.name, 6)) \(pad(lv.threshold, 11)) \(pad(lv.scale, 6)) \(pad(lv.height, 6))")
+        print("\(pad(lv[0], 6)) \(pad(lv[1], 11)) \(pad(lv[2], 6)) \(pad(lv[3], 6))")
     }
 }
 

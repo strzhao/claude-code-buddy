@@ -7,7 +7,7 @@ func clickLog(_ msg: String) {
     let path = "/tmp/claude-buddy-click.log"
     if let fh = FileHandle(forWritingAtPath: path) {
         fh.seekToEndOfFile()
-        fh.write(line.data(using: .utf8)!)
+        fh.write(line.data(using: .utf8) ?? Data())
         fh.closeFile()
     } else {
         FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))

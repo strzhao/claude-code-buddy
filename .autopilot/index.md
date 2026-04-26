@@ -13,6 +13,8 @@
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions.md
 
 ## Patterns
+- [2026-04-26] smoothTurn 与即时位移并发导致反向行走 | tags: spritekit, animation, facing, movement, smoothturn, xscale | → patterns.md
+- [2026-04-26] switchState Handoff 需要 display link 降级路径 | tags: spritekit, state-machine, transition, testing, display-link | → patterns.md
 - [2026-04-23] smoothTurn 必须检查 display link 可用性 | tags: spritekit, animation, skaction, testing, display-link | → patterns.md
 - [2026-04-23] SwiftLint large_tuple 用内部结构体替代多元组返回 | tags: swiftlint, tuples, struct, code-quality | → patterns.md
 - [2026-04-20] SpriteKit 标签阴影常量命名与用法不一致导致阴影错位 | tags: spritekit, labels, shadow, constants, position | → patterns.md

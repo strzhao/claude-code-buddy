@@ -215,6 +215,7 @@ private struct CLIOptions {
     var label: String?
     var delay: UInt64 = 1
     var last: Int = 0
+    var xPosition: Double?
     var positionalArgs: [String] = []
 }
 
@@ -237,6 +238,7 @@ private func printHelp() {
       sizes                                 List all token levels and scale sizes
       status                                Show active sessions
       inspect [--id ID]                      Query session and cat state (JSON)
+      food [--id ID] [--x N]                 Drop food near a cat or at position X
       events [--id ID] [--last N]            Show recent event history (JSON)
       health                                System health check (JSON)
       help                                  Show this help
@@ -286,6 +288,9 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--last":
             i += 1
             if i < args.count, let n = Int(args[i]) { opts.last = n }
+        case "--x":
+            i += 1
+            if i < args.count, let x = Double(args[i]) { opts.xPosition = x }
         case "--label":
             i += 1
             if i < args.count { opts.label = args[i] }
@@ -461,6 +466,26 @@ private func cmdInspect(_ opts: CLIOptions) {
     var query: [String: Any] = ["action": "inspect"]
     if let sid = opts.sessionId {
         query["session_id"] = sid
+    }
+
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdFood(_ opts: CLIOptions) {
+    var query: [String: Any] = ["action": "food"]
+    if let sid = opts.sessionId {
+        query["session_id"] = sid
+    }
+    if let x = opts.xPosition {
+        query["x"] = x
     }
 
     do {
@@ -796,6 +821,8 @@ private func main() {
         cmdStatus()
     case "inspect":
         cmdInspect(opts)
+    case "food":
+        cmdFood(opts)
     case "click":
         cmdClick(opts)
     case "events":

@@ -256,6 +256,7 @@ class MovementComponent {
 
         // Stop idle animations
         node.removeAllActions()
+        entity.applyFacingDirection()
 
         // Play excited reaction first (with per-cat distance-based delay), then start running
         entity.playExcitedReaction(delay: excitedDelay) { [weak self] in
@@ -303,6 +304,10 @@ class MovementComponent {
 
         // Face toward the target
         entity.face(towardX: targetX)
+        if entity.node.action(forKey: "smoothTurn") != nil {
+            entity.node.removeAction(forKey: "smoothTurn")
+            entity.applyFacingDirection()
+        }
 
         // Remove any existing recovery action to avoid stacking
         containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)

@@ -1,0 +1,25 @@
+Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  36f63622243ee866 29-30,98-112
+Sources/BuddyCLI/main.swift
+  36f63622243ee866 218,241,291-293,482-501,824-825
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "57c86067466d55c2031f2aa5ae898c6323fe7639",
+  "prompts": {
+    "36f63622243ee866": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85f78657-89d9-4015-b131-40336fb0a8b8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1595,
+      "total_deletions": 3,
+      "accepted_lines": 1592,
+      "overriden_lines": 0
+    }
+  }
+}

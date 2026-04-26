@@ -1,0 +1,47 @@
+Sources/ClaudeCodeBuddy/Entity/Cat/CatConstants.swift
+  643fe52d4bdd3b91 44-63,427-436
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatEatingState.swift
+  643fe52d4bdd3b91 32-35
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatPermissionRequestState.swift
+  643fe52d4bdd3b91 50-70
+homebrew/Casks/claude-code-buddy.rb
+  643fe52d4bdd3b91 2
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatThinkingState.swift
+  643fe52d4bdd3b91 51-56
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatIdleState.swift
+  643fe52d4bdd3b91 73-76
+Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  643fe52d4bdd3b91 45-63,82-86,88-89,92-98,104,110-121,141,149-156,208,212-213,216-226,228-230,233
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatTaskCompleteState.swift
+  643fe52d4bdd3b91 82-83
+Sources/ClaudeCodeBuddy/Entity/Cat/States/CatToolUseState.swift
+  643fe52d4bdd3b91 50-53
+tests/BuddyCoreTests/FacingDirectionTests.swift
+  643fe52d4bdd3b91 213-236
+.autopilot/requirements/20260426-当前猫咪还有哪些行为/brainstorm.md
+  643fe52d4bdd3b91 1-39
+Sources/ClaudeCodeBuddy/Entity/Cat/CatPersonality.swift
+  643fe52d4bdd3b91 90-94
+Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  643fe52d4bdd3b91 85-90,413-417,419,435,439,442-538
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "02c96366cafb8f8fc422ae9f6ba8a3c898197267",
+  "prompts": {
+    "643fe52d4bdd3b91": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c2809d0-3bf4-4965-84d4-bea7dc1e99f3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2278,
+      "total_deletions": 59,
+      "accepted_lines": 2270,
+      "overriden_lines": 6
+    }
+  }
+}

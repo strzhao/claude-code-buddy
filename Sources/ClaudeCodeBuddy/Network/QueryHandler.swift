@@ -26,6 +26,8 @@ final class QueryHandler {
             return handleInspect(query: query)
         case "click":
             return handleClick(query: query)
+        case "food":
+            return handleFood(query: query)
         case "events":
             return handleEvents(query: query)
         case "health":
@@ -91,6 +93,21 @@ final class QueryHandler {
         } else {
             return errorResponse(message: "session not found: \(sessionId)")
         }
+    }
+
+    // MARK: - Food
+
+    private func handleFood(query: [String: Any]) -> Data {
+        let x: CGFloat?
+        if let explicitX = query["x"] as? Double {
+            x = CGFloat(explicitX)
+        } else if let sessionId = query["session_id"] as? String {
+            x = scene.catPosition(for: sessionId)
+        } else {
+            x = nil
+        }
+        scene.spawnFood(near: x)
+        return okResponse(data: ["spawned": true])
     }
 
     // MARK: - Events

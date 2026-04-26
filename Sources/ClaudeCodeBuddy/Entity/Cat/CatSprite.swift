@@ -84,6 +84,7 @@ class CatSprite {
 
     /// True during the handoff window (0.15s). Rapid state changes queue here.
     private var isTransitioningOut = false
+    private var transitionStartTime: TimeInterval?
     /// State queued while isTransitioningOut is true (last-wins).
     private var pendingStateAfterTransition: CatState?
     private var pendingToolDescriptionAfterTransition: String?
@@ -411,9 +412,16 @@ class CatSprite {
         }
 
         if isTransitioningOut {
-            pendingStateAfterTransition = newState
-            pendingToolDescriptionAfterTransition = toolDescription
-            return
+            if let start = transitionStartTime,
+               CACurrentMediaTime() - start > CatConstants.Transition.handoffDuration * 3.0 {
+                isTransitioningOut = false
+                transitionStartTime = nil
+                node.removeAllActions()
+            } else {
+                pendingStateAfterTransition = newState
+                pendingToolDescriptionAfterTransition = toolDescription
+                return
+            }
         }
 
         containerNode.physicsBody?.isDynamic = true
@@ -455,6 +463,7 @@ class CatSprite {
         let exitActions = currentExitActions()
 
         isTransitioningOut = true
+        transitionStartTime = CACurrentMediaTime()
 
         // Speed up the primary looping animation
         let primaryKey = primaryAnimationKey(for: currentState)
@@ -486,6 +495,7 @@ class CatSprite {
             SKAction.run { [weak self] in
                 guard let self = self else { return }
                 self.isTransitioningOut = false
+                self.transitionStartTime = nil
 
                 self.node.removeAllActions()
                 self.node.yScale = 1.0

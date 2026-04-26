@@ -695,4 +695,77 @@ final class JumpExitTests: XCTestCase {
         let isOffScreen = exitX < 0 || exitX > 400
         XCTAssertTrue(isOffScreen, "退出猫应已离开屏幕，当前 x=\(exitX)")
     }
+
+    // MARK: - Eating 状态受惊中断恢复
+
+    /// 验证 eating 猫被受惊后食物资源被正确释放
+    func testFrightDuringEatingReleasesFoodResources() {
+        let cat = makeCat(sessionId: "eating-food-release", x: 200)
+        cat.switchState(to: .eating)
+
+        // 模拟猫持有食物
+        let mockFood = FoodSprite(textureName: "test_dummy")
+        cat.currentTargetFood = mockFood
+
+        var foodAbandoned = false
+        cat.onFoodAbandoned = { _ in foodAbandoned = true }
+
+        cat.playFrightReaction(awayFromX: 50)
+
+        // food resources 应在 removeAllActions 之前被释放
+        XCTAssertNil(cat.currentTargetFood, "受惊时应释放 currentTargetFood")
+        XCTAssertTrue(foodAbandoned, "受惊时应调用 onFoodAbandoned 回调")
+    }
+
+    /// 验证多次受惊不会导致 eating 猫永久卡死
+    func testMultipleFrightsDuringEatingDontDeadlock() {
+        let cat = makeCat(sessionId: "eating-multi-fright", x: 200)
+        cat.switchState(to: .eating)
+        XCTAssertEqual(cat.currentState, .eating)
+
+        let exp = expectation(description: "cat recovers after multiple frights during eating")
+
+        // 连续 3 次受惊
+        cat.playFrightReaction(awayFromX: 50)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            cat.playFrightReaction(awayFromX: 350)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            cat.playFrightReaction(awayFromX: 50)
+        }
+
+        // 1.5s 后检查状态不应是 eating
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            XCTAssertNotEqual(
+                cat.currentState, .eating,
+                "多次受惊后猫不应卡在 eating 状态，当前: \(cat.currentState.rawValue)"
+            )
+            exp.fulfill()
+        }
+
+        wait(for: [exp], timeout: 3.0)
+    }
+
+    /// 验证 eating 状态被受惊中断恢复到 idle 后，后续事件能正常切换状态
+    func testEatingCatAcceptsNewStateAfterFrightRecovery() {
+        let cat = makeCat(sessionId: "eating-then-thinking", x: 200)
+        cat.switchState(to: .eating)
+        XCTAssertEqual(cat.currentState, .eating)
+
+        let exp = expectation(description: "cat accepts new state after fright recovery")
+
+        cat.playFrightReaction(awayFromX: 50)
+
+        // 等待 fright 的 GCD fallback 恢复 eating → idle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            XCTAssertEqual(cat.currentState, .idle, "受惊恢复后应先回到 idle")
+
+            // 从 idle 可以正常切换到任意状态
+            cat.switchState(to: .thinking)
+            XCTAssertEqual(cat.currentState, .thinking, "idle 后应能切换到 thinking")
+            exp.fulfill()
+        }
+
+        wait(for: [exp], timeout: 3.0)
+    }
 }

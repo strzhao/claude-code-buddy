@@ -1,0 +1,33 @@
+.autopilot/requirements/20260426-当前猫咪还有哪些行为/state.md
+  643fe52d4bdd3b91 3-4,14,80-81
+.autopilot/requirements/20260426-当前猫咪还有哪些行为/qa-report.md
+  643fe52d4bdd3b91 1-18
+.autopilot/patterns.md
+  643fe52d4bdd3b91 3-14
+.autopilot/index.md
+  643fe52d4bdd3b91 16-17
+.autopilot/requirements/20260426-当前猫咪还有哪些行为/design.md
+  643fe52d4bdd3b91 1-31
+.autopilot/requirements/20260426-当前猫咪还有哪些行为/completion-report.md
+  643fe52d4bdd3b91 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "23f19dad191c2610d5452eb28bae6c1b880d56c6",
+  "prompts": {
+    "643fe52d4bdd3b91": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c2809d0-3bf4-4965-84d4-bea7dc1e99f3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 2,
+      "accepted_lines": 2034,
+      "overriden_lines": 0
+    }
+  }
+}

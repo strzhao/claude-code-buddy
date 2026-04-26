@@ -48,6 +48,12 @@ final class CatThinkingState: GKState, ResumableState {
         entity.node.removeAction(forKey: "transition")
     }
 
+    func prepareExitActions() -> [String: SKAction] {
+        let resetRot = SKAction.rotate(toAngle: 0, duration: CatConstants.Transition.transformResetDuration)
+        resetRot.timingMode = .easeOut
+        return ["stateEffect": resetRot]
+    }
+
     // MARK: - ResumableState
 
     func resume() {

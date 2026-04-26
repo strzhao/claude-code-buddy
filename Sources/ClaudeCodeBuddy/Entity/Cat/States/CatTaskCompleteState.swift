@@ -67,21 +67,20 @@ final class CatTaskCompleteState: GKState, ResumableState {
     // MARK: - Exit
 
     override func willExit(to nextState: GKState) {
-        // Remove the bed from the scene
         bedNode?.removeFromParent()
         bedNode = nil
-
-        // Release the bed slot only if one was assigned
         if hasBedSlot {
             entity.onBedReleased?(entity.sessionId)
             hasBedSlot = false
         }
-
-        // Clean up all animation keys
         entity.node.removeAction(forKey: "animation")
         entity.node.removeAction(forKey: "breathing")
         entity.node.removeAction(forKey: "bedFallback")
         entity.containerNode.removeAction(forKey: "bedWalk")
+    }
+
+    func prepareExitActions() -> [String: SKAction] {
+        [:]
     }
 
     // MARK: - ResumableState

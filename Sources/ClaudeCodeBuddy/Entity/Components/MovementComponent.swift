@@ -42,22 +42,35 @@ class MovementComponent {
 
         let containerNode = entity.containerNode
 
-        // Random target: ±120px from origin (wide range)
-        let maxRange: CGFloat = CatConstants.Movement.walkMaxRange
-        let rawTarget = entity.originX + CGFloat.random(in: -maxRange...maxRange)
+        // Graduated step distribution: mostly small, occasionally medium, rarely large
+        let activityShift = entity.personality.stepSizeActivityShift
+        let smallThreshold = CatConstants.Movement.walkStepSmallBaseProb - activityShift
+        let mediumThreshold = smallThreshold + CatConstants.Movement.walkStepMediumBaseProb
+
+        let stepRoll = Float.random(in: 0..<1)
+        let stepRange: ClosedRange<CGFloat>
+        switch stepRoll {
+        case ..<smallThreshold:
+            stepRange = CatConstants.Movement.walkStepSmall
+        case ..<mediumThreshold:
+            stepRange = CatConstants.Movement.walkStepMedium
+        default:
+            stepRange = CatConstants.Movement.walkStepMedium.upperBound...CatConstants.Movement.walkMaxRange
+        }
+        let stepMagnitude = CGFloat.random(in: stepRange)
+        let direction: CGFloat = Bool.random() ? 1 : -1
+        let rawTarget = entity.originX + direction * stepMagnitude
+
         let sceneWidth = entity.sceneWidth
         var target = sceneWidth > 0
             ? max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
             : rawTarget
 
-        // Avoid walking into another cat
         target = adjustTargetAwayFromOtherCats(target)
 
-        // Update facing direction based on movement
         let delta = target - containerNode.position.x
         let distance = abs(delta)
 
-        // Skip move if barely any distance, just pause (don't change direction)
         if distance < CatConstants.Movement.walkMinDistance {
             let pause = SKAction.wait(forDuration: Double.random(in: CatConstants.Movement.walkPauseRange))
             let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
@@ -65,23 +78,45 @@ class MovementComponent {
             return
         }
 
-        // Only change direction when actually moving
         entity.face(towardX: target)
+        // Walk movement starts immediately — snap facing, don't wait for smooth turn
+        if entity.node.action(forKey: "smoothTurn") != nil {
+            entity.node.removeAction(forKey: "smoothTurn")
+            entity.applyFacingDirection()
+        }
 
-        // --- Walk phase: play walk-b while moving ---
-        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) * Double(entity.personality.walkSpeedMultiplier) // px/s
+        // --- Walk phase ---
+        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) * Double(entity.personality.walkSpeedMultiplier)
         let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
 
-        // Start walk animation
+        // Speed-linked frame rate
+        let timePerFrame = max(
+            CatConstants.Movement.walkFrameTimeMin,
+            min(CatConstants.Movement.walkFrameTimeMax,
+                CatConstants.Animation.frameTimeWalk * (CatConstants.Movement.walkBaseSpeed / speed))
+        )
+
         let animComponent = entity.animationComponent
         let sessionColor = entity.sessionColor
         let sessionTintFactor = entity.sessionTintFactor
         let node = entity.node
         if let walkFrames = animComponent.textures(for: "walk-b"), !walkFrames.isEmpty {
-            let animate = SKAction.animate(with: walkFrames, timePerFrame: CatConstants.Animation.frameTimeWalk)
+            let animate = SKAction.animate(with: walkFrames, timePerFrame: timePerFrame)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
             node.color = sessionColor?.nsColor ?? .white
             node.colorBlendFactor = sessionTintFactor
+        }
+
+        // Walk-start slow: first frames play at reduced speed for acceleration feel
+        if let walkAction = node.action(forKey: "animation") {
+            walkAction.speed = CGFloat(1.0 / CatConstants.Movement.walkStartSlowFactor)
+            let startupDelay = SKAction.wait(
+                forDuration: timePerFrame * Double(CatConstants.Movement.walkStartSlowFrameCount) * CatConstants.Movement.walkStartSlowFactor
+            )
+            let normalSpeed = SKAction.run { [weak node] in
+                node?.action(forKey: "animation")?.speed = 1.0
+            }
+            node.run(SKAction.sequence([startupDelay, normalSpeed]), withKey: "walkStartup")
         }
 
         let move = SKAction.moveTo(x: target, duration: duration)
@@ -100,11 +135,10 @@ class MovementComponent {
             activityMax: entity.effectiveActivityMax
         )
 
-        // --- Pause phase: stop walk, show standing pose ---
         let stopWalkAndPause = SKAction.run { [weak self] in
             guard let self = self, self.entity.currentState == .toolUse else { return }
             node.removeAction(forKey: "animation")
-            // Standing pose: use paw or idle-a
+            node.removeAction(forKey: "walkStartup")
             let standAnim = Float.random(in: 0..<1) < CatConstants.Movement.walkPawProbability ? "paw" : "idle-a"
             if let frames = animComponent.textures(for: standAnim), !frames.isEmpty {
                 let animate = SKAction.animate(with: frames, timePerFrame: CatConstants.Animation.frameTimeStand)
@@ -112,6 +146,14 @@ class MovementComponent {
                 node.color = sessionColor?.nsColor ?? .white
                 node.colorBlendFactor = sessionTintFactor
             }
+            // Squash-and-settle on stop
+            let squash = SKAction.scaleY(to: CatConstants.Movement.walkStopSquashScaleY,
+                                          duration: CatConstants.Movement.walkStopSquashDuration)
+            squash.timingMode = .easeOut
+            let recover = SKAction.scaleY(to: 1.0,
+                                           duration: CatConstants.Movement.walkStopRecoverDuration)
+            recover.timingMode = .easeIn
+            node.run(SKAction.sequence([squash, recover]), withKey: "walkSettle")
         }
 
         // Longer walks: mostly keep moving, occasional brief stop
@@ -163,19 +205,32 @@ class MovementComponent {
     }
 
     /// Nudge proposed walk target away from nearby cats.
+    /// Also avoids targets that require crossing through another cat for small steps.
     private func adjustTargetAwayFromOtherCats(_ proposedTarget: CGFloat) -> CGFloat {
         guard let obstacles = entity.nearbyObstacles?() else { return proposedTarget }
         let minDist = CatConstants.Separation.minDistance
+        let myX = entity.containerNode.position.x
+        var target = proposedTarget
 
         for obstacle in obstacles {
-            let dist = abs(proposedTarget - obstacle.x)
+            // If an obstacle is between us and the target, redirect to our side
+            let obstX = obstacle.x
+            let crossesObstacle = (myX < obstX && target > obstX) || (myX > obstX && target < obstX)
+            if crossesObstacle {
+                let sameDirection: CGFloat = myX < obstX ? -1 : 1
+                target = obstX + sameDirection * minDist
+                target = max(entity.activityMin, min(entity.effectiveActivityMax, target))
+            }
+
+            // Also ensure target isn't too close to the obstacle
+            let dist = abs(target - obstX)
             if dist < minDist {
-                let direction: CGFloat = proposedTarget >= obstacle.x ? 1 : -1
-                let adjusted = obstacle.x + direction * minDist
-                return max(entity.activityMin, min(entity.effectiveActivityMax, adjusted))
+                let direction: CGFloat = target >= obstX ? 1 : -1
+                target = obstX + direction * minDist
+                target = max(entity.activityMin, min(entity.effectiveActivityMax, target))
             }
         }
-        return proposedTarget
+        return target
     }
 
     // MARK: - Walk To Food

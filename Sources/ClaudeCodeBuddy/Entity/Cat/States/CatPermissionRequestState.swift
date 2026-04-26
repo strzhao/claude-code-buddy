@@ -40,14 +40,34 @@ final class CatPermissionRequestState: GKState, ResumableState {
         entity.node.removeAction(forKey: "shakeEffect")
         entity.removeAlertOverlay()
         entity.hideLabel()
-        // Restore color to session tint
         entity.node.color = entity.sessionColor?.nsColor ?? .orange
         entity.node.colorBlendFactor = entity.sessionTintFactor
-        // Leave a persistent "!" badge so user can see permission was requested
-        // (skip if user already clicked the cat to acknowledge)
         if !entity.permissionAcknowledged {
             entity.addPersistentBadge()
         }
+    }
+
+    func prepareExitActions() -> [String: SKAction] {
+        let dur = CatConstants.Transition.permissionTintFadeDuration
+        let targetColor = entity.sessionColor?.nsColor ?? .orange
+        let targetBlend = entity.sessionTintFactor
+        let fadeTint = SKAction.customAction(withDuration: dur) { node, elapsed in
+            guard let sprite = node as? SKSpriteNode else { return }
+            let t = CGFloat(elapsed) / CGFloat(dur)
+            let perm = CatConstants.Visual.permissionColor
+            let r = perm.redComponent + (targetColor.redComponent - perm.redComponent) * t
+            let g = perm.greenComponent + (targetColor.greenComponent - perm.greenComponent) * t
+            let b = perm.blueComponent + (targetColor.blueComponent - perm.blueComponent) * t
+            sprite.color = NSColor(red: r, green: g, blue: b, alpha: 1)
+            sprite.colorBlendFactor = CatConstants.Visual.permissionBlendFactor + (targetBlend - CatConstants.Visual.permissionBlendFactor) * t
+        }
+        let resetY = SKAction.scaleY(to: 1.0, duration: dur)
+        resetY.timingMode = .easeOut
+        return [
+            "stateEffect": resetY,
+            "shakeEffect": SKAction.moveTo(x: 0, duration: dur * 0.5),
+            CatConstants.Transition.exitKey: fadeTint
+        ]
     }
 
     // MARK: - ResumableState

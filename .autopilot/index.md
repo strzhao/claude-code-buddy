@@ -1,6 +1,7 @@
 # Knowledge Index
 
 ## Decisions
+- [2026-04-27] isTransitioningOut 恢复策略采用时间戳超时 | tags: state-machine, transition, timeout, spritekit | → decisions.md
 - [2026-04-23] AnimationTransitionManager 每猫实例而非单例 | tags: animation, spritekit, transition, personality | → decisions.md
 - [2026-04-23] CatPersonality 随机生成不持久化 | tags: personality, random, persistence | → decisions.md
 - [2026-04-19] 皮肤颜色变体采用 manifest variants 数组 | tags: skin, variant, manifest, architecture | → decisions.md
@@ -13,6 +14,7 @@
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions.md
 
 ## Patterns
+- [2026-04-27] playFrightReaction removeAllActions 杀死 eating 动画导致永久卡死 | tags: spritekit, state-machine, eating, fright, race-condition, removeAllActions | → patterns.md
 - [2026-04-26] smoothTurn 与即时位移并发导致反向行走 | tags: spritekit, animation, facing, movement, smoothturn, xscale | → patterns.md
 - [2026-04-26] switchState Handoff 需要 display link 降级路径 | tags: spritekit, state-machine, transition, testing, display-link | → patterns.md
 - [2026-04-23] smoothTurn 必须检查 display link 可用性 | tags: spritekit, animation, skaction, testing, display-link | → patterns.md

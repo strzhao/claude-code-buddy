@@ -210,4 +210,28 @@ final class FacingDirectionTests: XCTestCase {
         XCTAssertGreaterThan(minDist, threshold,
             "walkMinDistance must exceed facingDirectionThreshold so Bug #1 fix covers the gap")
     }
+
+    // MARK: - Regression: walk facing matches movement direction (no smoothTurn lag)
+
+    func testRandomWalkFacingMatchesDirection() {
+        let cat = makeCat(x: 400, facingRight: false)
+        cat.originX = 400
+        cat.switchState(to: .toolUse)
+
+        cat.movementComponent.doRandomWalkStep()
+
+        // xScale must be exactly ±1.0 (snapped), not a mid-smoothTurn value
+        XCTAssertEqual(abs(cat.node.xScale), 1.0, accuracy: 0.001,
+                       "xScale must be snapped to ±1.0 during walk, not mid-smoothTurn")
+    }
+
+    func testFaceTowardXSnapsWithoutDisplayLink() {
+        let cat = makeCat(x: 200, facingRight: false)
+        XCTAssertEqual(cat.node.xScale, -1.0)
+
+        cat.face(towardX: 500)
+        XCTAssertTrue(cat.facingRight)
+        XCTAssertEqual(cat.node.xScale, 1.0,
+                       "Without display link, face() should snap xScale instantly")
+    }
 }

@@ -41,6 +41,26 @@ enum CatConstants {
         static let exitOffscreenOffset: CGFloat = 48
         /// Minimum exit walk duration in seconds
         static let exitMinDuration: Double = 0.5
+
+        // MARK: Graduated Step Distribution
+        static let walkStepSmall: ClosedRange<CGFloat> = 20...60
+        static let walkStepMedium: ClosedRange<CGFloat> = 60...100
+        static let walkStepSmallBaseProb: Float = 0.80
+        static let walkStepMediumBaseProb: Float = 0.15
+
+        // MARK: Speed-Linked Animation
+        static let walkBaseSpeed: Double = 45.0
+        static let walkFrameTimeMax: TimeInterval = 0.18
+        static let walkFrameTimeMin: TimeInterval = 0.06
+
+        // MARK: Walk-Start Micro-Transition
+        static let walkStartSlowFactor: Double = 1.5
+        static let walkStartSlowFrameCount: Int = 2
+
+        // MARK: Walk-Stop Squash
+        static let walkStopSquashScaleY: CGFloat = 0.95
+        static let walkStopSquashDuration: TimeInterval = 0.06
+        static let walkStopRecoverDuration: TimeInterval = 0.08
     }
 
     // MARK: - Jump
@@ -402,6 +422,16 @@ enum CatConstants {
         static let minSpawnDistance: CGFloat = 60
         /// Maximum spawn placement attempts.
         static let maxSpawnAttempts: Int = 10
+    }
+
+    // MARK: - Transition
+    enum Transition {
+        static let handoffDuration: TimeInterval = 0.15
+        static let exitAnimationSpeed: CGFloat = 2.5
+        static let transformResetDuration: TimeInterval = 0.12
+        static let permissionTintFadeDuration: TimeInterval = 0.12
+        static let exitKey = "stateTransitionExit"
+        static let pendingDispatchKey = "stateTransitionDispatch"
     }
 
     // MARK: - UpdateBadge

@@ -335,6 +335,8 @@ enum CatConstants {
         static let gracePeriod: TimeInterval = 0.5
         /// Action key for the recovery walk on containerNode.
         static let actionKey = "boundaryRecovery"
+        /// Maximum allowed Y drift from groundY before triggering Y-axis recovery.
+        static let maxYDrift: CGFloat = 100
     }
 
     // MARK: - PersistentBadge

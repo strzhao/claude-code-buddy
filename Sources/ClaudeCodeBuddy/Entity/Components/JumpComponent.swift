@@ -182,7 +182,7 @@ class JumpComponent {
 
         // Ensure cat is at ground level
         let snapGround = SKAction.run { [weak self] in
-            self?.containerNode.position.y = self?.containerNode.position.y ?? 0
+            self?.containerNode.position.y = CatConstants.Visual.groundY
         }
 
         return [squash, spawnDust, hold, recover, snapGround, resetNodeY]

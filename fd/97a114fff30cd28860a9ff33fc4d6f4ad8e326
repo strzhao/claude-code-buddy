@@ -1,0 +1,25 @@
+homebrew/Casks/claude-code-buddy.rb
+  7f95d9d45cca32ec 2-3
+Sources/ClaudeCodeBuddy/Resources/Info.plist
+  7f95d9d45cca32ec 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "fd97a114fff30cd28860a9ff33fc4d6f4ad8e326",
+  "prompts": {
+    "7f95d9d45cca32ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92258580-dfa1-42de-b42a-210d07bda91a",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 172,
+      "overriden_lines": 0
+    }
+  }
+}

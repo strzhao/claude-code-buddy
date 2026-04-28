@@ -1,0 +1,25 @@
+.autopilot/index.md
+  7f95d9d45cca32ec 17
+.autopilot/patterns.md
+  7f95d9d45cca32ec 3-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "67d46236b915934aac46acc09636e15ac65d0233",
+  "prompts": {
+    "7f95d9d45cca32ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92258580-dfa1-42de-b42a-210d07bda91a",
+        "model": "glm-5.1"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 0,
+      "accepted_lines": 176,
+      "overriden_lines": 0
+    }
+  }
+}

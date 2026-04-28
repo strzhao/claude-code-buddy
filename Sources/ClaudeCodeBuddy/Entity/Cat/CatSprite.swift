@@ -268,8 +268,11 @@ class CatSprite {
     /// Whether this cat is outside its activity bounds by more than the tolerance.
     func isOutOfBounds() -> Bool {
         let x = containerNode.position.x
+        let y = containerNode.position.y
         let tolerance = CatConstants.BoundaryRecovery.outOfBoundsTolerance
         return x < activityMin - tolerance || x > effectiveActivityMax + tolerance
+            || y < CatConstants.Visual.groundY - tolerance
+            || y > CatConstants.Visual.groundY + CatConstants.BoundaryRecovery.maxYDrift
     }
 
     /// Returns the nearest valid X position within activity bounds for an out-of-bounds cat.

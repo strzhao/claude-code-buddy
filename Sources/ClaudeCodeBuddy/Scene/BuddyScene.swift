@@ -509,6 +509,12 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 if elapsed >= CatConstants.BoundaryRecovery.gracePeriod {
                     let targetX = cat.nearestValidX()
                     cat.movementComponent.walkBackIntoBounds(targetX: targetX)
+
+                    let currentY = cat.containerNode.position.y
+                    if currentY < CatConstants.Visual.groundY - CatConstants.BoundaryRecovery.outOfBoundsTolerance
+                        || currentY > CatConstants.Visual.groundY + CatConstants.BoundaryRecovery.maxYDrift {
+                        cat.containerNode.position.y = CatConstants.Visual.groundY
+                    }
                 }
             } else {
                 cat.outOfBoundsSince = nil

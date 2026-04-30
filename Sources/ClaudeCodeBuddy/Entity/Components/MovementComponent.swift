@@ -442,13 +442,13 @@ class MovementComponent {
             }
         }
 
-        // Filter obstacles on the path — include overlapping cats (within 24px behind)
+        // Filter obstacles on the path ahead of the cat
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
-            onPath = obstacles.filter { $0.x > myX - CatConstants.Jump.obstaclePathTolerance && $0.x < edgeX }
+            onPath = obstacles.filter { $0.x >= myX && $0.x < edgeX }
                               .sorted { $0.x < $1.x }
         } else {
-            onPath = obstacles.filter { $0.x < myX + CatConstants.Jump.obstaclePathTolerance && $0.x > edgeX }
+            onPath = obstacles.filter { $0.x <= myX && $0.x > edgeX }
                               .sorted { $0.x > $1.x }
         }
 

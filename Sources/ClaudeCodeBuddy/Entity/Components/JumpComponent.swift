@@ -255,11 +255,11 @@ class JumpComponent {
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
             onPath = obstacles
-                .filter { $0.x > fromX - tolerance && $0.x < toX + tolerance }
+                .filter { $0.x >= fromX && $0.x < toX + tolerance }
                 .sorted { $0.x < $1.x }
         } else {
             onPath = obstacles
-                .filter { $0.x < fromX + tolerance && $0.x > toX - tolerance }
+                .filter { $0.x <= fromX && $0.x > toX - tolerance }
                 .sorted { $0.x > $1.x }
         }
 

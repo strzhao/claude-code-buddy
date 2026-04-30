@@ -768,4 +768,122 @@ final class JumpExitTests: XCTestCase {
 
         wait(for: [exp], timeout: 3.0)
     }
+
+    // MARK: - 验收标准：障碍物路径检测边界条件（tolerance 修复）
+
+    /// 测试 1：位于起始位置后方的障碍物（向左行走时）不应被视为在路径上
+    ///
+    /// 测试场景：
+    /// - 猫位于 x=700，向左行走至 x=668
+    /// - 障碍物位于 x=720（在猫的右侧，即后方）
+    ///
+    /// 预期结果：buildJumpActions 应返回空数组，因为障碍物不在行进方向上
+    func testObstacleBehindStartPositionWhenGoingLeftIsNotOnPath() {
+        let cat = makeCat(sessionId: "tolerance-left", x: 700)
+        let obstacle = makeCat(sessionId: "obs-behind-left", x: 720)
+
+        let jumpActions = cat.movementComponent.jumpComponent.buildJumpActions(
+            from: 700,
+            to: 668,
+            goingRight: false,
+            nearbyObstacles: { [self] in self.obstacleEntries([obstacle]) },
+            currentState: .toolUse,
+            sessionColor: nil,
+            sessionTintFactor: 0,
+            activityMin: 48,
+            activityMax: 752
+        )
+
+        XCTAssertTrue(
+            jumpActions.isEmpty,
+            "向左行走时，位于起始位置后方的障碍物（x=720）不应触发跳跃动作"
+        )
+    }
+
+    /// 测试 2：位于起始位置后方的障碍物（向右行走时）不应被视为在路径上
+    ///
+    /// 测试场景：
+    /// - 猫位于 x=100，向右行走至 x=200
+    /// - 障碍物位于 x=80（在猫的左侧，即后方）
+    ///
+    /// 预期结果：buildJumpActions 应返回空数组，因为障碍物不在行进方向上
+    func testObstacleBehindStartPositionWhenGoingRightIsNotOnPath() {
+        let cat = makeCat(sessionId: "tolerance-right", x: 100)
+        let obstacle = makeCat(sessionId: "obs-behind-right", x: 80)
+
+        let jumpActions = cat.movementComponent.jumpComponent.buildJumpActions(
+            from: 100,
+            to: 200,
+            goingRight: true,
+            nearbyObstacles: { [self] in self.obstacleEntries([obstacle]) },
+            currentState: .toolUse,
+            sessionColor: nil,
+            sessionTintFactor: 0,
+            activityMin: 48,
+            activityMax: 752
+        )
+
+        XCTAssertTrue(
+            jumpActions.isEmpty,
+            "向右行走时，位于起始位置后方的障碍物（x=80）不应触发跳跃动作"
+        )
+    }
+
+    /// 测试 3：位于起始位置正上方的障碍物应被视为在路径上（边界情况）
+    ///
+    /// 测试场景：
+    /// - 猫位于 x=300，向右行走至 x=400
+    /// - 障碍物位于 x=300（与起始位置重合）
+    ///
+    /// 预期结果：buildJumpActions 应返回非空数组，因为障碍物位于边界位置，仍应被检测到
+    func testObstacleAtExactStartPositionIsOnPath() {
+        let cat = makeCat(sessionId: "tolerance-exact", x: 300)
+        let obstacle = makeCat(sessionId: "obs-exact", x: 300)
+
+        let jumpActions = cat.movementComponent.jumpComponent.buildJumpActions(
+            from: 300,
+            to: 400,
+            goingRight: true,
+            nearbyObstacles: { [self] in self.obstacleEntries([obstacle]) },
+            currentState: .toolUse,
+            sessionColor: nil,
+            sessionTintFactor: 0,
+            activityMin: 48,
+            activityMax: 752
+        )
+
+        XCTAssertFalse(
+            jumpActions.isEmpty,
+            "位于起始位置正上方的障碍物（x=300）应触发跳跃动作（边界情况）"
+        )
+    }
+
+    /// 测试 4：位于前方的障碍物应被视为在路径上（回归测试）
+    ///
+    /// 测试场景：
+    /// - 猫位于 x=100，向右行走至 x=300
+    /// - 障碍物位于 x=200（在路径前方）
+    ///
+    /// 预期结果：buildJumpActions 应返回非空数组，因为障碍物在正常行进路径上
+    func testObstacleAheadIsOnPathRegression() {
+        let cat = makeCat(sessionId: "tolerance-ahead", x: 100)
+        let obstacle = makeCat(sessionId: "obs-ahead", x: 200)
+
+        let jumpActions = cat.movementComponent.jumpComponent.buildJumpActions(
+            from: 100,
+            to: 300,
+            goingRight: true,
+            nearbyObstacles: { [self] in self.obstacleEntries([obstacle]) },
+            currentState: .toolUse,
+            sessionColor: nil,
+            sessionTintFactor: 0,
+            activityMin: 48,
+            activityMax: 752
+        )
+
+        XCTAssertFalse(
+            jumpActions.isEmpty,
+            "位于路径前方的障碍物（x=200）应触发跳跃动作（回归测试）"
+        )
+    }
 }

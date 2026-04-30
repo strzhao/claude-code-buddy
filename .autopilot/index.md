@@ -14,6 +14,7 @@
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions.md
 
 ## Patterns
+- [2026-04-30] 障碍物路径检测容差向后延伸导致屏幕边缘跳跃死循环 | tags: spritekit, jump, obstacle, tolerance, boundary, movement, loop | → patterns.md
 - [2026-04-29] JumpComponent snapGround no-op 导致猫咪 y 坐标累积漂移飞出屏幕 | tags: spritekit, physics, jump, y-coordinate, boundary-recovery, groundY | → patterns.md
 - [2026-04-27] playFrightReaction removeAllActions 杀死 eating 动画导致永久卡死 | tags: spritekit, state-machine, eating, fright, race-condition, removeAllActions | → patterns.md
 - [2026-04-26] smoothTurn 与即时位移并发导致反向行走 | tags: spritekit, animation, facing, movement, smoothturn, xscale | → patterns.md

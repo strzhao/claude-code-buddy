@@ -171,3 +171,15 @@
 **Scenario**: BuddyWindow 默认 ignoresMouseEvents=true（点击穿透），hover 时切为 false。拖拽结束后 MouseTracker 的 isDragging 置 false 但没有恢复 ignoresMouseEvents=true，导致整个窗口持续拦截鼠标事件，用户无法点击窗口后面的应用。
 **Lesson**: 任何修改 ignoresMouseEvents 的代码路径，必须有配对的恢复逻辑。拖拽结束（mouseUp）时应立即恢复 ignoresMouseEvents=true 并清除 hover 状态。落体+弹跳动画完全由 SKAction 驱动，不需要鼠标事件。通用规则：临时打开 mouse event 接收后，确认每个退出路径（正常结束、app 失焦、取消）都会恢复 click-through。
 **Evidence**: 用户报告拖拽松手后无法点击其他窗口。mouseUp 中添加 `window?.setInteractive(false)` + `hoveredSessionId = nil` 后修复。
+
+### [2026-05-01] SKAction.wait 在子节点上可能永远不触发（release build 特有）
+<!-- tags: spritekit, skaction, wait, async, gcd, dispatch, release-build, state-machine, deadlock -->
+**Scenario**: `switchState` 用 `SKAction.sequence([wait(0.15s), run { stateMachine.enter() }])` 在 node 上调度状态转换。debug build 正常，但 release build（.app bundle）中 SKAction.wait 永远不触发，状态机卡死，猫咪永远无法进入 toolUse/thinking 等状态。
+**Lesson**: SKAction.wait(forDuration:) 在特定条件下（release build、子节点上、与其他 action 组合）可能静默失败。关键逻辑（状态转换、回调链、调度）不能依赖 SKAction 时序。修复：`DispatchQueue.main.asyncAfter(deadline: .now() + delay) { ... }`。这是比 `[2026-04-23] smoothTurn` 和 `[2026-04-26] switchState handoff` 更严重的问题——那两个只影响测试环境（无 display link），但 SKAction.wait 即使在有 display link 的 UI 环境中也可能不触发。通用规则：所有 SKAction.wait → GCD asyncAfter，SKAction.sequence(wait+run) → GCD asyncAfter 嵌套。
+**Evidence**: 用户报告猫咪出现后自动跑到最右边原地跳跃。排查发现所有 debug 猫 emit tool_start 后 state 始终为 idle——SKAction.wait 永远不触发，CatToolUseState.didEnter 从不执行。替换为 GCD 后状态转换立即正常。
+
+### [2026-05-01] 边界恢复中断 action 序列后需显式恢复被丢失的副作用
+<!-- tags: spritekit, skaction, boundary-recovery, sequenc, interrupt, physics, isdynamic -->
+**Scenario**: `walkBackIntoBounds` 通过 `removeAction(forKey: "randomWalk")` 取消跳跃序列，但跳跃序列末尾的 `enablePhysics` SKAction（恢复 `isDynamic = true`）也随之丢失，导致 `isDynamic` 永久 false。
+**Lesson**: 任何通过 cancel action key 中断 SKAction 序列的操作，需检查序列中是否有"恢复/清理"类型的尾部 action（如 `isDynamic` 恢复、动画重置、标志位复位），这些副作用在 cancel 时不会自动执行。修复模式：在 cancel 处显式补回丢失的副作用。通用检查：grep `removeAction(forKey:")` 的调用点，对比被移除序列的尾部 `SKAction.run` 块，确认关键状态恢复不丢失。
+**Evidence**: 死循环根因之二——跳跃被中断后 isDynamic=false，猫咪物理被冻结。QA 验证 walkBackIntoBounds 中补回 `isDynamic = true` 后修复。

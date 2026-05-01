@@ -14,6 +14,8 @@
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions.md
 
 ## Patterns
+- [2026-05-01] SKAction.wait 在子节点上 release build 中可能永远不触发，应统一用 GCD asyncAfter 替代 | tags: spritekit, skaction, wait, async, gcd, dispatch, release-build, state-machine, deadlock | → patterns.md
+- [2026-05-01] 边界恢复中断 action 序列后需显式恢复被丢失的副作用（isDynamic 等） | tags: spritekit, skaction, boundary-recovery, sequence, interrupt, physics, isdynamic | → patterns.md
 - [2026-04-30] 障碍物路径检测容差向后延伸导致屏幕边缘跳跃死循环 | tags: spritekit, jump, obstacle, tolerance, boundary, movement, loop | → patterns.md
 - [2026-04-29] JumpComponent snapGround no-op 导致猫咪 y 坐标累积漂移飞出屏幕 | tags: spritekit, physics, jump, y-coordinate, boundary-recovery, groundY | → patterns.md
 - [2026-04-27] playFrightReaction removeAllActions 杀死 eating 动画导致永久卡死 | tags: spritekit, state-machine, eating, fright, race-condition, removeAllActions | → patterns.md

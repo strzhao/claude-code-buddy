@@ -183,3 +183,15 @@
 **Scenario**: `walkBackIntoBounds` 通过 `removeAction(forKey: "randomWalk")` 取消跳跃序列，但跳跃序列末尾的 `enablePhysics` SKAction（恢复 `isDynamic = true`）也随之丢失，导致 `isDynamic` 永久 false。
 **Lesson**: 任何通过 cancel action key 中断 SKAction 序列的操作，需检查序列中是否有"恢复/清理"类型的尾部 action（如 `isDynamic` 恢复、动画重置、标志位复位），这些副作用在 cancel 时不会自动执行。修复模式：在 cancel 处显式补回丢失的副作用。通用检查：grep `removeAction(forKey:")` 的调用点，对比被移除序列的尾部 `SKAction.run` 块，确认关键状态恢复不丢失。
 **Evidence**: 死循环根因之二——跳跃被中断后 isDynamic=false，猫咪物理被冻结。QA 验证 walkBackIntoBounds 中补回 `isDynamic = true` 后修复。
+
+### [2026-05-01] 高频状态转换 + 食物通知触发 = 系统性漂移棘轮
+<!-- tags: spritekit, food, state-machine, ratchet, drift, notification, tooluse, idle, cooldown -->
+**Scenario**: Claude Code 会话每分钟触发多次 `tool_start`/`tool_end`，每次状态转换都调用 `notifyCatAboutLandedFood`。食物存活 60s，猫以 100 px/s 走向 300px 内的食物。进食后回到 idle，下一次 toolUse 进入时 `originX` 锚定到当前位置，随机行走从食物位置开始 → 形成"食物→进食→idle→toolUse→再次食物通知→..."棘轮循环，导致猫咪系统性向右侧（食物多落在右侧）漂移。
+**Lesson**: 高频外部事件触发状态转换时，禁止在每次转换都执行吸引力检查（食物/兴趣点）。修复模式（三层防御）：(1) 仅在最低频状态（idle）触发，排除 thinking/toolUse；(2) 冷却期（5s）防止同状态快速重入；(3) 距离上限 + 仅通知最近目标，防止广播拉取所有实体聚集。通用检查：grep 所有状态转换回调中的"兴趣点/目标/通知"类调用，确认有频次限制。
+**Evidence**: 单猫 30s 内向右漂移 865px（~29 px/s），修复后猫能从右边缘向左逃离（t=50s x=1723），不再永久卡住。QA 场景验证通过。
+
+### [2026-05-01] 避让/排斥逻辑在边界处需双向逃离路径，否则形成死锁
+<!-- tags: spritekit, avoidance, boundary, deadlock, movement, adjusttarget, escape -->
+**Scenario**: `adjustTargetAwayFromOtherCats` 检测到路径穿越障碍物时，将目标重定向到障碍物远离自己的一侧。当猫在右边缘（x=1850）试图向左走，路径被 x=1800 的猫挡住 → 重定向到 x=1800+52=1852 → 被边界 clamp 回 ~1852 → 无法向左逃离右边缘集群。同理，`dist < minDist` 的近距离排斥也可能将目标推回障碍物方向。
+**Lesson**: 任何基于"推离障碍物"的避让/排斥逻辑在边界附近必须检查结果是否越界。越界时不能仅 clamp（会形成死锁），应反向放置目标（障碍物另一侧）。修复模式：`if redirected > boundary { redirected = obstacle - margin }`，为边缘实体保留双向逃离路径。通用规则：grep 所有 `max(boundary, min(boundary, ...))` 的 clamp 模式，检查是否可能形成 clamp→死锁循环。
+**Evidence**: 用户报告"所有猫咪创建后都跑到最右边且无法逃离"，单只猫也有问题。根因 2 确认 adjustTarget 在边界处形成单向死锁。修复后多猫场景中猫位置范围 x=950-1872，出现双向移动。

@@ -1,8 +1,8 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
-iteration: 1
+iteration: 2
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260501-任务完成的时候猫咪是"
 session_id: 429679a5-4165-4614-aae0-ca45743f07a9
 started_at: "2026-05-01T15:27:41Z"
@@ -83,6 +83,8 @@ if entity.node.action(forKey: "smoothTurn") != nil {
 
 ## 变更日志
 - [2026-05-01T15:39:43Z] 用户批准验收，进入合并阶段
+- [2026-05-01T15:42:00Z] 提交 36f6a65 fix: 修复任务完成时猫咪倒着走的问题
+- [2026-05-01T15:43:00Z] 知识提取：更新 patterns.md smoothTurn 模式（第三次复发 walkToBed）
 - [2026-05-01T15:27:41Z] autopilot 初始化，目标: 任务完成的时候猫咪是倒着走的，解决这个问题
 - [2026-05-01T15:35:00Z] design 完成：根因确认为 walkToBed() 遗漏 smoothTurn guard + snap（第三次复发）
 - [2026-05-01T15:36:00Z] implement 完成：在 CatTaskCompleteState.swift:101 后添加 4 行修复

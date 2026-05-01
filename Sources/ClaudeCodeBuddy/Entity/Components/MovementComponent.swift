@@ -41,9 +41,7 @@ class MovementComponent {
         guard entity.currentState == .toolUse else { return }
 
         let containerNode = entity.containerNode
-#if DEBUG
-        print("[RW] doRandomWalkStep \(entity.sessionId): originX=\(entity.originX) myX=\(containerNode.position.x)")
-#endif
+        print("[TRACE] doRandomWalkStep \(entity.sessionId): originX=\(entity.originX) myX=\(containerNode.position.x) myY=\(containerNode.position.y) state=\(entity.currentState)")
 
         // Graduated step distribution: mostly small, occasionally medium, rarely large
         let activityShift = entity.personality.stepSizeActivityShift
@@ -110,9 +108,7 @@ class MovementComponent {
             goingRight = target > containerNode.position.x
             distance = abs(target - containerNode.position.x)
         }
-#if DEBUG
-        print("[RW] doRandomWalkStep \(entity.sessionId): final target=\(target) distance=\(distance) jumpActions=\(jumpActions.count)")
-#endif
+        print("[TRACE] doRandomWalkStep \(entity.sessionId): finalTarget=\(target) distance=\(distance) jumpActions=\(jumpActions.count) goingRight=\(goingRight)")
 
         entity.face(towardX: target)
         if entity.node.action(forKey: "smoothTurn") != nil {
@@ -273,7 +269,10 @@ class MovementComponent {
     // MARK: - Walk To Food
 
     func walkToFood(_ food: FoodSprite, excitedDelay: TimeInterval = 0, onArrival: @escaping (CatSprite, FoodSprite) -> Void) {
-        guard [.idle, .thinking, .toolUse].contains(entity.currentState) else { return }
+        guard [.idle, .thinking, .toolUse].contains(entity.currentState) else {
+            print("[TRACE] walkToFood \(entity.sessionId): BAIL state=\(entity.currentState) not eligible")
+            return
+        }
         entity.currentTargetFood = food
 
         let containerNode = entity.containerNode
@@ -282,6 +281,7 @@ class MovementComponent {
         let margin = CatConstants.Movement.walkBoundaryMargin
         let rawTargetX = food.node.position.x
         let targetX = max(entity.activityMin + margin, min(entity.effectiveActivityMax - margin, rawTargetX))
+        print("[TRACE] walkToFood \(entity.sessionId): foodX=\(rawTargetX) clampedTarget=\(targetX) catX=\(containerNode.position.x) catY=\(containerNode.position.y) catState=\(entity.currentState)")
         let delta = targetX - containerNode.position.x
         let distance = abs(delta)
 
@@ -331,6 +331,7 @@ class MovementComponent {
 
     /// Walks the cat back into activity bounds from an out-of-bounds position.
     func walkBackIntoBounds(targetX: CGFloat) {
+        print("[TRACE] walkBackIntoBounds \(entity.sessionId): targetX=\(targetX) catX=\(entity.containerNode.position.x) catY=\(entity.containerNode.position.y) state=\(entity.currentState)")
         let containerNode = entity.containerNode
         let node = entity.node
         let myX = containerNode.position.x

@@ -63,6 +63,7 @@ class FoodManager {
             x = CGFloat.random(in: bounds)
         }
         food.node.position = CGPoint(x: x, y: scene.size.height + 24)
+        print("[TRACE] spawnFood: \(food.node.name ?? "?") at x=\(x) targetX=\(targetX ?? -1) activeCount=\(activeFoods.count + 1)")
 
         scene.addChild(food.node)
         activeFoods.append(food)
@@ -73,6 +74,7 @@ class FoodManager {
     func foodLanded(_ food: FoodSprite) {
         guard food.state == .falling else { return }
         food.markLanded()
+        print("[TRACE] foodLanded: \(food.node.name ?? "?") at x=\(food.node.position.x) y=\(food.node.position.y)")
         notifyIdleCats(about: food)
     }
 
@@ -102,9 +104,7 @@ class FoodManager {
         guard let (nearestCat, nearestDist) = best else { return }
 
         let delay = Double(nearestDist / maxDistance) * 0.3
-#if DEBUG
-        print("[FOOD] notifyIdleCats: food at x=\(foodX) nearest=\(nearestCat.sessionId) dist=\(nearestDist) among \(eligibleCats.count) eligible")
-#endif
+        print("[TRACE] notifyIdleCats: food=\(food.node.name ?? "?") foodX=\(foodX) nearest=\(nearestCat.sessionId) dist=\(nearestDist) among \(eligibleCats.count) eligible")
         nearestCat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
                 guard let self = self else { return }
                 guard food.claim(by: arrivingCat.sessionId) else {
@@ -146,9 +146,7 @@ class FoodManager {
         guard distance <= maxDistance else { return }
         let delay = Double(distance / maxDistance) * 0.3
 
-#if DEBUG
-        print("[FOOD] notifySingle: cat \(cat.sessionId) at x=\(cat.containerNode.position.x) walking to food at x=\(food.node.position.x) distance=\(distance)")
-#endif
+        print("[TRACE] notifySingle: cat \(cat.sessionId) catX=\(cat.containerNode.position.x) foodX=\(food.node.position.x) distance=\(distance) catState=\(cat.currentState)")
         cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
             guard let self = self else { return }
             guard food.claim(by: arrivingCat.sessionId) else {

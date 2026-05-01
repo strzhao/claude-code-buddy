@@ -433,9 +433,7 @@ class CatSprite {
 
         containerNode.physicsBody?.isDynamic = true
         pendingToolDescription = toolDescription
-#if DEBUG
-        print("[STATE] switchState \(sessionId): \(currentState) -> \(newState), containerNode.x=\(containerNode.position.x)")
-#endif
+        print("[TRACE] switchState \(sessionId): \(currentState) -> \(newState), catX=\(containerNode.position.x) catY=\(containerNode.position.y) sessionState=\(newState)")
 
         if currentState == newState {
             if newState == .permissionRequest {
@@ -657,6 +655,7 @@ class CatSprite {
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
+        print("[TRACE] \(sessionId): startEating food=\(food.node.name ?? "?") foodX=\(food.node.position.x) foodY=\(food.node.position.y) catX=\(containerNode.position.x) catY=\(containerNode.position.y) catState=\(currentState)")
         pendingToolDescription = nil
         stateMachine.enter(CatEatingState.self)
         currentTargetFood = food
@@ -668,6 +667,7 @@ class CatSprite {
             let eatCycle = SKAction.repeat(animate, count: 2)
             let done = SKAction.run { [weak self] in
                 guard let self = self else { return }
+                print("[TRACE] \(self.sessionId): eating done callback, switching to idle. catX=\(self.containerNode.position.x) catY=\(self.containerNode.position.y)")
                 self.currentTargetFood = nil
                 // Don't set currentState directly — let switchState handle the transition
                 self.switchState(to: .idle)

@@ -264,6 +264,8 @@ class JumpComponent {
 
         guard !onPath.isEmpty else { return [] }
 
+        print("[TRACE] buildJumpActions: fromX=\(fromX) toX=\(toX) goingRight=\(goingRight) obstacles=\(obstacles.map { ($0.cat.sessionId, $0.x) }) onPath=\(onPath.map { ($0.cat.sessionId, $0.x) })")
+
         let groundY = containerNode.position.y
         var actions: [SKAction] = []
         var lastX = fromX

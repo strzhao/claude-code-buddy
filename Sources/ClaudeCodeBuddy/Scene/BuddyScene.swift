@@ -294,10 +294,15 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
         cat.switchState(to: state, toolDescription: toolDescription)
         foodManager.updateCatIdleState(sessionId: sessionId, isIdle: state == .idle)
-        // When a cat becomes idle/thinking/toolUse, check for existing landed food.
+        // When a cat becomes idle, check for existing landed food.
+        // Restricted to idle-only: thinking/toolUse transitions are too frequent and
+        // pulling the cat to food on every tool_start creates a rightward ratchet.
         // Defer to let the async handoff dispatch complete (0.15s), otherwise
         // walkToFood's removeAllActions() can kill the state transition mid-flight.
-        if state == .idle || state == .thinking || state == .toolUse {
+        if state == .idle {
+            let now = CACurrentMediaTime()
+            guard now - cat.lastFoodNoticeTime >= CatConstants.Movement.foodNoticeCooldown else { return }
+            cat.lastFoodNoticeTime = now
             let delay = CatConstants.Transition.handoffDuration * 1.5
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self = self, self.cats[sessionId] != nil else { return }

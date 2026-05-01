@@ -123,6 +123,8 @@ class CatSprite {
     private(set) var currentTokenLevel: TokenLevel = .lv1
     /// The food this cat is currently walking toward or eating.
     var currentTargetFood: FoodSprite?
+    /// Last time notifyCatAboutLandedFood was called for this cat (cooldown).
+    var lastFoodNoticeTime: TimeInterval = 0
     /// Callback to release food when cat is interrupted.
     var onFoodAbandoned: ((String) -> Void)?  // passes sessionId
     /// Callback to request a bed slot when entering taskComplete state.
@@ -279,7 +281,9 @@ class CatSprite {
     func nearestValidX() -> CGFloat {
         let x = containerNode.position.x
         let margin = CatConstants.Movement.walkBoundaryMargin
-        if x < activityMin {
+        let distToMin = abs(x - activityMin)
+        let distToMax = abs(x - effectiveActivityMax)
+        if distToMin < distToMax {
             return activityMin + margin
         } else {
             return effectiveActivityMax - margin
@@ -429,6 +433,9 @@ class CatSprite {
 
         containerNode.physicsBody?.isDynamic = true
         pendingToolDescription = toolDescription
+#if DEBUG
+        print("[STATE] switchState \(sessionId): \(currentState) -> \(newState), containerNode.x=\(containerNode.position.x)")
+#endif
 
         if currentState == newState {
             if newState == .permissionRequest {
@@ -505,6 +512,9 @@ class CatSprite {
             self.node.zRotation = 0
             self.applyFacingDirection()
 
+#if DEBUG
+            print("[STATE] switchState \(self.sessionId): entering state, containerNode.x=\(self.containerNode.position.x)")
+#endif
             self.stateMachine.enter(targetStateCapture)
 
             if let pending = self.pendingStateAfterTransition {

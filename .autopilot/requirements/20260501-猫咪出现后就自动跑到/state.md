@@ -1,8 +1,8 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
-iteration: 1
+iteration: 2
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260501-猫咪出现后就自动跑到"
 session_id: 822d55af-f0a1-49e6-b822-16d4628ce1e4
 started_at: "2026-04-30T17:50:50Z"
@@ -109,6 +109,8 @@ doRandomWalkStep() → 检测障碍物 → buildJumpActions()
 
 ## 变更日志
 - [2026-05-01T01:49:12Z] 用户批准验收，进入合并阶段
+- [2026-05-01T04:00:00Z] commit-agent 完成: 2 commits (fix + version bump v0.19.0→v0.19.1)
+- [2026-05-01T04:05:00Z] 知识提取完成: 新增 2 条 patterns → patterns.md。⚠️ patterns.md (185行) 和 decisions.md (167行) 均超 100 行阈值，建议迁移到 domains/ 分区
 - [2026-04-30T17:50:50Z] autopilot 初始化，目标: 猫咪出现后就自动跑到最右边，然后一直在原地跳，解决这个问题，我当前已经是最新版本了
 - [2026-05-01T02:06:00Z] 设计方案通过审批，3 个修复点 + 常量清理
 - [2026-05-01T02:08:00Z] 实现完成: 钳制 approachX、walkBackIntoBounds 恢复 isDynamic、移除前向容差、清理 obstaclePathTolerance。JumpExit 36/36 通过

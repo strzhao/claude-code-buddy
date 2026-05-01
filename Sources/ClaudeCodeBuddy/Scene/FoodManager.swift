@@ -84,13 +84,28 @@ class FoodManager {
 
     private func notifyIdleCats(about food: FoodSprite) {
         guard let scene = scene else { return }
-        let eligibleCats = scene.foodEligibleCats()
-        let sceneWidth = scene.size.width
+        let eligibleCats = scene.foodEligibleCats().filter { $0.currentTargetFood == nil }
+        guard !eligibleCats.isEmpty else { return }
+        let maxDistance = CatConstants.Movement.maxFoodNoticeDistance
+        let foodX = food.node.position.x
+
+        // Only notify the nearest cat within range, not all cats.
+        // Broadcasting to all cats pulls them to the same spot, creating
+        // the right-edge cluster that triggered this fix.
+        var best: (cat: CatSprite, distance: CGFloat)?
         for cat in eligibleCats {
-            // Distance-based excitement delay: farther cats react slightly later (0–0.3s)
-            let distance = abs(food.node.position.x - cat.containerNode.position.x)
-            let delay = Double(distance / sceneWidth) * 0.3
-            cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
+            let distance = abs(foodX - cat.containerNode.position.x)
+            if distance <= maxDistance && (best.map({ distance < $0.distance }) ?? true) {
+                best = (cat, distance)
+            }
+        }
+        guard let (nearestCat, nearestDist) = best else { return }
+
+        let delay = Double(nearestDist / maxDistance) * 0.3
+#if DEBUG
+        print("[FOOD] notifyIdleCats: food at x=\(foodX) nearest=\(nearestCat.sessionId) dist=\(nearestDist) among \(eligibleCats.count) eligible")
+#endif
+        nearestCat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
                 guard let self = self else { return }
                 guard food.claim(by: arrivingCat.sessionId) else {
                     // Food already claimed — play disappointed reaction instead of snapping to idle
@@ -103,7 +118,6 @@ class FoodManager {
                     }
                 }
             }
-        }
     }
 
     // MARK: - Release Food
@@ -127,10 +141,14 @@ class FoodManager {
                 < abs($1.node.position.x - cat.containerNode.position.x)
         }) else { return }
 
-        let sceneWidth = scene?.size.width ?? 1
+        let maxDistance = CatConstants.Movement.maxFoodNoticeDistance
         let distance = abs(food.node.position.x - cat.containerNode.position.x)
-        let delay = Double(distance / sceneWidth) * 0.3
+        guard distance <= maxDistance else { return }
+        let delay = Double(distance / maxDistance) * 0.3
 
+#if DEBUG
+        print("[FOOD] notifySingle: cat \(cat.sessionId) at x=\(cat.containerNode.position.x) walking to food at x=\(food.node.position.x) distance=\(distance)")
+#endif
         cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
             guard let self = self else { return }
             guard food.claim(by: arrivingCat.sessionId) else {

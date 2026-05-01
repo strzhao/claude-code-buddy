@@ -160,7 +160,7 @@ final class PersistentBadgeTests: XCTestCase {
         XCTAssertNil(cat.persistentBadgeNode, "No persistent badge during active permissionRequest")
     }
 
-    // MARK: - Auto-Acknowledge (BuddyScene.updateCatState path)
+    // MARK: - Hook-Driven Transitions (BuddyScene.updateCatState path)
 
     private func makeScene(width: CGFloat = 800) -> BuddyScene {
         let scene = BuddyScene(size: CGSize(width: width, height: 80))
@@ -186,7 +186,7 @@ final class PersistentBadgeTests: XCTestCase {
         )
     }
 
-    func testAutoAcknowledgeOnHookDrivenTransition() {
+    func testPersistentBadgeOnHookDrivenTransition() {
         let scene = makeScene()
         let info = makeInfo()
         scene.addCat(info: info)
@@ -196,38 +196,38 @@ final class PersistentBadgeTests: XCTestCase {
         XCTAssertTrue(snap?.hasAlertOverlay ?? false)
         XCTAssertFalse(snap?.permissionAcknowledged ?? true)
 
-        // Hook drives state away — should auto-acknowledge
+        // Hook drives state away — persistent badge created (user didn't click)
         scene.updateCatState(sessionId: info.sessionId, state: .thinking)
         snap = scene.catSnapshot(for: info.sessionId)
-        XCTAssertTrue(snap?.permissionAcknowledged ?? false)
-        XCTAssertFalse(snap?.hasPersistentBadge ?? true, "No persistent badge after hook-driven transition")
+        XCTAssertFalse(snap?.permissionAcknowledged ?? true, "Not acknowledged without user click")
+        XCTAssertTrue(snap?.hasPersistentBadge ?? false, "Persistent badge created after hook-driven transition")
     }
 
-    func testAutoAcknowledgeNotTriggeredByDirectSwitchState() {
+    func testDirectSwitchStateCreatesPersistentBadge() {
         let cat = makeCat()
         cat.enterScene(sceneSize: CGSize(width: 800, height: 100))
 
         cat.switchState(to: .permissionRequest, toolDescription: "Read")
-        // Direct switchState bypasses BuddyScene.updateCatState — no auto-acknowledge
+        // Direct switchState — both paths behave identically after auto-acknowledge removal
         cat.switchState(to: .thinking)
-        XCTAssertFalse(cat.permissionAcknowledged, "Direct switchState should NOT auto-acknowledge")
+        XCTAssertFalse(cat.permissionAcknowledged, "Not acknowledged without user click")
         XCTAssertNotNil(cat.persistentBadgeNode, "Persistent badge created via direct switchState")
     }
 
-    func testAutoAcknowledgeMultiplePermissionCycles() {
+    func testPersistentBadgeOnMultipleUnacknowledgedCycles() {
         let scene = makeScene()
         let info = makeInfo()
         scene.addCat(info: info)
 
-        // First permission cycle
+        // First permission cycle — user never clicks
         scene.updateCatState(sessionId: info.sessionId, state: .permissionRequest, toolDescription: "Read")
         scene.updateCatState(sessionId: info.sessionId, state: .thinking)
-        XCTAssertFalse(scene.catSnapshot(for: info.sessionId)?.hasPersistentBadge ?? true, "No badge after 1st cycle")
+        XCTAssertTrue(scene.catSnapshot(for: info.sessionId)?.hasPersistentBadge ?? false, "Badge after 1st unacknowledged cycle")
 
-        // Second permission cycle
+        // Second permission cycle — didEnter removes old badge, willExit creates new one
         scene.updateCatState(sessionId: info.sessionId, state: .permissionRequest, toolDescription: "Write")
         XCTAssertFalse(scene.catSnapshot(for: info.sessionId)?.permissionAcknowledged ?? true, "Reset by didEnter")
         scene.updateCatState(sessionId: info.sessionId, state: .toolUse)
-        XCTAssertFalse(scene.catSnapshot(for: info.sessionId)?.hasPersistentBadge ?? true, "No badge after 2nd cycle")
+        XCTAssertTrue(scene.catSnapshot(for: info.sessionId)?.hasPersistentBadge ?? false, "Badge after 2nd unacknowledged cycle")
     }
 }

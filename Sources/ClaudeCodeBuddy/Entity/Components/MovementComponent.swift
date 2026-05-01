@@ -313,6 +313,9 @@ class MovementComponent {
         containerNode.removeAction(forKey: CatConstants.BoundaryRecovery.actionKey)
         containerNode.removeAction(forKey: "randomWalk")
 
+        // Restore physics in case a jump sequence was interrupted (its enablePhysics action is now lost)
+        entity.containerNode.physicsBody?.isDynamic = true
+
         // Play walk animation
         if let frames = entity.animationComponent.textures(for: "walk-a"), !frames.isEmpty {
             let animate = SKAction.animate(with: frames, timePerFrame: 0.10)

@@ -65,8 +65,6 @@ enum CatConstants {
 
     // MARK: - Jump
     enum Jump {
-        /// Tolerance (px) for considering an obstacle "on path" for general-purpose jump
-        static let obstaclePathTolerance: CGFloat = 24
         /// Walk speed during approach to obstacle (px/s)
         static let approachWalkSpeed: Double = 120.0
         /// Minimum approach walk duration in seconds (general-purpose jump)

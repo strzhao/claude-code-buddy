@@ -9,7 +9,7 @@ final class YBoundsRecoveryTests: XCTestCase {
 
     private func makeCat(
         x: CGFloat = 200,
-        y: CGFloat = 48,
+        y: CGFloat = 24,
         sceneWidth: CGFloat = 800
     ) -> CatSprite {
         let cat = CatSprite(sessionId: "ybounds-test")
@@ -25,59 +25,56 @@ final class YBoundsRecoveryTests: XCTestCase {
     // MARK: - isOutOfBounds Y-Axis Tests
 
     func testIsOutOfBoundsDetectsYBelowGround() {
-        // groundY=48, tolerance=8, so <40 is out
-        // Set y to 35, which is 13px below groundY, past tolerance
-        let cat = makeCat(y: 35)
+        // groundY=24, tolerance=8, so <16 is out
+        // Set y to 12, which is 12px below groundY, past tolerance
+        let cat = makeCat(y: 12)
         XCTAssertTrue(cat.isOutOfBounds(),
                       "cat.y=\(cat.containerNode.position.y) should be out of bounds (groundY=\(CatConstants.Visual.groundY), tolerance=\(CatConstants.BoundaryRecovery.outOfBoundsTolerance))")
     }
 
     func testIsOutOfBoundsDetectsYAboveMaxDrift() {
-        // groundY=48, maxYDrift=100, so >148 is out
-        // Set y to 150, which is 102px above groundY, past maxYDrift
-        let cat = makeCat(y: 150)
+        // groundY=24, maxYDrift=100, so >124 is out
+        // Set y to 126, which is 102px above groundY, past maxYDrift
+        let cat = makeCat(y: 126)
         XCTAssertTrue(cat.isOutOfBounds(),
                       "cat.y=\(cat.containerNode.position.y) should be out of bounds (groundY=\(CatConstants.Visual.groundY), maxYDrift=\(CatConstants.BoundaryRecovery.maxYDrift))")
     }
 
     func testIsOutOfBoundsNormalY() {
-        // y=48 is exactly at groundY, should be in bounds
-        let cat = makeCat(y: 48)
+        // y=24 is exactly at groundY, should be in bounds
+        let cat = makeCat(y: 24)
         XCTAssertFalse(cat.isOutOfBounds(),
                        "cat.y=\(cat.containerNode.position.y) at groundY should be in bounds")
 
-        // y=50 is 2px above groundY, within tolerance, should be in bounds
-        let cat2 = makeCat(y: 50)
+        // y=26 is 2px above groundY, within tolerance, should be in bounds
+        let cat2 = makeCat(y: 26)
         XCTAssertFalse(cat2.isOutOfBounds(),
                         "cat.y=\(cat2.containerNode.position.y) near groundY should be in bounds")
 
-        // y=45 is 3px below groundY, within tolerance, should be in bounds
-        let cat3 = makeCat(y: 45)
+        // y=20 is 4px below groundY, within tolerance, should be in bounds
+        let cat3 = makeCat(y: 20)
         XCTAssertFalse(cat3.isOutOfBounds(),
                         "cat.y=\(cat3.containerNode.position.y) near groundY should be in bounds")
     }
 
     func testIsOutOfBoundsYAtToleranceBoundaries() {
-        // y=40 is exactly at groundY - tolerance, should still be in bounds (tolerance is inclusive)
-        let cat = makeCat(y: 40)
+        // y=16 is exactly at groundY - tolerance, should still be in bounds
+        let cat = makeCat(y: 16)
         XCTAssertFalse(cat.isOutOfBounds(),
                        "cat.y=\(cat.containerNode.position.y) at groundY - tolerance should be in bounds")
 
-        // y=39 is just past tolerance, should be out of bounds
-        let cat2 = makeCat(y: 39)
+        // y=15 is just past tolerance, should be out of bounds
+        let cat2 = makeCat(y: 15)
         XCTAssertTrue(cat2.isOutOfBounds(),
                       "cat.y=\(cat2.containerNode.position.y) just past groundY - tolerance should be out of bounds")
 
-        // y=148 is exactly at groundY + maxYDrift, should be at boundary
-        let cat3 = makeCat(y: 148)
-        // Check the exact boundary condition based on implementation
-        let isOut = cat3.isOutOfBounds()
-        // The implementation uses > for upper bound, so 148 should be in bounds
-        XCTAssertFalse(isOut,
+        // y=124 is exactly at groundY + maxYDrift, should be in bounds (> comparison)
+        let cat3 = makeCat(y: 124)
+        XCTAssertFalse(cat3.isOutOfBounds(),
                        "cat.y=\(cat3.containerNode.position.y) at groundY + maxYDrift should be in bounds")
 
-        // y=149 is just past maxYDrift, should be out of bounds
-        let cat4 = makeCat(y: 149)
+        // y=125 is just past maxYDrift, should be out of bounds
+        let cat4 = makeCat(y: 125)
         XCTAssertTrue(cat4.isOutOfBounds(),
                       "cat.y=\(cat4.containerNode.position.y) just past groundY + maxYDrift should be out of bounds")
     }

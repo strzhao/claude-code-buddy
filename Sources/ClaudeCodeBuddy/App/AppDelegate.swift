@@ -20,6 +20,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: ["alwaysShowLabel": true])
+
         setupWindow()
         setupMenuBar()
         setupSessionManager()

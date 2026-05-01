@@ -251,15 +251,14 @@ class JumpComponent {
     ) -> [SKAction] {
         guard let obstacles = nearbyObstacles?() else { return [] }
 
-        let tolerance = CatConstants.Jump.obstaclePathTolerance
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
             onPath = obstacles
-                .filter { $0.x >= fromX && $0.x < toX + tolerance }
+                .filter { $0.x >= fromX && $0.x < toX }
                 .sorted { $0.x < $1.x }
         } else {
             onPath = obstacles
-                .filter { $0.x <= fromX && $0.x > toX - tolerance }
+                .filter { $0.x <= fromX && $0.x > toX }
                 .sorted { $0.x > $1.x }
         }
 
@@ -272,7 +271,8 @@ class JumpComponent {
         for obstacle in onPath {
             let obstX = obstacle.x
             let approachOffset = CGFloat.random(in: CatConstants.PhysicsJump.approachOffsetRange)
-            let approachX = goingRight ? obstX - approachOffset : obstX + approachOffset
+            let rawApproachX = goingRight ? obstX - approachOffset : obstX + approachOffset
+            let approachX = max(activityMin, min(activityMax, rawApproachX))
             let rawLandX = goingRight ? obstX + approachOffset : obstX - approachOffset
             let landX = clampLandX(rawLandX, activityMin: activityMin, activityMax: activityMax)
             let capturedObstacleCat = obstacle.cat

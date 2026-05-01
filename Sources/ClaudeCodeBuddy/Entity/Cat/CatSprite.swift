@@ -493,29 +493,27 @@ class CatSprite {
 
         let targetStateClass: AnyClass = stateClass(for: newState)
 
-        let dispatch = SKAction.sequence([
-            SKAction.wait(forDuration: CatConstants.Transition.handoffDuration),
-            SKAction.run { [weak self] in
-                guard let self = self else { return }
-                self.isTransitioningOut = false
-                self.transitionStartTime = nil
+        let targetStateCapture = targetStateClass
+        let delay = CatConstants.Transition.handoffDuration
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self = self else { return }
+            self.isTransitioningOut = false
+            self.transitionStartTime = nil
 
-                self.node.removeAllActions()
-                self.node.yScale = 1.0
-                self.node.zRotation = 0
-                self.applyFacingDirection()
+            self.node.removeAllActions()
+            self.node.yScale = 1.0
+            self.node.zRotation = 0
+            self.applyFacingDirection()
 
-                self.stateMachine.enter(targetStateClass)
+            self.stateMachine.enter(targetStateCapture)
 
-                if let pending = self.pendingStateAfterTransition {
-                    self.pendingStateAfterTransition = nil
-                    let desc = self.pendingToolDescriptionAfterTransition
-                    self.pendingToolDescriptionAfterTransition = nil
-                    self.switchState(to: pending, toolDescription: desc)
-                }
+            if let pending = self.pendingStateAfterTransition {
+                self.pendingStateAfterTransition = nil
+                let desc = self.pendingToolDescriptionAfterTransition
+                self.pendingToolDescriptionAfterTransition = nil
+                self.switchState(to: pending, toolDescription: desc)
             }
-        ])
-        node.run(dispatch, withKey: CatConstants.Transition.pendingDispatchKey)
+        }
     }
 
     private func primaryAnimationKey(for state: CatState) -> String {

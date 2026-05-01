@@ -257,19 +257,19 @@ final class JumpExitTests: XCTestCase {
     }
 
     func testFrightNetPositiveDisplacementWhenJumperOnLeft() {
-        // 滑动 40px（被 clamp 后）后回弹 ~30%，净移动为正
-        // 猫 x=200，跳跃者 x=50（向右逃）
+        // reboundFactor=1.0: cat bounces back to start position, no net displacement
+        // Cat x=200, jumper x=50 (flee right)
         let cat = makeCat(sessionId: "fright-net-disp", x: 200)
-        let exp = expectation(description: "net displacement positive after fright from left")
+        let exp = expectation(description: "fright returns to start with full rebound")
 
         cat.playFrightReaction(awayFromX: 50)
 
-        // 等待动画全部完成（scared 帧 + slide 0.15s + rebound 0.12s + 余量）
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
             let finalX = cat.containerNode.position.x
-            XCTAssertGreaterThan(
+            XCTAssertEqual(
                 finalX, 200,
-                "受惊动画完成后净位移应为正（向右），finalX=\(finalX)"
+                accuracy: 1.0,
+                "reboundFactor=1.0 时受惊动画完成后应回到原位，finalX=\(finalX)"
             )
             exp.fulfill()
         }

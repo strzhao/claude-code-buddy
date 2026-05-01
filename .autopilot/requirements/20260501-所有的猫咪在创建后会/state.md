@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 2
 max_iterations: 30
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260501-所有的猫咪在创建后会"
 session_id: 70581f1e-ca7e-47b8-bdfb-98d64fd3584d
 started_at: "2026-05-01T01:56:57Z"
@@ -159,3 +159,5 @@ if state == .idle || state == .thinking || state == .toolUse {
 - [2026-05-01T04:30:00Z] 设计阶段完成：3 个根因 + 1 防御性修复 + 2 补充修复。Plan reviewer PASS（有条件）。设计方案通过审批，进入实现阶段。
 - [2026-05-01T05:00:00Z] 实现完成：8 个修复点全部实现。编译通过，445 测试中 437 通过（8 个预存快照测试失败，非本次修改引入），JumpExitTests 36/36 通过。
 - [2026-05-01T07:00:00Z] QA 阶段完成：Wave 1 (Tier 1 全通过) + Wave 1.5 (4 场景全通过) + Wave 2 (Design ✅ Code Quality ✅ Ready to merge)。gate: review-accept。
+- [2026-05-01T13:26:25Z] 用户批准验收，进入合并阶段
+- [2026-05-01T13:35:00Z] merge 阶段完成：3 commits (fix + version v0.19.1→v0.19.2 + autopilot docs)。知识提取：新增 2 条 patterns → patterns.md。⚠️ patterns.md (199行) 和 decisions.md (167行) 均超 100 行阈值，建议迁移到 domains/ 分区。

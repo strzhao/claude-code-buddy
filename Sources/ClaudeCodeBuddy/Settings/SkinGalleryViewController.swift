@@ -16,6 +16,10 @@ class SkinGalleryViewController: NSViewController {
     private let soundSwitch = NSSwitch()
     private let soundLabel = NSTextField(labelWithString: "Sound Effects")
 
+    // Always Show Label toggle
+    private let alwaysShowLabelSwitch = NSSwitch()
+    private let alwaysShowLabelLabel = NSTextField(labelWithString: "Always Show Label")
+
     // Catalog URL — can be overridden for testing
     // swiftlint:disable:next force_unwrapping
     var catalogURL: URL = URL(string: "https://buddy.stringzhao.life/api/skins")!
@@ -40,6 +44,7 @@ class SkinGalleryViewController: NSViewController {
 
         setupCollectionView(in: container)
         setupSoundToggle(in: container)
+        setupAlwaysShowLabelToggle(in: container)
 
         self.view = container
 
@@ -75,7 +80,7 @@ class SkinGalleryViewController: NSViewController {
             scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -40),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -56),
         ])
     }
 
@@ -92,10 +97,30 @@ class SkinGalleryViewController: NSViewController {
 
         NSLayoutConstraint.activate([
             soundLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -32),
 
             soundSwitch.leadingAnchor.constraint(equalTo: soundLabel.trailingAnchor, constant: 8),
             soundSwitch.centerYAnchor.constraint(equalTo: soundLabel.centerYAnchor),
+        ])
+    }
+
+    private func setupAlwaysShowLabelToggle(in container: NSView) {
+        alwaysShowLabelLabel.font = .systemFont(ofSize: 13)
+        alwaysShowLabelLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(alwaysShowLabelLabel)
+
+        alwaysShowLabelSwitch.target = self
+        alwaysShowLabelSwitch.action = #selector(alwaysShowLabelToggleChanged)
+        alwaysShowLabelSwitch.state = UserDefaults.standard.bool(forKey: "alwaysShowLabel") ? .on : .off
+        alwaysShowLabelSwitch.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(alwaysShowLabelSwitch)
+
+        NSLayoutConstraint.activate([
+            alwaysShowLabelLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            alwaysShowLabelLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+
+            alwaysShowLabelSwitch.leadingAnchor.constraint(equalTo: alwaysShowLabelLabel.trailingAnchor, constant: 8),
+            alwaysShowLabelSwitch.centerYAnchor.constraint(equalTo: alwaysShowLabelLabel.centerYAnchor),
         ])
     }
 
@@ -175,6 +200,10 @@ class SkinGalleryViewController: NSViewController {
 
     @objc private func soundToggleChanged(_ sender: NSSwitch) {
         SoundManager.shared.isEnabled = sender.state == .on
+    }
+
+    @objc private func alwaysShowLabelToggleChanged(_ sender: NSSwitch) {
+        UserDefaults.standard.set(sender.state == .on, forKey: "alwaysShowLabel")
     }
 
     private func downloadSkin(entry: RemoteSkinEntry, at indexPath: IndexPath) {

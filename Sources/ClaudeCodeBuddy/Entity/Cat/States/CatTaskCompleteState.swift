@@ -99,6 +99,10 @@ final class CatTaskCompleteState: GKState, ResumableState {
         let distance = abs(delta)
 
         entity.face(towardX: targetX)
+        if entity.node.action(forKey: "smoothTurn") != nil {
+            entity.node.removeAction(forKey: "smoothTurn")
+            entity.applyFacingDirection()
+        }
 
         // Play walk animation
         if let frames = entity.animationComponent.textures(for: "walk-a"), !frames.isEmpty {

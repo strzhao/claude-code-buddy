@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 3
 max_iterations: 30
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260501-深入了解-request-相关逻"
 session_id: 5e612fd7-60ca-499d-ab32-9007c667288d
 started_at: "2026-05-01T15:45:38Z"
@@ -102,3 +102,5 @@ started_at: "2026-05-01T15:45:38Z"
 - [2026-05-01T15:45:38Z] autopilot 初始化，目标: 深入了解 request 相关逻辑处理，当前 reqeust 发起后如果用户没有过点击，应该要保留一个小的感叹号，这样用户知道有信息需要看，之前有这个特性，但是后续优化一个逻辑把这个特性误清除了
 - [2026-05-02T00:00:25Z] 设计方案通过审批并实现完成。删除 BuddyScene.updateCatState 中 auto-acknowledge 逻辑，恢复持久徽章功能。3 个测试更新，全部 445 测试通过。
 - [2026-05-02T00:07:32Z] QA 阶段完成。Wave 1: 编译 ✅ + 445 测试 ✅。Wave 1.5: 3/3 真实场景通过。Wave 2: 设计符合性 ✅ + 代码质量 ✅ (90)。gate → review-accept
+- [2026-05-02T00:10:07Z] merge 完成：提交 ae3b568 fix: 恢复持久徽章功能 — 移除 updateCatState 中的自动 acknowledge 逻辑
+- [2026-05-02T00:11:00Z] 知识提取：新增 patterns.md 条目 "外部修改 GKState 生命周期检查的标志位，绕过状态机 willExit 副作用决策"

@@ -35,6 +35,10 @@ enum CatConstants {
         static let foodWalkSpeed: CGFloat = 100
         /// Minimum food walk duration in seconds
         static let foodWalkMinDuration: Double = 0.3
+        /// Max distance a cat can be from landed food to notice it (px)
+        static let maxFoodNoticeDistance: CGFloat = 300
+        /// Minimum interval between food-notification triggers for a single cat (seconds)
+        static let foodNoticeCooldown: TimeInterval = 5.0
         /// Walk speed during exit sequence (px/s)
         static let exitWalkSpeed: Double = 120.0
         /// Offset (px) past screen edge to place exit destination
@@ -200,8 +204,9 @@ enum CatConstants {
         static let fleeDistance: CGFloat = 30
         /// Boundary margin from scene edges when clamping flee target
         static let boundaryMargin: CGFloat = 24
-        /// Rebound factor: fraction of slide delta to spring back
-        static let reboundFactor: CGFloat = 0.5
+        /// Rebound factor: fraction of slide delta to spring back.
+        /// 1.0 = full return to start position (no net displacement).
+        static let reboundFactor: CGFloat = 1.0
         /// Duration of the slide-away movement
         static let slideDuration: TimeInterval = 0.15
         /// Duration of the rebound movement

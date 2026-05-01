@@ -41,6 +41,9 @@ class MovementComponent {
         guard entity.currentState == .toolUse else { return }
 
         let containerNode = entity.containerNode
+#if DEBUG
+        print("[RW] doRandomWalkStep \(entity.sessionId): originX=\(entity.originX) myX=\(containerNode.position.x)")
+#endif
 
         // Graduated step distribution: mostly small, occasionally medium, rarely large
         let activityShift = entity.personality.stepSizeActivityShift
@@ -66,40 +69,65 @@ class MovementComponent {
             ? max(entity.activityMin, min(entity.effectiveActivityMax, rawTarget))
             : rawTarget
 
-        target = adjustTargetAwayFromOtherCats(target)
-
-        let delta = target - containerNode.position.x
-        let distance = abs(delta)
+        var goingRight = target > containerNode.position.x
+        var distance = abs(target - containerNode.position.x)
 
         if distance < CatConstants.Movement.walkMinDistance {
-            let pause = SKAction.wait(forDuration: Double.random(in: CatConstants.Movement.walkPauseRange))
-            let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-            containerNode.run(SKAction.sequence([pause, next]), withKey: "randomWalk")
+            let delay = Double.random(in: CatConstants.Movement.walkPauseRange)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.doRandomWalkStep()
+            }
             return
         }
-
-        entity.face(towardX: target)
-        // Walk movement starts immediately — snap facing, don't wait for smooth turn
-        if entity.node.action(forKey: "smoothTurn") != nil {
-            entity.node.removeAction(forKey: "smoothTurn")
-            entity.applyFacingDirection()
-        }
-
-        // --- Walk phase ---
-        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) * Double(entity.personality.walkSpeedMultiplier)
-        let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
-
-        // Speed-linked frame rate
-        let timePerFrame = max(
-            CatConstants.Movement.walkFrameTimeMin,
-            min(CatConstants.Movement.walkFrameTimeMax,
-                CatConstants.Animation.frameTimeWalk * (CatConstants.Movement.walkBaseSpeed / speed))
-        )
 
         let animComponent = entity.animationComponent
         let sessionColor = entity.sessionColor
         let sessionTintFactor = entity.sessionTintFactor
         let node = entity.node
+
+        // Build jump actions BEFORE adjusting target away from other cats.
+        // When obstacles are on the path, jumps clear them so no target
+        // adjustment is needed. adjustTargetAwayFromOtherCats is deferred
+        // until after jump detection so it doesn't block jump clearance.
+        let jumpActions = jumpComponent.buildJumpActions(
+            from: containerNode.position.x,
+            to: target,
+            goingRight: goingRight,
+            nearbyObstacles: entity.nearbyObstacles,
+            currentState: entity.currentState,
+            sessionColor: sessionColor,
+            sessionTintFactor: sessionTintFactor,
+            activityMin: entity.activityMin,
+            activityMax: entity.effectiveActivityMax
+        )
+
+        // Only nudge target away from other cats when there are no obstacles
+        // to jump over (jumps handle obstacle clearance). This prevents the
+        // right-edge trap: a cat surrounded by others could never get a target
+        // in the clear direction because adjustTarget redirected it back.
+        if jumpActions.isEmpty {
+            target = adjustTargetAwayFromOtherCats(target)
+            goingRight = target > containerNode.position.x
+            distance = abs(target - containerNode.position.x)
+        }
+#if DEBUG
+        print("[RW] doRandomWalkStep \(entity.sessionId): final target=\(target) distance=\(distance) jumpActions=\(jumpActions.count)")
+#endif
+
+        entity.face(towardX: target)
+        if entity.node.action(forKey: "smoothTurn") != nil {
+            entity.node.removeAction(forKey: "smoothTurn")
+            entity.applyFacingDirection()
+        }
+
+        let speed: Double = Double.random(in: CatConstants.Movement.walkSpeedRange) * Double(speedMultiplier) * Double(entity.personality.walkSpeedMultiplier)
+        let duration = max(CatConstants.Movement.walkMinDuration, Double(distance) / speed)
+
+        let timePerFrame = max(
+            CatConstants.Movement.walkFrameTimeMin,
+            min(CatConstants.Movement.walkFrameTimeMax,
+                CatConstants.Animation.frameTimeWalk * (CatConstants.Movement.walkBaseSpeed / speed))
+        )
         if let walkFrames = animComponent.textures(for: "walk-b"), !walkFrames.isEmpty {
             let animate = SKAction.animate(with: walkFrames, timePerFrame: timePerFrame)
             node.run(SKAction.repeatForever(animate), withKey: "animation")
@@ -121,19 +149,6 @@ class MovementComponent {
 
         let move = SKAction.moveTo(x: target, duration: duration)
         move.timingMode = .easeInEaseOut
-
-        // --- Check for obstacles in the walk path and build jump actions ---
-        let jumpActions = jumpComponent.buildJumpActions(
-            from: containerNode.position.x,
-            to: target,
-            goingRight: delta > 0,
-            nearbyObstacles: entity.nearbyObstacles,
-            currentState: entity.currentState,
-            sessionColor: sessionColor,
-            sessionTintFactor: sessionTintFactor,
-            activityMin: entity.activityMin,
-            activityMax: entity.effectiveActivityMax
-        )
 
         let stopWalkAndPause = SKAction.run { [weak self] in
             guard let self = self, self.entity.currentState == .toolUse else { return }
@@ -165,8 +180,6 @@ class MovementComponent {
             pauseDuration = 0                                // keep moving (85%)
         }
 
-        let next = SKAction.run { [weak self] in self?.doRandomWalkStep() }
-
         // Build the walk sequence, inserting jumps if there are obstacles
         var walkSequence: [SKAction] = []
         if jumpActions.isEmpty {
@@ -196,11 +209,25 @@ class MovementComponent {
             walkSequence.append(enablePhysics)
         }
 
+        // Use GCD for continuation instead of SKAction.wait (can fail silently in release builds)
+        let capturedPauseDuration = pauseDuration
+        let continueAction = SKAction.run { [weak self] in
+            guard let self = self else { return }
+            if capturedPauseDuration > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + capturedPauseDuration) { [weak self] in
+                    self?.doRandomWalkStep()
+                }
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.doRandomWalkStep()
+                }
+            }
+        }
+
         if pauseDuration > 0 {
-            let pause = SKAction.wait(forDuration: pauseDuration)
-            containerNode.run(SKAction.sequence(walkSequence + [stopWalkAndPause, pause, next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence(walkSequence + [stopWalkAndPause, continueAction]), withKey: "randomWalk")
         } else {
-            containerNode.run(SKAction.sequence(walkSequence + [next]), withKey: "randomWalk")
+            containerNode.run(SKAction.sequence(walkSequence + [continueAction]), withKey: "randomWalk")
         }
     }
 
@@ -213,21 +240,31 @@ class MovementComponent {
         var target = proposedTarget
 
         for obstacle in obstacles {
-            // If an obstacle is between us and the target, redirect to our side
             let obstX = obstacle.x
             let crossesObstacle = (myX < obstX && target > obstX) || (myX > obstX && target < obstX)
             if crossesObstacle {
                 let sameDirection: CGFloat = myX < obstX ? -1 : 1
-                target = obstX + sameDirection * minDist
-                target = max(entity.activityMin, min(entity.effectiveActivityMax, target))
+                var redirected = obstX + sameDirection * minDist
+                // If the redirect pushes target outside bounds, reverse direction
+                // so cats at the edge can escape by walking the other way.
+                if redirected > entity.effectiveActivityMax - minDist {
+                    redirected = obstX - minDist
+                } else if redirected < entity.activityMin + minDist {
+                    redirected = obstX + minDist
+                }
+                target = max(entity.activityMin, min(entity.effectiveActivityMax, redirected))
             }
 
-            // Also ensure target isn't too close to the obstacle
             let dist = abs(target - obstX)
             if dist < minDist {
                 let direction: CGFloat = target >= obstX ? 1 : -1
-                target = obstX + direction * minDist
-                target = max(entity.activityMin, min(entity.effectiveActivityMax, target))
+                var adjusted = obstX + direction * minDist
+                if adjusted > entity.effectiveActivityMax - minDist {
+                    adjusted = obstX - minDist
+                } else if adjusted < entity.activityMin + minDist {
+                    adjusted = obstX + minDist
+                }
+                target = max(entity.activityMin, min(entity.effectiveActivityMax, adjusted))
             }
         }
         return target
@@ -241,7 +278,10 @@ class MovementComponent {
 
         let containerNode = entity.containerNode
         let node = entity.node
-        let targetX = food.node.position.x
+        // Clamp food target within activity bounds so the cat doesn't walk to the edge
+        let margin = CatConstants.Movement.walkBoundaryMargin
+        let rawTargetX = food.node.position.x
+        let targetX = max(entity.activityMin + margin, min(entity.effectiveActivityMax - margin, rawTargetX))
         let delta = targetX - containerNode.position.x
         let distance = abs(delta)
 

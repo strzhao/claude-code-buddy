@@ -278,6 +278,9 @@ class SessionManager {
                 let roll = Float.random(in: 0..<1)
                 if roll < FoodManager.toolEndSpawnProbability {
                     let catX = scene.catPosition(for: sessionId)
+#if DEBUG
+                    print("[FOOD] toolEnd spawn food near \(sessionId) at x=\(catX ?? 0)")
+#endif
                     scene.spawnFood(near: catX)
                 }
             }

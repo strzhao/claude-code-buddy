@@ -81,7 +81,7 @@ enum CatConstants {
     enum PhysicsJump {
         // --- Trajectory ---
         /// Custom "jump gravity" in px/s². 800 produces snappy arcs.
-        /// Window height is 80px, groundY=48, so safe peak ≈ 25px.
+        /// Window height is 80px, groundY=24, so safe peak ≈ 50px.
         /// h = v₀y² / (2g), so h=12→v₀y=140, h=25→v₀y=200.
         static let gravity: CGFloat = 800
         /// Range of initial upward velocity (px/s). Produces peak heights of 12-25px.
@@ -293,8 +293,9 @@ enum CatConstants {
         static let alertBadgeYOffset: CGFloat = 40
         /// Font size for the "!" label in the alert badge
         static let alertBadgeFontSize: CGFloat = 15
-        /// Y position of ground level in scene coordinates
-        static let groundY: CGFloat = 48
+        /// Y position of ground level in scene coordinates.
+        /// Ground edge is at y=0; cat body is 44×44, so center rests at ≈22-24.
+        static let groundY: CGFloat = 24
         /// Minimum horizontal margin from scene edge for cat spawn
         static let spawnMargin: CGFloat = 48
     }

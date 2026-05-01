@@ -519,6 +519,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 let elapsed = CACurrentMediaTime() - since
                 if elapsed >= CatConstants.BoundaryRecovery.gracePeriod {
                     let targetX = cat.nearestValidX()
+                    print("[TRACE] boundaryRecovery \(cat.sessionId): outOfBounds x=\(cat.containerNode.position.x) y=\(cat.containerNode.position.y) targetX=\(targetX) state=\(cat.currentState)")
                     cat.movementComponent.walkBackIntoBounds(targetX: targetX)
 
                     let currentY = cat.containerNode.position.y

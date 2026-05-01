@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 1
 max_iterations: 30
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "skipped"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260501-在菜单栏的皮肤市场里"
 session_id: 2e2ab42c-2342-46cb-be98-eb5f029012b1
 started_at: "2026-05-01T14:38:09Z"
@@ -114,3 +114,5 @@ started_at: "2026-05-01T14:38:09Z"
 - [2026-05-01T14:45:00Z] 设计阶段完成，Plan 审查通过 (6/6 维度)，方案已审批
 - [2026-05-01T14:55:00Z] 实现完成：CatSprite.swift（3 处修改）+ SkinGalleryViewController.swift（新增开关 UI），编译通过，13 个 CatSpriteTabNameTests 全部通过
 - [2026-05-01T15:00:00Z] QA 完成：构建 ✅ / Lint ✅ / 功能测试 436 ✅ / 快照 9 ⚠️（预期基线不匹配）→ gate: review-accept
+- [2026-05-01T15:03:43Z] 用户批准验收，进入合并阶段
+- [2026-05-01T15:05:00Z] 提交 d4dac21 feat: 皮肤市场新增"总是展示标签"开关，知识提取跳过（无新增模式）

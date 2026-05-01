@@ -393,6 +393,11 @@ class CatSprite {
     /// Debug cats (session ID starts with "debug-") always show their name label.
     var isDebugCat: Bool { sessionId.hasPrefix("debug-") }
 
+    /// Whether the user has enabled "Always Show Label" in Skin Gallery settings.
+    private var alwaysShowLabelEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "alwaysShowLabel")
+    }
+
     /// True when running in a real SpriteKit scene with display link (not in XCTest).
     private var hasDisplayLink: Bool { containerNode.scene?.view != nil }
 
@@ -400,7 +405,7 @@ class CatSprite {
     var nearbyObstacles: (() -> [(cat: CatSprite, x: CGFloat)])?
 
     func hideLabel() {
-        labelComponent.hideLabel(isDebugCat: isDebugCat)
+        labelComponent.hideLabel(isDebugCat: isDebugCat || alwaysShowLabelEnabled)
     }
 
     // MARK: - State Machine
@@ -718,8 +723,8 @@ class CatSprite {
         applyFacingDirection()
         stateMachine.enter(CatIdleState.self)
 
-        // Debug cats: ensure name label is visible immediately
-        if isDebugCat {
+        // Debug cats or always-show-label: ensure name label is visible immediately
+        if isDebugCat || alwaysShowLabelEnabled {
             tabNameNode?.isHidden = false
             tabNameShadowNode?.isHidden = false
         }

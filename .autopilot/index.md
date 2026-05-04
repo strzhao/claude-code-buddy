@@ -15,6 +15,8 @@
 
 ## Patterns
 - [2026-05-02] 外部修改 GKState 生命周期检查的标志位，绕过状态机 willExit 副作用决策 | tags: spritekit, gkstate, statemachine, willexit, side-effect, permission, flag | → patterns.md
+- [2026-05-04] macOS 非沙盒 app 的 Apple Events TCC 权限仅需 NSAppleEventsUsageDescription | tags: macos, tcc, apple-events, applescript, permission, infoplist, codesign | → patterns.md
+- [2026-05-04] Ghostty AppleScript 模式补充 — -1743 权限错误是独立于 terminal ID 缓存的第二层问题 | tags: ghostty, applescript, terminal, tab, tcc, permission | → patterns.md
 - [2026-05-01] SKAction.wait 在子节点上 release build 中可能永远不触发，应统一用 GCD asyncAfter 替代 | tags: spritekit, skaction, wait, async, gcd, dispatch, release-build, state-machine, deadlock | → patterns.md
 - [2026-05-01] 边界恢复中断 action 序列后需显式恢复被丢失的副作用（isDynamic 等） | tags: spritekit, skaction, boundary-recovery, sequence, interrupt, physics, isdynamic | → patterns.md
 - [2026-05-01] 高频状态转换 + 食物通知触发 = 系统性漂移棘轮（三层防御：idle-only + 冷却 + 距离上限 + 最近单播） | tags: spritekit, food, state-machine, ratchet, drift, notification | → patterns.md

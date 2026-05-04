@@ -176,6 +176,21 @@
 <!-- tags: appkit, window, mouse-events, drag, click-through -->
 **Scenario**: BuddyWindow 默认 ignoresMouseEvents=true（点击穿透），hover 时切为 false。拖拽结束后 MouseTracker 的 isDragging 置 false 但没有恢复 ignoresMouseEvents=true，导致整个窗口持续拦截鼠标事件，用户无法点击窗口后面的应用。
 **Lesson**: 任何修改 ignoresMouseEvents 的代码路径，必须有配对的恢复逻辑。拖拽结束（mouseUp）时应立即恢复 ignoresMouseEvents=true 并清除 hover 状态。落体+弹跳动画完全由 SKAction 驱动，不需要鼠标事件。通用规则：临时打开 mouse event 接收后，确认每个退出路径（正常结束、app 失焦、取消）都会恢复 click-through。
+
+### [2026-05-04] macOS 非沙盒 app 的 Apple Events TCC 权限仅需 NSAppleEventsUsageDescription
+<!-- tags: macos, tcc, apple-events, applescript, permission, infoplist, codesign, nsscript -->
+**Scenario**: ClaudeCodeBuddy（非沙盒、ad-hoc 签名、LSUIElement）通过 `NSAppleScript.executeAndReturnError()` 向 Ghostty 发送 Apple Events 时持续返回 -1743 (`errAEEventNotPermitted`)。根因是 Info.plist 缺少 `NSAppleEventsUsageDescription` 键，macOS TCC 直接拒绝且不弹权限对话框。影响范围：`GhosttyAdapter.activateTab`（点击猫切换 tab）和 `GhosttyAdapter.setTabTitle`（注入 tab 标题）全部静默失败。
+**Lesson**: 
+1. 非沙盒 macOS app 触发 Apple Events TCC 权限提示**仅需** Info.plist 中声明 `NSAppleEventsUsageDescription`。不需要 entitlements 文件，不需要 `codesign --entitlements`。
+2. `com.apple.security.automation.apple-events` 是 App Sandbox entitlement，仅在 `com.apple.security.app-sandbox` 为 true 时生效。非沙盒 app 中添加此 entitlement 无效且误导。
+3. 开发模式 `make run`（`.build/debug/` 裸跑二进制）无 `.app` bundle 上下文，launch services 不解析 Info.plist，TCC 无法关联权限。需通过 `make run-bundle`（.app + ad-hoc 签名）运行才能在开发中测试 Apple Events 功能。
+4. Plan 审查（plan-reviewer agent）捕获了初版方案中不必要的 entitlements 步骤，避免了 scope creep — 验证了 autopilot 审查机制的价值。
+**Evidence**: `/tmp/claude-buddy-click.log` 显示每次点击 `activateByTerminalId` 和 `activateByCwd` 均报 -1743。同一 AppleScript 从 Ghostty Terminal 内直接 `osascript` 执行正常（Terminal 进程有权限）。对比：App 进程（com.claudebuddy.ClaudeCodeBuddy）无 TCC 授权。
+
+### [2026-05-04] Ghostty AppleScript `front window` 模式补充 — -1743 权限错误是独立于 terminal ID 缓存的第二层问题
+<!-- tags: ghostty, applescript, terminal, tab, tcc, permission, nsscript -->
+**Scenario**: 此前 pattern（2026-04-26）记录了 hook 脚本 CWD 匹配修复 terminal ID 缓存问题。但即使 terminal ID 缓存正确（6 个 session 的缓存 ID 与 Ghostty 实际 terminal ID 一一对应），点击猫咪仍无法切换 tab。根因是**第二层独立问题**：App 进程的 NSAppleScript 被 TCC 阻止（-1743），正确的 terminal ID 从未被用于实际 `focus` 命令。
+**Lesson**: AppleScript 故障排除需区分两层：**数据层**（terminal ID 是否正确捕获/缓存）和**执行层**（AppleScript 是否有权限执行）。日志驱动的分层诊断（检查缓存值 + 检查 AppleScript error code + 对比 Terminal 内直接执行结果）快速定位到执行层。
 **Evidence**: 用户报告拖拽松手后无法点击其他窗口。mouseUp 中添加 `window?.setInteractive(false)` + `hoveredSessionId = nil` 后修复。
 
 ### [2026-05-01] SKAction.wait 在子节点上可能永远不触发（release build 特有）

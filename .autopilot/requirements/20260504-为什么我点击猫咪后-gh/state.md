@@ -1,7 +1,7 @@
 ---
 active: true
-phase: "merge"
-gate: "review-accept"
+phase: "done"
+gate: ""
 iteration: 2
 max_iterations: 30
 max_retries: 3

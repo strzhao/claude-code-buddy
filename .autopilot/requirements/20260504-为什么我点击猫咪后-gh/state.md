@@ -2,7 +2,7 @@
 active: true
 phase: "done"
 gate: ""
-iteration: 2
+iteration: 3
 max_iterations: 30
 max_retries: 3
 retry_count: 0
@@ -11,7 +11,7 @@ plan_mode: ""
 brief_file: ""
 next_task: ""
 auto_approve: false
-knowledge_extracted: ""
+knowledge_extracted: "true"
 task_dir: "/Users/stringzhao/workspace/claude-code-buddy/.autopilot/requirements/20260504-为什么我点击猫咪后-gh"
 session_id: 6dae3895-c34a-48e7-9f64-2470163b3fe0
 started_at: "2026-05-04T07:53:51Z"
@@ -92,3 +92,6 @@ N/A — Swift 代码无变更，仅 Info.plist + Shell 脚本
 - [2026-05-04T08:02:00Z] Plan 审查 — 移除无效沙盒 entitlement，方案简化为单文件修改
 - [2026-05-04T08:05:00Z] 审批通过，进入 implement
 - [2026-05-04T08:07:00Z] implement 完成 — Info.plist、dev-bundle.sh、Makefile
+- [2026-05-04T08:24:00Z] merge 完成 — commit 55eb169
+- [2026-05-04T08:25:00Z] CI 通过
+- [2026-05-04T08:30:00Z] 知识提取完成 — 2 条新 patterns 写入 patterns.md + index.md

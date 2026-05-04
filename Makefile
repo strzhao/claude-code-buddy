@@ -6,6 +6,9 @@ build:
 run: build
 	.build/debug/ClaudeCodeBuddy
 
+run-bundle: build
+	@bash Scripts/dev-bundle.sh
+
 test:
 	swift test
 

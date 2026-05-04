@@ -27,5 +27,7 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>点击猫咪时需要控制 Ghostty 以切换到对应的终端标签页。</string>
 </dict>
 </plist>

@@ -216,3 +216,27 @@
 **Scenario**: `adjustTargetAwayFromOtherCats` 检测到路径穿越障碍物时，将目标重定向到障碍物远离自己的一侧。当猫在右边缘（x=1850）试图向左走，路径被 x=1800 的猫挡住 → 重定向到 x=1800+52=1852 → 被边界 clamp 回 ~1852 → 无法向左逃离右边缘集群。同理，`dist < minDist` 的近距离排斥也可能将目标推回障碍物方向。
 **Lesson**: 任何基于"推离障碍物"的避让/排斥逻辑在边界附近必须检查结果是否越界。越界时不能仅 clamp（会形成死锁），应反向放置目标（障碍物另一侧）。修复模式：`if redirected > boundary { redirected = obstacle - margin }`，为边缘实体保留双向逃离路径。通用规则：grep 所有 `max(boundary, min(boundary, ...))` 的 clamp 模式，检查是否可能形成 clamp→死锁循环。
 **Evidence**: 用户报告"所有猫咪创建后都跑到最右边且无法逃离"，单只猫也有问题。根因 2 确认 adjustTarget 在边界处形成单向死锁。修复后多猫场景中猫位置范围 x=950-1872，出现双向移动。
+
+### [2026-05-25] softprops/action-gh-release 的 files: 字段路径解析基于 GITHUB_WORKSPACE 而非 step working-directory
+<!-- tags: github-actions, release, working-directory, glob, softprops, files, monorepo -->
+**Scenario**: monorepo 把 Swift 工程搬到 apps/desktop/ 后，release.yml 给 `swift build`/`zip` step 加了 `working-directory: apps/desktop`，zip 产物落在 apps/desktop/ClaudeCodeBuddy-*.zip。但 `softprops/action-gh-release` 的 `files: ClaudeCodeBuddy-*.zip` 在 runner 上由 `@actions/glob` 解析，**基础路径是 `GITHUB_WORKSPACE`（仓库根）而非该 step 的 working-directory**。结果：release 创建成功但附件为空（action 找不到文件）。
+**Lesson**: 任何 composite action 的输入字段（uses 后跟 with 块）都**不**继承 step 级别的 `working-directory`——它们运行在 action 自己的执行上下文中。修复模式：在 zip step 之后立即加一个独立 step `mv apps/desktop/ClaudeCodeBuddy-*.zip ./`（无 working-directory，默认在仓库根），保持 `files:` 字段写死的相对路径不变。通用规则：迁移工程到子目录时，全量 grep `uses:`，检查每个 action 是否依赖路径，必要时把产物 `mv` 回根目录。
+**Evidence**: plan-reviewer Agent 审查时指出此 BLOCKER；本任务在 design 阶段写入契约 C5 + 实施任务 T7.3 显式 mv 步骤。
+
+### [2026-05-25] macOS 案例不敏感 FS 让 git mv Tests/ 与 git mv tests/ 在 tree 中合并为单一目录
+<!-- tags: macos, git-mv, case-insensitive, monorepo, refactor, apfs, tests -->
+**Scenario**: Swift 工程同时有根级 `Tests/`（XCTest 单元测试）和 `tests/`（bash 验收测试）两个目录。`git mv Tests apps/desktop/Tests && git mv tests apps/desktop/tests` 在 macOS APFS（案例不敏感）上看似合法，但 git 索引最终只保留一个 lowercase `apps/desktop/tests/`，把 Tests/BuddyCoreTests 与 tests/acceptance 的内容混进同一目录。Package.swift 的 `path: "Tests/BuddyCoreTests"` 在 macOS 上仍能解析（FS 不区分大小写），但 git ls-files 显示真实路径是 lowercase——在 case-sensitive Linux CI 上会失败（本项目恰好用 macOS runner，未触发）。
+**Lesson**: 案例不敏感 FS 上同名（仅大小写不同）目录的 git mv 不安全。修复方案：要么 (a) 把 `tests/` 先 rename 成不冲突的临时名再操作（如 `tests_tmp`）；要么 (b) 接受 lowercase 合并后把 Package.swift path 也改为 lowercase 以与 git tree 一致；要么 (c) 在 case-sensitive volume（如 Linux 容器或 case-sensitive APFS 卷）上做 rename 后 push 回来。本项目当前选 (b) 的 latent 接受 + 文档化，因 macOS-only CI 不暴露问题。通用规则：任何跨目录 rename 操作前，先 grep 是否有同名仅大小写不同的目录。
+**Evidence**: 红队验收测试在 `[ ! -d $REPO_ROOT/Tests ]` 断言上永久 FAIL（macOS 把 Tests/ 解析到 tests/integration/）；契约 C4 文档化为 known latent inconsistency。
+
+### [2026-05-25] pnpm workspace 内部包的 bin 不会自动暴露给根 pnpm exec，需声明为 root workspace 依赖
+<!-- tags: pnpm, workspace, bin, exec, monorepo, devDependency -->
+**Scenario**: monorepo 新增 `packages/skin-cli/`（@stringzhao/skin-cli, bin: buddy-skin）后，在仓库根执行 `pnpm exec buddy-skin --help` 报 `Command "buddy-skin" not found`。即使 `pnpm --filter @stringzhao/skin-cli exec buddy-skin` 也找不到。直接 `node packages/skin-cli/dist/index.js` 才能工作。
+**Lesson**: pnpm 不会自动把内部 workspace package 的 bin 链接到根 `node_modules/.bin/`——因为 root 没有声明对这些包的依赖。修复模式：把内部包加为根 package.json 的 devDependency 用 `workspace:*` 协议（`"@stringzhao/skin-cli": "workspace:*"`），下一次 `pnpm install` 会把 bin 链到 root `.bin/`。通用规则：内部 CLI 包要从根可调用时必须声明依赖；纯库包不需要（消费者会自己声明）。
+**Evidence**: QA Wave 1.5 场景 4 发现此缺口，本任务通过加 root devDep 修复，红队契约 C3 `pnpm exec buddy-skin --help` 断言恢复 PASS。
+
+### [2026-05-25] lint-staged 给 tsc 追加文件参数会绕过 tsconfig.json，用函数形式忽略文件列表
+<!-- tags: lint-staged, tsc, tsconfig, hook, pre-commit, husky, tsconfig-bypass -->
+**Scenario**: `.lintstagedrc.json` 写 `"packages/skin-cli/**/*.ts": ["tsc --noEmit"]`，pre-commit hook 触发时 lint-staged 把暂存的 .ts 文件路径追加到命令尾，变成 `tsc --noEmit src/index.ts`。此时 tsc **完全忽略** tsconfig.json（包括 `esModuleInterop`、`moduleResolution: "bundler"` 等），导致 `import archiver from 'archiver'` 报 TS1259 "Module can only be default-imported using esModuleInterop flag"。
+**Lesson**: 任何需要按 tsconfig 行为运行的命令，不能直接接 lint-staged 追加的文件参数。修复模式：把 lintstagedrc 改为 `.mjs` 用**函数形式**返回固定命令字符串：`"packages/skin-cli/**/*.ts": () => "pnpm --filter @stringzhao/skin-cli exec tsc -p tsconfig.json --noEmit"`。函数形式 lint-staged 不会追加文件参数。通用规则：任何依赖项目配置文件（jest.config / eslint.config / tsconfig）的命令在 lint-staged 中都该用函数形式。
+**Evidence**: 本任务 commit 阶段 pre-commit hook 触发 TS1259 失败，commit-agent 把 `.lintstagedrc.json` 改为 `.lintstagedrc.mjs` 函数形式后通过。

@@ -47,3 +47,10 @@
 - [2026-04-19] 精灵图 alpha 帧检测被粒子/特效残留误导 | tags: skin, sprite, slicing, alpha, frame-detection | → patterns.md
 - [2026-04-21] switchState same-state guard 阻止拖拽后状态恢复 | tags: spritekit, state-machine, drag, same-state, restore | → patterns.md
 - [2026-04-21] ignoresMouseEvents 在拖拽后未恢复导致窗口拦截点击 | tags: appkit, window, mouse-events, drag, click-through | → patterns.md
+
+## 2026-05-25 新增条目
+- [2026-05-25] 跨技术栈 monorepo 用 pnpm workspace + apps/* + packages/* 拓扑 | tags: monorepo, pnpm-workspace, swift, nextjs, cli, architecture | → decisions.md
+- [2026-05-25] softprops/action-gh-release 的 files: 字段路径解析基于 GITHUB_WORKSPACE 而非 step working-directory | tags: github-actions, release, working-directory, glob, softprops, files, monorepo | → patterns.md
+- [2026-05-25] macOS 案例不敏感 FS 让 git mv Tests/ 与 git mv tests/ 在 tree 中合并为单一目录 | tags: macos, git-mv, case-insensitive, monorepo, refactor, apfs, tests | → patterns.md
+- [2026-05-25] pnpm workspace 内部包的 bin 不会自动暴露给根 pnpm exec，需声明为 root workspace 依赖 | tags: pnpm, workspace, bin, exec, monorepo, devDependency | → patterns.md
+- [2026-05-25] lint-staged 给 tsc 追加文件参数会绕过 tsconfig.json，用函数形式忽略文件列表 | tags: lint-staged, tsc, tsconfig, hook, pre-commit, husky, tsconfig-bypass | → patterns.md

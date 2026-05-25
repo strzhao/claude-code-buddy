@@ -50,6 +50,7 @@ describe("GET /api/skins", () => {
       preview_url: null,
       download_url: "https://example.com/skin.zip",
       size: 1024,
+      variant_count: 0,
     });
   });
 

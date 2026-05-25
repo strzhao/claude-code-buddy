@@ -21,18 +21,18 @@ describe("StatusBadge", () => {
   it("should apply correct CSS classes for pending", () => {
     const { container } = render(<StatusBadge status="pending" />);
     const badge = container.querySelector("span");
-    expect(badge?.className).toContain("bg-yellow-100");
+    expect(badge?.className).toContain("bg-warning-light");
   });
 
   it("should apply correct CSS classes for approved", () => {
     const { container } = render(<StatusBadge status="approved" />);
     const badge = container.querySelector("span");
-    expect(badge?.className).toContain("bg-green-100");
+    expect(badge?.className).toContain("bg-success-light");
   });
 
   it("should apply correct CSS classes for rejected", () => {
     const { container } = render(<StatusBadge status="rejected" />);
     const badge = container.querySelector("span");
-    expect(badge?.className).toContain("bg-red-100");
+    expect(badge?.className).toContain("bg-error-light");
   });
 });

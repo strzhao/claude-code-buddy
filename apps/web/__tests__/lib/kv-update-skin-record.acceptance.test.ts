@@ -19,8 +19,13 @@ vi.mock("@upstash/redis", () => {
     set: vi.fn().mockResolvedValue("OK"),
     pipeline: vi.fn(() => mockPipeline),
   };
+  const RedisMock = vi.fn(() => instance) as unknown as {
+    (): typeof instance;
+    fromEnv: () => typeof instance;
+  };
+  RedisMock.fromEnv = vi.fn(() => instance);
   return {
-    Redis: vi.fn(() => instance),
+    Redis: RedisMock,
   };
 });
 

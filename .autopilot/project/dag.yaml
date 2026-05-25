@@ -7,7 +7,7 @@ tasks:
     title: "启动器骨架：NSPanel 浮窗 + 全局快捷键 + SwiftUI 输入框 + echo 占位"
     depends_on: []
     complexity: M
-    status: pending
+    status: done
     milestone: M1
     acceptance_scenarios: [SC-01, SC-08, SC-10]
 

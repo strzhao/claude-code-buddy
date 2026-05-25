@@ -54,3 +54,8 @@
 - [2026-05-25] macOS 案例不敏感 FS 让 git mv Tests/ 与 git mv tests/ 在 tree 中合并为单一目录 | tags: macos, git-mv, case-insensitive, monorepo, refactor, apfs, tests | → patterns.md
 - [2026-05-25] pnpm workspace 内部包的 bin 不会自动暴露给根 pnpm exec，需声明为 root workspace 依赖 | tags: pnpm, workspace, bin, exec, monorepo, devDependency | → patterns.md
 - [2026-05-25] lint-staged 给 tsc 追加文件参数会绕过 tsconfig.json，用函数形式忽略文件列表 | tags: lint-staged, tsc, tsconfig, hook, pre-commit, husky, tsconfig-bypass | → patterns.md
+
+## 2026-05-26 新增条目
+- [2026-05-26] LSUIElement app 中的浮窗输入框用 NSPanel + nonactivatingPanel + NSApp.activate | tags: nspanel, lsuielement, launcher, alfred, key-window, floating-window, swiftui, appkit, nshostingcontroller | → patterns.md
+- [2026-05-26] NSPanel hidesOnDeactivate 与 didResignKeyNotification 双触发的 Combine 重入防御 | tags: nspanel, combine, published, reentrancy, hidesondeactivate, didresignkey, race-condition | → patterns.md
+- [2026-05-26] AppDelegate.applicationDidFinishLaunching 调 @MainActor 单例 setup 用 MainActor.assumeIsolated | tags: mainactor, swift-concurrency, appdelegate, isolated, assumeisolated, async, applicationdidfinishlaunching | → patterns.md

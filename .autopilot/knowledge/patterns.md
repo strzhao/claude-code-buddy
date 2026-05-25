@@ -240,3 +240,21 @@
 **Scenario**: `.lintstagedrc.json` 写 `"packages/skin-cli/**/*.ts": ["tsc --noEmit"]`，pre-commit hook 触发时 lint-staged 把暂存的 .ts 文件路径追加到命令尾，变成 `tsc --noEmit src/index.ts`。此时 tsc **完全忽略** tsconfig.json（包括 `esModuleInterop`、`moduleResolution: "bundler"` 等），导致 `import archiver from 'archiver'` 报 TS1259 "Module can only be default-imported using esModuleInterop flag"。
 **Lesson**: 任何需要按 tsconfig 行为运行的命令，不能直接接 lint-staged 追加的文件参数。修复模式：把 lintstagedrc 改为 `.mjs` 用**函数形式**返回固定命令字符串：`"packages/skin-cli/**/*.ts": () => "pnpm --filter @stringzhao/skin-cli exec tsc -p tsconfig.json --noEmit"`。函数形式 lint-staged 不会追加文件参数。通用规则：任何依赖项目配置文件（jest.config / eslint.config / tsconfig）的命令在 lint-staged 中都该用函数形式。
 **Evidence**: 本任务 commit 阶段 pre-commit hook 触发 TS1259 失败，commit-agent 把 `.lintstagedrc.json` 改为 `.lintstagedrc.mjs` 函数形式后通过。
+
+### [2026-05-26] LSUIElement app 中的浮窗输入框用 NSPanel + nonactivatingPanel + NSApp.activate
+<!-- tags: nspanel, lsuielement, launcher, alfred, key-window, floating-window, swiftui, appkit, nshostingcontroller -->
+**Scenario**: 在 buddy（LSUIElement=true 的 menu bar app）中实现 Alfred 式启动器浮窗，需要：① 浮在最前不抢主窗口主性 ② 可获键盘焦点接收输入 ③ 失焦自动隐藏 ④ 全 Space 可见。已有的 BuddyWindow（NSWindow + borderless + ignoresMouseEvents=true）用于点击穿透，不能复用做输入框。
+**Lesson**: 标准做法是 NSPanel 子类 + `styleMask=[.titled, .fullSizeContentView, .nonactivatingPanel]` + `level=.floating` + `collectionBehavior=[.canJoinAllSpaces, .stationary, .transient]` + `hidesOnDeactivate=true` + override `canBecomeKey=true` / `canBecomeMain=false`。show 时必须调 `NSApp.activate(ignoringOtherApps: true)` 才能让 NSPanel 真正获键盘焦点（LSUIElement app 默认不接收键盘事件）。SwiftUI 视图通过 NSHostingController(rootView:) 包成 NSViewController 赋 panel.contentViewController。
+**Evidence**: task 001 落地 LauncherWindow.swift + LauncherManager.swift，49 个 acceptance/snapshot 测试全绿；`make build && open ClaudeCodeBuddy.app && buddy ping` 验证启动器与像素猫共存正常。AppDelegate 现有 SettingsWindowController.swift 已用相同 NSApp.activate 模式，可作先例参考。
+
+### [2026-05-26] NSPanel hidesOnDeactivate 与 didResignKeyNotification 双触发的 Combine 重入防御
+<!-- tags: nspanel, combine, published, reentrancy, hidesondeactivate, didresignkey, race-condition -->
+**Scenario**: 启动器 NSPanel 设 `hidesOnDeactivate=true`，同时注册 `NSWindow.didResignKeyNotification` observer 调 `hide()`。当 panel 失焦时：(1) AppKit 内部因 hidesOnDeactivate=true 调 orderOut；(2) orderOut 同步发 didResignKeyNotification；(3) observer 再次调 hide()。如果 hide() 顺序是 `orderOut(nil) → isVisible=false`，在 step 2 的 notification 回调中 isVisible 还是 true，重入 hide() 会再次 orderOut（无害）+ 再次设 isVisible=false（@Published 触发第二次 sink），导致 Combine 订阅者收到 `true → false → false` 三次而非两次。
+**Lesson**: 两个防御组合：(A) `hide()` 顶部 `guard isVisible else { return }` 短路；(B) `hide()` 内**先**设 `isVisible = false` 再 `orderOut(nil)`，避免 orderOut 同步触发的 notification 回调时 guard 失效。红队 acceptance test 必须用 Combine sink 精确锁定"恰好 N 次变更"+"逐项值序列"（如 `XCTAssertEqual(receivedValues, [true, false])`），不能仅断言 isVisible 最终态。
+**Evidence**: task 001 LauncherManager.hide() 落地此双防御；`test_SC01_isVisible_isPublished_changeNotified` 锁定 `receivedValues.count == 2` + 逐项断言，对 hide 顺序改动有 mutation 探针。
+
+### [2026-05-26] AppDelegate.applicationDidFinishLaunching 调 @MainActor 单例 setup 用 MainActor.assumeIsolated
+<!-- tags: mainactor, swift-concurrency, appdelegate, isolated, assumeisolated, async, applicationdidfinishlaunching -->
+**Scenario**: LauncherManager 标注 `@MainActor final class`，所有方法继承 MainActor 隔离。AppDelegate.applicationDidFinishLaunching 在主线程被调用但**不**是 async 方法，直接写 `LauncherManager.shared.setup()` 在 Swift 6 严格并发模式下报"Call to main actor-isolated instance method 'setup()' in a synchronous nonisolated context"。
+**Lesson**: 用 `MainActor.assumeIsolated { LauncherManager.shared.setup() }` 显式声明"我确定此时已在 MainActor 上"，编译器接受。优于 `Task { @MainActor in ... }`（异步切换 + 时序不确定）或 `await MainActor.run { ... }`（applicationDidFinishLaunching 不是 async）。通用规则：从 AppDelegate/NSWindowDelegate/SwiftUI .onAppear 等"已知在主线程"的非 async context 调 @MainActor 方法用 assumeIsolated 是最优解；只有真异步链路才用 await MainActor.run。
+**Evidence**: task 001 AppDelegate.swift setupLauncher() 用此模式；`make build` 0 error，runtime `buddy ping` 验证 setup() 正常执行。

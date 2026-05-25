@@ -19,30 +19,37 @@ jobs:
 
       - name: Show Swift version
         run: swift --version
+        working-directory: apps/desktop
 
       - name: Build release (arm64)
         run: swift build -c release --arch arm64
+        working-directory: apps/desktop
 
       - name: Build release (x86_64)
         run: swift build -c release --arch x86_64
+        working-directory: apps/desktop
 
       - name: Build CLI (arm64)
         run: swift build -c release --arch arm64 --target buddy-cli
+        working-directory: apps/desktop
 
       - name: Build CLI (x86_64)
         run: swift build -c release --arch x86_64 --target buddy-cli
+        working-directory: apps/desktop
 
       - name: Create universal binary
         run: |
           lipo -create -output ClaudeCodeBuddy \
             .build/arm64-apple-macosx/release/ClaudeCodeBuddy \
             .build/x86_64-apple-macosx/release/ClaudeCodeBuddy
+        working-directory: apps/desktop
 
       - name: Create universal CLI binary
         run: |
           lipo -create -output buddy \
             .build/arm64-apple-macosx/release/buddy-cli \
             .build/x86_64-apple-macosx/release/buddy-cli
+        working-directory: apps/desktop
 
       - name: Assemble .app bundle
         run: |
@@ -69,6 +76,7 @@ jobs:
           TAG="${GITHUB_REF_NAME#v}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $TAG" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TAG" "$APP/Contents/Info.plist"
+        working-directory: apps/desktop
 
       - name: Verify bundle integrity
         run: |
@@ -87,12 +95,18 @@ jobs:
             echo "  OK: $f"
           done
           echo "Bundle integrity check passed."
+        working-directory: apps/desktop
 
       - name: Ad-hoc code sign
         run: codesign --force --deep --sign - ClaudeCodeBuddy.app
+        working-directory: apps/desktop
 
       - name: Zip .app bundle
         run: zip -r "ClaudeCodeBuddy-${{ github.ref_name }}.zip" ClaudeCodeBuddy.app
+        working-directory: apps/desktop
+
+      - name: Move release zip to repo root
+        run: mv apps/desktop/ClaudeCodeBuddy-*.zip ./
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

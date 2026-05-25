@@ -1,0 +1,41 @@
+name: CI Desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - '.github/workflows/ci-desktop.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - '.github/workflows/ci-desktop.yml'
+
+jobs:
+  quality:
+    name: Build + Test + Lint
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+        working-directory: apps/desktop
+
+      - name: Build
+        run: swift build
+        working-directory: apps/desktop
+
+      - name: Test
+        run: swift test
+        working-directory: apps/desktop
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Lint
+        run: swiftlint lint --strict
+        working-directory: apps/desktop

@@ -1,0 +1,12 @@
+{
+  "apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}": [
+    "pnpm --filter @stringzhao/web exec eslint --fix",
+    "pnpm --filter @stringzhao/web exec prettier --write"
+  ],
+  "apps/web/**/*.{json,css,md}": [
+    "pnpm --filter @stringzhao/web exec prettier --write"
+  ],
+  "packages/skin-cli/**/*.ts": [
+    "pnpm --filter @stringzhao/skin-cli exec tsc --noEmit"
+  ]
+}

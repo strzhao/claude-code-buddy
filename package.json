@@ -1,0 +1,27 @@
+{
+  "name": "claude-code-buddy",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.28.2",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev:web": "pnpm --filter @stringzhao/web dev",
+    "build:web": "pnpm --filter @stringzhao/web build",
+    "test:web": "pnpm --filter @stringzhao/web test",
+    "test:web:acceptance": "pnpm --filter @stringzhao/web test:acceptance",
+    "lint:web": "pnpm --filter @stringzhao/web lint",
+    "build:cli": "pnpm --filter @stringzhao/skin-cli build",
+    "build:desktop": "make -C apps/desktop build",
+    "test:desktop": "make -C apps/desktop test",
+    "lint:desktop": "make -C apps/desktop lint",
+    "bundle:desktop": "make -C apps/desktop bundle",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@stringzhao/skin-cli": "workspace:*",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  }
+}

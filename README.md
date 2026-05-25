@@ -121,14 +121,25 @@ git push origin v1.0.0
 
 ## 项目结构
 
+pnpm workspace monorepo：
+
 ```
-Sources/ClaudeCodeBuddy/     Swift 源码（App/Window/Scene/Network/Session）
-plugin/                      Claude Code 插件（hooks 自动注册）
-hooks/                       独立 hook 脚本（手动配置用）
-Scripts/                     构建和资源生成脚本
-tests/                       验收测试
-.github/workflows/           CI/CD 自动发布
+apps/
+├── desktop/          macOS Swift 桌面应用（像素猫咪）
+└── web/              Next.js 皮肤包商店 (buddy.stringzhao.life)
+packages/
+└── skin-cli/         皮肤包上传 CLI 工具 (@stringzhao/skin-cli)
+plugin/               Claude Code 插件（hooks 自动注册）
+hooks/                独立 hook 脚本（手动配置用）
+homebrew/             Homebrew cask 配方
+.github/workflows/    CI/CD 自动发布
 ```
+
+## 开发环境
+
+- macOS 14+ + Xcode（desktop 工程）
+- Node.js >= 20 + pnpm 10.28.2（web / cli 工程）
+- SwiftLint（`brew install swiftlint`）
 
 ## Credits
 

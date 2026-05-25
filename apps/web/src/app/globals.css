@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+/* ===================================================================
+   Claude Code Buddy — Pixel Art Design System
+   色彩参考: stringzhao.life/colors (苔绿品牌色 + 暖灰层级)
+   风格: 活泼像素风 × 苔绿品牌色 × 双主题
+   =================================================================== */
+
+/* --- Raw palette constants (never used directly in components) --- */
+:root {
+  --palette-ink: #1a1a18;
+  --palette-paper: #f7f6f1;
+  --palette-mist: #ebebea;
+  --palette-smoke: #8f8f8d;
+  --palette-charcoal: #595957;
+  --palette-sage: #3a7d68;
+  --palette-sage-light: #52a688;
+  --palette-sage-mist: #e8f2ee;
+  --palette-amber: #d4920a;
+  --palette-vermillion: #d94f3d;
+  --palette-sky: #3b87cc;
+}
+
+/* --- Light theme (default) --- */
+:root {
+  /* Backgrounds */
+  --color-canvas: var(--palette-paper);
+  --color-surface: #ffffff;
+  --color-surface-alt: var(--palette-mist);
+  --color-surface-raised: #ffffff;
+
+  /* Text */
+  --color-ink: var(--palette-ink);
+  --color-secondary: var(--palette-charcoal);
+  --color-muted: var(--palette-smoke);
+  --color-placeholder: var(--palette-charcoal);
+  --color-inverse: var(--palette-paper);
+
+  /* Brand / Primary */
+  --color-primary: var(--palette-sage);
+  --color-primary-hover: var(--palette-sage-light);
+  --color-primary-mist: var(--palette-sage-mist);
+  --color-primary-text: #ffffff;
+
+  /* Semantic: Success */
+  --color-success: #2d8659;
+  --color-success-light: #dcfce7;
+  --color-success-text: #166534;
+
+  /* Semantic: Warning */
+  --color-warning: var(--palette-amber);
+  --color-warning-light: #fef3c7;
+  --color-warning-text: #92400e;
+
+  /* Semantic: Error */
+  --color-error: var(--palette-vermillion);
+  --color-error-light: #fee2e2;
+  --color-error-text: #991b1b;
+
+  /* Semantic: Info */
+  --color-info: var(--palette-sky);
+  --color-info-light: #dbeafe;
+  --color-info-text: #1e40af;
+
+  /* Borders */
+  --color-border: var(--palette-mist);
+  --color-border-strong: #d4d4d3;
+  --color-border-pixel: var(--palette-ink);
+
+  /* Shadows */
+  --color-shadow-pixel: var(--palette-ink);
+
+  /* Focus */
+  --color-focus: var(--palette-sage);
+}
+
+/* --- Dark theme --- */
+.dark {
+  --color-canvas: #0f0f0e;
+  --color-surface: #1c1c1a;
+  --color-surface-alt: #252523;
+  --color-surface-raised: #222220;
+
+  --color-ink: #edece7;
+  --color-secondary: #a8a8a6;
+  --color-muted: #6e6e6c;
+  --color-placeholder: #5a5a58;
+  --color-inverse: #0f0f0e;
+
+  --color-primary: #52a688;
+  --color-primary-hover: #6bbf9f;
+  --color-primary-mist: #1a2e27;
+  --color-primary-text: #0f0f0e;
+
+  --color-success: #4ade80;
+  --color-success-light: #0d2818;
+  --color-success-text: #4ade80;
+
+  --color-warning: #fbbf24;
+  --color-warning-light: #2a2008;
+  --color-warning-text: #fbbf24;
+
+  --color-error: #f87171;
+  --color-error-light: #2a0e0e;
+  --color-error-text: #f87171;
+
+  --color-info: #60a5fa;
+  --color-info-light: #0e1b2d;
+  --color-info-text: #60a5fa;
+
+  --color-border: #2a2a28;
+  --color-border-strong: #3a3a38;
+  --color-border-pixel: #edece7;
+
+  --color-shadow-pixel: #000000;
+
+  --color-focus: #52a688;
+}
+
+/* --- Tailwind v4 theme integration --- */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-surface-alt: var(--color-surface-alt);
+  --color-surface-raised: var(--color-surface-raised);
+
+  --color-ink: var(--color-ink);
+  --color-secondary: var(--color-secondary);
+  --color-muted: var(--color-muted);
+  --color-placeholder: var(--color-placeholder);
+  --color-inverse: var(--color-inverse);
+
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-mist: var(--color-primary-mist);
+  --color-primary-text: var(--color-primary-text);
+
+  --color-success: var(--color-success);
+  --color-success-light: var(--color-success-light);
+  --color-success-text: var(--color-success-text);
+
+  --color-warning: var(--color-warning);
+  --color-warning-light: var(--color-warning-light);
+  --color-warning-text: var(--color-warning-text);
+
+  --color-error: var(--color-error);
+  --color-error-light: var(--color-error-light);
+  --color-error-text: var(--color-error-text);
+
+  --color-info: var(--color-info);
+  --color-info-light: var(--color-info-light);
+  --color-info-text: var(--color-info-text);
+
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-pixel: var(--color-border-pixel);
+
+  --color-shadow-pixel: var(--color-shadow-pixel);
+  --color-focus: var(--color-focus);
+
+  --animate-pixel-entrance: pixel-entrance 0.4s ease-out both;
+  --animate-pixel-shimmer: pixel-shimmer 1.5s linear infinite;
+}
+
+/* --- Base styles --- */
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ===================================================================
+   Pixel Art Utility Classes
+   =================================================================== */
+
+/* Pixel shadows — hard edges, no blur */
+.pixel-shadow-sm {
+  box-shadow: 2px 2px 0 var(--color-shadow-pixel);
+}
+.pixel-shadow {
+  box-shadow: 3px 3px 0 var(--color-shadow-pixel);
+}
+.pixel-shadow-lg {
+  box-shadow: 4px 4px 0 var(--color-shadow-pixel);
+}
+.pixel-shadow-layered {
+  box-shadow:
+    2px 2px 0 var(--color-shadow-pixel),
+    4px 4px 0 var(--color-border-strong);
+}
+.pixel-shadow-primary {
+  box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+/* Pixel borders */
+.pixel-border {
+  border: 2px solid var(--color-border-pixel);
+}
+.pixel-border-thick {
+  border: 3px solid var(--color-border-pixel);
+}
+.pixel-border-primary {
+  border: 2px solid var(--color-primary);
+}
+
+/* Pixel corner L-bracket decorations */
+.pixel-corners {
+  position: relative;
+}
+.pixel-corners::before,
+.pixel-corners::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--color-primary);
+  pointer-events: none;
+}
+.pixel-corners::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+.pixel-corners::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+/* Crisp pixel rendering for sprites */
+.pixel-render {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Pixel heading — monospace, bold, tracked */
+.pixel-heading {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+/* Pixel button press effect */
+.pixel-btn-active:active {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+
+/* Pixel divider */
+.pixel-divider {
+  border: none;
+  border-top: 2px dashed var(--color-border);
+}
+
+/* ===================================================================
+   Animations
+   =================================================================== */
+
+@keyframes pixel-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pixel-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Section entrance — applied when .in-view is added by IntersectionObserver */
+.section-animate {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.section-animate.in-view {
+  animation: pixel-entrance 0.4s ease-out both;
+}

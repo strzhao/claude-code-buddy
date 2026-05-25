@@ -34,3 +34,16 @@ test-results/
 Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
 
 claude-code-buddy-web/
+
+# === monorepo additions ===
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.env*
+!.env.example
+.vercel/
+coverage/
+playwright-report/
+test-results/
+.turbo/

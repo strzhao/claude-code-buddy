@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autopilot — 设计方案审批</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /*
+     * AUTOPILOT PLAN REVIEW TEMPLATE
+     *
+     * v3.29.0 — 飞阅评论（Feishu-style marginalia comments）
+     * - 顶部 sticky 工具栏：同意 / 反馈 / ⋯ 菜单（含放弃任务 + 自动关闭偏好）
+     * - 右侧 320px marginalia 评论面板；narrowscreen < 1100px 折叠抽屉
+     * - 选区浮动「💬 + 评论」按钮，锚点 data-block-id="b-N"
+     * - WS payload 含 comments[] + feedback 字段（D1 向后兼容）
+     * - D5b: stopImmediatePropagation 阻断 helper.js 双重触发
+     *
+     * 保留 v3.28.0：
+     * - stringzhao color system: 墨 / 纸 / 雾 / 烟 / 炭 / 苔 / 琥 / 朱 / 天
+     * - Typography: Crimson Pro + Noto Serif SC + Inter
+     * - Paper texture, end mark, drop cap, editorial table styles
+     */
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    /* ===== stringzhao.life/colors palette ===== */
+    :root {
+      /* 纸 / 墨 / 雾 / 烟 / 炭 */
+      --paper:        #F7F6F1;
+      --paper-soft:   #FCFBF6;
+      --mist:         #EBEBEA;
+      --mist-deep:    #DEDDD7;
+      --ink:          #1A1A18;
+      --ink-2:        #2A2A28;
+      --charcoal:     #595957;
+      --smoke:        #8F8F8D;
+      --smoke-faint:  #B5B5B3;
+
+      /* 苔 / 琥 / 朱 / 天 */
+      --sage:         #3A7D68;
+      --sage-light:   #52A688;
+      --sage-deep:    #2E6354;
+      --sage-mist:    #E8F2EE;
+      --amber:        #D4920A;
+      --amber-mist:   rgba(212, 146, 10, 0.10);
+      --vermillion:   #D94F3D;
+      --vermillion-soft: #C04532;
+      --sky:          #3B87CC;
+
+      /* Functional */
+      --rule:         #E0DFD9;
+      --rule-soft:    #ECEBE5;
+      --shadow-sage:  rgba(58, 125, 104, 0.16);
+      --shadow-soft:  rgba(26, 26, 24, 0.06);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper:        #181815;
+        --paper-soft:   #21211d;
+        --mist:         #2c2c28;
+        --mist-deep:    #3a3a35;
+        --ink:          #F2F1EC;
+        --ink-2:        #DEDDD6;
+        --charcoal:     #B5B5B0;
+        --smoke:        #8C8C87;
+        --smoke-faint:  #5E5E58;
+        --sage:         #6FB394;
+        --sage-light:   #8AC9AE;
+        --sage-deep:    #549879;
+        --sage-mist:    rgba(82, 166, 136, 0.12);
+        --amber:        #E3A521;
+        --amber-mist:   rgba(227, 165, 33, 0.14);
+        --vermillion:   #E66A56;
+        --vermillion-soft: #D94F3D;
+        --sky:          #5BA0DC;
+        --rule:         #34342f;
+        --rule-soft:    #2a2a26;
+        --shadow-sage:  rgba(82, 166, 136, 0.10);
+        --shadow-soft:  rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    /* ===== Page shell ===== */
+    body {
+      font-family: 'Crimson Pro', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.7;
+      font-size: 16.5px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* very subtle paper texture - feTurbulence noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0 0.09 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.55;
+      pointer-events: none;
+      z-index: 0;
+      mix-blend-mode: multiply;
+    }
+    @media (prefers-color-scheme: dark) {
+      body::before { mix-blend-mode: screen; opacity: 0.3; }
+    }
+
+    /* ===== Toolbar (top sticky) ===== */
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(247, 246, 241, 0.88);
+      backdrop-filter: blur(10px) saturate(130%);
+      -webkit-backdrop-filter: blur(10px) saturate(130%);
+      border-bottom: 1px solid var(--rule);
+      padding: 0.65rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      .toolbar { background: rgba(24, 24, 21, 0.88); }
+    }
+
+    .toolbar-title {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Toolbar buttons base */
+    .toolbar-actions button,
+    .btn-approve,
+    .btn-revise {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 0.48rem 1.1rem;
+      outline: none;
+      letter-spacing: 0.01em;
+      transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .toolbar-actions button:focus-visible,
+    .btn-approve:focus-visible,
+    .btn-revise:focus-visible {
+      outline: 2px solid var(--sage);
+      outline-offset: 2px;
+    }
+
+    /* Approve — filled sage */
+    .btn-approve {
+      background: var(--sage);
+      color: var(--paper-soft);
+      box-shadow: 0 4px 12px -4px var(--shadow-sage),
+                  inset 0 1px 0 rgba(255,255,255,0.16);
+    }
+    .btn-approve:hover {
+      background: var(--sage-deep);
+      transform: translateY(-1px);
+      box-shadow: 0 7px 18px -4px var(--shadow-sage);
+    }
+    .btn-approve:active { transform: translateY(0) scale(0.97); }
+
+    /* Revise — amber outline */
+    .btn-revise {
+      background: transparent;
+      color: var(--amber);
+      border-color: var(--amber);
+    }
+    .btn-revise:hover {
+      background: var(--amber-mist);
+      transform: translateY(-1px);
+    }
+    .btn-revise:active { transform: translateY(0) scale(0.97); }
+
+    /* toolbar shake animation for empty-feedback guard */
+    @keyframes toolbar-shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-4px); }
+      40%       { transform: translateX(4px); }
+      60%       { transform: translateX(-3px); }
+      80%       { transform: translateX(3px); }
+    }
+    .btn-revise.shake { animation: toolbar-shake 0.35s ease; }
+
+    /* ===== Toolbar menu (⋯) ===== */
+    .toolbar-menu {
+      position: relative;
+    }
+    #more-menu-trigger {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      cursor: pointer;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--charcoal);
+      padding: 0.3rem 0.65rem;
+      outline: none;
+      transition: background 0.15s ease, color 0.15s ease;
+      line-height: 1.4;
+    }
+    #more-menu-trigger:hover {
+      background: var(--mist);
+      color: var(--ink);
+    }
+    #more-menu-trigger:focus-visible {
+      outline: 2px solid var(--sage);
+      outline-offset: 2px;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 190px;
+      background: var(--paper-soft);
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px -4px var(--shadow-soft),
+                  0 2px 8px -2px var(--shadow-soft);
+      padding: 0.4rem 0;
+      z-index: 20;
+    }
+    .dropdown[hidden] { display: none; }
+
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--ink-2);
+      transition: background 0.1s ease;
+    }
+    .dropdown-item:hover { background: var(--mist); }
+    .dropdown-item-danger { color: var(--vermillion); }
+    .dropdown-item-danger:hover { background: rgba(217, 79, 61, 0.07); }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--rule);
+      margin: 0.3rem 0;
+    }
+
+    .dropdown-pref {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 1rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.83rem;
+      color: var(--charcoal);
+      cursor: pointer;
+    }
+    .dropdown-pref:hover { background: var(--mist); }
+    .dropdown-pref input[type="checkbox"] {
+      accent-color: var(--sage);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ===== Toast notification ===== */
+    #toast {
+      position: fixed;
+      top: 3.8rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--ink);
+      color: var(--paper-soft);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.83rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 999px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    @media (prefers-color-scheme: dark) {
+      #toast { background: var(--mist-deep); color: var(--ink); }
+    }
+
+    /* ===== Reading layout grid ===== */
+    .reading-layout {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
+      max-width: 1480px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem 1.2rem 1.5rem 1.8rem;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    /* 1100px <= viewport.width < 1200px → 两栏 + TOC 抽屉
+     * 评论列保留 320px，TOC 退化为左上角抽屉按钮 */
+    @media (max-width: 1199px) {
+      .reading-layout {
+        grid-template-columns: 1fr 320px;
+      }
+    }
+    @media (max-width: 1100px) {
+      .reading-layout {
+        grid-template-columns: 1fr;
+        padding: 1.5rem 1.2rem;
+      }
+    }
+
+    /* ===== Article area ===== */
+    #design-content-wrap {
+      min-width: 0;
+      max-width: 960px;
+    }
+
+    .design-section-header {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.66rem;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+    .design-section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
+
+    /* ===== Design content (rendered markdown) — reading optimized ===== */
+    #design-content {
+      color: var(--ink);
+      font-size: 16.5px;
+      line-height: 1.72;
+    }
+
+    /* Headings — serif, generous vertical rhythm */
+    #design-content h1,
+    #design-content h2,
+    #design-content h3,
+    #design-content h4,
+    #design-content h5,
+    #design-content h6 {
+      font-family: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      line-height: 1.25;
+      text-wrap: balance;
+    }
+    #design-content h1 {
+      font-size: 2.4rem;
+      font-weight: 500;
+      margin-top: 0;
+      margin-bottom: 0.6rem;
+      letter-spacing: -0.02em;
+    }
+    #design-content h2 {
+      font-size: 1.55rem;
+      margin-top: 1.9rem;
+      margin-bottom: 0.6rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--rule-soft);
+    }
+    #design-content h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    #design-content h3 {
+      font-size: 1.22rem;
+      margin-top: 1.4rem;
+      margin-bottom: 0.4rem;
+    }
+    #design-content h4 {
+      font-size: 1.05rem;
+      margin-top: 1.1rem;
+      margin-bottom: 0.35rem;
+      color: var(--ink-2);
+    }
+    #design-content h5,
+    #design-content h6 {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--smoke);
+      margin-top: 1.4rem;
+      margin-bottom: 0.4rem;
+    }
+
+    /* Paragraphs */
+    #design-content p {
+      margin: 0.7rem 0;
+      color: var(--ink-2);
+      text-wrap: pretty;
+      hanging-punctuation: first;
+    }
+    #design-content p:first-of-type {
+      margin-top: 0.8rem;
+    }
+
+    /* drop cap on the first paragraph after the first h2 — subtle */
+    #design-content h1 + p::first-letter,
+    #design-content > p:first-child::first-letter {
+      font-family: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
+      font-size: 3.4em;
+      font-weight: 600;
+      float: left;
+      line-height: 0.9;
+      margin-top: 0.18em;
+      margin-right: 0.08em;
+      color: var(--sage);
+    }
+
+    /* Lists */
+    #design-content ul,
+    #design-content ol {
+      margin: 0.8rem 0 0.8rem 1.5rem;
+      color: var(--ink-2);
+    }
+    #design-content li {
+      margin: 0.3rem 0;
+      padding-left: 0.25rem;
+    }
+    #design-content ul li::marker { color: var(--sage); }
+    #design-content ol li::marker { color: var(--charcoal); font-variant-numeric: tabular-nums; font-feature-settings: "lnum"; }
+    #design-content li > ul,
+    #design-content li > ol { margin-top: 0.2rem; margin-bottom: 0.2rem; }
+
+    /* Blockquote — pull-quote style */
+    #design-content blockquote {
+      margin: 1.4rem 0;
+      padding: 0.4rem 0 0.4rem 1.4rem;
+      border-left: 2px solid var(--sage);
+      color: var(--charcoal);
+      font-family: 'Crimson Pro', 'Noto Serif SC', serif;
+      font-style: italic;
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    #design-content blockquote p { color: var(--charcoal); margin: 0.4rem 0; }
+    #design-content blockquote p:first-child::first-letter {
+      font-size: 1em; float: none; color: var(--charcoal); margin: 0; font-weight: inherit;
+    }
+
+    /* Inline code */
+    #design-content code {
+      font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 0.86em;
+      background: var(--sage-mist);
+      color: var(--sage-deep);
+      padding: 0.1em 0.42em;
+      border-radius: 4px;
+      font-weight: 500;
+      font-feature-settings: "liga" 0;
+    }
+    @media (prefers-color-scheme: dark) {
+      #design-content code { color: var(--sage-light); }
+    }
+
+    /* Code blocks */
+    #design-content pre {
+      margin: 1.2rem 0;
+      padding: 1.1rem 1.3rem;
+      background: var(--paper-soft);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--sage);
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+    #design-content pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+      border-radius: 0;
+    }
+
+    /* Tables — editorial style */
+    #design-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.2rem 0;
+      font-size: 0.92rem;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    #design-content thead {
+      border-top: 1.5px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    #design-content tbody { border-bottom: 1.5px solid var(--ink); }
+    #design-content th {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      font-weight: 600;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+    }
+    #design-content td {
+      padding: 0.55rem 0.75rem;
+      color: var(--ink-2);
+      border-top: 1px solid var(--rule-soft);
+    }
+    #design-content tr:first-child td { border-top: 0; }
+    #design-content td code { font-size: 0.86em; }
+
+    /* Links */
+    #design-content a {
+      color: var(--sky);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rule);
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    #design-content a:hover {
+      color: var(--sage-deep);
+      border-bottom-color: var(--sage);
+    }
+    @media (prefers-color-scheme: dark) {
+      #design-content a:hover { color: var(--sage-light); }
+    }
+
+    /* Strong / em */
+    #design-content strong { font-weight: 600; color: var(--ink); }
+    #design-content em { font-style: italic; }
+
+    /* HR — ornament */
+    #design-content hr {
+      border: 0;
+      margin: 2.2rem auto;
+      width: 4rem;
+      height: 0;
+      text-align: center;
+    }
+    #design-content hr::after {
+      content: '◆ ◆ ◆';
+      color: var(--smoke-faint);
+      letter-spacing: 0.6em;
+      font-size: 0.7rem;
+    }
+
+    /* End mark after last block */
+    #design-content > *:last-child::after {
+      content: ' ❧';
+      color: var(--sage);
+      font-style: italic;
+      margin-left: 0.4em;
+    }
+
+    /* Highlight anchor block on comment hover */
+    [data-block-id].anchor-highlight {
+      background: rgba(58, 125, 104, 0.06);
+      border-radius: 3px;
+      outline: 1.5px dashed var(--sage-light);
+      outline-offset: 2px;
+    }
+
+    /* ===== Comments pane (marginalia) ===== */
+    #comments-pane {
+      position: relative;
+      min-height: 40px;
+    }
+    @media (max-width: 1100px) {
+      #comments-pane {
+        border-top: 1px solid var(--rule);
+        padding-top: 1rem;
+      }
+    }
+
+    /* comment cards absolute in pane on wide, static on narrow */
+    .comment-card {
+      background: var(--paper-soft);
+      border: 1px solid var(--rule);
+      border-radius: 9px;
+      padding: 0.75rem 0.9rem 0.65rem;
+      box-shadow: 0 2px 8px -2px var(--shadow-soft);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.82rem;
+      color: var(--ink-2);
+      transition: box-shadow 0.15s ease;
+    }
+    .comment-card:hover {
+      box-shadow: 0 4px 14px -4px var(--shadow-soft);
+    }
+
+    @media (min-width: 1101px) {
+      .comment-card {
+        position: absolute;
+        width: 100%;
+        left: 0;
+      }
+    }
+    @media (max-width: 1100px) {
+      .comment-card {
+        margin-bottom: 0.75rem;
+      }
+    }
+
+    /* new vs saved state */
+    .comment-card[data-state="new"] {
+      border-color: var(--sage-light);
+      box-shadow: 0 0 0 2px var(--sage-mist), 0 2px 8px -2px var(--shadow-soft);
+    }
+
+    .comment-quote {
+      font-family: 'Crimson Pro', 'Noto Serif SC', serif;
+      font-style: italic;
+      font-size: 0.88rem;
+      color: var(--charcoal);
+      border-left: 2px solid var(--sage);
+      padding-left: 0.55rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .comment-text {
+      width: 100%;
+      min-height: 64px;
+      background: transparent;
+      border: 1px solid var(--rule);
+      border-radius: 5px;
+      padding: 0.45rem 0.6rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.82rem;
+      color: var(--ink);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s ease;
+      line-height: 1.5;
+    }
+    .comment-text:focus {
+      border-color: var(--sage);
+      background: var(--paper-soft);
+    }
+    .comment-text::placeholder { color: var(--smoke-faint); }
+
+    .comment-card[data-state="saved"] .comment-text {
+      background: var(--paper);
+      color: var(--ink-2);
+      border-color: var(--rule-soft);
+      cursor: default;
+      resize: none;
+    }
+
+    .comment-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .comment-save,
+    .comment-delete {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.3rem 0.7rem;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      outline: none;
+      transition: all 0.12s ease;
+    }
+    .comment-save {
+      background: var(--sage);
+      color: var(--paper-soft);
+      border-color: var(--sage);
+    }
+    .comment-save:hover { background: var(--sage-deep); }
+    .comment-delete {
+      background: transparent;
+      color: var(--smoke);
+      border-color: var(--rule);
+    }
+    .comment-delete:hover {
+      color: var(--vermillion);
+      border-color: var(--vermillion-soft);
+    }
+
+    /* hide save when card is saved, show edit button */
+    .comment-card[data-state="saved"] .comment-save { display: none; }
+    .comment-card[data-state="new"]   .comment-save { display: inline-block; }
+
+    /* ===== Floating comment trigger ===== */
+    #floating-comment-trigger {
+      position: fixed;
+      background: var(--sage);
+      color: var(--paper-soft);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      box-shadow: 0 4px 12px -4px var(--shadow-sage);
+      cursor: pointer;
+      z-index: 50;
+      user-select: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+    #floating-comment-trigger[hidden] {
+      display: none;
+    }
+    #floating-comment-trigger:hover {
+      background: var(--sage-deep);
+      transform: translateY(-1px);
+    }
+    #floating-comment-trigger:active {
+      transform: scale(0.97);
+    }
+
+    /* ===== Submit Overlay ===== */
+    #submit-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(247, 246, 241, 0.92);
+      backdrop-filter: blur(8px) saturate(120%);
+      -webkit-backdrop-filter: blur(8px) saturate(120%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    @media (prefers-color-scheme: dark) {
+      #submit-overlay { background: rgba(24, 24, 21, 0.92); }
+    }
+    #submit-overlay.visible {
+      display: flex;
+      opacity: 1;
+    }
+    .overlay-card {
+      max-width: 380px;
+      padding: 2.4rem 2.8rem;
+      background: var(--paper-soft);
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 32px 64px -16px var(--shadow-soft),
+                  0 0 0 1px var(--shadow-soft);
+      animation: card-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes card-rise {
+      from { opacity: 0; transform: translateY(12px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .overlay-icon {
+      font-size: 2.6rem;
+      font-family: 'Crimson Pro', serif;
+      color: var(--sage);
+      margin-bottom: 0.6rem;
+      line-height: 1;
+    }
+    .overlay-title {
+      font-family: 'Crimson Pro', 'Noto Serif SC', serif;
+      font-weight: 500;
+      font-size: 1.4rem;
+      color: var(--ink);
+      margin-bottom: 0.3rem;
+      letter-spacing: -0.005em;
+    }
+    .overlay-subtitle {
+      font-family: 'Crimson Pro', 'Noto Serif SC', serif;
+      font-style: italic;
+      font-size: 0.92rem;
+      color: var(--charcoal);
+      margin-bottom: 1rem;
+    }
+    .overlay-close-btn {
+      display: none;
+      margin-top: 0.7rem;
+      padding: 0.55rem 1.2rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: var(--sage);
+      color: var(--paper-soft);
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .overlay-close-btn:hover {
+      background: var(--sage-deep);
+      transform: translateY(-1px);
+    }
+    .overlay-close-btn:active { transform: scale(0.98); }
+    .overlay-close-btn.visible { display: inline-block; }
+
+    /* ===== Narrow-screen comments drawer ===== */
+    @media (max-width: 1100px) {
+      #comments-drawer-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 0.82rem;
+        color: var(--charcoal);
+        cursor: pointer;
+        margin-bottom: 0.6rem;
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      #comments-drawer-toggle::before {
+        content: '💬';
+        font-size: 1rem;
+      }
+    }
+    @media (min-width: 1101px) {
+      #comments-drawer-toggle { display: none; }
+    }
+
+    /* ===== TOC pane (left navigation) =====
+     * 默认 (>=1200px)：sticky 固定显示，可独立滚动
+     * <1200px：抽屉化，#toc-toggle 按钮显示，#toc-pane 转为 fixed off-canvas
+     */
+    .toc-pane {
+      position: sticky;
+      top: 3.4rem; /* sticky toolbar 高度 ≈ 0.65*2 + 0.85*1.4 ≈ 3.4rem */
+      max-height: calc(100vh - 4rem);
+      overflow-y: auto;
+      padding: 0.4rem 0.6rem 1rem 0.2rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.83rem;
+      color: var(--charcoal);
+      border-right: 1px solid var(--rule-soft);
+      scrollbar-width: thin;
+      scrollbar-color: var(--mist-deep) transparent;
+    }
+    .toc-pane::-webkit-scrollbar { width: 6px; }
+    .toc-pane::-webkit-scrollbar-thumb { background: var(--mist-deep); border-radius: 3px; }
+    .toc-pane::-webkit-scrollbar-track { background: transparent; }
+
+    .toc-pane-title {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.66rem;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin: 0.2rem 0 0.7rem 0.55rem;
+    }
+
+    .toc-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .toc-item {
+      margin: 0;
+      padding: 0;
+      line-height: 1.4;
+    }
+    .toc-item > a {
+      display: block;
+      padding: 0.28rem 0.55rem;
+      color: var(--charcoal);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      border-radius: 0 4px 4px 0;
+      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+      word-break: break-word;
+    }
+    .toc-item > a:hover {
+      color: var(--ink);
+      background: var(--mist);
+    }
+    .toc-h2 > a {
+      font-weight: 500;
+      color: var(--ink-2);
+    }
+    .toc-h3 > a {
+      padding-left: 1.4rem;
+      font-size: 0.8rem;
+      color: var(--charcoal);
+    }
+    .toc-item.is-active > a {
+      color: var(--sage-deep);
+      border-left-color: var(--sage);
+      background: var(--sage-mist);
+    }
+    @media (prefers-color-scheme: dark) {
+      .toc-item.is-active > a { color: var(--sage-light); }
+    }
+
+    .toc-empty {
+      color: var(--smoke);
+      font-size: 0.85rem;
+      padding: 1rem 0.6rem;
+      font-style: italic;
+    }
+
+    /* TOC toggle button — default hidden (>=1200px) */
+    #toc-toggle {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.82rem;
+      color: var(--charcoal);
+      cursor: pointer;
+      background: var(--paper-soft);
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      padding: 0.36rem 0.7rem;
+      margin-bottom: 0.6rem;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    #toc-toggle:hover {
+      background: var(--mist);
+      border-color: var(--mist-deep);
+    }
+    #toc-toggle:focus-visible {
+      outline: 2px solid var(--sage);
+      outline-offset: 2px;
+    }
+    .toc-toggle-icon {
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    /* Drawer backdrop (only used in drawer mode) */
+    .toc-overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 26, 24, 0.4);
+      z-index: 89;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+    .toc-overlay-backdrop.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Drawer mode: <1200px */
+    @media (max-width: 1199px) {
+      #toc-toggle {
+        display: inline-flex;
+      }
+      .toc-pane {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        max-height: 100vh;
+        width: 280px;
+        background: var(--paper);
+        border-right: 1px solid var(--rule);
+        box-shadow: 4px 0 18px -6px var(--shadow-soft);
+        padding: 1rem 0.8rem 1.4rem 0.8rem;
+        z-index: 90;
+        transform: translateX(-100%);
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .toc-pane.is-open {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+<body data-auto-close="true">
+
+  <!-- Submit overlay (shown after decision) -->
+  <div id="submit-overlay" role="dialog" aria-modal="true" aria-label="决策已提交">
+    <div class="overlay-card">
+      <div class="overlay-icon" id="overlay-icon">❧</div>
+      <div class="overlay-title" id="overlay-title">决策已提交</div>
+      <div class="overlay-subtitle" id="overlay-subtitle">窗口即将关闭…</div>
+      <button class="overlay-close-btn" id="overlay-close-btn" onclick="window.close()">关闭标签页</button>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Floating comment trigger (shown on text selection within #design-content) -->
+  <div id="floating-comment-trigger" hidden>💬 + 评论</div>
+
+  <!-- Sticky toolbar (C4) -->
+  <header class="toolbar" role="toolbar">
+    <h1 class="toolbar-title">Autopilot · Plan Review</h1>
+    <div class="toolbar-actions">
+      <button class="btn-approve" data-choice="approve">同意</button>
+      <button class="btn-revise"  data-choice="revise">反馈</button>
+    </div>
+    <div class="toolbar-menu">
+      <button id="more-menu-trigger" aria-label="更多" aria-expanded="false">⋯</button>
+      <div id="more-menu" class="dropdown" hidden>
+        <button data-choice="abort" class="dropdown-item dropdown-item-danger">放弃任务</button>
+        <div class="dropdown-divider"></div>
+        <label class="dropdown-pref">
+          <input type="checkbox" id="auto-close-toggle" data-pref="auto_close_after_decision">
+          决策后自动关闭
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <!-- Reading layout: TOC + article + marginalia -->
+  <main class="reading-layout">
+    <!-- Left navigation (TOC) — populated by buildTOC() after marked.parse -->
+    <nav id="toc-pane" class="toc-pane" aria-label="目录">
+      <button id="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-list">
+        <span class="toc-toggle-icon">☰</span>
+        <span class="toc-toggle-label">目录</span>
+      </button>
+      <div class="toc-pane-title">目录</div>
+      <ol id="toc-list" class="toc-list"></ol>
+    </nav>
+
+    <article id="design-content-wrap">
+      <div class="design-section-header">设计文档 &amp; 实现计划</div>
+      <!-- Raw markdown (hidden; replaced by launch-plan-review.sh) -->
+      <div id="design-content-raw" hidden>## 设计文档
+
+### Context
+- claude-code-buddy 当前是纯 Swift macOS app 工程，`Package.swift` / `Sources/` / `Tests/` / `Makefile` / `release.yml` 都直接位于仓库根目录，没有任何 Node/JS 代码。
+- claude-code-buddy-web 是一个独立的 Next.js 16 + React 19 项目（部署在 Vercel 上的 buddy.stringzhao.life，提供皮肤包商店），内部还有 `cli/` 子工程（Node CLI `buddy-skin`，commander + archiver 用于皮肤包打包上传）。
+- 参考工程 relight 采用 `pnpm workspace + apps/* + packages/* + workspace:* 协议`，且 apps/mac (SwiftUI) 与 apps/web (Next.js) 同仓共存（CI 通过 `--filter=&#x27;!@relight/mac&#x27;` 排除 Swift 构建），是本次整合的范本。
+- 用户目标：把 web 工程整合进 buddy 仓库（不带 git 历史，直接复制），同时把 web/cli 子工程独立成 `packages/skin-cli`。两套 CLI（Swift `buddy`、Node `buddy-skin`）都要带进新拓扑。
+- Vercel 部署是手动触发，远端不做 auto-deploy；本次迁移不动 Vercel 配置，只在文档中记录后续手动调整 Root Directory。
+- Swift→Web 现有唯一耦合点：`Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift` 硬编码 `https://buddy.stringzhao.life/api/skins`。本次不改 URL。
+
+### 目标拓扑
+
+```
+claude-code-buddy/                       (新根)
+├── apps/
+│   ├── desktop/                         (= 原根 Swift 工程)
+│   │   ├── Package.swift
+│   │   ├── Sources/{App,BuddyCLI,ClaudeCodeBuddy}/
+│   │   ├── Tests/BuddyCoreTests/
+│   │   ├── tests/acceptance/
+│   │   ├── Scripts/
+│   │   ├── Makefile
+│   │   └── CLAUDE.md
+│   └── web/                             (= 原 claude-code-buddy-web 顶层，剔除 cli/)
+│       ├── package.json                 (name: @stringzhao/web)
+│       ├── src/  public/  e2e/  __tests__/  scripts/
+│       ├── next.config.ts  middleware.ts  postcss.config.mjs
+│       ├── vitest.config.mts  playwright.config.ts
+│       ├── eslint.config.mjs  .prettierrc.json
+│       └── tsconfig.json
+├── packages/
+│   └── skin-cli/                        (= 原 claude-code-buddy-web/cli/)
+│       ├── package.json                 (name: @stringzhao/skin-cli, bin: buddy-skin)
+│       ├── src/index.ts
+│       └── tsconfig.json
+├── plugin/                              (保留在根：Claude Code marketplace 插件)
+├── hooks/                               (保留在根：hook 脚本)
+├── homebrew/Casks/                      (保留在根：Cask 配方)
+├── docs/                                (保留在根)
+├── .autopilot/                          (保留在根：跨项目知识库)
+├── .github/workflows/
+│   ├── ci-desktop.yml                   (= 原 ci.yml，加 working-directory + path filter)
+│   ├── ci-web.yml                       (从 web 仓库迁入，path: apps/web/** + packages/**)
+│   └── release.yml                      (更新 .build 产物路径)
+├── .husky/                              (合并：pre-commit 调 lint-staged，commit-msg 调 commitlint)
+├── pnpm-workspace.yaml                  (新建：packages: [apps/*, packages/*])
+├── package.json                         (新建：name &quot;claude-code-buddy&quot;, private:true, packageManager pinned)
+├── commitlint.config.cjs                (从 web 提升到根)
+├── .lintstagedrc.json                   (从 web 提升到根)
+├── tsconfig.json                        (新建：base，apps/web/tsconfig.json extends 之)
+├── .gitignore                           (合并：Swift 原有 + node_modules/.next/dist/.tsbuildinfo/.env*/.vercel)
+├── .nvmrc                               (新建：node 20 LTS，对齐 web CI)
+├── CLAUDE.md                            (重写：描述 monorepo 拓扑与各子目录约定)
+└── README.md                            (统一入口，链接各子项目 README)
+```
+
+### 关键决策
+
+1. **包命名**：使用 `@stringzhao/*` scope —— `@stringzhao/web`、`@stringzhao/skin-cli`。与外部公开包 `@stringzhao/auth-sdk` 共存：workspace 协议优先解析本地，不会冲突；这两个内部包不会发布到 npm registry（`private: true`）。
+2. **不引入额外工具**：本次迁移**明确排除** turbo、Biome、changesets、packages/shared 共享类型包。理由：YAGNI——relight 的这些是规模成熟期才引入，buddy 仓库当前只有 2 个 JS 包，pnpm `-r` / `--filter` 直驱已够用；强切 Biome 会引入大量风格 diff，超出范围。
+3. **直接文件复制**（不用 git subtree）：用户决策。代价：丢失 web 早期 commit 历史，但保留了清爽的主仓 git log，原仓库需要时仍可独立访问。
+4. **双 CI workflow + path filters**：`ci-desktop.yml` 只在 `apps/desktop/**` 改动时跑，`ci-web.yml` 只在 `apps/web/**` 或 `packages/**` 改动时跑。比统一 turbo workflow 学习成本低、故障半径小。
+5. **Swift 工程文件用 `git mv` 整体搬迁到 apps/desktop/**：保留 git blame；Package.swift 内部相对路径无需调整（`path: &quot;Sources/...&quot;` 仍解析到 apps/desktop/Sources/）。
+6. **保留在根的目录**：`plugin/`、`hooks/`、`homebrew/`、`docs/`、`.autopilot/` 不动——它们要么是面向 marketplace/Homebrew/Cask 消费者（外部接口），要么是跨子项目的知识资产。
+7. **catalogURL 不动**：apps/desktop Swift 代码继续指向 `https://buddy.stringzhao.life/api/skins`，Vercel 部署的接口契约不变。
+8. **Vercel 配置仅文档化、不自动化**：在 README.md / apps/web/CLAUDE.md 写明用户手动需要在 Vercel UI 改的 Root Directory / Install Command / Build Command / Output Directory。
+
+### 与 relight 的差异说明
+
+| 维度 | relight | 本仓库 |
+|---|---|---|
+| 包管理器 | pnpm | pnpm（一致） |
+| Workspace 协议 | workspace:* | workspace:*（一致） |
+| Linter | Biome | ESLint+Prettier（保留 web 现状） |
+| Pipeline 编排 | turbo | pnpm -r / --filter（不引入 turbo） |
+| 共享 types 包 | packages/shared | 无（YAGNI） |
+| CI | 单 ci.yml + turbo | 双 workflow + path filter |
+| Swift 工程 | apps/mac | apps/desktop |
+
+### 契约规约
+
+#### C1. pnpm workspace 拓扑契约
+- 根 `pnpm-workspace.yaml` 必须包含 `apps/*` 与 `packages/*` 两条 glob。
+- 根 `package.json` 字段：`&quot;private&quot;: true`、`&quot;packageManager&quot;: &quot;pnpm@&lt;固定版本&gt;&quot;`、`&quot;engines.node&quot;: &quot;&gt;=20&quot;`、`&quot;name&quot;: &quot;claude-code-buddy&quot;`、`&quot;workspaces&quot;` 不写（pnpm 用 pnpm-workspace.yaml）。
+- `pnpm install` 在仓库根执行成功，生成 `pnpm-lock.yaml`，且 `pnpm -r ls --json` 至少列出 `@stringzhao/web` 与 `@stringzhao/skin-cli` 两个包。
+
+#### C2. @stringzhao/web 包契约
+- `apps/web/package.json` 字段：`&quot;name&quot;: &quot;@stringzhao/web&quot;`、`&quot;private&quot;: true`、`&quot;version&quot;` 沿用 0.4.0、scripts 全集保留（dev/build/start/lint/lint:fix/format/test/test:watch/test:coverage/test:e2e/size），其中 `prepare: husky` 删除（移到根）。
+- `pnpm --filter @stringzhao/web build` 成功产出 `apps/web/.next/`。
+- `pnpm --filter @stringzhao/web test` 通过（vitest run）。
+- `pnpm --filter @stringzhao/web lint`、`typecheck`（`tsc --noEmit`）通过。
+- apps/web 不能引用任何上层路径（不允许 `../../` 出 apps/web 边界），所有跨包依赖走 `workspace:*`。
+
+#### C3. @stringzhao/skin-cli 包契约
+- `packages/skin-cli/package.json` 字段：`&quot;name&quot;: &quot;@stringzhao/skin-cli&quot;`、`&quot;private&quot;: true`、`&quot;version&quot;` 沿用 1.1.0、`&quot;type&quot;: &quot;module&quot;`、`&quot;bin&quot;: { &quot;buddy-skin&quot;: &quot;./dist/index.js&quot; }`、scripts 保留 `build: tsc`。
+- `pnpm --filter @stringzhao/skin-cli build` 成功产出 `packages/skin-cli/dist/index.js` 与 `dist/index.d.ts`。
+- 仓库根执行 `pnpm exec buddy-skin --help` 输出 commander 帮助文本（含 commands 列表）。
+
+#### C4. apps/desktop Swift 工程契约
+- 目录布局：`apps/desktop/{Package.swift, Sources/{App,BuddyCLI,ClaudeCodeBuddy}, Tests/BuddyCoreTests, tests/acceptance, Scripts, Makefile}` 完整存在。
+- `cd apps/desktop &amp;&amp; make build` 成功，产出 `.build/.../debug/ClaudeCodeBuddy` 与 `buddy-cli` 可执行文件。
+- `cd apps/desktop &amp;&amp; make test` 全部 XCTest 通过（包括 SnapshotTests）。
+- `cd apps/desktop &amp;&amp; make lint` SwiftLint 零违规。
+- `cd apps/desktop &amp;&amp; make bundle` 产出 `ClaudeCodeBuddy.app/Contents/MacOS/{ClaudeCodeBuddy, buddy}`。
+- Package.swift 内部 `path:` 字段值保持不变（相对 Package.swift 所在目录）。
+
+#### C5. CI workflow 契约
+- `.github/workflows/ci-desktop.yml`：
+  - trigger `on.push.paths` / `on.pull_request.paths` 仅包含 `apps/desktop/**`、`.github/workflows/ci-desktop.yml`、`Package.swift` 等 Swift 相关路径。
+  - 所有 `swift` / `make` 命令在 `working-directory: apps/desktop` 下执行（或显式 `cd apps/desktop &amp;&amp;`）。
+- `.github/workflows/ci-web.yml`：
+  - trigger 路径覆盖 `apps/web/**`、`packages/**`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、根 `package.json`、`.github/workflows/ci-web.yml`。
+  - Setup pnpm + Node 20，`pnpm install --frozen-lockfile`，运行 `lint typecheck test build size`。
+- `.github/workflows/release.yml`：触发 tag `v*.*.*` 不变；所有 Swift build/zip 步骤加 `working-directory: apps/desktop`。
+  - **关键：zip 产物路径修复**。`softprops/action-gh-release` 的 `files:` 字段使用 `@actions/glob`，路径解析基于 `GITHUB_WORKSPACE`（仓库根），不受 step `working-directory` 影响。zip 步骤在 `apps/desktop/` 下产出 `ClaudeCodeBuddy-${{ github.ref_name }}.zip`，必须在 zip 后立即加一步 `mv apps/desktop/ClaudeCodeBuddy-*.zip ./`（在仓库根执行），保持 release upload 的 `files: ClaudeCodeBuddy-${{ github.ref_name }}.zip` 字段不变。`Homebrew cask 同步` step 中读取 zip 计算 sha256 的逻辑也基于仓库根的 zip 文件，受益于此 mv。
+
+#### C6. Git hooks 契约
+- `.husky/pre-commit` 在仓库根存在，内容包含 `pnpm exec lint-staged`。
+- `.husky/commit-msg` 在仓库根存在，内容包含 `pnpm exec commitlint --edit &quot;$1&quot;`。
+- 根 `.lintstagedrc.json` 含规则：`apps/web/**/*.{ts,tsx,js,jsx}` → ESLint + Prettier；`packages/skin-cli/**/*.ts` → ESLint + Prettier。Swift 文件不走前端 lint-staged。
+- 根 `commitlint.config.cjs` 沿用 `@commitlint/config-conventional`。
+
+#### C7. 部署接口契约（外部不变项）
+- `https://buddy.stringzhao.life/api/skins` GET 行为不变（apps/web 内的 API route 路径不变）。
+- Swift `SkinGalleryViewController.catalogURL` 保持 `https://buddy.stringzhao.life/api/skins`，不修改源码。
+- Homebrew cask formula 内的 `binary` 字段（buddy CLI 路径）不变，仍指向 `.app/Contents/MacOS/buddy`。
+- Vercel 项目配置由用户后续手动调整。本次任务必须在 apps/web/CLAUDE.md（或根 README.md）写明**具体操作步骤**：
+  - Vercel Dashboard → 项目 claude-code-buddy-web → Settings → General → &quot;Root Directory&quot; 改为 `apps/web`。
+  - &quot;Install Command&quot; 改为 `cd ../.. &amp;&amp; pnpm install --filter @stringzhao/web... --frozen-lockfile`（保证只装 web 包链路依赖）。
+  - &quot;Build Command&quot; 改为 `pnpm --filter @stringzhao/web build`。
+  - &quot;Output Directory&quot; 保持 `.next`（相对 Root Directory）。
+  - **未做此变更前不能触发 Vercel 部署**——否则 Vercel 因仓库根没有 package.json 而失败。
+
+### 验证方案
+
+#### 真实测试场景（QA 阶段必须逐个执行）
+
+1. **[独立] pnpm workspace 安装**
+   - 执行：`cd /Users/stringzhao/workspace/claude-code-buddy &amp;&amp; pnpm install`
+   - 期望：退出码 0；`pnpm-lock.yaml` 生成；`pnpm -r ls --depth -1` 列出至少 `@stringzhao/web` 与 `@stringzhao/skin-cli`。
+
+2. **[独立] web 工程构建**
+   - 执行：`pnpm --filter @stringzhao/web build`
+   - 期望：退出码 0；`apps/web/.next/BUILD_ID` 存在。
+
+3. **[独立] web 工程测试 / lint / typecheck**
+   - 执行：`pnpm --filter @stringzhao/web lint &amp;&amp; pnpm --filter @stringzhao/web test`（不含 e2e）
+   - 期望：退出码 0；vitest 输出 pass。
+
+4. **[独立] skin-cli 构建 + bin 可调用**
+   - 执行：`pnpm --filter @stringzhao/skin-cli build &amp;&amp; pnpm exec buddy-skin --help`
+   - 期望：`packages/skin-cli/dist/index.js` 存在；help 输出含 `Usage:` 与 commands。
+
+5. **Swift 工程 build**
+   - 执行：`cd apps/desktop &amp;&amp; make build`
+   - 期望：退出码 0；`.build/.../debug/ClaudeCodeBuddy` 与 `buddy-cli` 可执行存在。
+
+6. **Swift 工程 test（含 SnapshotTests）**
+   - 执行：`cd apps/desktop &amp;&amp; make test`
+   - 期望：XCTest 全部通过；`tests/BuddyCoreTests/SnapshotTests/__Snapshots__/` 内已有基线图不被破坏。
+
+7. **Swift 工程 lint**
+   - 执行：`cd apps/desktop &amp;&amp; make lint`
+   - 期望：SwiftLint 零违规。
+
+8. **Swift 工程 bundle**
+   - 执行：`cd apps/desktop &amp;&amp; make bundle`
+   - 期望：产出 `apps/desktop/ClaudeCodeBuddy.app/Contents/MacOS/{ClaudeCodeBuddy, buddy}`；`./apps/desktop/ClaudeCodeBuddy.app/Contents/MacOS/buddy --help` 不报错。
+
+9. **Husky 钩子触发**
+   - 执行：在仓库根做一个 `apps/web/src/` 下文件的微小修改，`git add` 后 `git commit -m &quot;test: husky check&quot;`（再 `git reset HEAD~1 --soft` 撤回，不污染历史）
+   - 期望：lint-staged 命中并跑过 ESLint/Prettier；commitlint 接受 conventional commit。
+
+10. **CI workflow YAML 静态校验**
+    - 执行：`yq &#x27;.on.push.paths&#x27; .github/workflows/ci-desktop.yml`、同样对 ci-web.yml / release.yml；并人工 review 每个 step 的 working-directory。
+    - 期望：path filters 与契约 C5 一致；Swift 步骤都加了 working-directory。
+
+11. **catalogURL 回归（视情况，apps/desktop 可视化）**
+    - 执行：启动新版 .app → 打开皮肤市场，确认仍能从 buddy.stringzhao.life 拉取目录
+    - 期望：远端目录正常显示。若 web 项目本地仍能运行（`pnpm --filter @stringzhao/web dev`），可指向 localhost:3000 验证 apps/web/api/skins 路由仍工作。
+
+#### 自动化验证（红队验收测试）
+
+红队应至少生成以下断言（基于设计文档的契约 C1–C7）：
+- **结构断言**（shell 测试）：必需路径存在性、Package.swift path 字段不变、pnpm-workspace.yaml 包含两个 glob。
+- **包名断言**（shell + jq）：`apps/web/package.json.name == &quot;@stringzhao/web&quot;`、`packages/skin-cli/package.json.name == &quot;@stringzhao/skin-cli&quot;`。
+- **bin 断言**：`packages/skin-cli/package.json.bin[&quot;buddy-skin&quot;]` 存在。
+- **workflow path filter 断言**：ci-desktop.yml 不含 `apps/web/**`，ci-web.yml 不含 `apps/desktop/**`，避免漏路或越界。
+- **catalogURL 不变断言**：grep `https://buddy.stringzhao.life/api/skins` 在 apps/desktop/Sources/ 下能找到。
+- **lint-staged 规则断言**：`.lintstagedrc.json` 中存在针对 apps/web/**/*.{ts,tsx} 的规则。
+
+## 实现计划
+
+&gt; 任务粒度：每个任务为可独立 verify 的最小变更单元；按依赖顺序执行；带 `[独立]` 的可并行。
+
+### 阶段 1：根级 monorepo 骨架（不动现有 Swift 代码）
+
+- [ ] **T1.1** 创建 `pnpm-workspace.yaml`，内容 `packages: [&quot;apps/*&quot;, &quot;packages/*&quot;]`。
+- [ ] **T1.2** 创建根 `package.json`：name `claude-code-buddy`、private、packageManager pnpm@10.x、engines.node `&gt;=20`、scripts（aggregator 脚本如 `dev:web`、`build:web`、`build:cli`、`build:desktop` 等）。
+- [ ] **T1.3** 创建根 `tsconfig.json`（base：strict、ES2022、noEmit、moduleResolution bundler）。
+- [ ] **T1.4** 创建根 `.nvmrc`（`20`）。
+- [ ] **T1.5** 合并 `.gitignore`：保留现有 Swift gitignore 行 + 追加 `node_modules/`、`.next/`、`dist/`、`*.tsbuildinfo`、`.env*`（保留 `!.env.example`）、`.vercel/`、`coverage/`、`playwright-report/`、`test-results/`、`.turbo/`。
+- [ ] **T1.6** 创建 `apps/`、`packages/` 空目录（用 `.gitkeep` 占位避免空目录被丢）。
+
+### 阶段 2：搬迁 Swift 工程到 apps/desktop（保留 git blame）
+
+- [ ] **T2.1** `mkdir -p apps/desktop`，用 `git mv` 把根级 `Package.swift`、`Sources/`、`Tests/`、`tests/`、`Scripts/`、`Makefile` 搬到 `apps/desktop/`。
+- [ ] **T2.2** 检查 Swift 工程内部脚本/Makefile 是否依赖 PWD 或绝对路径，无则不改；如有相对路径出 apps/desktop 边界，修正之。
+- [ ] **T2.3** 验证 `cd apps/desktop &amp;&amp; make build &amp;&amp; make test &amp;&amp; make lint &amp;&amp; make bundle`（所有产物正常）。
+- [ ] **T2.4** 把根级 `ClaudeCodeBuddy.app/`（若有 untracked 构建产物）按需迁移或排除——通常 .app 是 release 产物，不应入 git。
+
+### 阶段 3：搬迁 web 工程到 apps/web（不带历史）
+
+- [ ] **T3.1** 创建 apps/web 目录。
+- [ ] **T3.2** 从 `/Users/stringzhao/workspace/claude-code-buddy-web/` 复制（rsync 排除 `.git/`、`.next/`、`node_modules/`、`.vercel/`、`.env.local`、`tsconfig.tsbuildinfo`、`cli/`）到 apps/web/。
+- [ ] **T3.3** 编辑 `apps/web/package.json`：name `@stringzhao/web`、删除 `prepare: husky`、其余字段保留。
+- [ ] **T3.4** 删除 apps/web 内 `.husky/`、`.lintstagedrc.json`、`commitlint.config.js`（这些移到根处理）。
+- [ ] **T3.5** 调整 `apps/web/tsconfig.json` extends 路径 `../../tsconfig.json`（若复用根 base）。
+- [ ] **T3.6** 删除 apps/web 内的 `package-lock.json`（pnpm-lock.yaml 接管）。
+- [ ] **T3.7** **处理双 vitest 配置文件**：web 仓库内同时存在 `vitest.config.mts`（jsdom + react，主单元测试）和 `vitest.config.ts`（node 环境，仅 `*.acceptance.test.ts`）。两者 `include` 规则互斥，vitest 自动发现行为不稳定。决策：保留两个配置文件，但显式绑定 package.json scripts —— `&quot;test&quot;: &quot;vitest run -c vitest.config.mts&quot;`、新增 `&quot;test:acceptance&quot;: &quot;vitest run -c vitest.config.ts&quot;`、`&quot;test:watch&quot;` 同样加 `-c vitest.config.mts`。ci-web.yml 中 test step 同时跑 `pnpm --filter @stringzhao/web test` 与 `pnpm --filter @stringzhao/web test:acceptance` 保证覆盖不退化。
+
+### 阶段 4：搬迁 skin-cli 到 packages/skin-cli
+
+- [ ] **T4.1** 创建 packages/skin-cli 目录。
+- [ ] **T4.2** 复制 `claude-code-buddy-web/cli/` 内容（排除 `node_modules/`、`dist/`、`package-lock.json`）到 packages/skin-cli/。
+- [ ] **T4.3** 编辑 `packages/skin-cli/package.json`：name `@stringzhao/skin-cli`、保留 bin/scripts/deps。
+- [ ] **T4.4** 调整 `packages/skin-cli/tsconfig.json`（若需要 extends 根 base）。
+
+### 阶段 5：根级 hooks + lint-staged + commitlint
+
+- [ ] **T5.1** 从 web 移过来 `commitlint.config.cjs`（或 `.js`）到根。
+- [ ] **T5.2** 在根创建 `.lintstagedrc.json`：分别针对 `apps/web/**/*.{ts,tsx,js,jsx}` 与 `packages/**/*.ts` 写 ESLint + Prettier 规则。
+- [ ] **T5.3** 在根创建 `.husky/pre-commit`（调用 `pnpm exec lint-staged`）与 `.husky/commit-msg`（调用 `pnpm exec commitlint --edit &quot;$1&quot;`）。
+- [ ] **T5.4** 在根 package.json 加 `&quot;prepare&quot;: &quot;husky&quot;` 脚本。
+
+### 阶段 6：根级 pnpm install + 联调
+
+- [ ] **T6.1** 仓库根 `pnpm install`，确认 pnpm-lock.yaml 生成、所有包解析成功。
+- [ ] **T6.2** 跑 `pnpm --filter @stringzhao/web lint test build` 全绿。
+- [ ] **T6.3** 跑 `pnpm --filter @stringzhao/skin-cli build`、并在仓库根 `pnpm exec buddy-skin --help` 验证 bin 可调用。
+
+### 阶段 7：CI workflow 调整
+
+- [ ] **T7.1** 把 `.github/workflows/ci.yml` 重命名为 `ci-desktop.yml`；加 `on.push.paths` / `on.pull_request.paths` 过滤 apps/desktop/** + Package.swift 等；所有 `swift` / `make` 步骤加 `working-directory: apps/desktop`。
+- [ ] **T7.2** 把 `claude-code-buddy-web/.github/workflows/ci.yml` 内容引入为 `.github/workflows/ci-web.yml`：path filter 改为 apps/web/** + packages/** + pnpm-lock.yaml；setup pnpm + Node 20 + `pnpm install --frozen-lockfile`；运行 `pnpm --filter @stringzhao/web lint typecheck test build size`。
+- [ ] **T7.3** 编辑 `.github/workflows/release.yml`：
+  - 所有 Swift 构建步骤（`swift build` / `lipo` / `make bundle` / `zip`）前置 `working-directory: apps/desktop`（或 `cd apps/desktop &amp;&amp;`）。
+  - **修复 zip 上传路径断裂**（见契约 C5）：在 zip step 之后增加一步 `Move release zip to repo root` —— `mv apps/desktop/ClaudeCodeBuddy-*.zip ./`（无 working-directory，默认仓库根）。保持 `softprops/action-gh-release` 的 `files: ClaudeCodeBuddy-${{ github.ref_name }}.zip` 字段不变。
+  - 后续 &quot;Download release zip and compute sha256&quot; / Homebrew cask 同步逻辑不变（curl 的是已发布的 GitHub release asset URL，与 working-directory 无关）。
+
+### 阶段 8：文档与说明
+
+- [ ] **T8.1** 重写根 `CLAUDE.md`：描述 monorepo 拓扑、各子目录职责、常用命令（apps/desktop 内 `make`、根级 `pnpm --filter`）；旧的 Swift 详细架构内容拆到 `apps/desktop/CLAUDE.md`。
+- [ ] **T8.2** 编辑根 `README.md`：项目简介 + 子项目入口链接 + 开发环境准备（pnpm + Node 20 + Swift 5.9 + Xcode）。
+- [ ] **T8.3** 保留 `apps/web/CLAUDE.md`（web 项目自身约定）；在文末追加 **完整的 Vercel 配置变更步骤**（带 UI 路径，避免下次部署失败）：
+  - Vercel Dashboard → claude-code-buddy-web 项目 → Settings → General → &quot;Root Directory&quot; 改为 `apps/web`，勾选 &quot;Include source files outside of the Root Directory in the Build Step&quot;。
+  - &quot;Install Command&quot; override 为 `cd ../.. &amp;&amp; pnpm install --filter @stringzhao/web... --frozen-lockfile`。
+  - &quot;Build Command&quot; override 为 `pnpm --filter @stringzhao/web build`。
+  - &quot;Output Directory&quot; 保持 `.next`（相对 Root Directory）。
+  - 在文档中明确标注：&quot;⚠️ 整合迁移到主仓库后，**必须先完成上述 Vercel Dashboard 配置变更，才能触发下一次部署**。否则部署会因仓库根没有 package.json 而失败。&quot;
+
+### 阶段 9：清理与 sanity check
+
+- [ ] **T9.1** 全仓 grep `claude-code-buddy-web` / `claude-code-buddy-skin-cli` 字符串：在文档中提到的可改为新名；在二进制名 `buddy-skin` 处不动。
+- [ ] **T9.2** 全仓 grep `buddy.stringzhao.life`：确认仅在 apps/desktop/Sources 与 apps/web/scripts 等预期位置出现，URL 不变。
+- [ ] **T9.3** 跑一遍验证方案的真实测试场景 1–10。
+
+### 不在本次任务范围
+- 不归档 `claude-code-buddy-web` 老仓库（用户自行决定）。
+- 不修改 Vercel 项目配置（远端 dashboard 由用户手动调整）。
+- 不修改 `SkinGalleryViewController.swift` 的 catalogURL。
+- 不引入 turbo / Biome / changesets / packages/shared。
+- 不调整 SwiftLint 规则、不动 ESLint 规则。</div>
+      <!-- Rendered design content -->
+      <div id="design-content"></div>
+    </article>
+
+    <!-- Marginalia comments pane -->
+    <aside id="comments-pane">
+      <button id="comments-drawer-toggle">评论（<span id="comment-count">0</span>）</button>
+    </aside>
+  </main>
+
+  <!-- TOC drawer backdrop (only visible when TOC is in drawer mode and open) -->
+  <div id="toc-overlay-backdrop" class="toc-overlay-backdrop" hidden></div>
+
+  <!-- marked.min.js (injected by launch-plan-review.sh) -->
+  <script>/**
+ * marked v12.0.2 - a markdown parser
+ * Copyright (c) 2011-2024, Christopher Jeffrey. (MIT Licensed)
+ * https://github.com/markedjs/marked
+ */
+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).marked={})}(this,(function(e){"use strict";function t(){return{async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null}}function n(t){e.defaults=t}e.defaults={async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null};const s=/[&<>"']/,r=new RegExp(s.source,"g"),i=/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/,l=new RegExp(i.source,"g"),o={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"},a=e=>o[e];function c(e,t){if(t){if(s.test(e))return e.replace(r,a)}else if(i.test(e))return e.replace(l,a);return e}const h=/&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/gi;function p(e){return e.replace(h,((e,t)=>"colon"===(t=t.toLowerCase())?":":"#"===t.charAt(0)?"x"===t.charAt(1)?String.fromCharCode(parseInt(t.substring(2),16)):String.fromCharCode(+t.substring(1)):""))}const u=/(^|[^\[])\^/g;function k(e,t){let n="string"==typeof e?e:e.source;t=t||"";const s={replace:(e,t)=>{let r="string"==typeof t?t:t.source;return r=r.replace(u,"$1"),n=n.replace(e,r),s},getRegex:()=>new RegExp(n,t)};return s}function g(e){try{e=encodeURI(e).replace(/%25/g,"%")}catch(e){return null}return e}const f={exec:()=>null};function d(e,t){const n=e.replace(/\|/g,((e,t,n)=>{let s=!1,r=t;for(;--r>=0&&"\\"===n[r];)s=!s;return s?"|":" |"})).split(/ \|/);let s=0;if(n[0].trim()||n.shift(),n.length>0&&!n[n.length-1].trim()&&n.pop(),t)if(n.length>t)n.splice(t);else for(;n.length<t;)n.push("");for(;s<n.length;s++)n[s]=n[s].trim().replace(/\\\|/g,"|");return n}function x(e,t,n){const s=e.length;if(0===s)return"";let r=0;for(;r<s;){const i=e.charAt(s-r-1);if(i!==t||n){if(i===t||!n)break;r++}else r++}return e.slice(0,s-r)}function b(e,t,n,s){const r=t.href,i=t.title?c(t.title):null,l=e[1].replace(/\\([\[\]])/g,"$1");if("!"!==e[0].charAt(0)){s.state.inLink=!0;const e={type:"link",raw:n,href:r,title:i,text:l,tokens:s.inlineTokens(l)};return s.state.inLink=!1,e}return{type:"image",raw:n,href:r,title:i,text:c(l)}}class w{options;rules;lexer;constructor(t){this.options=t||e.defaults}space(e){const t=this.rules.block.newline.exec(e);if(t&&t[0].length>0)return{type:"space",raw:t[0]}}code(e){const t=this.rules.block.code.exec(e);if(t){const e=t[0].replace(/^ {1,4}/gm,"");return{type:"code",raw:t[0],codeBlockStyle:"indented",text:this.options.pedantic?e:x(e,"\n")}}}fences(e){const t=this.rules.block.fences.exec(e);if(t){const e=t[0],n=function(e,t){const n=e.match(/^(\s+)(?:```)/);if(null===n)return t;const s=n[1];return t.split("\n").map((e=>{const t=e.match(/^\s+/);if(null===t)return e;const[n]=t;return n.length>=s.length?e.slice(s.length):e})).join("\n")}(e,t[3]||"");return{type:"code",raw:e,lang:t[2]?t[2].trim().replace(this.rules.inline.anyPunctuation,"$1"):t[2],text:n}}}heading(e){const t=this.rules.block.heading.exec(e);if(t){let e=t[2].trim();if(/#$/.test(e)){const t=x(e,"#");this.options.pedantic?e=t.trim():t&&!/ $/.test(t)||(e=t.trim())}return{type:"heading",raw:t[0],depth:t[1].length,text:e,tokens:this.lexer.inline(e)}}}hr(e){const t=this.rules.block.hr.exec(e);if(t)return{type:"hr",raw:t[0]}}blockquote(e){const t=this.rules.block.blockquote.exec(e);if(t){let e=t[0].replace(/\n {0,3}((?:=+|-+) *)(?=\n|$)/g,"\n    $1");e=x(e.replace(/^ *>[ \t]?/gm,""),"\n");const n=this.lexer.state.top;this.lexer.state.top=!0;const s=this.lexer.blockTokens(e);return this.lexer.state.top=n,{type:"blockquote",raw:t[0],tokens:s,text:e}}}list(e){let t=this.rules.block.list.exec(e);if(t){let n=t[1].trim();const s=n.length>1,r={type:"list",raw:"",ordered:s,start:s?+n.slice(0,-1):"",loose:!1,items:[]};n=s?`\\d{1,9}\\${n.slice(-1)}`:`\\${n}`,this.options.pedantic&&(n=s?n:"[*+-]");const i=new RegExp(`^( {0,3}${n})((?:[\t ][^\\n]*)?(?:\\n|$))`);let l="",o="",a=!1;for(;e;){let n=!1;if(!(t=i.exec(e)))break;if(this.rules.block.hr.test(e))break;l=t[0],e=e.substring(l.length);let s=t[2].split("\n",1)[0].replace(/^\t+/,(e=>" ".repeat(3*e.length))),c=e.split("\n",1)[0],h=0;this.options.pedantic?(h=2,o=s.trimStart()):(h=t[2].search(/[^ ]/),h=h>4?1:h,o=s.slice(h),h+=t[1].length);let p=!1;if(!s&&/^ *$/.test(c)&&(l+=c+"\n",e=e.substring(c.length+1),n=!0),!n){const t=new RegExp(`^ {0,${Math.min(3,h-1)}}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))`),n=new RegExp(`^ {0,${Math.min(3,h-1)}}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)`),r=new RegExp(`^ {0,${Math.min(3,h-1)}}(?:\`\`\`|~~~)`),i=new RegExp(`^ {0,${Math.min(3,h-1)}}#`);for(;e;){const a=e.split("\n",1)[0];if(c=a,this.options.pedantic&&(c=c.replace(/^ {1,4}(?=( {4})*[^ ])/g,"  ")),r.test(c))break;if(i.test(c))break;if(t.test(c))break;if(n.test(e))break;if(c.search(/[^ ]/)>=h||!c.trim())o+="\n"+c.slice(h);else{if(p)break;if(s.search(/[^ ]/)>=4)break;if(r.test(s))break;if(i.test(s))break;if(n.test(s))break;o+="\n"+c}p||c.trim()||(p=!0),l+=a+"\n",e=e.substring(a.length+1),s=c.slice(h)}}r.loose||(a?r.loose=!0:/\n *\n *$/.test(l)&&(a=!0));let u,k=null;this.options.gfm&&(k=/^\[[ xX]\] /.exec(o),k&&(u="[ ] "!==k[0],o=o.replace(/^\[[ xX]\] +/,""))),r.items.push({type:"list_item",raw:l,task:!!k,checked:u,loose:!1,text:o,tokens:[]}),r.raw+=l}r.items[r.items.length-1].raw=l.trimEnd(),r.items[r.items.length-1].text=o.trimEnd(),r.raw=r.raw.trimEnd();for(let e=0;e<r.items.length;e++)if(this.lexer.state.top=!1,r.items[e].tokens=this.lexer.blockTokens(r.items[e].text,[]),!r.loose){const t=r.items[e].tokens.filter((e=>"space"===e.type)),n=t.length>0&&t.some((e=>/\n.*\n/.test(e.raw)));r.loose=n}if(r.loose)for(let e=0;e<r.items.length;e++)r.items[e].loose=!0;return r}}html(e){const t=this.rules.block.html.exec(e);if(t){return{type:"html",block:!0,raw:t[0],pre:"pre"===t[1]||"script"===t[1]||"style"===t[1],text:t[0]}}}def(e){const t=this.rules.block.def.exec(e);if(t){const e=t[1].toLowerCase().replace(/\s+/g," "),n=t[2]?t[2].replace(/^<(.*)>$/,"$1").replace(this.rules.inline.anyPunctuation,"$1"):"",s=t[3]?t[3].substring(1,t[3].length-1).replace(this.rules.inline.anyPunctuation,"$1"):t[3];return{type:"def",tag:e,raw:t[0],href:n,title:s}}}table(e){const t=this.rules.block.table.exec(e);if(!t)return;if(!/[:|]/.test(t[2]))return;const n=d(t[1]),s=t[2].replace(/^\||\| *$/g,"").split("|"),r=t[3]&&t[3].trim()?t[3].replace(/\n[ \t]*$/,"").split("\n"):[],i={type:"table",raw:t[0],header:[],align:[],rows:[]};if(n.length===s.length){for(const e of s)/^ *-+: *$/.test(e)?i.align.push("right"):/^ *:-+: *$/.test(e)?i.align.push("center"):/^ *:-+ *$/.test(e)?i.align.push("left"):i.align.push(null);for(const e of n)i.header.push({text:e,tokens:this.lexer.inline(e)});for(const e of r)i.rows.push(d(e,i.header.length).map((e=>({text:e,tokens:this.lexer.inline(e)}))));return i}}lheading(e){const t=this.rules.block.lheading.exec(e);if(t)return{type:"heading",raw:t[0],depth:"="===t[2].charAt(0)?1:2,text:t[1],tokens:this.lexer.inline(t[1])}}paragraph(e){const t=this.rules.block.paragraph.exec(e);if(t){const e="\n"===t[1].charAt(t[1].length-1)?t[1].slice(0,-1):t[1];return{type:"paragraph",raw:t[0],text:e,tokens:this.lexer.inline(e)}}}text(e){const t=this.rules.block.text.exec(e);if(t)return{type:"text",raw:t[0],text:t[0],tokens:this.lexer.inline(t[0])}}escape(e){const t=this.rules.inline.escape.exec(e);if(t)return{type:"escape",raw:t[0],text:c(t[1])}}tag(e){const t=this.rules.inline.tag.exec(e);if(t)return!this.lexer.state.inLink&&/^<a /i.test(t[0])?this.lexer.state.inLink=!0:this.lexer.state.inLink&&/^<\/a>/i.test(t[0])&&(this.lexer.state.inLink=!1),!this.lexer.state.inRawBlock&&/^<(pre|code|kbd|script)(\s|>)/i.test(t[0])?this.lexer.state.inRawBlock=!0:this.lexer.state.inRawBlock&&/^<\/(pre|code|kbd|script)(\s|>)/i.test(t[0])&&(this.lexer.state.inRawBlock=!1),{type:"html",raw:t[0],inLink:this.lexer.state.inLink,inRawBlock:this.lexer.state.inRawBlock,block:!1,text:t[0]}}link(e){const t=this.rules.inline.link.exec(e);if(t){const e=t[2].trim();if(!this.options.pedantic&&/^</.test(e)){if(!/>$/.test(e))return;const t=x(e.slice(0,-1),"\\");if((e.length-t.length)%2==0)return}else{const e=function(e,t){if(-1===e.indexOf(t[1]))return-1;let n=0;for(let s=0;s<e.length;s++)if("\\"===e[s])s++;else if(e[s]===t[0])n++;else if(e[s]===t[1]&&(n--,n<0))return s;return-1}(t[2],"()");if(e>-1){const n=(0===t[0].indexOf("!")?5:4)+t[1].length+e;t[2]=t[2].substring(0,e),t[0]=t[0].substring(0,n).trim(),t[3]=""}}let n=t[2],s="";if(this.options.pedantic){const e=/^([^'"]*[^\s])\s+(['"])(.*)\2/.exec(n);e&&(n=e[1],s=e[3])}else s=t[3]?t[3].slice(1,-1):"";return n=n.trim(),/^</.test(n)&&(n=this.options.pedantic&&!/>$/.test(e)?n.slice(1):n.slice(1,-1)),b(t,{href:n?n.replace(this.rules.inline.anyPunctuation,"$1"):n,title:s?s.replace(this.rules.inline.anyPunctuation,"$1"):s},t[0],this.lexer)}}reflink(e,t){let n;if((n=this.rules.inline.reflink.exec(e))||(n=this.rules.inline.nolink.exec(e))){const e=t[(n[2]||n[1]).replace(/\s+/g," ").toLowerCase()];if(!e){const e=n[0].charAt(0);return{type:"text",raw:e,text:e}}return b(n,e,n[0],this.lexer)}}emStrong(e,t,n=""){let s=this.rules.inline.emStrongLDelim.exec(e);if(!s)return;if(s[3]&&n.match(/[\p{L}\p{N}]/u))return;if(!(s[1]||s[2]||"")||!n||this.rules.inline.punctuation.exec(n)){const n=[...s[0]].length-1;let r,i,l=n,o=0;const a="*"===s[0][0]?this.rules.inline.emStrongRDelimAst:this.rules.inline.emStrongRDelimUnd;for(a.lastIndex=0,t=t.slice(-1*e.length+n);null!=(s=a.exec(t));){if(r=s[1]||s[2]||s[3]||s[4]||s[5]||s[6],!r)continue;if(i=[...r].length,s[3]||s[4]){l+=i;continue}if((s[5]||s[6])&&n%3&&!((n+i)%3)){o+=i;continue}if(l-=i,l>0)continue;i=Math.min(i,i+l+o);const t=[...s[0]][0].length,a=e.slice(0,n+s.index+t+i);if(Math.min(n,i)%2){const e=a.slice(1,-1);return{type:"em",raw:a,text:e,tokens:this.lexer.inlineTokens(e)}}const c=a.slice(2,-2);return{type:"strong",raw:a,text:c,tokens:this.lexer.inlineTokens(c)}}}}codespan(e){const t=this.rules.inline.code.exec(e);if(t){let e=t[2].replace(/\n/g," ");const n=/[^ ]/.test(e),s=/^ /.test(e)&&/ $/.test(e);return n&&s&&(e=e.substring(1,e.length-1)),e=c(e,!0),{type:"codespan",raw:t[0],text:e}}}br(e){const t=this.rules.inline.br.exec(e);if(t)return{type:"br",raw:t[0]}}del(e){const t=this.rules.inline.del.exec(e);if(t)return{type:"del",raw:t[0],text:t[2],tokens:this.lexer.inlineTokens(t[2])}}autolink(e){const t=this.rules.inline.autolink.exec(e);if(t){let e,n;return"@"===t[2]?(e=c(t[1]),n="mailto:"+e):(e=c(t[1]),n=e),{type:"link",raw:t[0],text:e,href:n,tokens:[{type:"text",raw:e,text:e}]}}}url(e){let t;if(t=this.rules.inline.url.exec(e)){let e,n;if("@"===t[2])e=c(t[0]),n="mailto:"+e;else{let s;do{s=t[0],t[0]=this.rules.inline._backpedal.exec(t[0])?.[0]??""}while(s!==t[0]);e=c(t[0]),n="www."===t[1]?"http://"+t[0]:t[0]}return{type:"link",raw:t[0],text:e,href:n,tokens:[{type:"text",raw:e,text:e}]}}}inlineText(e){const t=this.rules.inline.text.exec(e);if(t){let e;return e=this.lexer.state.inRawBlock?t[0]:c(t[0]),{type:"text",raw:t[0],text:e}}}}const m=/^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/,y=/(?:[*+-]|\d{1,9}[.)])/,$=k(/^(?!bull |blockCode|fences|blockquote|heading|html)((?:.|\n(?!\s*?\n|bull |blockCode|fences|blockquote|heading|html))+?)\n {0,3}(=+|-+) *(?:\n+|$)/).replace(/bull/g,y).replace(/blockCode/g,/ {4}/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).getRegex(),z=/^([^\n]+(?:\n(?!hr|heading|lheading|blockquote|fences|list|html|table| +\n)[^\n]+)*)/,T=/(?!\s*\])(?:\\.|[^\[\]\\])+/,R=k(/^ {0,3}\[(label)\]: *(?:\n *)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n *)?| *\n *)(title))? *(?:\n+|$)/).replace("label",T).replace("title",/(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex(),_=k(/^( {0,3}bull)([ \t][^\n]+?)?(?:\n|$)/).replace(/bull/g,y).getRegex(),A="address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul",S=/<!--(?:-?>|[\s\S]*?(?:-->|$))/,I=k("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n+|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>\\n*|$)|<![A-Z][\\s\\S]*?(?:>\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n *)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n *)+\\n|$)|</(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n *)+\\n|$))","i").replace("comment",S).replace("tag",A).replace("attribute",/ +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex(),E=k(z).replace("hr",m).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("|table","").replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",A).getRegex(),q={blockquote:k(/^( {0,3}> ?(paragraph|[^\n]*)(?:\n|$))+/).replace("paragraph",E).getRegex(),code:/^( {4}[^\n]+(?:\n(?: *(?:\n|$))*)?)+/,def:R,fences:/^ {0,3}(`{3,}(?=[^`\n]*(?:\n|$))|~{3,})([^\n]*)(?:\n|$)(?:|([\s\S]*?)(?:\n|$))(?: {0,3}\1[~`]* *(?=\n|$)|$)/,heading:/^ {0,3}(#{1,6})(?=\s|$)(.*)(?:\n+|$)/,hr:m,html:I,lheading:$,list:_,newline:/^(?: *(?:\n|$))+/,paragraph:E,table:f,text:/^[^\n]+/},Z=k("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr",m).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("blockquote"," {0,3}>").replace("code"," {4}[^\\n]").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",A).getRegex(),L={...q,table:Z,paragraph:k(z).replace("hr",m).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("table",Z).replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",A).getRegex()},P={...q,html:k("^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:\"[^\"]*\"|'[^']*'|\\s[^'\"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))").replace("comment",S).replace(/tag/g,"(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(),def:/^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/,heading:/^(#{1,6})(.*)(?:\n+|$)/,fences:f,lheading:/^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/,paragraph:k(z).replace("hr",m).replace("heading"," *#{1,6} *[^\n]").replace("lheading",$).replace("|table","").replace("blockquote"," {0,3}>").replace("|fences","").replace("|list","").replace("|html","").replace("|tag","").getRegex()},Q=/^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/,v=/^( {2,}|\\)\n(?!\s*$)/,B="\\p{P}\\p{S}",C=k(/^((?![*_])[\spunctuation])/,"u").replace(/punctuation/g,B).getRegex(),M=k(/^(?:\*+(?:((?!\*)[punct])|[^\s*]))|^_+(?:((?!_)[punct])|([^\s_]))/,"u").replace(/punct/g,B).getRegex(),O=k("^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)[punct](\\*+)(?=[\\s]|$)|[^punct\\s](\\*+)(?!\\*)(?=[punct\\s]|$)|(?!\\*)[punct\\s](\\*+)(?=[^punct\\s])|[\\s](\\*+)(?!\\*)(?=[punct])|(?!\\*)[punct](\\*+)(?!\\*)(?=[punct])|[^punct\\s](\\*+)(?=[^punct\\s])","gu").replace(/punct/g,B).getRegex(),D=k("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)[punct](_+)(?=[\\s]|$)|[^punct\\s](_+)(?!_)(?=[punct\\s]|$)|(?!_)[punct\\s](_+)(?=[^punct\\s])|[\\s](_+)(?!_)(?=[punct])|(?!_)[punct](_+)(?!_)(?=[punct])","gu").replace(/punct/g,B).getRegex(),j=k(/\\([punct])/,"gu").replace(/punct/g,B).getRegex(),H=k(/^<(scheme:[^\s\x00-\x1f<>]*|email)>/).replace("scheme",/[a-zA-Z][a-zA-Z0-9+.-]{1,31}/).replace("email",/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_])/).getRegex(),U=k(S).replace("(?:--\x3e|$)","--\x3e").getRegex(),X=k("^comment|^</[a-zA-Z][\\w:-]*\\s*>|^<[a-zA-Z][\\w-]*(?:attribute)*?\\s*/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>").replace("comment",U).replace("attribute",/\s+[a-zA-Z:_][\w.:-]*(?:\s*=\s*"[^"]*"|\s*=\s*'[^']*'|\s*=\s*[^\s"'=<>`]+)?/).getRegex(),F=/(?:\[(?:\\.|[^\[\]\\])*\]|\\.|`[^`]*`|[^\[\]\\`])*?/,N=k(/^!?\[(label)\]\(\s*(href)(?:\s+(title))?\s*\)/).replace("label",F).replace("href",/<(?:\\.|[^\n<>\\])+>|[^\s\x00-\x1f]*/).replace("title",/"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex(),G=k(/^!?\[(label)\]\[(ref)\]/).replace("label",F).replace("ref",T).getRegex(),J=k(/^!?\[(ref)\](?:\[\])?/).replace("ref",T).getRegex(),K={_backpedal:f,anyPunctuation:j,autolink:H,blockSkip:/\[[^[\]]*?\]\([^\(\)]*?\)|`[^`]*?`|<[^<>]*?>/g,br:v,code:/^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/,del:f,emStrongLDelim:M,emStrongRDelimAst:O,emStrongRDelimUnd:D,escape:Q,link:N,nolink:J,punctuation:C,reflink:G,reflinkSearch:k("reflink|nolink(?!\\()","g").replace("reflink",G).replace("nolink",J).getRegex(),tag:X,text:/^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/,url:f},V={...K,link:k(/^!?\[(label)\]\((.*?)\)/).replace("label",F).getRegex(),reflink:k(/^!?\[(label)\]\s*\[([^\]]*)\]/).replace("label",F).getRegex()},W={...K,escape:k(Q).replace("])","~|])").getRegex(),url:k(/^((?:ftp|https?):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/,"i").replace("email",/[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])/).getRegex(),_backpedal:/(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/,del:/^(~~?)(?=[^\s~])([\s\S]*?[^\s~])\1(?=[^~]|$)/,text:/^([`~]+|[^`~])(?:(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|https?:\/\/|ftp:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)))/},Y={...W,br:k(v).replace("{2,}","*").getRegex(),text:k(W.text).replace("\\b_","\\b_| {2,}\\n").replace(/\{2,\}/g,"*").getRegex()},ee={normal:q,gfm:L,pedantic:P},te={normal:K,gfm:W,breaks:Y,pedantic:V};class ne{tokens;options;state;tokenizer;inlineQueue;constructor(t){this.tokens=[],this.tokens.links=Object.create(null),this.options=t||e.defaults,this.options.tokenizer=this.options.tokenizer||new w,this.tokenizer=this.options.tokenizer,this.tokenizer.options=this.options,this.tokenizer.lexer=this,this.inlineQueue=[],this.state={inLink:!1,inRawBlock:!1,top:!0};const n={block:ee.normal,inline:te.normal};this.options.pedantic?(n.block=ee.pedantic,n.inline=te.pedantic):this.options.gfm&&(n.block=ee.gfm,this.options.breaks?n.inline=te.breaks:n.inline=te.gfm),this.tokenizer.rules=n}static get rules(){return{block:ee,inline:te}}static lex(e,t){return new ne(t).lex(e)}static lexInline(e,t){return new ne(t).inlineTokens(e)}lex(e){e=e.replace(/\r\n|\r/g,"\n"),this.blockTokens(e,this.tokens);for(let e=0;e<this.inlineQueue.length;e++){const t=this.inlineQueue[e];this.inlineTokens(t.src,t.tokens)}return this.inlineQueue=[],this.tokens}blockTokens(e,t=[]){let n,s,r,i;for(e=this.options.pedantic?e.replace(/\t/g,"    ").replace(/^ +$/gm,""):e.replace(/^( *)(\t+)/gm,((e,t,n)=>t+"    ".repeat(n.length)));e;)if(!(this.options.extensions&&this.options.extensions.block&&this.options.extensions.block.some((s=>!!(n=s.call({lexer:this},e,t))&&(e=e.substring(n.raw.length),t.push(n),!0)))))if(n=this.tokenizer.space(e))e=e.substring(n.raw.length),1===n.raw.length&&t.length>0?t[t.length-1].raw+="\n":t.push(n);else if(n=this.tokenizer.code(e))e=e.substring(n.raw.length),s=t[t.length-1],!s||"paragraph"!==s.type&&"text"!==s.type?t.push(n):(s.raw+="\n"+n.raw,s.text+="\n"+n.text,this.inlineQueue[this.inlineQueue.length-1].src=s.text);else if(n=this.tokenizer.fences(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.heading(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.hr(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.blockquote(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.list(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.html(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.def(e))e=e.substring(n.raw.length),s=t[t.length-1],!s||"paragraph"!==s.type&&"text"!==s.type?this.tokens.links[n.tag]||(this.tokens.links[n.tag]={href:n.href,title:n.title}):(s.raw+="\n"+n.raw,s.text+="\n"+n.raw,this.inlineQueue[this.inlineQueue.length-1].src=s.text);else if(n=this.tokenizer.table(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.lheading(e))e=e.substring(n.raw.length),t.push(n);else{if(r=e,this.options.extensions&&this.options.extensions.startBlock){let t=1/0;const n=e.slice(1);let s;this.options.extensions.startBlock.forEach((e=>{s=e.call({lexer:this},n),"number"==typeof s&&s>=0&&(t=Math.min(t,s))})),t<1/0&&t>=0&&(r=e.substring(0,t+1))}if(this.state.top&&(n=this.tokenizer.paragraph(r)))s=t[t.length-1],i&&"paragraph"===s.type?(s.raw+="\n"+n.raw,s.text+="\n"+n.text,this.inlineQueue.pop(),this.inlineQueue[this.inlineQueue.length-1].src=s.text):t.push(n),i=r.length!==e.length,e=e.substring(n.raw.length);else if(n=this.tokenizer.text(e))e=e.substring(n.raw.length),s=t[t.length-1],s&&"text"===s.type?(s.raw+="\n"+n.raw,s.text+="\n"+n.text,this.inlineQueue.pop(),this.inlineQueue[this.inlineQueue.length-1].src=s.text):t.push(n);else if(e){const t="Infinite loop on byte: "+e.charCodeAt(0);if(this.options.silent){console.error(t);break}throw new Error(t)}}return this.state.top=!0,t}inline(e,t=[]){return this.inlineQueue.push({src:e,tokens:t}),t}inlineTokens(e,t=[]){let n,s,r,i,l,o,a=e;if(this.tokens.links){const e=Object.keys(this.tokens.links);if(e.length>0)for(;null!=(i=this.tokenizer.rules.inline.reflinkSearch.exec(a));)e.includes(i[0].slice(i[0].lastIndexOf("[")+1,-1))&&(a=a.slice(0,i.index)+"["+"a".repeat(i[0].length-2)+"]"+a.slice(this.tokenizer.rules.inline.reflinkSearch.lastIndex))}for(;null!=(i=this.tokenizer.rules.inline.blockSkip.exec(a));)a=a.slice(0,i.index)+"["+"a".repeat(i[0].length-2)+"]"+a.slice(this.tokenizer.rules.inline.blockSkip.lastIndex);for(;null!=(i=this.tokenizer.rules.inline.anyPunctuation.exec(a));)a=a.slice(0,i.index)+"++"+a.slice(this.tokenizer.rules.inline.anyPunctuation.lastIndex);for(;e;)if(l||(o=""),l=!1,!(this.options.extensions&&this.options.extensions.inline&&this.options.extensions.inline.some((s=>!!(n=s.call({lexer:this},e,t))&&(e=e.substring(n.raw.length),t.push(n),!0)))))if(n=this.tokenizer.escape(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.tag(e))e=e.substring(n.raw.length),s=t[t.length-1],s&&"text"===n.type&&"text"===s.type?(s.raw+=n.raw,s.text+=n.text):t.push(n);else if(n=this.tokenizer.link(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.reflink(e,this.tokens.links))e=e.substring(n.raw.length),s=t[t.length-1],s&&"text"===n.type&&"text"===s.type?(s.raw+=n.raw,s.text+=n.text):t.push(n);else if(n=this.tokenizer.emStrong(e,a,o))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.codespan(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.br(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.del(e))e=e.substring(n.raw.length),t.push(n);else if(n=this.tokenizer.autolink(e))e=e.substring(n.raw.length),t.push(n);else if(this.state.inLink||!(n=this.tokenizer.url(e))){if(r=e,this.options.extensions&&this.options.extensions.startInline){let t=1/0;const n=e.slice(1);let s;this.options.extensions.startInline.forEach((e=>{s=e.call({lexer:this},n),"number"==typeof s&&s>=0&&(t=Math.min(t,s))})),t<1/0&&t>=0&&(r=e.substring(0,t+1))}if(n=this.tokenizer.inlineText(r))e=e.substring(n.raw.length),"_"!==n.raw.slice(-1)&&(o=n.raw.slice(-1)),l=!0,s=t[t.length-1],s&&"text"===s.type?(s.raw+=n.raw,s.text+=n.text):t.push(n);else if(e){const t="Infinite loop on byte: "+e.charCodeAt(0);if(this.options.silent){console.error(t);break}throw new Error(t)}}else e=e.substring(n.raw.length),t.push(n);return t}}class se{options;constructor(t){this.options=t||e.defaults}code(e,t,n){const s=(t||"").match(/^\S*/)?.[0];return e=e.replace(/\n$/,"")+"\n",s?'<pre><code class="language-'+c(s)+'">'+(n?e:c(e,!0))+"</code></pre>\n":"<pre><code>"+(n?e:c(e,!0))+"</code></pre>\n"}blockquote(e){return`<blockquote>\n${e}</blockquote>\n`}html(e,t){return e}heading(e,t,n){return`<h${t}>${e}</h${t}>\n`}hr(){return"<hr>\n"}list(e,t,n){const s=t?"ol":"ul";return"<"+s+(t&&1!==n?' start="'+n+'"':"")+">\n"+e+"</"+s+">\n"}listitem(e,t,n){return`<li>${e}</li>\n`}checkbox(e){return"<input "+(e?'checked="" ':"")+'disabled="" type="checkbox">'}paragraph(e){return`<p>${e}</p>\n`}table(e,t){return t&&(t=`<tbody>${t}</tbody>`),"<table>\n<thead>\n"+e+"</thead>\n"+t+"</table>\n"}tablerow(e){return`<tr>\n${e}</tr>\n`}tablecell(e,t){const n=t.header?"th":"td";return(t.align?`<${n} align="${t.align}">`:`<${n}>`)+e+`</${n}>\n`}strong(e){return`<strong>${e}</strong>`}em(e){return`<em>${e}</em>`}codespan(e){return`<code>${e}</code>`}br(){return"<br>"}del(e){return`<del>${e}</del>`}link(e,t,n){const s=g(e);if(null===s)return n;let r='<a href="'+(e=s)+'"';return t&&(r+=' title="'+t+'"'),r+=">"+n+"</a>",r}image(e,t,n){const s=g(e);if(null===s)return n;let r=`<img src="${e=s}" alt="${n}"`;return t&&(r+=` title="${t}"`),r+=">",r}text(e){return e}}class re{strong(e){return e}em(e){return e}codespan(e){return e}del(e){return e}html(e){return e}text(e){return e}link(e,t,n){return""+n}image(e,t,n){return""+n}br(){return""}}class ie{options;renderer;textRenderer;constructor(t){this.options=t||e.defaults,this.options.renderer=this.options.renderer||new se,this.renderer=this.options.renderer,this.renderer.options=this.options,this.textRenderer=new re}static parse(e,t){return new ie(t).parse(e)}static parseInline(e,t){return new ie(t).parseInline(e)}parse(e,t=!0){let n="";for(let s=0;s<e.length;s++){const r=e[s];if(this.options.extensions&&this.options.extensions.renderers&&this.options.extensions.renderers[r.type]){const e=r,t=this.options.extensions.renderers[e.type].call({parser:this},e);if(!1!==t||!["space","hr","heading","code","table","blockquote","list","html","paragraph","text"].includes(e.type)){n+=t||"";continue}}switch(r.type){case"space":continue;case"hr":n+=this.renderer.hr();continue;case"heading":{const e=r;n+=this.renderer.heading(this.parseInline(e.tokens),e.depth,p(this.parseInline(e.tokens,this.textRenderer)));continue}case"code":{const e=r;n+=this.renderer.code(e.text,e.lang,!!e.escaped);continue}case"table":{const e=r;let t="",s="";for(let t=0;t<e.header.length;t++)s+=this.renderer.tablecell(this.parseInline(e.header[t].tokens),{header:!0,align:e.align[t]});t+=this.renderer.tablerow(s);let i="";for(let t=0;t<e.rows.length;t++){const n=e.rows[t];s="";for(let t=0;t<n.length;t++)s+=this.renderer.tablecell(this.parseInline(n[t].tokens),{header:!1,align:e.align[t]});i+=this.renderer.tablerow(s)}n+=this.renderer.table(t,i);continue}case"blockquote":{const e=r,t=this.parse(e.tokens);n+=this.renderer.blockquote(t);continue}case"list":{const e=r,t=e.ordered,s=e.start,i=e.loose;let l="";for(let t=0;t<e.items.length;t++){const n=e.items[t],s=n.checked,r=n.task;let o="";if(n.task){const e=this.renderer.checkbox(!!s);i?n.tokens.length>0&&"paragraph"===n.tokens[0].type?(n.tokens[0].text=e+" "+n.tokens[0].text,n.tokens[0].tokens&&n.tokens[0].tokens.length>0&&"text"===n.tokens[0].tokens[0].type&&(n.tokens[0].tokens[0].text=e+" "+n.tokens[0].tokens[0].text)):n.tokens.unshift({type:"text",text:e+" "}):o+=e+" "}o+=this.parse(n.tokens,i),l+=this.renderer.listitem(o,r,!!s)}n+=this.renderer.list(l,t,s);continue}case"html":{const e=r;n+=this.renderer.html(e.text,e.block);continue}case"paragraph":{const e=r;n+=this.renderer.paragraph(this.parseInline(e.tokens));continue}case"text":{let i=r,l=i.tokens?this.parseInline(i.tokens):i.text;for(;s+1<e.length&&"text"===e[s+1].type;)i=e[++s],l+="\n"+(i.tokens?this.parseInline(i.tokens):i.text);n+=t?this.renderer.paragraph(l):l;continue}default:{const e='Token with "'+r.type+'" type was not found.';if(this.options.silent)return console.error(e),"";throw new Error(e)}}}return n}parseInline(e,t){t=t||this.renderer;let n="";for(let s=0;s<e.length;s++){const r=e[s];if(this.options.extensions&&this.options.extensions.renderers&&this.options.extensions.renderers[r.type]){const e=this.options.extensions.renderers[r.type].call({parser:this},r);if(!1!==e||!["escape","html","link","image","strong","em","codespan","br","del","text"].includes(r.type)){n+=e||"";continue}}switch(r.type){case"escape":{const e=r;n+=t.text(e.text);break}case"html":{const e=r;n+=t.html(e.text);break}case"link":{const e=r;n+=t.link(e.href,e.title,this.parseInline(e.tokens,t));break}case"image":{const e=r;n+=t.image(e.href,e.title,e.text);break}case"strong":{const e=r;n+=t.strong(this.parseInline(e.tokens,t));break}case"em":{const e=r;n+=t.em(this.parseInline(e.tokens,t));break}case"codespan":{const e=r;n+=t.codespan(e.text);break}case"br":n+=t.br();break;case"del":{const e=r;n+=t.del(this.parseInline(e.tokens,t));break}case"text":{const e=r;n+=t.text(e.text);break}default:{const e='Token with "'+r.type+'" type was not found.';if(this.options.silent)return console.error(e),"";throw new Error(e)}}}return n}}class le{options;constructor(t){this.options=t||e.defaults}static passThroughHooks=new Set(["preprocess","postprocess","processAllTokens"]);preprocess(e){return e}postprocess(e){return e}processAllTokens(e){return e}}class oe{defaults={async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null};options=this.setOptions;parse=this.#e(ne.lex,ie.parse);parseInline=this.#e(ne.lexInline,ie.parseInline);Parser=ie;Renderer=se;TextRenderer=re;Lexer=ne;Tokenizer=w;Hooks=le;constructor(...e){this.use(...e)}walkTokens(e,t){let n=[];for(const s of e)switch(n=n.concat(t.call(this,s)),s.type){case"table":{const e=s;for(const s of e.header)n=n.concat(this.walkTokens(s.tokens,t));for(const s of e.rows)for(const e of s)n=n.concat(this.walkTokens(e.tokens,t));break}case"list":{const e=s;n=n.concat(this.walkTokens(e.items,t));break}default:{const e=s;this.defaults.extensions?.childTokens?.[e.type]?this.defaults.extensions.childTokens[e.type].forEach((s=>{const r=e[s].flat(1/0);n=n.concat(this.walkTokens(r,t))})):e.tokens&&(n=n.concat(this.walkTokens(e.tokens,t)))}}return n}use(...e){const t=this.defaults.extensions||{renderers:{},childTokens:{}};return e.forEach((e=>{const n={...e};if(n.async=this.defaults.async||n.async||!1,e.extensions&&(e.extensions.forEach((e=>{if(!e.name)throw new Error("extension name required");if("renderer"in e){const n=t.renderers[e.name];t.renderers[e.name]=n?function(...t){let s=e.renderer.apply(this,t);return!1===s&&(s=n.apply(this,t)),s}:e.renderer}if("tokenizer"in e){if(!e.level||"block"!==e.level&&"inline"!==e.level)throw new Error("extension level must be 'block' or 'inline'");const n=t[e.level];n?n.unshift(e.tokenizer):t[e.level]=[e.tokenizer],e.start&&("block"===e.level?t.startBlock?t.startBlock.push(e.start):t.startBlock=[e.start]:"inline"===e.level&&(t.startInline?t.startInline.push(e.start):t.startInline=[e.start]))}"childTokens"in e&&e.childTokens&&(t.childTokens[e.name]=e.childTokens)})),n.extensions=t),e.renderer){const t=this.defaults.renderer||new se(this.defaults);for(const n in e.renderer){if(!(n in t))throw new Error(`renderer '${n}' does not exist`);if("options"===n)continue;const s=n,r=e.renderer[s],i=t[s];t[s]=(...e)=>{let n=r.apply(t,e);return!1===n&&(n=i.apply(t,e)),n||""}}n.renderer=t}if(e.tokenizer){const t=this.defaults.tokenizer||new w(this.defaults);for(const n in e.tokenizer){if(!(n in t))throw new Error(`tokenizer '${n}' does not exist`);if(["options","rules","lexer"].includes(n))continue;const s=n,r=e.tokenizer[s],i=t[s];t[s]=(...e)=>{let n=r.apply(t,e);return!1===n&&(n=i.apply(t,e)),n}}n.tokenizer=t}if(e.hooks){const t=this.defaults.hooks||new le;for(const n in e.hooks){if(!(n in t))throw new Error(`hook '${n}' does not exist`);if("options"===n)continue;const s=n,r=e.hooks[s],i=t[s];le.passThroughHooks.has(n)?t[s]=e=>{if(this.defaults.async)return Promise.resolve(r.call(t,e)).then((e=>i.call(t,e)));const n=r.call(t,e);return i.call(t,n)}:t[s]=(...e)=>{let n=r.apply(t,e);return!1===n&&(n=i.apply(t,e)),n}}n.hooks=t}if(e.walkTokens){const t=this.defaults.walkTokens,s=e.walkTokens;n.walkTokens=function(e){let n=[];return n.push(s.call(this,e)),t&&(n=n.concat(t.call(this,e))),n}}this.defaults={...this.defaults,...n}})),this}setOptions(e){return this.defaults={...this.defaults,...e},this}lexer(e,t){return ne.lex(e,t??this.defaults)}parser(e,t){return ie.parse(e,t??this.defaults)}#e(e,t){return(n,s)=>{const r={...s},i={...this.defaults,...r};!0===this.defaults.async&&!1===r.async&&(i.silent||console.warn("marked(): The async option was set to true by an extension. The async: false option sent to parse will be ignored."),i.async=!0);const l=this.#t(!!i.silent,!!i.async);if(null==n)return l(new Error("marked(): input parameter is undefined or null"));if("string"!=typeof n)return l(new Error("marked(): input parameter is of type "+Object.prototype.toString.call(n)+", string expected"));if(i.hooks&&(i.hooks.options=i),i.async)return Promise.resolve(i.hooks?i.hooks.preprocess(n):n).then((t=>e(t,i))).then((e=>i.hooks?i.hooks.processAllTokens(e):e)).then((e=>i.walkTokens?Promise.all(this.walkTokens(e,i.walkTokens)).then((()=>e)):e)).then((e=>t(e,i))).then((e=>i.hooks?i.hooks.postprocess(e):e)).catch(l);try{i.hooks&&(n=i.hooks.preprocess(n));let s=e(n,i);i.hooks&&(s=i.hooks.processAllTokens(s)),i.walkTokens&&this.walkTokens(s,i.walkTokens);let r=t(s,i);return i.hooks&&(r=i.hooks.postprocess(r)),r}catch(e){return l(e)}}}#t(e,t){return n=>{if(n.message+="\nPlease report this to https://github.com/markedjs/marked.",e){const e="<p>An error occurred:</p><pre>"+c(n.message+"",!0)+"</pre>";return t?Promise.resolve(e):e}if(t)return Promise.reject(n);throw n}}}const ae=new oe;function ce(e,t){return ae.parse(e,t)}ce.options=ce.setOptions=function(e){return ae.setOptions(e),ce.defaults=ae.defaults,n(ce.defaults),ce},ce.getDefaults=t,ce.defaults=e.defaults,ce.use=function(...e){return ae.use(...e),ce.defaults=ae.defaults,n(ce.defaults),ce},ce.walkTokens=function(e,t){return ae.walkTokens(e,t)},ce.parseInline=ae.parseInline,ce.Parser=ie,ce.parser=ie.parse,ce.Renderer=se,ce.TextRenderer=re,ce.Lexer=ne,ce.lexer=ne.lex,ce.Tokenizer=w,ce.Hooks=le,ce.parse=ce;const he=ce.options,pe=ce.setOptions,ue=ce.use,ke=ce.walkTokens,ge=ce.parseInline,fe=ce,de=ie.parse,xe=ne.lex;e.Hooks=le,e.Lexer=ne,e.Marked=oe,e.Parser=ie,e.Renderer=se,e.TextRenderer=re,e.Tokenizer=w,e.getDefaults=t,e.lexer=xe,e.marked=ce,e.options=he,e.parse=fe,e.parseInline=ge,e.parser=de,e.setOptions=pe,e.use=ue,e.walkTokens=ke}));
+</script>
+  <script>
+    (function () {
+      'use strict';
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.1 — Markdown render + inject data-block-id (C3)
+       * ───────────────────────────────────────────────────────────────────── */
+      var rawEl    = document.getElementById('design-content-raw');
+      var renderEl = document.getElementById('design-content');
+      var raw = rawEl ? rawEl.textContent : '';
+
+      try {
+        if (typeof marked !== 'undefined' && raw) {
+          renderEl.innerHTML = marked.parse(raw);
+        } else {
+          var pre = document.createElement('pre');
+          pre.textContent = raw;
+          pre.style.whiteSpace = 'pre-wrap';
+          pre.style.fontFamily = 'ui-monospace, monospace';
+          renderEl.appendChild(pre);
+        }
+      } catch (e) {
+        renderEl.textContent = raw;
+      }
+
+      /* Inject data-block-id to direct block children (C3) */
+      var BLOCK_TAGS = ['H1','H2','H3','H4','H5','H6','P','UL','OL','BLOCKQUOTE','PRE','TABLE','HR','DIV'];
+      var blockCounter = 1;
+      Array.prototype.forEach.call(renderEl.children, function (child) {
+        if (BLOCK_TAGS.indexOf(child.tagName) !== -1) {
+          child.dataset.blockId = 'b-' + (blockCounter++);
+        }
+      });
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * TOC — buildTOC + setupTOCHighlight + drawer interaction
+       *
+       * D2: 必须用 setAttribute('id', 'h-N')，不用 dataset.id
+       *     （dataset.id 不能写出真实 id 属性，会让 anchor 失效）
+       * D3: anchor id 用 h-N，与 data-block-id="b-N" 隔离
+       * D5: IntersectionObserver rootMargin '-80px 0px -70% 0px'
+       * D6: TOC 抽屉切换 listener scoped 到 #toc-toggle，
+       *     不复用 [data-choice] 委托
+       * ───────────────────────────────────────────────────────────────────── */
+      var tocPane    = document.getElementById('toc-pane');
+      var tocList    = document.getElementById('toc-list');
+      var tocToggle  = document.getElementById('toc-toggle');
+      var tocBackdrop = document.getElementById('toc-overlay-backdrop');
+
+      function buildTOC() {
+        if (!tocList) return [];
+        var headings = renderEl.querySelectorAll('h2, h3');
+        var counter = 1;
+        var tocItems = [];
+        Array.prototype.forEach.call(headings, function (headingEl) {
+          var hid = 'h-' + counter;
+          /* D2: 必须用 setAttribute 写真实 id 属性 */
+          headingEl.setAttribute('id', hid);
+          var level = headingEl.tagName.toLowerCase(); /* h2 / h3 */
+          var li = document.createElement('li');
+          li.className = 'toc-item toc-' + level;
+          li.setAttribute('data-target', hid);
+          var a = document.createElement('a');
+          a.setAttribute('href', '#' + hid);
+          a.textContent = (headingEl.textContent || '').trim();
+          li.appendChild(a);
+          tocList.appendChild(li);
+          tocItems.push({ id: hid, el: headingEl, item: li });
+          counter++;
+        });
+        /* Step 8: 空状态占位 */
+        if (tocItems.length === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'toc-empty';
+          empty.textContent = '无目录';
+          tocPane.appendChild(empty);
+        }
+        return tocItems;
+      }
+
+      var tocItems = buildTOC();
+
+      /* Step 5: IntersectionObserver 高亮跟随 */
+      function setupTOCHighlight(items) {
+        if (!items || items.length === 0) return;
+        if (typeof IntersectionObserver === 'undefined') return; /* 降级 */
+        var idToItem = {};
+        items.forEach(function (it) { idToItem[it.id] = it.item; });
+        var visibleIds = {};
+        function refresh() {
+          var visibleList = items.filter(function (it) { return visibleIds[it.id]; });
+          /* 多个 heading 同时可见时，取文档顺序最靠前的 */
+          var activeId = null;
+          if (visibleList.length > 0) {
+            activeId = visibleList[0].id;
+          }
+          items.forEach(function (it) {
+            if (it.id === activeId) {
+              it.item.classList.add('is-active');
+            } else {
+              it.item.classList.remove('is-active');
+            }
+          });
+        }
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            var hid = entry.target.getAttribute('id');
+            if (entry.isIntersecting) {
+              visibleIds[hid] = true;
+            } else {
+              delete visibleIds[hid];
+            }
+          });
+          refresh();
+        }, {
+          rootMargin: '-80px 0px -70% 0px',
+          threshold: 0
+        });
+        items.forEach(function (it) { observer.observe(it.el); });
+      }
+
+      setupTOCHighlight(tocItems);
+
+      /* Step 6: TOC 项点击平滑滚动 + 抽屉态自动关闭 */
+      function isDrawerMode() {
+        return window.matchMedia('(max-width: 1199px)').matches;
+      }
+      function closeTOCDrawer() {
+        if (!tocPane) return;
+        tocPane.classList.remove('is-open');
+        if (tocToggle) tocToggle.setAttribute('aria-expanded', 'false');
+        if (tocBackdrop) {
+          tocBackdrop.classList.remove('is-visible');
+          tocBackdrop.hidden = true;
+        }
+      }
+      function openTOCDrawer() {
+        if (!tocPane) return;
+        tocPane.classList.add('is-open');
+        if (tocToggle) tocToggle.setAttribute('aria-expanded', 'true');
+        if (tocBackdrop) {
+          tocBackdrop.hidden = false;
+          /* force reflow so transition runs */
+          void tocBackdrop.offsetWidth;
+          tocBackdrop.classList.add('is-visible');
+        }
+      }
+
+      if (tocList) {
+        tocList.addEventListener('click', function (e) {
+          var a = e.target.closest('a[href^="#h-"]');
+          if (!a) return;
+          var hid = a.getAttribute('href').slice(1);
+          var target = document.getElementById(hid);
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            /* update hash without jump (smooth scroll handles it) */
+            if (history && history.replaceState) {
+              history.replaceState(null, '', '#' + hid);
+            }
+          }
+          if (isDrawerMode()) {
+            closeTOCDrawer();
+          }
+        });
+      }
+
+      /* Step 7: TOC 抽屉交互（scoped 到 #toc-toggle，不复用 [data-choice]） */
+      if (tocToggle) {
+        tocToggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (tocPane.classList.contains('is-open')) {
+            closeTOCDrawer();
+          } else {
+            openTOCDrawer();
+          }
+        });
+      }
+      if (tocBackdrop) {
+        tocBackdrop.addEventListener('click', function () {
+          closeTOCDrawer();
+        });
+      }
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && tocPane && tocPane.classList.contains('is-open')) {
+          closeTOCDrawer();
+        }
+      });
+      /* 视口变到 >=1200px 自动关闭抽屉态遗留 */
+      window.addEventListener('resize', function () {
+        if (!isDrawerMode()) {
+          closeTOCDrawer();
+        }
+      }, { passive: true });
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2 utils — auto-close pref init
+       * ───────────────────────────────────────────────────────────────────── */
+      var autoCloseInitial = document.body.dataset.autoClose === 'true';
+      var toggleEl = document.getElementById('auto-close-toggle');
+      if (toggleEl) {
+        toggleEl.checked = autoCloseInitial;
+      }
+
+      /* Pref toggle → WS pref-update */
+      if (toggleEl) {
+        toggleEl.addEventListener('change', function () {
+          var val = toggleEl.checked;
+          if (window.brainstorm && typeof window.brainstorm.send === 'function') {
+            window.brainstorm.send({
+              type: 'pref-update',
+              key: 'auto_close_after_decision',
+              value: val,
+              timestamp: Date.now()
+            });
+          }
+        });
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Overlay helpers (shared across decide + overlay close)
+       * ───────────────────────────────────────────────────────────────────── */
+      var overlay        = document.getElementById('submit-overlay');
+      var overlayIcon    = document.getElementById('overlay-icon');
+      var overlayTitle   = document.getElementById('overlay-title');
+      var overlaySubtitle = document.getElementById('overlay-subtitle');
+      var overlayCloseBtn = document.getElementById('overlay-close-btn');
+
+      var CHOICE_LABELS = {
+        'approve': { icon: '❧', title: '方案已通过',   subtitle: '窗口即将关闭…' },
+        'revise':  { icon: '✎', title: '修改意见已提交', subtitle: '窗口即将关闭…' },
+        'abort':   { icon: '✕', title: '任务已放弃',   subtitle: '窗口即将关闭…' }
+      };
+
+      function showOverlay(choice, autoClose) {
+        var labels = CHOICE_LABELS[choice] || { icon: '❧', title: '已提交', subtitle: '' };
+        overlayIcon.textContent    = labels.icon;
+        overlayTitle.textContent   = labels.title;
+
+        if (autoClose) {
+          overlaySubtitle.textContent = '窗口即将关闭…';
+          overlayCloseBtn.classList.remove('visible');
+          overlay.classList.add('visible');
+          setTimeout(function () {
+            window.close();
+            setTimeout(function () {
+              overlaySubtitle.textContent = '请手动关闭此标签页';
+              overlayCloseBtn.classList.add('visible');
+            }, 3000);
+          }, 800);
+        } else {
+          overlaySubtitle.textContent = '已提交，可关闭页面';
+          overlayCloseBtn.classList.add('visible');
+          overlay.classList.add('visible');
+        }
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Toast
+       * ───────────────────────────────────────────────────────────────────── */
+      var toastEl = document.getElementById('toast');
+      var _toastTimer = null;
+      function showToast(msg, durationMs) {
+        durationMs = durationMs || 2800;
+        toastEl.textContent = msg;
+        toastEl.classList.add('visible');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function () {
+          toastEl.classList.remove('visible');
+        }, durationMs);
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.4 — Comment state management
+       * ───────────────────────────────────────────────────────────────────── */
+      var commentsPane   = document.getElementById('comments-pane');
+      var commentCounter = 0;
+      var commentCountEl = document.getElementById('comment-count');
+
+      function updateCommentCount() {
+        var n = commentsPane.querySelectorAll('.comment-card').length;
+        if (commentCountEl) commentCountEl.textContent = n;
+      }
+
+      /* Get anchor block from a DOM node (walks up to find data-block-id) */
+      function getAnchorBlock(node) {
+        var el = (node.nodeType === 3) ? node.parentElement : node;
+        while (el && el !== renderEl) {
+          if (el.dataset && el.dataset.blockId) return el;
+          el = el.parentElement;
+        }
+        return null;
+      }
+
+      /* Compute top offset for a comment card (anchor-align + cascade) */
+      function positionCards() {
+        if (window.innerWidth <= 1100) return; // narrow: static flow
+        var cards = Array.prototype.slice.call(commentsPane.querySelectorAll('.comment-card'));
+        var paneRect = commentsPane.getBoundingClientRect();
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        var paneAbsTop = paneRect.top + scrollTop;
+
+        var cursor = 0;
+        cards.forEach(function (card) {
+          var anchorId = card.dataset.anchor;
+          var anchorEl = anchorId ? document.querySelector('[data-block-id="' + anchorId + '"]') : null;
+          var desired = 0;
+          if (anchorEl) {
+            var ar = anchorEl.getBoundingClientRect();
+            desired = (ar.top + scrollTop) - paneAbsTop;
+          }
+          var top = Math.max(desired, cursor);
+          card.style.top = top + 'px';
+          cursor = top + card.offsetHeight + 8;
+        });
+      }
+
+      window.addEventListener('scroll', positionCards, { passive: true });
+      window.addEventListener('resize', positionCards, { passive: true });
+
+      /* Create a new comment card */
+      function createCommentCard(anchorId, quoteText) {
+        commentCounter++;
+        var cid = 'c-' + commentCounter;
+
+        var card = document.createElement('div');
+        card.className = 'comment-card';
+        card.setAttribute('data-anchor', anchorId);
+        card.setAttribute('data-state', 'new');
+        card.setAttribute('data-comment-id', cid);
+
+        var quoteEl = document.createElement('div');
+        quoteEl.className = 'comment-quote';
+        quoteEl.textContent = '"' + (quoteText.length > 80 ? quoteText.slice(0, 80) + '…' : quoteText) + '"';
+
+        var textArea = document.createElement('textarea');
+        textArea.className   = 'comment-text';
+        textArea.placeholder = '添加评论…';
+        textArea.rows        = 3;
+
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'comment-actions';
+
+        var saveBtn = document.createElement('button');
+        saveBtn.className   = 'comment-save';
+        saveBtn.textContent = '保存';
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className   = 'comment-delete';
+        deleteBtn.textContent = '删除';
+
+        actionsDiv.appendChild(saveBtn);
+        actionsDiv.appendChild(deleteBtn);
+
+        card.appendChild(quoteEl);
+        card.appendChild(textArea);
+        card.appendChild(actionsDiv);
+
+        commentsPane.appendChild(card);
+        updateCommentCount();
+        positionCards();
+
+        /* Focus textarea after layout */
+        setTimeout(function () { textArea.focus(); }, 30);
+
+        /* Highlight anchor on card hover */
+        var anchorEl = anchorId ? document.querySelector('[data-block-id="' + anchorId + '"]') : null;
+        card.addEventListener('mouseenter', function () {
+          if (anchorEl) anchorEl.classList.add('anchor-highlight');
+        });
+        card.addEventListener('mouseleave', function () {
+          if (anchorEl) anchorEl.classList.remove('anchor-highlight');
+        });
+
+        /* Save */
+        saveBtn.addEventListener('click', function () {
+          if (!textArea.value.trim()) {
+            textArea.focus();
+            return;
+          }
+          card.setAttribute('data-state', 'saved');
+          textArea.readOnly   = true;
+          positionCards();
+        });
+
+        /* Delete */
+        deleteBtn.addEventListener('click', function () {
+          if (anchorEl) anchorEl.classList.remove('anchor-highlight');
+          card.remove();
+          updateCommentCount();
+          positionCards();
+        });
+
+        return card;
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.2 — selectionchange → floating trigger (C5)
+       * ───────────────────────────────────────────────────────────────────── */
+      var floatTrigger  = document.getElementById('floating-comment-trigger');
+      var _selDebounce  = null;
+      var _lastAnchorId = null;
+      var _lastQuote    = '';
+
+      function updateFloatingTrigger() {
+        var sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+          floatTrigger.hidden = true;
+          return;
+        }
+        var range = sel.getRangeAt(0);
+        if (!renderEl.contains(range.commonAncestorContainer)) {
+          floatTrigger.hidden = true;
+          return;
+        }
+        /* Find anchor block — use the start container (飞书策略) */
+        var anchorBlock = getAnchorBlock(range.startContainer);
+        _lastAnchorId   = anchorBlock ? anchorBlock.dataset.blockId : 'b-1';
+        _lastQuote      = sel.toString().trim().slice(0, 200);
+
+        /* Position trigger below selection bounding rect */
+        var rect = range.getBoundingClientRect();
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        floatTrigger.style.top  = (rect.bottom + scrollTop + 8) + 'px';
+        floatTrigger.style.left = Math.max(8, rect.left + (rect.width / 2) - 50) + 'px';
+        floatTrigger.hidden = false;
+      }
+
+      document.addEventListener('selectionchange', function () {
+        clearTimeout(_selDebounce);
+        _selDebounce = setTimeout(updateFloatingTrigger, 100);
+      });
+
+      /* Hide on ESC */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          floatTrigger.hidden = true;
+        }
+      });
+
+      /* Hide when clicking outside design-content and not the trigger itself */
+      document.addEventListener('mousedown', function (e) {
+        if (!renderEl.contains(e.target) && e.target !== floatTrigger) {
+          floatTrigger.hidden = true;
+        }
+      });
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.3 — Float trigger click → create comment card
+       * ───────────────────────────────────────────────────────────────────── */
+      floatTrigger.addEventListener('click', function () {
+        floatTrigger.hidden = true;
+        window.getSelection().removeAllRanges();
+        createCommentCard(_lastAnchorId || 'b-1', _lastQuote || '（无选区）');
+      });
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.6 — ⋯ menu toggle
+       * ───────────────────────────────────────────────────────────────────── */
+      var moreMenuTrigger = document.getElementById('more-menu-trigger');
+      var moreMenu        = document.getElementById('more-menu');
+
+      moreMenuTrigger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = !moreMenu.hidden;
+        moreMenu.hidden = isOpen;
+        moreMenuTrigger.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!moreMenu.hidden && !moreMenu.contains(e.target) && e.target !== moreMenuTrigger) {
+          moreMenu.hidden = true;
+          moreMenuTrigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      /* ─────────────────────────────────────────────────────────────────────
+       * Phase 2.5 — Decision handler: [data-choice] click
+       * D5b: stopImmediatePropagation right after the [data-choice] guard,
+       *      so helper.js's later-registered [data-choice] listener never
+       *      runs (would otherwise send a duplicate WS frame without
+       *      comments). Placing it BEFORE the closest+guard would also
+       *      block all other helper.js click logic, which we don't want.
+       * ───────────────────────────────────────────────────────────────────── */
+      document.addEventListener('click', function (e) {
+        var target = e.target.closest('[data-choice]');
+        if (!target) return;
+
+        /* D5b: run immediately after guard — see comment above */
+        e.stopImmediatePropagation();
+
+        var choice = target.dataset.choice;
+
+        /* Close ⋯ menu if open */
+        moreMenu.hidden = true;
+        moreMenuTrigger.setAttribute('aria-expanded', 'false');
+
+        /* Abort: require confirmation */
+        if (choice === 'abort') {
+          if (!window.confirm('放弃任务？该 autopilot 流程将终止。')) return;
+        }
+
+        /* Revise: require at least one comment OR non-empty feedback */
+        if (choice === 'revise') {
+          var savedCards = commentsPane.querySelectorAll('.comment-card[data-state="saved"]');
+          /* no feedback textarea in new UI, so check comments only */
+          if (savedCards.length === 0) {
+            var reviseBtn = document.querySelector('.btn-revise');
+            if (reviseBtn) {
+              reviseBtn.classList.remove('shake');
+              /* force reflow to restart animation */
+              void reviseBtn.offsetWidth;
+              reviseBtn.classList.add('shake');
+              reviseBtn.addEventListener('animationend', function () {
+                reviseBtn.classList.remove('shake');
+              }, { once: true });
+            }
+            showToast('请先添加至少一条评论再提交反馈');
+            return;
+          }
+        }
+
+        /* Collect saved comments (C6) */
+        var comments = [];
+        var savedCards2 = commentsPane.querySelectorAll('.comment-card[data-state="saved"]');
+        Array.prototype.forEach.call(savedCards2, function (card) {
+          var quoteEl   = card.querySelector('.comment-quote');
+          var textEl    = card.querySelector('.comment-text');
+          var anchorId  = card.dataset.anchor || 'b-1';
+          var quoteText = quoteEl ? quoteEl.textContent.replace(/^"|"$/g, '') : '';
+          var commentText = textEl ? textEl.value : '';
+          comments.push({
+            anchor : anchorId,
+            quote  : quoteText.slice(0, 200),
+            text   : commentText
+          });
+        });
+
+        /* Build payload (C2) */
+        var payload = {
+          type      : 'click',
+          text      : target.textContent.trim(),
+          choice    : choice,
+          feedback  : '',
+          comments  : comments,
+          id        : null,
+          timestamp : Date.now()
+        };
+
+        /* Send via WS (window.brainstorm injected by helper.js) */
+        if (window.brainstorm && typeof window.brainstorm.send === 'function') {
+          window.brainstorm.send(payload);
+        }
+
+        /* Show overlay */
+        var autoClose = toggleEl ? toggleEl.checked : (document.body.dataset.autoClose === 'true');
+        setTimeout(function () {
+          showOverlay(choice, autoClose);
+        }, 50);
+      });
+
+    })();
+  </script>
+
+</body>
+</html>

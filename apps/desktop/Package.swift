@@ -10,11 +10,18 @@ let package = Package(
         .package(
             url: "https://github.com/pointfreeco/swift-snapshot-testing",
             from: "1.17.0"
+        ),
+        .package(
+            url: "https://github.com/sindresorhus/KeyboardShortcuts",
+            from: "2.0.0"
         )
     ],
     targets: [
         .target(
             name: "BuddyCore",
+            dependencies: [
+                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
+            ],
             path: "Sources/ClaudeCodeBuddy",
             exclude: ["Resources", "App/main.swift"],
             resources: [

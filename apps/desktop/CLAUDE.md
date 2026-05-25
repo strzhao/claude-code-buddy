@@ -33,6 +33,7 @@ Sources/
 │   ├── Session/        # 会话管理: SessionManager, SessionInfo, SessionColor
 │   ├── Network/        # IPC: SocketServer (Unix domain socket), HookMessage
 │   ├── Terminal/       # 终端适配: GhosttyAdapter (AppleScript 控制)
+│   ├── Launcher/       # Alfred 式 AI 启动器: LauncherManager, LauncherWindow, LauncherInputView
 │   ├── Window/         # 窗口: BuddyWindow, DockTracker, MouseTracker
 │   ├── MenuBar/        # 状态栏弹窗: SessionPopoverController
 │   ├── Assets/Sprites/ # 48x48 像素猫咪精灵图

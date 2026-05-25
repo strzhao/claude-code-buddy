@@ -27,6 +27,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupSessionManager()
         setupDockMonitoring()
         setupSkinHotSwap()
+        setupLauncher()
 
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
@@ -351,5 +352,14 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Launcher
+
+    private func setupLauncher() {
+        // applicationDidFinishLaunching 保证在主线程调用；LauncherManager 是 @MainActor 类型
+        MainActor.assumeIsolated {
+            LauncherManager.shared.setup()
+        }
     }
 }

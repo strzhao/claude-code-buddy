@@ -26,6 +26,7 @@ secrets.json
 # Tools
 .superpowers/
 .claude/worktrees/
+.autopilot/runtime/
 
 # Test artifacts
 test-results/

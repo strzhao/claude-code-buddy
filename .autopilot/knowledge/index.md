@@ -59,3 +59,7 @@
 - [2026-05-26] LSUIElement app 中的浮窗输入框用 NSPanel + nonactivatingPanel + NSApp.activate | tags: nspanel, lsuielement, launcher, alfred, key-window, floating-window, swiftui, appkit, nshostingcontroller | → patterns.md
 - [2026-05-26] NSPanel hidesOnDeactivate 与 didResignKeyNotification 双触发的 Combine 重入防御 | tags: nspanel, combine, published, reentrancy, hidesondeactivate, didresignkey, race-condition | → patterns.md
 - [2026-05-26] AppDelegate.applicationDidFinishLaunching 调 @MainActor 单例 setup 用 MainActor.assumeIsolated | tags: mainactor, swift-concurrency, appdelegate, isolated, assumeisolated, async, applicationdidfinishlaunching | → patterns.md
+- [2026-05-26] LSUIElement app + ad-hoc 签名下 Keychain 不可用，必须 SecretStore 探针降级到 CryptoKit | tags: keychain, ad-hoc, codesign, lsuielement, entitlement, secret-store, cryptokit, chachapoly, fallback, errSecMissingEntitlement | → patterns.md
+- [2026-05-26] BuddyCLI 扩展配置子命令用 nested switch 内联实现，不加 BuddyCore 依赖避免拉入 GUI 框架 | tags: buddy-cli, swift-package-manager, target-dependency, nested-switch, cli-design, source-of-truth, command-line, lsuielement, cold-start | → patterns.md
+- [2026-05-26] URLSession + URLProtocol mock 必须读 httpBodyStream 回 httpBody | tags: urlsession, urlprotocol, mock, http-body, http-body-stream, network-mock, swift-testing, canonical-request | → patterns.md
+- [2026-05-26] 跨任务红队契约演进：上游 task 锁的过渡占位需迁移而非保留 XCTSkip | tags: red-team, acceptance-test, contract-evolution, cross-task, tdd, autopilot, brief-mode | → patterns.md

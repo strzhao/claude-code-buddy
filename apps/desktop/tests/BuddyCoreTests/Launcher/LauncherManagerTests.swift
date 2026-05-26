@@ -58,9 +58,29 @@ final class LauncherManagerTests: XCTestCase {
         LauncherManager.shared.hide()
     }
 
-    func test_submit_returnsEchoPlaceholder() async {
+    func test_submit_whenNotConfigured_returnsProviderNotConfiguredError() async {
+        // 确保没有配置（删除或备份真实配置）
+        let realPath = LauncherConstants.launcherConfigPath
+        let existedBefore = FileManager.default.fileExists(atPath: realPath.path)
+        let backupPath = LauncherConstants.buddyDir.appendingPathComponent("launcher.json.test-bak-submit-\(UUID().uuidString)")
+        if existedBefore {
+            try? FileManager.default.copyItem(at: realPath, to: backupPath)
+            try? FileManager.default.removeItem(at: realPath)
+        }
+        defer {
+            if existedBefore {
+                try? FileManager.default.removeItem(at: realPath)
+                try? FileManager.default.moveItem(at: backupPath, to: realPath)
+            }
+        }
+
         let result = await LauncherManager.shared.submit("hi")
-        XCTAssertEqual(String(result.characters), "echo: hi")
+        let text = String(result.characters)
+        // 应该包含错误信息（providerNotConfigured 或 secretStoreUnavailable）
+        XCTAssertTrue(
+            text.contains("⚠️") || text.contains("配置") || text.contains("provider"),
+            "未配置时 submit 应返回错误提示，实际: \(text)"
+        )
     }
 
     func test_sharedIsSingleton() {

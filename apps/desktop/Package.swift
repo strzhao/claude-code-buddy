@@ -25,7 +25,8 @@ let package = Package(
             path: "Sources/ClaudeCodeBuddy",
             exclude: ["Resources", "App/main.swift"],
             resources: [
-                .copy("Assets")
+                .copy("Assets"),
+                .copy("Plugins")
             ]
         ),
         .executableTarget(

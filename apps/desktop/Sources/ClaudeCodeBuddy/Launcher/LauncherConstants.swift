@@ -20,4 +20,19 @@ enum LauncherConstants {
 
     // Keychain（task 002 追加）
     static let keychainService = "claude-code-buddy.launcher"
+
+    // Plugin 运行时（task 004 追加）
+    static let launcherPluginsDir: URL = buddyDir.appendingPathComponent("launcher-plugins")
+    static let pluginDefaultTimeoutSec: Int = 30
+    static let pluginMaxTimeoutSec: Int = 120
+    static let pluginMaxStdoutBytes: Int = 1024 * 1024         // 1 MiB
+    static let pluginMaxStderrBytes: Int = 100 * 1024           // 100 KiB
+    static let pluginSigkillGraceSec: Int = 5                   // SIGTERM 后等待秒数
+    static let pluginRequiredPathMaxCount: Int = 10
+    /// PATH 注入前缀（覆盖在 ProcessInfo.processInfo.environment["PATH"] 之前）
+    static let pluginPathPrefixes: [String] = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "\(NSHomeDirectory())/.local/bin"
+    ]
 }

@@ -55,6 +55,15 @@ final class LauncherManager: ObservableObject {
                 NSLog("[Launcher] hotkey probe failed — user should reconfigure")
             }
         }
+
+        // task 004 追加：异步安装 bundled plugins（不阻塞 UI）
+        Task.detached {
+            do {
+                try PluginManager.shared.installBundledPlugins()
+            } catch {
+                NSLog("[Launcher] installBundledPlugins failed: \(error)")
+            }
+        }
     }
 
     func show() {

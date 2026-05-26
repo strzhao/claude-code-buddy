@@ -383,6 +383,11 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
             case .providerHTTPError(let c, _): return "providerHTTPError(\(c))"
             case .hotkeyConflict(let s): return "hotkeyConflict(\(s))"
             case .maxIterations: return "maxIterations"
+            case .pluginNotFound(let s): return "pluginNotFound(\(s))"
+            case .pluginMissingDependency(let s): return "pluginMissingDependency(\(s))"
+            case .pluginTimeout(let i): return "pluginTimeout(\(i))"
+            case .pluginCrash(let c, _): return "pluginCrash(\(c))"
+            case .pluginManifestInvalid(let s): return "pluginManifestInvalid(\(s))"
             }
         }
 

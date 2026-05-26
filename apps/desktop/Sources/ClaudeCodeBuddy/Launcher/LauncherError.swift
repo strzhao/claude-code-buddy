@@ -8,6 +8,8 @@ enum LauncherError: Error, LocalizedError {
     case networkFailure(Error)
     case providerHTTPError(Int, String)     // status + body 前 200 字
     case secretStoreUnavailable
+    // task 003 追加：
+    case maxIterations
 
     var errorDescription: String? {
         switch self {
@@ -23,6 +25,8 @@ enum LauncherError: Error, LocalizedError {
             return "Provider 返回 \(code)：\(body)"
         case .secretStoreUnavailable:
             return "无法安全存储 API key，请检查 ~/.buddy/ 权限"
+        case .maxIterations:
+            return "Agent 循环达到最大迭代次数（默认 10），可能存在递归 tool_use；请简化查询重试"
         }
     }
 }

@@ -369,20 +369,51 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
 
     /// 连续两次 submit 独立计算（SC-08，无 messages 累积）
     /// task 002 演进：错误消息本身也是无状态的，不携带前序输入。
+    /// task 003 适配：submit 返回 AsyncStream<AgentEvent>，消费流提取错误类型（非字符串）做语义比对
     func test_SC08_submit_isStateless_noPersistentMessages() async {
         // Given: 无 provider 配置（每次 submit 走相同的错误路径）
-        let first = await LauncherManager.shared.submit("first-message")
-        let second = await LauncherManager.shared.submit("second-message")
 
-        let firstStr = String(first.characters)
-        let secondStr = String(second.characters)
+        // 提取错误"类型"标签（不含非确定性地址/UUID 字段）
+        func errorTypeLabel(_ err: LauncherError) -> String {
+            switch err {
+            case .providerNotConfigured: return "providerNotConfigured"
+            case .secretStoreUnavailable: return "secretStoreUnavailable"
+            case .networkFailure: return "networkFailure"  // 不含 Error 详情（含内存地址）
+            case .invalidAPIKey(let s): return "invalidAPIKey(\(s))"
+            case .providerHTTPError(let c, _): return "providerHTTPError(\(c))"
+            case .hotkeyConflict(let s): return "hotkeyConflict(\(s))"
+            case .maxIterations: return "maxIterations"
+            }
+        }
+
+        // 消费第一个 stream，提取错误类型标签
+        var firstLabel: String? = nil
+        for await event in LauncherManager.shared.submit("first-message") {
+            if case .error(let err) = event {
+                firstLabel = errorTypeLabel(err)
+            }
+        }
+
+        // 消费第二个 stream，提取错误类型标签
+        var secondLabel: String? = nil
+        for await event in LauncherManager.shared.submit("second-message") {
+            if case .error(let err) = event {
+                secondLabel = errorTypeLabel(err)
+            }
+        }
 
         // Then: 两次结果完全一致（同样的无配置错误，无前序输入痕迹）
-        XCTAssertEqual(firstStr, secondStr,
-                       "无 provider 时连续调用应返回完全相同错误（无状态）")
-        XCTAssertFalse(secondStr.contains("first-message"),
-                       "第二次结果不应含第一次 query 内容（防 messages 数组累积）")
-        XCTAssertFalse(firstStr.contains("second-message"),
-                       "第一次结果不应含第二次 query 内容（防引用未来状态）")
+        XCTAssertNotNil(firstLabel, "第一次 submit 应产生 .error 事件")
+        XCTAssertNotNil(secondLabel, "第二次 submit 应产生 .error 事件")
+        XCTAssertEqual(firstLabel, secondLabel,
+                       "无 provider 时连续调用应返回相同错误类型（无状态），first=\(firstLabel ?? "nil"), second=\(secondLabel ?? "nil")")
+        if let label = firstLabel {
+            XCTAssertFalse(label.contains("second-message"),
+                           "第一次结果不应含第二次 query 内容（防引用未来状态）")
+        }
+        if let label = secondLabel {
+            XCTAssertFalse(label.contains("first-message"),
+                           "第二次结果不应含第一次 query 内容（防 messages 数组累积）")
+        }
     }
 }

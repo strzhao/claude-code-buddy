@@ -74,13 +74,25 @@ final class LauncherManagerTests: XCTestCase {
             }
         }
 
-        let result = await LauncherManager.shared.submit("hi")
-        let text = String(result.characters)
-        // 应该包含错误信息（providerNotConfigured 或 secretStoreUnavailable）
-        XCTAssertTrue(
-            text.contains("⚠️") || text.contains("配置") || text.contains("provider"),
-            "未配置时 submit 应返回错误提示，实际: \(text)"
-        )
+        // Step 4.5 适配：submit 现在返回 AsyncStream<AgentEvent>，用 for-await 消费
+        var gotError = false
+        for await event in LauncherManager.shared.submit("hi") {
+            if case .error(let err) = event {
+                gotError = true
+                let isExpectedError: Bool
+                switch err {
+                case .providerNotConfigured, .secretStoreUnavailable:
+                    isExpectedError = true
+                default:
+                    isExpectedError = false
+                }
+                XCTAssertTrue(
+                    isExpectedError,
+                    "未配置时 submit 应返回 .providerNotConfigured 或 .secretStoreUnavailable，实际: \(err)"
+                )
+            }
+        }
+        XCTAssertTrue(gotError, "未配置时 submit 应产生 .error 事件")
     }
 
     func test_sharedIsSingleton() {

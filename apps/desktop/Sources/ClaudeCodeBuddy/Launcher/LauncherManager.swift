@@ -14,6 +14,10 @@ final class LauncherManager: ObservableObject {
     /// 缓存 secretStore，避免每次 submit 都 probe Keychain（lazy 在 setup() 中初始化一次）
     private lazy var secretStore: SecretStore? = try? SecretStoreFactory.create()
 
+    /// 测试用：可注入 provider 工厂（默认走 ProviderFactory.create）
+    /// 重要-2：production 路径不变，仅测试初始化时可替换
+    var providerFactoryOverride: ((ProviderConfig, SecretStore) throws -> LauncherProvider)?
+
     private init() {}
 
     private func makeWindow() -> LauncherWindow {
@@ -75,34 +79,74 @@ final class LauncherManager: ObservableObject {
         if isVisible { hide() } else { show() }
     }
 
-    /// 发送查询到配置的 Provider，返回 markdown 渲染后的 AttributedString
-    /// 错误时返回带 ⚠️ 前缀的错误描述（task 003 重写为 AsyncStream<AgentEvent>）
-    func submit(_ query: String) async -> AttributedString {
+    /// 流式返回 AgentEvent，包含 provider/agent/工具执行的全部事件
+    func submit(_ query: String) -> AsyncStream<AgentEvent> {
+        // 先在 MainActor 上同步读出依赖（不在 detach 后访问 self）
+        let config: LauncherConfig
         do {
-            let config = try LauncherConfig.load()
-            guard !config.activeProvider.isEmpty,
-                  let providerConfig = config.providers[config.activeProvider] else {
-                throw LauncherError.providerNotConfigured
-            }
-            guard let store = secretStore else {
-                throw LauncherError.secretStoreUnavailable
-            }
-            let provider = try ProviderFactory.create(providerConfig, store: store)
-            let response = try await provider.send(
-                messages: [AgentMessage(role: "user", content: [.text(query)])],
-                tools: [],
-                model: providerConfig.model
-            )
-            // 取响应中所有 text 内容拼接（task 003 才做 agent loop）
-            let text = response.content.compactMap { content -> String? in
-                if case .text(let s) = content { return s }
-                return nil
-            }.joined()
-            return MarkdownRenderer.render(text)
-        } catch let err as LauncherError {
-            return MarkdownRenderer.renderError(err)
+            config = try LauncherConfig.load()
         } catch {
-            return MarkdownRenderer.renderError(.networkFailure(error))
+            return Self.errorStream(.networkFailure(error))
+        }
+        guard !config.activeProvider.isEmpty,
+              let providerConfig = config.providers[config.activeProvider] else {
+            return Self.errorStream(.providerNotConfigured)
+        }
+        guard let store = secretStore else {
+            return Self.errorStream(.secretStoreUnavailable)
+        }
+        let factoryOverride = providerFactoryOverride
+
+        return AsyncStream { continuation in
+            // Task.detached 离开 MainActor，避免阻塞 UI 线程（BLOCKER-2 修复）
+            let task = Task.detached {
+                let provider: LauncherProvider
+                do {
+                    provider = try (factoryOverride ?? ProviderFactory.create)(providerConfig, store)
+                } catch let err as LauncherError {
+                    continuation.yield(.error(err))
+                    continuation.finish()
+                    return
+                } catch {
+                    continuation.yield(.error(.networkFailure(error)))
+                    continuation.finish()
+                    return
+                }
+
+                // 内置 echo tool stub（task 005 路由层会替换 tools 列表）
+                let echoTool = AgentTool(
+                    name: "echo",
+                    description: "Echo the input text back verbatim",
+                    inputSchema: [
+                        "type": AnyCodable("object"),
+                        "properties": AnyCodable(["text": ["type": "string"]]),
+                        "required": AnyCodable(["text"])
+                    ]
+                )
+                let agent = LauncherAgent(
+                    provider: provider,
+                    tools: [echoTool],
+                    model: providerConfig.model,
+                    toolExecutor: { name, input in
+                        guard name == "echo" else { throw LauncherError.providerNotConfigured }
+                        guard let text = input["text"]?.value as? String else { return "" }
+                        return text
+                    }
+                )
+                for await event in agent.run(prompt: query, config: .default) {
+                    continuation.yield(event)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// 同步生成单事件错误流（用于配置错误前置）
+    nonisolated private static func errorStream(_ err: LauncherError) -> AsyncStream<AgentEvent> {
+        AsyncStream { continuation in
+            continuation.yield(.error(err))
+            continuation.finish()
         }
     }
 }

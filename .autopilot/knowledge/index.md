@@ -66,3 +66,6 @@
 - [2026-05-26] AsyncStream + Task.detached + onTermination cancel 双层取消传播链 | tags: async-stream, task-detached, on-termination, cancel, swift-concurrency, streaming, asyncsequence, structured-concurrency, leak-prevention | → patterns.md
 - [2026-05-26] @MainActor 类内异步方法用同步前置读 + Task.detached 离开 actor 隔离避免阻塞 UI | tags: mainactor, task-detached, actor-isolation, ui-blocking, async-await, sendable, capture-list, swift-concurrency | → patterns.md
 - [2026-05-26] 自定义 Equatable 的 mutation 探针陷阱：toolCall.== 必须比较所有携带状态 | tags: equatable, mutation-testing, false-positive, swift-enum, associated-values, anycodable, red-team, acceptance-test, tdd, plan-reviewer | → patterns.md
+- [2026-05-26] Swift Process API 子进程 SIGKILL 后 orphan child 持 pipe 写端导致 readDataToEndOfFile 无限死锁 | tags: process, subprocess, sigkill, orphan-child, pipe, file-handle, deadlock, readabilityhandler, readdatatoendoffile, swift-concurrency, plugin-runtime | → patterns.md
+- [2026-05-26] SPM .copy 把可执行脚本打入 bundle，拷贝后必须显式 chmod 0o755 | tags: spm, swift-package-manager, copy, bundle-resource, hello-plugin, chmod, posix-permissions, resource-only-read, app-signing, lsuielement | → patterns.md
+- [2026-05-26] CLI 插件 manifest 字段校验防恶意：name 与 dirName 一致 + cmd 不允许绝对路径或 /.. | tags: plugin, manifest, security, path-traversal, malicious, validation, name-collision, code-execution | → patterns.md

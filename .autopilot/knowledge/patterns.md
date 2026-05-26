@@ -321,3 +321,33 @@ override class func canonicalRequest(for request: URLRequest) -> URLRequest {
 **Scenario**: `enum AgentEvent { case toolCall(name: String, input: [String: AnyCodable]); ... }` 自定义 Equatable 时常见的偷懒写法：`case (.toolCall(let n1, _), .toolCall(let n2, _)): return n1 == n2` —— input 用 `_` 丢弃，"留给测试断言"。问题：所有依赖 `XCTAssertEqual(events, expected)` 数组比较的测试都会**假阳性**：两个 name 相同但 input 不同的 toolCall 事件被判等。如果实现把 tool input 解析错（如把 user message 当 tool input），测试仍然绿灯。
 **Lesson**: 自定义 Equatable 必须**比较 enum case 的所有 associated value**，除非有明确的"宽松比较"语义（如 `.error(Error)` 因为 Error 协议不是 Equatable，可以仅按 case 类型比较，但需注释说明）。对 `[String: AnyCodable]` 类型，AnyCodable 自身需先实现 Equatable（通常通过 JSONEncoder 字节比较：`JSONEncoder().encode(lhs) == JSONEncoder().encode(rhs)`）。**红队测试应有 mutation 探针**：写 `XCTAssertNotEqual(.toolCall("x", ["k":"a"]), .toolCall("x", ["k":"b"]))` 显式验证 input 不同则不等，否则 == 的实现 bug 永远不会暴露。
 **Evidence**: task 003 plan-reviewer 第 1 轮 BLOCKER-1 即此问题（设计草图写 `n1 == n2 // input 比较留给测试`，但测试草图全用数组 Equatable）；修复为 `n1 == n2 && i1 == i2`；红队 acceptance `test_agentEvent_toolCall_notEqualsWhenInputDiffers` 作为 mutation 探针验证。
+
+### [2026-05-26] Swift Process API 子进程 SIGKILL 后 orphan child 持 pipe 写端导致 readDataToEndOfFile 无限死锁
+<!-- tags: process, subprocess, sigkill, orphan-child, pipe, file-handle, deadlock, readabilityhandler, readdatatoendoffile, swift-concurrency, plugin-runtime -->
+**Scenario**: PluginExecutor 用 Swift `Process` API 跑 CLI 插件（如 bash 脚本）。某些 plugin 用 `trap '' TERM; sleep 30` 忽略 SIGTERM。timeout 后 PluginExecutor 发 SIGTERM → 5s grace → `kill(pid, SIGKILL)` 杀掉 bash 父进程。但 bash 的子进程（`sleep 30`）成为 **orphan**（init reparent），继承父进程的 stdout pipe 写端，pipe 仍有 writer 活着。此时 `FileHandle.readDataToEndOfFile()` 在 stdout 读端等待"全部 writers 关闭"，因 orphan sleep 持有 fd，永久阻塞——swift test 死锁，单测/CI 卡 30 分钟+。
+**Lesson**: 任何用 `Process` 启动 shell 类子进程 + 读 stdout/stderr Pipe 的场景，**绝不能用 `readDataToEndOfFile()` 作收尾**。正确模式：① `readabilityHandler` 异步读 chunks（在 handler 内 `availableData` 是非阻塞的）② 用 NSLock-protected once-flag (`ResumeGuard`) 防止 `CheckedContinuation` 双 resume fatal ③ `DispatchQueue.global().asyncAfter(deadline: ... + slack)` 兜底强制 `close(handle)` 触发 readabilityHandler 收到空 chunk → resume ④ pipe handle close 让 readabilityHandler 自然终止。**深层原因**：`kill(-pid, SIGKILL)` 对默认 pgid（无 setpgid）无法整组终止；要彻底杀 orphan 必须在 fork 后 `setpgid(0, 0)` 让 child 在新 pg，但 Foundation.Process 不暴露此接口（需 posix_spawn 直接调）。MVP 接受 orphan 短暂存活，但读端**必须**能在 timeout + grace 后强制终止——这是 readabilityHandler + deadline force-close 模式的核心价值。
+**Evidence**: task 004 PluginExecutor.swift 第 162-208 行实现此模式（含完整 ResumeGuard 注释）；fixture `sleep 30 → sleep 10` 限 orphan 影响时长；qa-reviewer Section B Strengths 评"readBounded 死锁修复深度 — 三层兜底（readabilityHandler 异步读 / NSLock once-flag / deadline force-close）"；776 个测试全过，PluginExecutorAcceptance 7 场景含超时 SIGKILL fixture 8s 内可靠返回。
+
+### [2026-05-26] SPM .copy("Resources-Dir") 把可执行脚本打入 BuddyCore bundle，拷贝后必须显式 chmod 0o755
+<!-- tags: spm, swift-package-manager, copy, bundle-resource, hello-plugin, chmod, posix-permissions, resource-only-read, app-signing, lsuielement -->
+**Scenario**: task 004 在 BuddyCore target 加 `.copy("Plugins")` 把 bundled HelloPlugin 资源（含 `hello.sh` shell 脚本）打入 BuddyCore.bundle。runtime 启动时通过 `ResourceBundle.bundle.url(forResource:withExtension:subdirectory:)` 定位 + FileManager.copyItem 拷贝到 `~/.buddy/launcher-plugins/builtin-hello/`。问题：Bundle 内的 hello.sh **默认无执行权限**（SPM `.copy` 不保留源文件 posix 权限）。Process.run() 直接报 "permission denied" 启动失败。
+**Lesson**: SPM bundled 可执行脚本资源**必须**在 install/copy 到目标目录后显式 setAttributes 加可执行位：
+```swift
+try FileManager.default.copyItem(at: sourceURL, to: targetURL)
+let helloScript = targetURL.appending(path: "hello.sh")
+if FileManager.default.fileExists(atPath: helloScript.path) {
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helloScript.path)
+}
+```
+**关于 Bundle.module**：项目 LSUIElement + ad-hoc 签名场景下，**优先用项目自定义 `ResourceBundle.bundle`**（位于 Sources/ClaudeCodeBuddy/ResourceBundle.swift），它先尝试 `Bundle.main.resourceURL.appending(path: "ClaudeCodeBuddy_BuddyCore.bundle")` 适配 .app 打包结构，再 fallback `Bundle.module`。直接 `Bundle.module` 在 .app 中失效（macOS 签名禁止 .app 根级文件）。
+**Evidence**: task 004 PluginManager.installBundledPlugins 在 copyItem 后 setAttributes 0o755；PluginBundledHelloAcceptanceTests test_installBundledPlugins_helloShPermissions_755 精确断言 perms == 0o755；plan-reviewer 第 1 轮 BLOCKER-1 即 Bundle.module 失效问题，修复改用 ResourceBundle.bundle。
+
+### [2026-05-26] CLI 插件 manifest 字段校验防恶意：name 与 dirName 一致 + cmd 不允许绝对路径或 `/..`
+<!-- tags: plugin, manifest, security, path-traversal, malicious, validation, name-collision, code-execution -->
+**Scenario**: CLI 插件协议中 `plugin.json.cmd` 是子进程 executable 相对路径，`name` 是 plugin 标识。如果不做校验，恶意 plugin 可：① `cmd: "/usr/bin/rm"` 直接调用系统命令（绕过 plugin 沙箱意图） ② `cmd: "../../escape.sh"` 路径遍历到 plugin 目录外 ③ 把 `name: "trusted-plugin-name"` 写到任意目录名，绕过 trust check（TOFU 信任基于 name + 内容 hash）。
+**Lesson**: `PluginManifest.validate(againstDirName:)` 强制 3 项规则：
+1. **name 与 dirName 一致**：`name == dirName || name == dirName.split("-").last`（允许 `user-repo` 目录的 manifest name="repo" 简化命名）—— 防 manifest 把自己冒充成 trust 列表里的另一个 plugin
+2. **cmd 必须相对路径**：`!cmd.hasPrefix("/")` —— 拒绝绝对路径
+3. **cmd 不能含 `..`**：`!cmd.contains("/..")` 且 `!cmd.contains("../")` —— 防路径遍历到 plugin 目录外
+配合 `currentDirectoryURL = pluginDir` 沙箱（Process 启动时 cwd 限定）+ `Process.arguments` 数组传参（不走 shell，无 command injection），三层防御。**关键**：每条规则在 validate() 拆为独立 guard + 独立错误消息（task 004 设计文档要求 5 反例独立测试），调试时能精确定位攻击向量。
+**Evidence**: task 004 PluginManifest.swift validate 实现 3 项 guard；PluginManifestAcceptanceTests 5 反例覆盖（name 不匹配 / cmd 绝对路径 / cmd 含 .. / timeout 超出 / requiredPath > 10）+ 2 正例（name=="repo" dirName=="user-repo" / name==dirName）；qa-reviewer Section B OWASP A03/A01 评 PASS。

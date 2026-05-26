@@ -31,7 +31,7 @@ tasks:
     title: "plugin.json schema + PluginManager + Process 执行 + PATH 注入 + hello-world demo plugin"
     depends_on: ["001-launcher-skeleton"]
     complexity: M
-    status: pending
+    status: done
     milestone: M3
     acceptance_scenarios: [SC-04, SC-05]
 

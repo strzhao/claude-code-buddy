@@ -258,3 +258,44 @@
 **Scenario**: LauncherManager 标注 `@MainActor final class`，所有方法继承 MainActor 隔离。AppDelegate.applicationDidFinishLaunching 在主线程被调用但**不**是 async 方法，直接写 `LauncherManager.shared.setup()` 在 Swift 6 严格并发模式下报"Call to main actor-isolated instance method 'setup()' in a synchronous nonisolated context"。
 **Lesson**: 用 `MainActor.assumeIsolated { LauncherManager.shared.setup() }` 显式声明"我确定此时已在 MainActor 上"，编译器接受。优于 `Task { @MainActor in ... }`（异步切换 + 时序不确定）或 `await MainActor.run { ... }`（applicationDidFinishLaunching 不是 async）。通用规则：从 AppDelegate/NSWindowDelegate/SwiftUI .onAppear 等"已知在主线程"的非 async context 调 @MainActor 方法用 assumeIsolated 是最优解；只有真异步链路才用 await MainActor.run。
 **Evidence**: task 001 AppDelegate.swift setupLauncher() 用此模式；`make build` 0 error，runtime `buddy ping` 验证 setup() 正常执行。
+
+### [2026-05-26] LSUIElement app + ad-hoc 签名下 Keychain Services 不可用，必须 SecretStore 探针降级
+<!-- tags: keychain, ad-hoc, codesign, lsuielement, entitlement, secret-store, cryptokit, chachapoly, secret-key, fallback, iotextservice, errSecMissingEntitlement -->
+**Scenario**: claude-code-buddy 用 `codesign --force --deep -s -`（ad-hoc）签名+无 `.entitlements`，macOS 13+ 下 `SecItemAdd` 返回 `errSecMissingEntitlement(-34018)`，导致 BYOK API key 无法存 Keychain。直接报错会让用户配不上 provider；明文存文件又是安全反模式。
+**Lesson**: 设计可插拔 `SecretStore` 协议 + 探针自动降级：① `KeychainSecretStore`（生产路径，开发签名应用）② `EncryptedFileSecretStore`（CryptoKit ChaChaPoly + 派生密钥加密 `~/.buddy/launcher-secrets.enc`）③ `SecretStoreFactory.create()` 启动时写一个 `__probe__\(UUID())` key 立即删除，捕获 OSStatus 自动切换。**密钥派生**用 IOPlatformUUID（`kIOMainPortDefault`，不是已废弃的 `kIOMasterPortDefault`）+ 固定 salt 做 SHA256（理想用 HKDF<SHA256>，但 IOPlatformUUID 128-bit 熵足够 MVP）。文件权限统一 0600。
+**Evidence**: task 002 落地 `Launcher/Config/{SecretStore,KeychainSecretStore,EncryptedFileSecretStore}.swift`；6 个 SecretStoreFactory acceptance test 覆盖 DI 强制失败路径；真实 `buddy launcher config set` 测试通过 0600 权限验证 + Keychain entry 写入。
+
+### [2026-05-26] BuddyCLI 扩展配置子命令用 nested switch 内联实现，**不**给 buddy-cli target 加 BuddyCore 依赖
+<!-- tags: buddy-cli, swift-package-manager, target-dependency, argument-parser, nested-switch, cli-design, source-of-truth, command-line, lsuielement, cold-start -->
+**Scenario**: BuddyCLI/main.swift 是 841 行单文件 raw `CommandLine.arguments` + switch 分发（无 ArgumentParser）。task 002 要加 `buddy launcher config set/get/use` 子命令调 LauncherConfig + SecretStoreFactory，这些类型位于 BuddyCore（AppKit/SwiftUI/SpriteKit 混合）。给 buddy-cli 加 BuddyCore 依赖会拉入 GUI 框架显著增加 CLI 启动开销。
+**Lesson**: 三种方案权衡 — ① 抽取 BuddyLauncherKit（最干净但重构成本高）② socket 委托（违反 app 未启动时也能配置的 PRD 意图）③ **内联实现 + SOURCE-OF-TRUTH 注释**（推荐 MVP）。选 ③：在 main.swift 顶部加 `// ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift` 注释段，mirror keychainService / launcherConfigPath / encryptedSecretsPath 等常量字符串；JSON I/O + Keychain 调用用 ~80 行 Foundation/Security 内联完成。**红队 acceptance 测试同时验证 CLI 写 ↔ app load 的互操作**，作为常量漂移的"检测网"。**parseArguments 必须在 default 分支显式提取 subcommand**：`else if opts.command == "launcher" && opts.subcommand.isEmpty { opts.subcommand = arg }`，否则 main switch 拿到的 subcommand 永远是空字符串。
+**Evidence**: task 002 落地 BuddyCLI/main.swift +~150 行内联 launcher config 子命令，Package.swift buddy-cli target 保持无 dependencies；真实 `buddy launcher config set` 命令验证 launcher.json + Keychain 写入；plan-reviewer 第 1 轮 BLOCKER 即在此问题，第 2 轮经此方案通过。
+
+### [2026-05-26] URLSession + URLProtocol mock 必须读 httpBodyStream 回 httpBody，否则 request body 永远 nil
+<!-- tags: urlsession, urlprotocol, mock, http-body, http-body-stream, network-mock, swift-testing, body-capture, canonical-request -->
+**Scenario**: 测试 HTTP client（如 AnthropicProvider）的 request body 字面量（`max_tokens=4096`、message schema 等）时，用 URLProtocol 子类拦截 URLSession 请求。但 `request.httpBody` 在 MockURLProtocol 的 `startLoading` 中永远 nil — URLSession 内部把 httpBody 转 `httpBodyStream` 后才传给 URLProtocol。如果 test 写 `XCTAssertEqual(request.httpBody...)` 会 fatal error 解包 nil。
+**Lesson**: MockURLProtocol 必须 override `canonicalRequest(for:)` 把 `httpBodyStream` 内容读回 `httpBody` 字段：
+```swift
+override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+    guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
+    var mutable = request
+    stream.open(); defer { stream.close() }
+    var data = Data()
+    let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: 4096)
+    defer { buf.deallocate() }
+    while stream.hasBytesAvailable {
+        let read = stream.read(buf, maxLength: 4096)
+        if read > 0 { data.append(buf, count: read) } else { break }
+    }
+    mutable.httpBody = data
+    return mutable
+}
+```
+这是 infra 修复（非 contract 削弱），所有上层断言保持原样。
+**Evidence**: task 002 LauncherProviderAcceptanceTests 的 MockURLProtocol 加此 override 后，19 个 Provider acceptance 测试（含 max_tokens=4096 / x-api-key header / OAI message schema 等）全部通过。
+
+### [2026-05-26] 跨任务红队测试契约演进：上游 task 锁的过渡占位需迁移而非保留 XCTSkip
+<!-- tags: red-team, acceptance-test, contract-evolution, cross-task, tdd, autopilot, sc-08, scope-control, brief-mode -->
+**Scenario**: 项目模式下 task 001 brief 把 `LauncherManager.submit("hi") → "echo: hi"` 作为契约，红队据此写了 4 个 echo 字符串断言。task 002 brief 明确"重写 submit"接入 ProviderFactory.create + provider.send。task 002 实现后，task 001 锁的 echo 测试与 task 002 实现冲突——红队铁律是"绝对不允许修改红队测试"，但这是**跨任务的契约演进**，不是"蓝队削弱当前任务测试"。
+**Lesson**: 区分两种场景：① **同任务**红队失败 → auto-fix 改实现（铁律不破） ② **上游任务**红队断言被下游 brief 明确演进 → **迁移**测试到新契约（不是删除）。迁移做法：保留语义部分（如 SC-08 "无状态" 仍成立）改断言形态（错误消息一致性替代 echo 字符匹配），文件顶加 `MARK: - 契约演进说明` 注释**明确记录 task X→Y 演进原因**，未来 reader 能追溯。**禁止用 XCTSkip("上游 task 已过时")** — soft skip 会让 CI 红绿信号失效。
+**Evidence**: task 002 迁移 task 001 SC-08 测试（LauncherManagerAcceptanceTests + LauncherHotkeyAcceptanceTests 中 4 个 echo 测试 → 1 个无状态错误消息一致性测试 + 完整 MARK 注释）；qa-reviewer Section C 评 "SC-08 迁移注释质量高，future reader 友好"。

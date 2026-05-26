@@ -15,7 +15,7 @@ tasks:
     title: "Provider 协议 + Anthropic/OpenAI 兼容实现 + SecretStore 探针降级 + 配置文件"
     depends_on: ["001-launcher-skeleton"]
     complexity: M
-    status: pending
+    status: done
     milestone: M2
     acceptance_scenarios: [SC-02, SC-07, SC-12]
 

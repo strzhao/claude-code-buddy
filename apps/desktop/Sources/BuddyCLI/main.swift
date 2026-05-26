@@ -1,10 +1,20 @@
 import Foundation
+import Security
 
 // MARK: - Constants
 
 private let socketPath = "/tmp/claude-buddy.sock"
 private let colorFilePath = "/tmp/claude-buddy-colors.json"
 private let appVersion = "0.5.0"
+
+// MARK: - Launcher Config Constants (mirror of Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift)
+// ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift
+// ⚠️ Any change here must be reflected in BuddyCore (and vice versa)
+// CLI cannot depend on BuddyCore (would pull in AppKit/SwiftUI/SpriteKit, slowing buddy CLI startup)
+private let launcherKeychainService = "claude-code-buddy.launcher"
+private let launcherConfigDir = "\(NSHomeDirectory())/.buddy"
+private let launcherConfigPath = "\(launcherConfigDir)/launcher.json"
+private let launcherMinAPIKeyLength = 8
 
 // MARK: - Message Types
 
@@ -217,6 +227,12 @@ private struct CLIOptions {
     var last: Int = 0
     var xPosition: Double?
     var positionalArgs: [String] = []
+    // Launcher config fields (task 002)
+    var providerId: String = ""
+    var kind: String = ""
+    var baseURL: String = ""
+    var model: String = ""
+    var apiKey: String = ""
 }
 
 private func printHelp() {
@@ -294,6 +310,21 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--label":
             i += 1
             if i < args.count { opts.label = args[i] }
+        case "--provider":
+            i += 1
+            if i < args.count { opts.providerId = args[i] }
+        case "--kind":
+            i += 1
+            if i < args.count { opts.kind = args[i] }
+        case "--base-url":
+            i += 1
+            if i < args.count { opts.baseURL = args[i] }
+        case "--model":
+            i += 1
+            if i < args.count { opts.model = args[i] }
+        case "--api-key":
+            i += 1
+            if i < args.count { opts.apiKey = args[i] }
         default:
             if opts.command.isEmpty {
                 opts.command = arg
@@ -302,6 +333,8 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
             } else if (opts.command == "label" || opts.command == "token") && opts.positionalArgs.count < 2 {
                 opts.positionalArgs.append(arg)
             } else if opts.command == "emit" && opts.subcommand.isEmpty {
+                opts.subcommand = arg
+            } else if opts.command == "launcher" && opts.subcommand.isEmpty {
                 opts.subcommand = arg
             } else {
                 opts.positionalArgs.append(arg)
@@ -829,6 +862,24 @@ private func main() {
         cmdEvents(opts)
     case "health":
         cmdHealth()
+    case "launcher":
+        switch opts.subcommand {
+        case "config":
+            switch opts.positionalArgs.first {
+            case "set":
+                cmdLauncherConfigSet(opts)
+            case "get":
+                cmdLauncherConfigGet(opts)
+            case "use":
+                cmdLauncherConfigUse(opts)
+            default:
+                fputs("Usage: buddy launcher config <set|get|use> ...\n", stderr)
+                exit(2)
+            }
+        default:
+            fputs("Usage: buddy launcher <config|...> ...\n", stderr)
+            exit(2)
+        }
     case "help", "--help", "-h", "":
         printHelp()
     default:
@@ -839,3 +890,151 @@ private func main() {
 }
 
 main()
+
+// MARK: - Launcher Config (Inline Implementation)
+// ⚠️ 不依赖 BuddyCore：CLI 不引入 AppKit/SwiftUI/SpriteKit 以保持低启动延迟
+// JSON schema 与 BuddyCore LauncherConfig / ProviderConfig 保持一致
+
+private struct CLIProviderConfig: Codable {
+    let kind: String
+    let baseURL: String?
+    let model: String
+    let keyRef: String
+}
+
+private struct CLILauncherConfig: Codable {
+    var activeProvider: String
+    var providers: [String: CLIProviderConfig]
+}
+
+private func cliLoadConfig() -> CLILauncherConfig {
+    let url = URL(fileURLWithPath: launcherConfigPath)
+    guard let data = try? Data(contentsOf: url),
+          let cfg = try? JSONDecoder().decode(CLILauncherConfig.self, from: data) else {
+        return CLILauncherConfig(activeProvider: "", providers: [:])
+    }
+    return cfg
+}
+
+private func cliSaveConfig(_ cfg: CLILauncherConfig) throws {
+    try FileManager.default.createDirectory(
+        atPath: launcherConfigDir,
+        withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o700]
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(cfg)
+    let url = URL(fileURLWithPath: launcherConfigPath)
+    try data.write(to: url, options: .atomic)
+    try FileManager.default.setAttributes(
+        [.posixPermissions: 0o600],
+        ofItemAtPath: launcherConfigPath
+    )
+}
+
+private func cliKeychainSave(account: String, value: String) -> Bool {
+    let data = Data(value.utf8)
+    let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: launcherKeychainService,
+        kSecAttrAccount as String: account
+    ]
+    SecItemDelete(query as CFDictionary)
+    var attrs = query
+    attrs[kSecValueData as String] = data
+    return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
+}
+
+private func cmdLauncherConfigSet(_ opts: CLIOptions) {
+    guard !opts.providerId.isEmpty, !opts.kind.isEmpty, !opts.model.isEmpty, !opts.apiKey.isEmpty else {
+        fputs("Usage: buddy launcher config set --provider <id> --kind <anthropic|openai-compatible> [--base-url URL] --model NAME --api-key KEY\n", stderr)
+        exit(2)
+    }
+    guard opts.apiKey.count >= launcherMinAPIKeyLength else {
+        fputs("Error: API key must be at least \(launcherMinAPIKeyLength) characters\n", stderr)
+        exit(2)
+    }
+    if opts.kind == "openai-compatible" {
+        guard !opts.baseURL.isEmpty,
+              opts.baseURL.hasPrefix("http://") || opts.baseURL.hasPrefix("https://") else {
+            fputs("Error: openai-compatible kind requires --base-url <http(s)://...>\n", stderr)
+            exit(2)
+        }
+    } else if opts.kind != "anthropic" {
+        fputs("Error: kind must be 'anthropic' or 'openai-compatible'\n", stderr)
+        exit(2)
+    }
+
+    let keyRef = "\(opts.providerId).apiKey"
+    guard cliKeychainSave(account: keyRef, value: opts.apiKey) else {
+        fputs("Error: Keychain write failed (ad-hoc signed app may have entitlement issues). Please launch buddy app and configure via app UI.\n", stderr)
+        exit(3)
+    }
+
+    var cfg = cliLoadConfig()
+    cfg.providers[opts.providerId] = CLIProviderConfig(
+        kind: opts.kind,
+        baseURL: opts.kind == "openai-compatible" ? opts.baseURL : nil,
+        model: opts.model,
+        keyRef: keyRef
+    )
+    if cfg.activeProvider.isEmpty {
+        cfg.activeProvider = opts.providerId
+    }
+    do {
+        try cliSaveConfig(cfg)
+    } catch {
+        fputs("Error: write \(launcherConfigPath) failed: \(error)\n", stderr)
+        exit(1)
+    }
+
+    print("Provider \(opts.providerId) configured.")
+    print("  kind: \(opts.kind), model: \(opts.model)")
+    if opts.kind == "openai-compatible" { print("  base_url: \(opts.baseURL)") }
+    if cfg.activeProvider == opts.providerId { print("  active: yes") }
+}
+
+private func cmdLauncherConfigGet(_ opts: CLIOptions) {
+    let cfg = cliLoadConfig()
+    if cfg.providers.isEmpty {
+        print("No providers configured. Use: buddy launcher config set --provider <id> ...")
+        return
+    }
+    if !opts.providerId.isEmpty {
+        guard let p = cfg.providers[opts.providerId] else {
+            fputs("Provider \(opts.providerId) not found.\n", stderr)
+            exit(1)
+        }
+        let baseURLStr = p.baseURL.map { ", base_url=\($0)" } ?? ""
+        let activeStr = cfg.activeProvider == opts.providerId ? " [active]" : ""
+        print("\(opts.providerId): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(activeStr)")
+    } else {
+        for (id, p) in cfg.providers.sorted(by: { $0.key < $1.key }) {
+            let baseURLStr = p.baseURL.map { ", base_url=\($0)" } ?? ""
+            let activeStr = cfg.activeProvider == id ? " [active]" : ""
+            print("\(id): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(activeStr)")
+        }
+    }
+}
+
+private func cmdLauncherConfigUse(_ opts: CLIOptions) {
+    let target = opts.positionalArgs.dropFirst().first ?? (opts.positionalArgs.first ?? opts.providerId)
+    guard !target.isEmpty else {
+        fputs("Usage: buddy launcher config use <provider-id>\n", stderr)
+        exit(2)
+    }
+    var cfg = cliLoadConfig()
+    guard cfg.providers[target] != nil else {
+        fputs("Provider \(target) not found. Configure first with: buddy launcher config set ...\n", stderr)
+        exit(1)
+    }
+    cfg.activeProvider = target
+    do {
+        try cliSaveConfig(cfg)
+    } catch {
+        fputs("Write failed: \(error)\n", stderr)
+        exit(1)
+    }
+    print("Active provider: \(target)")
+}

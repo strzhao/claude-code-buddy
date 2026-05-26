@@ -222,7 +222,9 @@ final class LauncherConstantsAcceptanceTests: XCTestCase {
 ///
 /// 契约：LauncherError.hotkeyConflict(combo).localizedDescription
 ///        必须包含 combo 字符串和"被其他应用占用"。
-final class LauncherErrorAcceptanceTests: XCTestCase {
+// NOTE: Renamed from LauncherErrorAcceptanceTests to LauncherHotkeyErrorAcceptanceTests
+// to avoid conflict with task 002's LauncherErrorAcceptanceTests.swift
+final class LauncherHotkeyErrorAcceptanceTests: XCTestCase {
 
     // MARK: - L. hotkeyConflict localizedDescription 契约
 
@@ -355,67 +357,32 @@ final class LauncherWindowContractTests: XCTestCase {
 }
 
 // MARK: - LauncherSubmitStatelessAcceptanceTests
+//
+// SC-08 契约演进（task 001 → task 002）：
+// task 001 原本断言 submit("hi") → "echo: hi"，但 task 002 brief 明确**重写 submit**
+// 接入 ProviderFactory → provider.send。echo 仅是 task 001 阶段过渡占位，非长期契约。
+// SC-08 的"每次唤起为新 session"语义在 task 002 仍成立（连续 submit 无状态），
+// 但断言形态从 echo 字符匹配 → 错误消息一致性（同样的未配置错误）。
 
-/// 验收测试：LauncherManager.submit 无状态语义（SC-08）
-///
-/// 契约：
-///   - submit("test") 返回 AttributedString("echo: test")
-///   - 每次调用独立计算，无内部 messages 数组持久化
-///   - 再次召唤时 output 为空（新 session）
 @MainActor
 final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
 
-    // MARK: - R. submit 返回 echo 占位（SC-08）
-
-    func test_SC08_submit_returnsEchoPlaceholder() async {
-        let result = await LauncherManager.shared.submit("test")
-        XCTAssertEqual(
-            result,
-            AttributedString("echo: test"),
-            "submit(\"test\") must return exactly AttributedString(\"echo: test\")"
-        )
-    }
-
-    func test_SC08_submit_hi_returnsEchoHi() async {
-        let result = await LauncherManager.shared.submit("hi")
-        XCTAssertEqual(
-            result,
-            AttributedString("echo: hi"),
-            "submit(\"hi\") must return exactly AttributedString(\"echo: hi\")"
-        )
-    }
-
-    // MARK: - S. 连续调用 submit 结果独立（无内部 messages 累积）
-
-    /// Mutation 探针：如果有持久化 messages 数组，第二次结果会包含第一次内容。
+    /// 连续两次 submit 独立计算（SC-08，无 messages 累积）
+    /// task 002 演进：错误消息本身也是无状态的，不携带前序输入。
     func test_SC08_submit_isStateless_noPersistentMessages() async {
-        // When: 先提交一条
+        // Given: 无 provider 配置（每次 submit 走相同的错误路径）
         let first = await LauncherManager.shared.submit("first-message")
-        XCTAssertEqual(first, AttributedString("echo: first-message"),
-                       "First submit must return echo: first-message")
-
-        // When: 再提交另一条
         let second = await LauncherManager.shared.submit("second-message")
 
-        // Then: 第二条只包含自己，不含第一条内容
-        XCTAssertEqual(second, AttributedString("echo: second-message"),
-                       "Second submit must return only echo: second-message")
-
-        // 精确验证第二条不含第一条内容（防 messages 数组累积）
+        let firstStr = String(first.characters)
         let secondStr = String(second.characters)
-        XCTAssertFalse(
-            secondStr.contains("first-message"),
-            "submit result must not contain previous query — no persistent messages array allowed"
-        )
-    }
 
-    /// submit 对空字符串返回 "echo: "（边界：空 query 允许）。
-    func test_SC08_submit_emptyQuery_returnsEchoEmpty() async {
-        let result = await LauncherManager.shared.submit("")
-        XCTAssertEqual(
-            result,
-            AttributedString("echo: "),
-            "submit(\"\") must return AttributedString(\"echo: \")"
-        )
+        // Then: 两次结果完全一致（同样的无配置错误，无前序输入痕迹）
+        XCTAssertEqual(firstStr, secondStr,
+                       "无 provider 时连续调用应返回完全相同错误（无状态）")
+        XCTAssertFalse(secondStr.contains("first-message"),
+                       "第二次结果不应含第一次 query 内容（防 messages 数组累积）")
+        XCTAssertFalse(firstStr.contains("second-message"),
+                       "第一次结果不应含第二次 query 内容（防引用未来状态）")
     }
 }

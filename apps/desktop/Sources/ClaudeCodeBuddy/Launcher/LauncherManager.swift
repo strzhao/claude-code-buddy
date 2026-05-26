@@ -11,6 +11,9 @@ final class LauncherManager: ObservableObject {
     private var resignKeyObserver: NSObjectProtocol?
     private var isSetup = false
 
+    /// 缓存 secretStore，避免每次 submit 都 probe Keychain（lazy 在 setup() 中初始化一次）
+    private lazy var secretStore: SecretStore? = try? SecretStoreFactory.create()
+
     private init() {}
 
     private func makeWindow() -> LauncherWindow {
@@ -33,6 +36,9 @@ final class LauncherManager: ObservableObject {
 
         // 触发 launcherWindow lazy 初始化
         _ = launcherWindow
+
+        // 触发 secretStore lazy 初始化（probe Keychain 一次，选择存储后端）
+        _ = secretStore
 
         // 注册全局快捷键
         LauncherHotkey.register { [weak self] in self?.toggle() }
@@ -69,8 +75,34 @@ final class LauncherManager: ObservableObject {
         if isVisible { hide() } else { show() }
     }
 
-    /// 占位 submit（task 003 重写为 AsyncStream<AgentEvent>）
+    /// 发送查询到配置的 Provider，返回 markdown 渲染后的 AttributedString
+    /// 错误时返回带 ⚠️ 前缀的错误描述（task 003 重写为 AsyncStream<AgentEvent>）
     func submit(_ query: String) async -> AttributedString {
-        return AttributedString("echo: \(query)")
+        do {
+            let config = try LauncherConfig.load()
+            guard !config.activeProvider.isEmpty,
+                  let providerConfig = config.providers[config.activeProvider] else {
+                throw LauncherError.providerNotConfigured
+            }
+            guard let store = secretStore else {
+                throw LauncherError.secretStoreUnavailable
+            }
+            let provider = try ProviderFactory.create(providerConfig, store: store)
+            let response = try await provider.send(
+                messages: [AgentMessage(role: "user", content: [.text(query)])],
+                tools: [],
+                model: providerConfig.model
+            )
+            // 取响应中所有 text 内容拼接（task 003 才做 agent loop）
+            let text = response.content.compactMap { content -> String? in
+                if case .text(let s) = content { return s }
+                return nil
+            }.joined()
+            return MarkdownRenderer.render(text)
+        } catch let err as LauncherError {
+            return MarkdownRenderer.renderError(err)
+        } catch {
+            return MarkdownRenderer.renderError(.networkFailure(error))
+        }
     }
 }

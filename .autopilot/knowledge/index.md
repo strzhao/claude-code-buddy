@@ -63,3 +63,6 @@
 - [2026-05-26] BuddyCLI 扩展配置子命令用 nested switch 内联实现，不加 BuddyCore 依赖避免拉入 GUI 框架 | tags: buddy-cli, swift-package-manager, target-dependency, nested-switch, cli-design, source-of-truth, command-line, lsuielement, cold-start | → patterns.md
 - [2026-05-26] URLSession + URLProtocol mock 必须读 httpBodyStream 回 httpBody | tags: urlsession, urlprotocol, mock, http-body, http-body-stream, network-mock, swift-testing, canonical-request | → patterns.md
 - [2026-05-26] 跨任务红队契约演进：上游 task 锁的过渡占位需迁移而非保留 XCTSkip | tags: red-team, acceptance-test, contract-evolution, cross-task, tdd, autopilot, brief-mode | → patterns.md
+- [2026-05-26] AsyncStream + Task.detached + onTermination cancel 双层取消传播链 | tags: async-stream, task-detached, on-termination, cancel, swift-concurrency, streaming, asyncsequence, structured-concurrency, leak-prevention | → patterns.md
+- [2026-05-26] @MainActor 类内异步方法用同步前置读 + Task.detached 离开 actor 隔离避免阻塞 UI | tags: mainactor, task-detached, actor-isolation, ui-blocking, async-await, sendable, capture-list, swift-concurrency | → patterns.md
+- [2026-05-26] 自定义 Equatable 的 mutation 探针陷阱：toolCall.== 必须比较所有携带状态 | tags: equatable, mutation-testing, false-positive, swift-enum, associated-values, anycodable, red-team, acceptance-test, tdd, plan-reviewer | → patterns.md

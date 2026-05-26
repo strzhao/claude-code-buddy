@@ -299,3 +299,25 @@ override class func canonicalRequest(for request: URLRequest) -> URLRequest {
 **Scenario**: 项目模式下 task 001 brief 把 `LauncherManager.submit("hi") → "echo: hi"` 作为契约，红队据此写了 4 个 echo 字符串断言。task 002 brief 明确"重写 submit"接入 ProviderFactory.create + provider.send。task 002 实现后，task 001 锁的 echo 测试与 task 002 实现冲突——红队铁律是"绝对不允许修改红队测试"，但这是**跨任务的契约演进**，不是"蓝队削弱当前任务测试"。
 **Lesson**: 区分两种场景：① **同任务**红队失败 → auto-fix 改实现（铁律不破） ② **上游任务**红队断言被下游 brief 明确演进 → **迁移**测试到新契约（不是删除）。迁移做法：保留语义部分（如 SC-08 "无状态" 仍成立）改断言形态（错误消息一致性替代 echo 字符匹配），文件顶加 `MARK: - 契约演进说明` 注释**明确记录 task X→Y 演进原因**，未来 reader 能追溯。**禁止用 XCTSkip("上游 task 已过时")** — soft skip 会让 CI 红绿信号失效。
 **Evidence**: task 002 迁移 task 001 SC-08 测试（LauncherManagerAcceptanceTests + LauncherHotkeyAcceptanceTests 中 4 个 echo 测试 → 1 个无状态错误消息一致性测试 + 完整 MARK 注释）；qa-reviewer Section C 评 "SC-08 迁移注释质量高，future reader 友好"。
+
+### [2026-05-26] AsyncStream + Task.detached + onTermination cancel 双层取消传播链
+<!-- tags: async-stream, task-detached, on-termination, cancel, swift-concurrency, streaming, asyncsequence, structured-concurrency, leak-prevention -->
+**Scenario**: LauncherManager.submit 返回 `AsyncStream<AgentEvent>` 流式接口，内部 LauncherAgent.run 也返回 AsyncStream（agent loop 多轮 yield）。消费者放弃外层 stream（如关闭浮窗）时，需要级联取消内部 stream，否则后台 Task 继续跑完整 HTTP 请求 + agent 多轮调用，浪费资源 + 并发 race。
+**Lesson**: 双层 onTermination cancel 链模式：
+- **外层 stream**（LauncherManager.submit）的 `AsyncStream { continuation in ... }` 闭包内：`let task = Task.detached { ... for await event in agent.run(...) { continuation.yield(event) } continuation.finish() }`；末尾 `continuation.onTermination = { _ in task.cancel() }`
+- **内层 stream**（LauncherAgent.run）同样模式：`let task = Task { ... }`；`continuation.onTermination = { _ in task.cancel() }`；agent loop 内显式 `if Task.isCancelled { return }` 提前终止
+- 取消传播链：消费方 break → 外 stream finish → 外 onTermination → cancel 外 Task → 外 Task 内 for await 中断 → 内 stream 也 finish → 内 onTermination → cancel 内 Task → agent loop Task.isCancelled 提前 return
+- 这是 Swift 结构化并发的正确链路。注意：`task.cancel()` 是幂等操作，重复调用无副作用；continuation.yield 在 stream 已 finished 状态下被静默丢弃，不 crash
+**Evidence**: task 003 LauncherManager.submit + LauncherAgent.run 双 AsyncStream 链；测试 `test_scenario4_networkFailure_immediatelyYieldsErrorWithoutRetry` 验证 cancel 后不再 yield 新事件；qa-reviewer Section B Strengths 评"双层 onTermination cancel 链是教科书级修复"。
+
+### [2026-05-26] @MainActor 类内异步方法用同步前置读 + Task.detached 离开 actor 隔离避免阻塞 UI
+<!-- tags: mainactor, task-detached, actor-isolation, ui-blocking, async-await, sendable, capture-list, swift-concurrency -->
+**Scenario**: `@MainActor final class LauncherManager` 内的 `submit(_ query: String) -> AsyncStream<AgentEvent>` 默认隔离到 MainActor。如果直接写 `Task { await provider.send(...) }`，Task 闭包继承调用方的 actor 隔离 → 整个 agent loop（含 120s HTTP 超时窗口）在主线程跑，UI 卡顿。
+**Lesson**: 模式：① 在 `@MainActor` 函数体**同步**读出所有需要的依赖到本地 let 常量（config / providerConfig / secretStore / factoryOverride）—— 此时还在 MainActor，安全读 self 的属性 ② 用 **`Task.detached`**（不是 `Task { }`）执行 agent loop，捕获列表中**只**带入前面读出的本地常量，不带 self ③ `nonisolated private static func errorStream(_:)` 用于配置错误等同步快速路径（不需要 detach）④ 对错误前置场景（providerNotConfigured / secretStoreUnavailable）走 errorStream 同步返回，对正常路径走 detach。这样 MainActor 在 submit 调用瞬间释放，UI 不阻塞，detach Task 在后台执行 HTTP+agent。
+**Evidence**: task 003 LauncherManager.swift submit 实现；plan-reviewer 第 1 轮 BLOCKER-2 即此问题（默认 Task { } 阻塞 UI），第 2 轮通过此修复 PASS；706 个测试 + Tier 1.5 5 场景全过。
+
+### [2026-05-26] 自定义 Equatable 的 mutation 探针陷阱：toolCall.== 必须比较所有携带状态
+<!-- tags: equatable, mutation-testing, false-positive, swift-enum, associated-values, anycodable, red-team, acceptance-test, tdd, plan-reviewer -->
+**Scenario**: `enum AgentEvent { case toolCall(name: String, input: [String: AnyCodable]); ... }` 自定义 Equatable 时常见的偷懒写法：`case (.toolCall(let n1, _), .toolCall(let n2, _)): return n1 == n2` —— input 用 `_` 丢弃，"留给测试断言"。问题：所有依赖 `XCTAssertEqual(events, expected)` 数组比较的测试都会**假阳性**：两个 name 相同但 input 不同的 toolCall 事件被判等。如果实现把 tool input 解析错（如把 user message 当 tool input），测试仍然绿灯。
+**Lesson**: 自定义 Equatable 必须**比较 enum case 的所有 associated value**，除非有明确的"宽松比较"语义（如 `.error(Error)` 因为 Error 协议不是 Equatable，可以仅按 case 类型比较，但需注释说明）。对 `[String: AnyCodable]` 类型，AnyCodable 自身需先实现 Equatable（通常通过 JSONEncoder 字节比较：`JSONEncoder().encode(lhs) == JSONEncoder().encode(rhs)`）。**红队测试应有 mutation 探针**：写 `XCTAssertNotEqual(.toolCall("x", ["k":"a"]), .toolCall("x", ["k":"b"]))` 显式验证 input 不同则不等，否则 == 的实现 bug 永远不会暴露。
+**Evidence**: task 003 plan-reviewer 第 1 轮 BLOCKER-1 即此问题（设计草图写 `n1 == n2 // input 比较留给测试`，但测试草图全用数组 Equatable）；修复为 `n1 == n2 && i1 == i2`；红队 acceptance `test_agentEvent_toolCall_notEqualsWhenInputDiffers` 作为 mutation 探针验证。

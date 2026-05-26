@@ -23,7 +23,7 @@ tasks:
     title: "翻译 learn-everything v1 永远 loop + 流式 markdown 渲染"
     depends_on: ["002-provider-abstraction"]
     complexity: M
-    status: pending
+    status: done
     milestone: M2
     acceptance_scenarios: [SC-03, SC-08]
 

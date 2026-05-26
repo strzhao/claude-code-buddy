@@ -36,7 +36,8 @@ Sources/
 │   ├── Launcher/       # Alfred 式 AI 启动器: LauncherManager(AsyncStream submit), LauncherWindow, LauncherInputView
 │   │   ├── Provider/   # LauncherProvider 协议 + AnthropicProvider + OpenAICompatibleProvider + ProviderFactory
 │   │   ├── Config/     # SecretStore(Keychain→EncryptedFile 探针降级) + LauncherConfig JSON
-│   │   └── Agent/      # LauncherAgent(永远 loop+tool_use 早停) + AgentEvent enum + AgentMessage/AgentTool/AnyCodable
+│   │   ├── Agent/      # LauncherAgent(永远 loop+tool_use 早停) + AgentEvent enum + AgentMessage/AgentTool/AnyCodable
+│   │   └── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + PluginExecutor(Process子进程) + PluginManifest(Codable schema)
 │   ├── Window/         # 窗口: BuddyWindow, DockTracker, MouseTracker
 │   ├── MenuBar/        # 状态栏弹窗: SessionPopoverController
 │   ├── Assets/Sprites/ # 48x48 像素猫咪精灵图

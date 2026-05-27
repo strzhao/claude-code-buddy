@@ -388,6 +388,7 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
             case .pluginTimeout(let i): return "pluginTimeout(\(i))"
             case .pluginCrash(let c, _): return "pluginCrash(\(c))"
             case .pluginManifestInvalid(let s): return "pluginManifestInvalid(\(s))"
+            case .pluginNotTrusted(let s): return "pluginNotTrusted(\(s))"
             }
         }
 

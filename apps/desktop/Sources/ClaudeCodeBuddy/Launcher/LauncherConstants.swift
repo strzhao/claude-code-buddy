@@ -35,4 +35,7 @@ enum LauncherConstants {
         "/usr/local/bin",
         "\(NSHomeDirectory())/.local/bin"
     ]
+
+    // Router（task 005 追加）
+    static let routerMaxCandidates: Int = 5
 }

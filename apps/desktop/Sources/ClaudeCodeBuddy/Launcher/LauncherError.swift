@@ -16,6 +16,8 @@ enum LauncherError: Error, LocalizedError {
     case pluginTimeout(Int)
     case pluginCrash(Int32, String)
     case pluginManifestInvalid(String)
+    // task 006 追加：
+    case pluginNotTrusted(String)
 
     var errorDescription: String? {
         switch self {
@@ -43,6 +45,8 @@ enum LauncherError: Error, LocalizedError {
             return "插件异常退出（退出码 \(code)）：\(stderr)"
         case .pluginManifestInvalid(let reason):
             return "plugin.json 格式无效：\(reason)"
+        case .pluginNotTrusted(let name):
+            return "插件 \(name) 未获信任授权，已拒绝执行"
         }
     }
 }

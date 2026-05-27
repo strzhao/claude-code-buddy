@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import CryptoKit
 
 // MARK: - Constants
 
@@ -11,9 +12,14 @@ private let appVersion = "0.5.0"
 // ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift
 // ⚠️ Any change here must be reflected in BuddyCore (and vice versa)
 // CLI cannot depend on BuddyCore (would pull in AppKit/SwiftUI/SpriteKit, slowing buddy CLI startup)
+// 注：优先读 $HOME 环境变量（便于测试时通过 HOME 重定向到临时目录隔离）；
+// 生产环境 $HOME 与 NSHomeDirectory() 等价；fallback 保证 $HOME 未设时仍可用。
 private let launcherKeychainService = "claude-code-buddy.launcher"
-private let launcherConfigDir = "\(NSHomeDirectory())/.buddy"
+private let buddyHomeDir: String = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
+private let launcherConfigDir = "\(buddyHomeDir)/.buddy"
 private let launcherConfigPath = "\(launcherConfigDir)/launcher.json"
+private let launcherPluginsDir = "\(launcherConfigDir)/launcher-plugins"
+private let launcherTrustPath = "\(launcherConfigDir)/launcher-trust.json"
 private let launcherMinAPIKeyLength = 8
 
 // MARK: - Message Types
@@ -876,8 +882,16 @@ private func main() {
                 fputs("Usage: buddy launcher config <set|get|use> ...\n", stderr)
                 exit(2)
             }
+        case "add":
+            cmdLauncherAdd(opts.positionalArgs.first ?? "")
+        case "list":
+            cmdLauncherList()
+        case "remove":
+            cmdLauncherRemove(opts.positionalArgs.first ?? "")
+        case "inspect":
+            cmdLauncherInspect(opts.positionalArgs.first ?? "")
         default:
-            fputs("Usage: buddy launcher <config|...> ...\n", stderr)
+            fputs("Usage: buddy launcher <config|add|list|remove|inspect> ...\n", stderr)
             exit(2)
         }
     case "help", "--help", "-h", "":
@@ -1037,4 +1051,235 @@ private func cmdLauncherConfigUse(_ opts: CLIOptions) {
         exit(1)
     }
     print("Active provider: \(target)")
+}
+
+// MARK: - Launcher Plugin Management (task 006)
+// SOURCE OF TRUTH: BuddyCore/Launcher/Plugin/TrustStore.swift TrustRecord
+// CLI inlined to avoid BuddyCore dependency
+private struct CLITrustRecord: Codable {
+    let trustKey: String
+    let pluginName: String
+    let approvedAt: Date
+}
+
+private struct CLITrustFile: Codable {
+    var records: [CLITrustRecord]
+}
+
+private struct CLIPluginManifestCheck: Codable {
+    let name: String
+    let version: String
+    let description: String
+    let keywords: [String]
+    let cmd: String
+    let args: [String]
+}
+
+private func cliLoadTrustFile() -> CLITrustFile {
+    guard let data = try? Data(contentsOf: URL(fileURLWithPath: launcherTrustPath)),
+          let file = try? JSONDecoder.iso8601().decode(CLITrustFile.self, from: data) else {
+        return CLITrustFile(records: [])
+    }
+    return file
+}
+
+private func cliSaveTrustFile(_ file: CLITrustFile) throws {
+    try FileManager.default.createDirectory(atPath: launcherConfigDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    let encoder = JSONEncoder.iso8601Pretty()
+    let data = try encoder.encode(file)
+    try data.write(to: URL(fileURLWithPath: launcherTrustPath))
+    try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: launcherTrustPath)
+}
+
+private func cmdLauncherAdd(_ userRepo: String) {
+    let parts = userRepo.split(separator: "/")
+    guard parts.count == 2,
+          !parts[0].isEmpty, !parts[1].isEmpty,
+          !parts.contains(where: { $0.hasPrefix(".") }) else {
+        fputs("Invalid user/repo format: '\(userRepo)'. Expected <user>/<repo>\n", stderr)
+        exit(2)
+    }
+    let dirName = userRepo.replacingOccurrences(of: "/", with: "-")
+    let targetDir = URL(fileURLWithPath: "\(launcherPluginsDir)/\(dirName)")
+    guard !FileManager.default.fileExists(atPath: targetDir.path) else {
+        fputs("Plugin already installed: \(dirName)\n", stderr)
+        exit(3)
+    }
+    try? FileManager.default.createDirectory(atPath: launcherPluginsDir, withIntermediateDirectories: true, attributes: nil)
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    process.arguments = ["clone", "--depth", "1", "https://github.com/\(userRepo).git", targetDir.path]
+    process.environment = ProcessInfo.processInfo.environment
+
+    do {
+        try process.run()
+    } catch {
+        fputs("git clone failed to start: \(error)\n", stderr)
+        exit(1)
+    }
+    // 60s timeout
+    let timeoutWork = DispatchWorkItem {
+        if process.isRunning { process.terminate() }
+    }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timeoutWork)
+    process.waitUntilExit()
+    timeoutWork.cancel()
+
+    guard process.terminationStatus == 0 else {
+        try? FileManager.default.removeItem(at: targetDir)
+        fputs("git clone failed (exit \(process.terminationStatus))\n", stderr)
+        exit(1)
+    }
+
+    let manifestURL = targetDir.appending(path: "plugin.json")
+    guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+        try? FileManager.default.removeItem(at: targetDir)
+        fputs("Missing plugin.json in \(userRepo)\n", stderr)
+        exit(2)
+    }
+
+    do {
+        let data = try Data(contentsOf: manifestURL)
+        _ = try JSONDecoder().decode(CLIPluginManifestCheck.self, from: data)
+    } catch {
+        try? FileManager.default.removeItem(at: targetDir)
+        fputs("Invalid plugin.json: \(error)\n", stderr)
+        exit(2)
+    }
+    print("Installed \(userRepo) -> \(targetDir.path)")
+}
+
+private func cliComputeTrustKey(cmd: String, args: [String], executableURL: URL) -> String? {
+    guard let exeData = try? Data(contentsOf: executableURL) else { return nil }
+    let exeDigest = SHA256.hash(data: exeData)
+    let exeHashHex = exeDigest.map { String(format: "%02x", $0) }.joined()
+    let combined = "\(cmd)\n\(args.joined(separator: "\n"))\n\(exeHashHex)"
+    let digest = SHA256.hash(data: Data(combined.utf8))
+    return digest.map { String(format: "%02x", $0) }.joined()
+}
+
+private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) -> String {
+    let trustFile = cliLoadTrustFile()
+    guard let record = trustFile.records.first(where: { $0.pluginName == manifest.name }) else {
+        return "never_run"
+    }
+    let exeURL = pluginDir.appending(path: manifest.cmd)
+    guard let currentKey = cliComputeTrustKey(cmd: manifest.cmd, args: manifest.args, executableURL: exeURL) else {
+        return "untrusted"
+    }
+    return currentKey == record.trustKey ? "trusted" : "untrusted"
+}
+
+private func cmdLauncherList() {
+    let baseURL = URL(fileURLWithPath: launcherPluginsDir)
+    guard let entries = try? FileManager.default.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else {
+        print("No plugins installed.")
+        return
+    }
+    var count = 0
+    for entry in entries {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir), isDir.boolValue else { continue }
+        let manifestURL = entry.appending(path: "plugin.json")
+        guard let data = try? Data(contentsOf: manifestURL),
+              let m = try? JSONDecoder().decode(CLIPluginManifestCheck.self, from: data) else { continue }
+        let status = cliTrustStatus(manifest: m, pluginDir: entry)
+        print("\(m.name) (v\(m.version)) [\(status)] - \(m.description)")
+        count += 1
+    }
+    if count == 0 {
+        print("No plugins installed.")
+    }
+}
+
+private func cmdLauncherRemove(_ name: String) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher remove <name>\n", stderr)
+        exit(2)
+    }
+    let baseURL = URL(fileURLWithPath: launcherPluginsDir)
+    let entries = (try? FileManager.default.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil)) ?? []
+    var found: URL?
+    for entry in entries {
+        let manifestURL = entry.appending(path: "plugin.json")
+        if let data = try? Data(contentsOf: manifestURL),
+           let m = try? JSONDecoder().decode(CLIPluginManifestCheck.self, from: data),
+           m.name == name {
+            found = entry
+            break
+        }
+    }
+    guard let targetDir = found else {
+        fputs("Plugin not found: \(name)\n", stderr)
+        exit(1)
+    }
+    do {
+        try FileManager.default.removeItem(at: targetDir)
+    } catch {
+        fputs("Failed to remove plugin dir: \(error)\n", stderr)
+        exit(1)
+    }
+    // Sync trust.json
+    var trustFile = cliLoadTrustFile()
+    trustFile.records.removeAll { $0.pluginName == name }
+    try? cliSaveTrustFile(trustFile)
+    print("Removed plugin: \(name)")
+}
+
+private func cmdLauncherInspect(_ name: String) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher inspect <name>\n", stderr)
+        exit(2)
+    }
+    let baseURL = URL(fileURLWithPath: launcherPluginsDir)
+    let entries = (try? FileManager.default.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil)) ?? []
+    var foundManifest: CLIPluginManifestCheck?
+    var foundDir: URL?
+    for entry in entries {
+        let manifestURL = entry.appending(path: "plugin.json")
+        if let data = try? Data(contentsOf: manifestURL),
+           let m = try? JSONDecoder().decode(CLIPluginManifestCheck.self, from: data),
+           m.name == name {
+            foundManifest = m
+            foundDir = entry
+            break
+        }
+    }
+    guard let m = foundManifest, let dir = foundDir else {
+        fputs("Plugin not found: \(name)\n", stderr)
+        exit(1)
+    }
+    let status = cliTrustStatus(manifest: m, pluginDir: dir)
+    let out: [String: Any] = [
+        "name": m.name,
+        "version": m.version,
+        "description": m.description,
+        "trust_status": status,
+        "install_path": dir.path
+    ]
+    if let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]),
+       let str = String(data: data, encoding: .utf8) {
+        print(str)
+    } else {
+        fputs("Failed to encode inspect output\n", stderr)
+        exit(1)
+    }
+}
+
+private extension JSONDecoder {
+    static func iso8601() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }
+}
+
+private extension JSONEncoder {
+    static func iso8601Pretty() -> JSONEncoder {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        e.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return e
+    }
 }

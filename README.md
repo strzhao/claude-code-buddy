@@ -4,6 +4,10 @@ macOS 桌面伴侣 —— Dock 上方的像素猫咪，实时反映 Claude Code 
 
 每个 Claude Code 会话对应一只猫。空闲时打盹，思考时摇尾巴，写代码时来回奔跑。多个会话 = 多只猫共存。
 
+### Launcher 启动器（v0.25+）
+
+⌘⇧Space 召唤 Alfred 式 AI 助手，BYOK 接 Anthropic/Ollama，支持 CLI 插件生态（git clone 安装 + TOFU 信任）。详见 [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统)。
+
 ## 安装（2 步）
 
 ### 第 1 步：下载 App

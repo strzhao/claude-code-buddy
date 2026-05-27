@@ -47,7 +47,7 @@ tasks:
     title: "BuddyCLI launcher add/list/remove/config/inspect + git clone + TOFU NSAlert"
     depends_on: ["004-plugin-runtime"]
     complexity: M
-    status: pending
+    status: done
     milestone: M5
     notes: |
       复杂度升级理由：BuddyCLI/main.swift 是 841 行单文件 raw CommandLine（无 ArgumentParser）。

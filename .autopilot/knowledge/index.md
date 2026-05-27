@@ -70,3 +70,5 @@
 - [2026-05-26] SPM .copy 把可执行脚本打入 bundle，拷贝后必须显式 chmod 0o755 | tags: spm, swift-package-manager, copy, bundle-resource, hello-plugin, chmod, posix-permissions, resource-only-read, app-signing, lsuielement | → patterns.md
 - [2026-05-26] CLI 插件 manifest 字段校验防恶意：name 与 dirName 一致 + cmd 不允许绝对路径或 /.. | tags: plugin, manifest, security, path-traversal, malicious, validation, name-collision, code-execution | → patterns.md
 - [2026-05-27] AI 路由器 system prompt 拼 user message 前缀 + 强约束输出 — provider 协议无 system 字段的稳健替代 | tags: ai-router, system-prompt, llm-routing, user-message-prefix, plugin-selection, anthropic, structured-output, hallucinate-fallback, provider-abstraction | → patterns.md
+- [2026-05-27] NSHomeDirectory() 在 macOS 上忽略 HOME 环境变量，CLI 测试需显式读 $HOME | tags: nshomedirectory, macos, home-env, cli-testing, test-isolation, buddy-cli, getpwuid | → patterns/2026-05-27-nshomedirectory-ignores-home-env.md
+- [2026-05-27] TOFU trustKey 必须包含 executable bytes hash，cmd+args 不足以防替换攻击 | tags: tofu, trust, security, sha256, executable-hash, plugin-system, supply-chain, trustkey, cryptokit | → patterns/2026-05-27-tofu-trust-key-includes-exe-bytes.md

@@ -39,7 +39,7 @@ tasks:
     title: "keyword 缩候选 + AI 选 plugin + 候选列表 UI"
     depends_on: ["003-agent-loop", "004-plugin-runtime"]
     complexity: M
-    status: pending
+    status: done
     milestone: M4
     acceptance_scenarios: [SC-03, SC-04, SC-05]
 

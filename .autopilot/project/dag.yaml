@@ -59,7 +59,7 @@ tasks:
     title: "端到端验收测试 + Snapshot 测试 + LauncherIsolationTests + CLAUDE.md 更新"
     depends_on: ["005-routing", "006-install-and-tofu"]
     complexity: S
-    status: pending
+    status: done
     milestone: M5
     acceptance_scenarios: [SC-10, SC-11, all]
 

@@ -37,7 +37,10 @@ Sources/
 │   │   ├── Provider/   # LauncherProvider 协议 + AnthropicProvider + OpenAICompatibleProvider + ProviderFactory
 │   │   ├── Config/     # SecretStore(Keychain→EncryptedFile 探针降级) + LauncherConfig JSON
 │   │   ├── Agent/      # LauncherAgent(永远 loop+tool_use 早停) + AgentEvent enum + AgentMessage/AgentTool/AnyCodable
-│   │   └── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + PluginExecutor(Process子进程) + PluginManifest(Codable schema)
+│   │   ├── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + PluginExecutor(Process子进程) + PluginManifest(Codable schema)
+│   │   │               # + PluginManifest+AgentTool.swift (toAgentTool() extension，inputSchema 含顶层 type:object)
+│   │   ├── LauncherRouter.swift          # keyword 缩候选(routerMaxCandidates=5) + aiSelect 选 1 → RouteDecision
+│   │   └── LauncherCandidateView.swift   # SwiftUI 候选列表展示（嵌入 LauncherInputView）
 │   ├── Window/         # 窗口: BuddyWindow, DockTracker, MouseTracker
 │   ├── MenuBar/        # 状态栏弹窗: SessionPopoverController
 │   ├── Assets/Sprites/ # 48x48 像素猫咪精灵图

@@ -6,6 +6,11 @@ final class LauncherManager: ObservableObject {
     static let shared = LauncherManager()
     @Published private(set) var isVisible = false
 
+    /// 最近一次路由的候选列表（task 005 追加，供 LauncherCandidateView 显示）
+    @Published private(set) var lastRouteCandidates: [PluginManifest] = []
+    /// 最近一次路由选中的候选索引（task 005 追加）
+    @Published private(set) var lastRouteSelectedIndex: Int = 0
+
     private lazy var launcherWindow: LauncherWindow = makeWindow()
     private var hostingController: LauncherHostingController?
     private var resignKeyObserver: NSObjectProtocol?
@@ -106,8 +111,12 @@ final class LauncherManager: ObservableObject {
         }
         let factoryOverride = providerFactoryOverride
 
+        // 提交前重置路由状态（在 MainActor 上同步）
+        lastRouteCandidates = []
+        lastRouteSelectedIndex = 0
+
         return AsyncStream { continuation in
-            // Task.detached 离开 MainActor，避免阻塞 UI 线程（BLOCKER-2 修复）
+            // Task.detached 离开 MainActor，避免阻塞 UI 线程（保留 task 003 结构）
             let task = Task.detached {
                 let provider: LauncherProvider
                 do {
@@ -122,25 +131,83 @@ final class LauncherManager: ObservableObject {
                     return
                 }
 
-                // 内置 echo tool stub（task 005 路由层会替换 tools 列表）
-                let echoTool = AgentTool(
-                    name: "echo",
-                    description: "Echo the input text back verbatim",
-                    inputSchema: [
-                        "type": AnyCodable("object"),
-                        "properties": AnyCodable(["text": ["type": "string"]]),
-                        "required": AnyCodable(["text"])
-                    ]
+                // task 005：Router 决策路径
+                let router = LauncherRouter(
+                    pluginManager: PluginManager.shared,
+                    provider: provider,
+                    routerModel: providerConfig.model
                 )
+
+                let decision: RouteDecision
+                let candidates: [PluginManifest]
+                do {
+                    (decision, candidates) = try await router.route(query: query)
+                } catch let err as LauncherError {
+                    continuation.yield(.error(err))
+                    continuation.finish()
+                    return
+                } catch {
+                    continuation.yield(.error(.networkFailure(error)))
+                    continuation.finish()
+                    return
+                }
+
+                // 更新 @Published（切回 MainActor，通过 shared 单例访问）
+                await MainActor.run {
+                    LauncherManager.shared.lastRouteCandidates = candidates
+                    if let idx = candidates.firstIndex(where: {
+                        if case .withPlugin(let m) = decision { return $0 == m }
+                        return false
+                    }) {
+                        LauncherManager.shared.lastRouteSelectedIndex = idx
+                    } else {
+                        LauncherManager.shared.lastRouteSelectedIndex = 0
+                    }
+                }
+
+                // 构造 tools 和 toolExecutor
+                let tools: [AgentTool]
+                let toolExecutor: (String, [String: AnyCodable]) async throws -> String
+
+                switch decision {
+                case .directChat:
+                    tools = []
+                    toolExecutor = { _, _ in throw LauncherError.providerNotConfigured }
+
+                case .withPlugin(let manifest):
+                    tools = [manifest.toAgentTool()]
+                    toolExecutor = { name, input in
+                        guard name == manifest.name else {
+                            throw LauncherError.pluginNotFound(name)
+                        }
+                        // task 006: trust check（TOFU）
+                        let dir = try PluginManager.shared.pluginDir(for: manifest)
+                        let executablePath = dir.appending(path: manifest.cmd)
+                        let trusted = await TrustStore.shared.checkAndPrompt(
+                            manifest, executablePath: executablePath
+                        )
+                        guard trusted else {
+                            throw LauncherError.pluginNotTrusted(manifest.name)
+                        }
+                        let pluginInput = PluginInput(
+                            query: input["query"]?.value as? String ?? query,
+                            sessionId: UUID().uuidString,
+                            cwd: NSHomeDirectory()
+                        )
+                        let result = try await PluginExecutor.shared.execute(
+                            manifest,
+                            pluginDir: dir,
+                            input: pluginInput
+                        )
+                        return result.stdout
+                    }
+                }
+
                 let agent = LauncherAgent(
                     provider: provider,
-                    tools: [echoTool],
+                    tools: tools,
                     model: providerConfig.model,
-                    toolExecutor: { name, input in
-                        guard name == "echo" else { throw LauncherError.providerNotConfigured }
-                        guard let text = input["text"]?.value as? String else { return "" }
-                        return text
-                    }
+                    toolExecutor: toolExecutor
                 )
                 for await event in agent.run(prompt: query, config: .default) {
                     continuation.yield(event)

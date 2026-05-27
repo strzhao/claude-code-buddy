@@ -69,3 +69,4 @@
 - [2026-05-26] Swift Process API 子进程 SIGKILL 后 orphan child 持 pipe 写端导致 readDataToEndOfFile 无限死锁 | tags: process, subprocess, sigkill, orphan-child, pipe, file-handle, deadlock, readabilityhandler, readdatatoendoffile, swift-concurrency, plugin-runtime | → patterns.md
 - [2026-05-26] SPM .copy 把可执行脚本打入 bundle，拷贝后必须显式 chmod 0o755 | tags: spm, swift-package-manager, copy, bundle-resource, hello-plugin, chmod, posix-permissions, resource-only-read, app-signing, lsuielement | → patterns.md
 - [2026-05-26] CLI 插件 manifest 字段校验防恶意：name 与 dirName 一致 + cmd 不允许绝对路径或 /.. | tags: plugin, manifest, security, path-traversal, malicious, validation, name-collision, code-execution | → patterns.md
+- [2026-05-27] AI 路由器 system prompt 拼 user message 前缀 + 强约束输出 — provider 协议无 system 字段的稳健替代 | tags: ai-router, system-prompt, llm-routing, user-message-prefix, plugin-selection, anthropic, structured-output, hallucinate-fallback, provider-abstraction | → patterns.md

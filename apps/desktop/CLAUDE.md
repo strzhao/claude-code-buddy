@@ -52,6 +52,49 @@ Sources/
 
 **猫咪状态机** (GKStateMachine): CatIdleState(sleep/breathe/blink/clean) → CatThinkingState(paw+sway) → CatToolUseState(random walk) → CatPermissionRequestState(alert+badge) → CatEatingState
 
+## Launcher 子系统
+
+Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**与像素猫互不干扰**（独立 NSPanel + 独立配置目录 `~/.buddy/` + 静态隔离测试 SC-10）。
+
+### 用户配置
+
+API key 存储：Keychain（生产签名）或 `~/.buddy/launcher-secrets.enc`（ad-hoc 签名时 CryptoKit 加密降级）。配置 `~/.buddy/launcher.json` JSON 明文。
+
+```bash
+# Anthropic
+buddy launcher config set --provider anthropic --kind anthropic \
+  --model claude-sonnet-4-5 --api-key sk-ant-xxx
+
+# 本地 Ollama
+buddy launcher config set --provider ollama --kind openai-compatible \
+  --base-url http://localhost:11434/v1 --model qwen2.5:7b --api-key dummy
+
+# 切换激活
+buddy launcher config use ollama
+buddy launcher config get
+```
+
+### 插件管理
+
+```bash
+buddy launcher add stringzhao/buddy-translate     # git clone --depth 1
+buddy launcher list                                # 已装插件 + trust 状态
+buddy launcher inspect buddy-translate             # JSON 详情
+buddy launcher remove buddy-translate              # 卸载 + 清 trust
+```
+
+### TOFU 安全模型
+
+首次执行插件弹 NSAlert 确认。`trustKey = SHA256(cmd + args + sha256(executable bytes))`，任一改动（含二进制内容）使旧信任失效，强制重新弹框。trust 记录：`~/.buddy/launcher-trust.json`（0644）。
+
+### 故障排查
+
+- **快捷键被占用** → `buddy launcher config get` 查看 `hotkey` 字段，或在 LauncherWindow 显示时按 ⌘, 改键
+- **trust.json 损坏** → 删除 `~/.buddy/launcher-trust.json`，下次执行重新弹框
+- **SecretStore 探针降级** → ad-hoc 签名时自动从 Keychain 降级到 EncryptedFile；查 logs `LauncherSecretStore probe failed`
+- **plugin 安装失败 exit 1** → 检查网络 / `git clone` 60s 超时
+- **plugin manifest 无效 exit 2** → 查看 `plugin.json` 是否符合 PluginManifest schema（cmd 不含 `..` 或绝对路径）
+
 ## 开发
 
 ```bash

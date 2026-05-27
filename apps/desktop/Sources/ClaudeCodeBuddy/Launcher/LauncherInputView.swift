@@ -22,6 +22,11 @@ struct LauncherInputView: View {
                         query = String(new.prefix(LauncherConstants.maxQueryLength))
                     }
                 }
+            // 候选插件列表（task 005：仅在 candidates 非空时显示）
+            LauncherCandidateView(
+                candidates: manager.lastRouteCandidates,
+                selectedIndex: manager.lastRouteSelectedIndex
+            )
             // 接近上限时显示字数指示（warning UI，契约要求）
             if query.count >= LauncherConstants.maxQueryLength - 1000 {
                 Text("\(query.count) / \(LauncherConstants.maxQueryLength)")

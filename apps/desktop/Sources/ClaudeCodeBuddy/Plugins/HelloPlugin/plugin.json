@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "内置示例插件，演示 stdin/stdout markdown 协议",
   "keywords": ["hello", "demo", "示例"],
+  "mode": "stdin",
   "cmd": "./hello.sh",
   "args": [],
   "env": null,

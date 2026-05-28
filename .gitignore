@@ -26,6 +26,7 @@ secrets.json
 # Tools
 .superpowers/
 .claude/worktrees/
+.claude/scheduled_tasks.lock
 .autopilot/runtime/
 
 # Test artifacts

@@ -144,6 +144,12 @@ let result = try await dispatcher.execute(manifest: manifest, ...)
 
 3. **错误处理**：dispatcher 对 prompt mode + nil executor 抛明确错误 `promptExecutorNotAvailable`（避免静默死循环）
 
+4. **【task 002 移交的 BLOCKER】修复 BuddyCLI inspect/trust 路径对 prompt mode 的 cmd="" 污染**：
+   - 位置：`Sources/BuddyCLI/main.swift:1167-1168`
+   - 现状：`cliComputeTrustKey(cmd: manifest.cmd, args: manifest.args, ...)`，prompt mode 时 manifest.cmd="" (来自 task 002 back-compat accessor)，会产生错误的 trust key 写入 trust.json
+   - 修复：在调用前 `guard case .stdin(let cfg) = manifest.modeConfig else { ... }`——prompt mode 走另一条 trust 计算路径（详见 task 005 trust 模型，本 task 临时返回 prompt mode 的 placeholder 或不计算 trust，与 005 协调）
+   - 此问题由 task 002 的 back-compat accessor 引入（accessor 设计权衡），task 003 必须吸收
+
 ## 输入
 
 - 现有 `Sources/.../Launcher/Plugin/PluginExecutor.swift`（重构源）

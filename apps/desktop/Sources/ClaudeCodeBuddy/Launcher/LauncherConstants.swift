@@ -38,4 +38,8 @@ enum LauncherConstants {
 
     // Router（task 005 追加）
     static let routerMaxCandidates: Int = 5
+
+    // Prompt mode（task 002 追加）
+    static let promptMaxSystemPromptBytes: Int = 8192
+    static let promptMaxIterations: Int = 10
 }

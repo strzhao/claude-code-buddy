@@ -31,7 +31,7 @@ tasks:
     title: "PluginExecutor 重构为 PluginDispatcher + StdinExecutor"
     depends_on: ["002-manifest-discriminated-union"]
     complexity: M
-    status: pending
+    status: done
     acceptance_scenarios: [SC-4]
     notes: |
       - PluginDispatcher 持有 stdinExecutor + promptExecutor，switch manifest.modeConfig 分发

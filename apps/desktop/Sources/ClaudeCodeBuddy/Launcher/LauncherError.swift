@@ -10,6 +10,7 @@ enum LauncherError: Error, LocalizedError {
     case secretStoreUnavailable
     // task 003 追加：
     case maxIterations
+    case promptExecutorNotAvailable
     // task 004 追加：
     case pluginNotFound(String)
     case pluginMissingDependency(String)
@@ -35,6 +36,8 @@ enum LauncherError: Error, LocalizedError {
             return "无法安全存储 API key，请检查 ~/.buddy/ 权限"
         case .maxIterations:
             return "Agent 循环达到最大迭代次数（默认 10），可能存在递归 tool_use；请简化查询重试"
+        case .promptExecutorNotAvailable:
+            return "prompt mode plugin 无法执行：PromptExecutor 未实现（task 004）"
         case .pluginNotFound(let name):
             return "插件 \(name) 未安装"
         case .pluginMissingDependency(let bin):

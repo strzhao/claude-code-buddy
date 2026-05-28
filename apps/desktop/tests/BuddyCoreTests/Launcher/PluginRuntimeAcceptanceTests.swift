@@ -4,7 +4,7 @@ import XCTest
 // MARK: - PluginRuntimeAcceptanceTests
 //
 // 验收测试：PluginManager（list/find/pluginDir/installBundledPlugins）+
-//           PluginExecutor（execute + 子进程完整生命周期）
+//           StdinExecutor（execute + 子进程完整生命周期）
 //
 // 设计文档覆盖点（task 004 输出契约）：
 //   Manager.list 行为：
@@ -20,7 +20,7 @@ import XCTest
 //     MB4. pluginDir 次选 dirName.hasSuffix("-name")（user-repo 后缀匹配，manifest.name="repo"）
 //     MB5. pluginDir 两者均不匹配 → 抛 LauncherError.pluginNotFound
 //
-//   PluginExecutor.execute 真实子进程：
+//   StdinExecutor.execute 真实子进程：
 //     E1. 正例：fixture 脚本输出 "## Hello"，exit 0 → exitCode==0，stdout=="## Hello\n"
 //     E2. stdin 传递：cat 脚本回显 stdin，stdout 含 "\"query\":\"hi\""
 //     E3. exit code 非 0：exit 2 + stderr="err msg" → 抛 pluginCrash(2, content 含 "err msg")
@@ -296,14 +296,14 @@ final class PluginManagerAcceptanceTests: XCTestCase {
 final class PluginExecutorAcceptanceTests: XCTestCase {
 
     private var tmpDir: URL!
-    private var executor: PluginExecutor!
+    private var executor: StdinExecutor!
 
     override func setUp() async throws {
         try await super.setUp()
         tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appending(path: "PluginExecutorTest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        executor = PluginExecutor()
+        executor = StdinExecutor()
     }
 
     override func tearDown() async throws {
@@ -569,7 +569,7 @@ final class PluginBundledHelloAcceptanceTests: XCTestCase {
 
     private var tmpPluginsDir: URL!
     private var manager: PluginManager!
-    private var executor: PluginExecutor!
+    private var executor: StdinExecutor!
 
     override func setUp() async throws {
         try await super.setUp()
@@ -577,7 +577,7 @@ final class PluginBundledHelloAcceptanceTests: XCTestCase {
             .appending(path: "BundledHelloTest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpPluginsDir, withIntermediateDirectories: true)
         manager = PluginManager(rootDir: tmpPluginsDir)
-        executor = PluginExecutor()
+        executor = StdinExecutor()
     }
 
     override func tearDown() async throws {

@@ -194,7 +194,7 @@ final class LauncherManager: ObservableObject {
                             sessionId: UUID().uuidString,
                             cwd: NSHomeDirectory()
                         )
-                        let result = try await PluginExecutor.shared.execute(
+                        let result = try await PluginDispatcher.shared.execute(
                             manifest,
                             pluginDir: dir,
                             input: pluginInput

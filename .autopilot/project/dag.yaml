@@ -7,7 +7,7 @@ tasks:
     title: "LauncherProvider 协议扩展 system 字段 + 两个 impl 适配 + Router hack 迁移"
     depends_on: []
     complexity: S
-    status: pending
+    status: done
     acceptance_scenarios: [SC-1, SC-2, SC-7]
     notes: |
       - send() 加 system: String? = nil 可选参数，编译零改动

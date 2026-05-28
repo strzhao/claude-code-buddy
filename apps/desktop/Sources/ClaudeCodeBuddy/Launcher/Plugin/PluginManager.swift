@@ -61,7 +61,7 @@ final class PluginManager {
         throw LauncherError.pluginNotFound(manifest.name)
     }
 
-    /// 首次启动时把 bundled HelloPlugin 拷贝到 ~/.buddy/launcher-plugins/builtin-hello/
+    /// 首次启动时把 bundled plugins 拷贝到 ~/.buddy/launcher-plugins/
     /// 幂等：plugin.json 内容相等则跳过；不等则删旧拷新
     func installBundledPlugins() throws {
         try FileManager.default.createDirectory(
@@ -69,20 +69,24 @@ final class PluginManager {
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o755]
         )
+        try installBundledPlugin(bundleSubdir: "HelloPlugin", targetName: "builtin-hello")
+        try installBundledPlugin(bundleSubdir: "TranslatePlugin", targetName: "builtin-translate")
+    }
 
-        // 用 ResourceBundle.bundle（不是 Bundle.module）—— 解决 .app 签名问题
-        guard let bundleHelloURL = ResourceBundle.bundle.url(
-            forResource: "HelloPlugin",
+    // swiftlint:disable:next function_body_length
+    private func installBundledPlugin(bundleSubdir: String, targetName: String) throws {
+        guard let bundleDirURL = ResourceBundle.bundle.url(
+            forResource: bundleSubdir,
             withExtension: nil,
             subdirectory: "Plugins"
         ) else {
-            NSLog("[PluginManager] bundled HelloPlugin 未找到（ResourceBundle.bundle 失败）")
+            NSLog("[PluginManager] bundled \(bundleSubdir) 未找到（ResourceBundle.bundle 失败）")
             return
         }
 
-        let targetDir = rootDir.appending(path: "builtin-hello")
+        let targetDir = rootDir.appending(path: targetName)
         let targetManifest = targetDir.appending(path: "plugin.json")
-        let sourceManifest = bundleHelloURL.appending(path: "plugin.json")
+        let sourceManifest = bundleDirURL.appending(path: "plugin.json")
 
         // 幂等：比较 plugin.json 内容相等则跳过
         if FileManager.default.fileExists(atPath: targetManifest.path),
@@ -96,15 +100,26 @@ final class PluginManager {
         if FileManager.default.fileExists(atPath: targetDir.path) {
             try FileManager.default.removeItem(at: targetDir)
         }
-        try FileManager.default.copyItem(at: bundleHelloURL, to: targetDir)
+        try FileManager.default.copyItem(at: bundleDirURL, to: targetDir)
 
-        // Bundle 资源是只读，hello.sh 拷贝后需手动赋执行权限
-        let helloScript = targetDir.appending(path: "hello.sh")
-        if FileManager.default.fileExists(atPath: helloScript.path) {
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o755],
-                ofItemAtPath: helloScript.path
-            )
+        // 读 manifest 判断 mode：仅 stdin mode 需要 chmod 可执行文件
+        guard let manifestData = try? Data(contentsOf: sourceManifest),
+              let manifest = try? JSONDecoder().decode(PluginManifest.self, from: manifestData) else {
+            NSLog("[PluginManager] \(bundleSubdir) plugin.json 无法解析，跳过 chmod")
+            return
+        }
+
+        // Bundle 资源是只读，stdin mode 的脚本拷贝后需手动赋执行权限
+        // prompt mode 无可执行文件，跳过 chmod（避免对不存在文件 setAttributes 抛异常）
+        if case .stdin(let cfg) = manifest.modeConfig {
+            let exeBaseName = (cfg.cmd as NSString).lastPathComponent
+            let exePath = targetDir.appending(path: exeBaseName).path
+            if FileManager.default.fileExists(atPath: exePath) {
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: 0o755],
+                    ofItemAtPath: exePath
+                )
+            }
         }
     }
 }

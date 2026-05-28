@@ -1,12 +1,64 @@
+import AppKit
 import Foundation
 
 final class PromptExecutor {
     let provider: LauncherProvider
     let activeProviderModel: String
+    let pasteboard: NSPasteboard
 
-    init(provider: LauncherProvider, activeProviderModel: String) {
+    init(provider: LauncherProvider, activeProviderModel: String, pasteboard: NSPasteboard = .general) {
         self.provider = provider
         self.activeProviderModel = activeProviderModel
+        self.pasteboard = pasteboard
+    }
+
+    /// 便利重载：直接传 query + config（供测试隔离使用）
+    func execute(query: String, config: PromptConfig) async throws -> PluginResult {
+        let started = Date()
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return PluginResult(stdout: "（请输入内容）", stderr: "",
+                exitCode: 0, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+        }
+        let model = config.model ?? activeProviderModel
+        let messages = [AgentMessage(role: "user", content: [.text(query)])]
+        let timeoutSec = LauncherConstants.pluginDefaultTimeoutSec
+
+        let workTask = Task { () throws -> AgentResponse in
+            try await provider.send(messages: messages, tools: [], model: model, system: config.systemPrompt)
+        }
+        let timeoutTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(timeoutSec) * 1_000_000_000)
+            workTask.cancel()
+        }
+        do {
+            let response = try await workTask.value
+            timeoutTask.cancel()
+            let text = response.content.compactMap { c -> String? in
+                if case .text(let s) = c { return s }
+                return nil
+            }.joined()
+            if config.autoCopyToClipboard && !text.isEmpty {
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                return PluginResult(
+                    stdout: "\(text)\n\n_(已复制到剪贴板)_",
+                    stderr: "",
+                    exitCode: 0,
+                    durationMs: Int(Date().timeIntervalSince(started) * 1000),
+                    stdoutTruncated: false
+                )
+            }
+            return PluginResult(stdout: text, stderr: "", exitCode: 0,
+                durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+        } catch is CancellationError {
+            return PluginResult(stdout: "", stderr: "执行超时（\(timeoutSec)s）",
+                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+        } catch {
+            timeoutTask.cancel()
+            return PluginResult(stdout: "", stderr: "执行失败: \(error.localizedDescription)",
+                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+        }
     }
 
     func execute(_ plugin: PluginManifest, pluginDir: URL, input: PluginInput) async throws -> PluginResult {
@@ -40,6 +92,20 @@ final class PromptExecutor {
                 if case .text(let s) = c { return s }
                 return nil
             }.joined()
+
+            // 成功译文非空时，根据 autoCopyToClipboard 决定是否复制到剪贴板
+            if cfg.autoCopyToClipboard && !text.isEmpty {
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                return PluginResult(
+                    stdout: "\(text)\n\n_(已复制到剪贴板)_",
+                    stderr: "",
+                    exitCode: 0,
+                    durationMs: Int(Date().timeIntervalSince(started) * 1000),
+                    stdoutTruncated: false
+                )
+            }
+
             return PluginResult(stdout: text, stderr: "", exitCode: 0,
                 durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         } catch is CancellationError {

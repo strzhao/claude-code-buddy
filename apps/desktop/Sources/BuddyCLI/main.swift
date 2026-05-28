@@ -1075,10 +1075,11 @@ private struct CLIPluginManifestCheck: Codable {
     // stdin 字段
     let cmd: String?
     let args: [String]?
-    // prompt 字段（NEW）
+    // prompt 字段
     let systemPrompt: String?
     let maxIterations: Int?
     let model: String?
+    let autoCopyToClipboard: Bool?
 }
 
 private func cliLoadTrustFile() -> CLITrustFile {
@@ -1287,13 +1288,30 @@ private func cmdLauncherInspect(_ name: String) {
         exit(1)
     }
     let status = cliTrustStatus(manifest: m, pluginDir: dir)
-    let out: [String: Any] = [
+    let resolvedMode = m.mode ?? "stdin"
+    var out: [String: Any] = [
         "name": m.name,
         "version": m.version,
         "description": m.description,
+        "mode": resolvedMode,
         "trust_status": status,
         "install_path": dir.path
     ]
+    switch resolvedMode {
+    case "stdin":
+        if let cmd = m.cmd { out["cmd"] = cmd }
+        if let args = m.args { out["args"] = args }
+    case "prompt":
+        if let systemPrompt = m.systemPrompt {
+            let summary = String(systemPrompt.prefix(200))
+            out["system_prompt_summary"] = systemPrompt.count > 200 ? "\(summary)..." : summary
+        }
+        if let maxIterations = m.maxIterations { out["max_iterations"] = maxIterations }
+        if let model = m.model { out["model"] = model }
+        if let autoCopy = m.autoCopyToClipboard { out["auto_copy_to_clipboard"] = autoCopy }
+    default:
+        break
+    }
     if let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]),
        let str = String(data: data, encoding: .utf8) {
         print(str)

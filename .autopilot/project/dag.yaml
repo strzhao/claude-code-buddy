@@ -43,7 +43,7 @@ tasks:
     title: "PromptExecutor 实现：单轮 provider.send + 空输入兜底 + Task cancel 传播"
     depends_on: ["001-provider-system-field", "002-manifest-discriminated-union", "003-plugin-dispatcher"]
     complexity: M
-    status: pending
+    status: done
     acceptance_scenarios: [SC-5, SC-6, SC-7]
     notes: |
       - 调 provider.send(messages=[user(query)], tools=[], model=config.model ?? activeProviderModel, system=config.systemPrompt)

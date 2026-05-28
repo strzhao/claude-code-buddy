@@ -14,7 +14,7 @@ final class LauncherWindow: NSPanel {
         isMovableByWindowBackground = true
         backgroundColor = .clear
         isOpaque = false
-        hasShadow = true
+        hasShadow = false
         hidesOnDeactivate = true   // 失焦自动隐藏（macOS 默认行为）
         // standardWindowButton 全隐藏
         for btn in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {

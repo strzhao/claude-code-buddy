@@ -1071,8 +1071,9 @@ private struct CLIPluginManifestCheck: Codable {
     let version: String
     let description: String
     let keywords: [String]
-    let cmd: String
-    let args: [String]
+    let mode: String?              // NEW，nil 默认 "stdin"
+    let cmd: String?               // 改 Optional
+    let args: [String]?            // 改 Optional
 }
 
 private func cliLoadTrustFile() -> CLITrustFile {
@@ -1160,15 +1161,29 @@ private func cliComputeTrustKey(cmd: String, args: [String], executableURL: URL)
 }
 
 private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) -> String {
+    let mode = manifest.mode ?? "stdin"
     let trustFile = cliLoadTrustFile()
     guard let record = trustFile.records.first(where: { $0.pluginName == manifest.name }) else {
         return "never_run"
     }
-    let exeURL = pluginDir.appending(path: manifest.cmd)
-    guard let currentKey = cliComputeTrustKey(cmd: manifest.cmd, args: manifest.args, executableURL: exeURL) else {
-        return "untrusted"
+    switch mode {
+    case "stdin":
+        guard let cmd = manifest.cmd, let args = manifest.args else {
+            return "untrusted"
+        }
+        let exeURL = pluginDir.appending(path: cmd)
+        guard let currentKey = cliComputeTrustKey(cmd: cmd, args: args, executableURL: exeURL) else {
+            return "untrusted"
+        }
+        return currentKey == record.trustKey ? "trusted" : "untrusted"
+    case "prompt":
+        // task 005 实现 trust mode-aware 后会替换此 placeholder
+        _ = record
+        return "trusted_pending_task_005"
+    default:
+        _ = record
+        return "unknown_mode"
     }
-    return currentKey == record.trustKey ? "trusted" : "untrusted"
 }
 
 private func cmdLauncherList() {

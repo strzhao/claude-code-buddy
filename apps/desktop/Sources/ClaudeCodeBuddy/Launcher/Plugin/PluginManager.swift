@@ -43,7 +43,7 @@ final class PluginManager {
         try list().first { $0.name == name }
     }
 
-    /// 用 manifest 定位插件目录（供 PluginExecutor.execute 调用）
+    /// 用 manifest 定位插件目录（供 StdinExecutor.execute 调用）
     func pluginDir(for manifest: PluginManifest) throws -> URL {
         // 优先直接匹配（builtin-hello 目录名 == manifest.name）
         let direct = rootDir.appending(path: manifest.name)

@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import CryptoKit
+import IOKit
 
 // MARK: - Constants
 
@@ -960,6 +961,89 @@ private func cliKeychainSave(account: String, value: String) -> Bool {
     return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
 }
 
+// MARK: - Secret persistence (ad-hoc-aware)
+// ⚠️ MIRROR: BuddyCore/Launcher/Config/SecretStore.swift + EncryptedFileSecretStore.swift
+// CLI cannot depend on BuddyCore，下面的逻辑必须与 BuddyCore 侧保持同构：
+//   - ad-hoc 签名 / 无 TeamID → ChaChaPoly 写 ~/.buddy/launcher-secrets.enc
+//   - 否则 → Keychain（生产签名走这条）
+// 选择需与 app 侧 SecretStoreFactory 一致，否则 CLI 写入的位置 app 读不到。
+
+private func cliIsAdHocSigned() -> Bool {
+    var codeRef: SecCode?
+    guard SecCodeCopySelf([], &codeRef) == errSecSuccess, let code = codeRef else {
+        return true
+    }
+    var infoCF: CFDictionary?
+    let flags = SecCSFlags(rawValue: kSecCSSigningInformation)
+    let staticCode = unsafeBitCast(code, to: SecStaticCode.self)
+    guard SecCodeCopySigningInformation(staticCode, flags, &infoCF) == errSecSuccess,
+          let info = infoCF as? [String: Any] else {
+        return true
+    }
+    if let csFlagsNum = info[kSecCodeInfoFlags as String] as? NSNumber,
+       (csFlagsNum.uint32Value & 0x2) != 0 {
+        return true
+    }
+    let teamID = (info[kSecCodeInfoTeamIdentifier as String] as? String) ?? ""
+    return teamID.isEmpty
+}
+
+private func cliDeriveSecretsKey() throws -> SymmetricKey {
+    let port: mach_port_t = kIOMainPortDefault
+    let svc = IOServiceGetMatchingService(port, IOServiceMatching("IOPlatformExpertDevice"))
+    defer { IOObjectRelease(svc) }
+    guard let cf = IORegistryEntryCreateCFProperty(
+            svc, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0
+          )?.takeRetainedValue(),
+          let uuid = cf as? String else {
+        throw NSError(domain: "buddy.cli", code: 1, userInfo: [NSLocalizedDescriptionKey: "IOPlatformUUID unavailable"])
+    }
+    let salt = "claude-code-buddy.launcher.v1"
+    let material = Data((uuid + salt).utf8)
+    let hash = SHA256.hash(data: material)
+    return SymmetricKey(data: Data(hash))
+}
+
+private func cliEncryptedFileSave(account: String, value: String) -> Bool {
+    do {
+        let key = try cliDeriveSecretsKey()
+        // 注：launcherConfigDir 是 top-level `let`，初始化早于 main()；
+        // 直接 inline 路径，避免重新引入 main() 之后才能初始化的 top-level 常量。
+        let path = URL(fileURLWithPath: "\(launcherConfigDir)/launcher-secrets.enc")
+        var cache: [String: String] = [:]
+        if FileManager.default.fileExists(atPath: path.path) {
+            let encrypted = try Data(contentsOf: path)
+            let sealed = try ChaChaPoly.SealedBox(combined: encrypted)
+            let decrypted = try ChaChaPoly.open(sealed, using: key)
+            cache = try JSONDecoder().decode([String: String].self, from: decrypted)
+        }
+        cache[account] = value
+        try FileManager.default.createDirectory(
+            atPath: launcherConfigDir,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        let plaintext = try JSONEncoder().encode(cache)
+        let sealed = try ChaChaPoly.seal(plaintext, using: key)
+        try sealed.combined.write(to: path, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: path.path
+        )
+        return true
+    } catch {
+        fputs("Error: encrypted secrets write failed: \(error)\n", stderr)
+        return false
+    }
+}
+
+private func cliSecretSave(account: String, value: String) -> Bool {
+    if cliIsAdHocSigned() {
+        return cliEncryptedFileSave(account: account, value: value)
+    }
+    return cliKeychainSave(account: account, value: value)
+}
+
 private func cmdLauncherConfigSet(_ opts: CLIOptions) {
     guard !opts.providerId.isEmpty, !opts.kind.isEmpty, !opts.model.isEmpty, !opts.apiKey.isEmpty else {
         fputs("Usage: buddy launcher config set --provider <id> --kind <anthropic|openai-compatible> [--base-url URL] --model NAME --api-key KEY\n", stderr)
@@ -981,8 +1065,8 @@ private func cmdLauncherConfigSet(_ opts: CLIOptions) {
     }
 
     let keyRef = "\(opts.providerId).apiKey"
-    guard cliKeychainSave(account: keyRef, value: opts.apiKey) else {
-        fputs("Error: Keychain write failed (ad-hoc signed app may have entitlement issues). Please launch buddy app and configure via app UI.\n", stderr)
+    guard cliSecretSave(account: keyRef, value: opts.apiKey) else {
+        fputs("Error: secret store write failed. Please launch buddy app and configure via app UI.\n", stderr)
         exit(3)
     }
 

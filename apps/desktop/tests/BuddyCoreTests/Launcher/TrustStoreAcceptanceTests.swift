@@ -67,13 +67,14 @@ final class TrustStoreAcceptanceTests: XCTestCase {
 
     /// 红队独立复现的 trustKey 算法（依据设计文档规约）
     /// 不依赖 TrustStore.trustKey 实现 — 通过对算法的双重独立计算来交叉验证
+    /// mode-aware 升级后：stdin 加 "stdin:" 前缀
     private func computeExpectedTrustKey(cmd: String, args: [String], executablePath: URL) throws -> String {
         let exeData = try Data(contentsOf: executablePath)
         let exeHash = SHA256.hash(data: exeData)
         let exeHashHex = exeHash.compactMap { String(format: "%02x", $0) }.joined()
         let combined = "\(cmd)\n\(args.joined(separator: "\n"))\n\(exeHashHex)"
         let digest = SHA256.hash(data: Data(combined.utf8))
-        return digest.compactMap { String(format: "%02x", $0) }.joined()
+        return "stdin:" + digest.compactMap { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - SC-01: TrustRecord JSON Codable 往返
@@ -108,10 +109,12 @@ final class TrustStoreAcceptanceTests: XCTestCase {
         let manifest = makeManifest()
         let key = try TrustStore.trustKey(for: manifest, executablePath: exe)
 
-        XCTAssertEqual(key.count, 64, "SHA256 hex 必须 64 字符（contract）")
+        XCTAssertEqual(key.count, 70, "mode-aware trustKey: \"stdin:\" 前缀(6) + SHA256 hex(64) = 70 字符")
+        XCTAssertTrue(key.hasPrefix("stdin:"), "stdin mode trustKey 必须以 \"stdin:\" 开头，实际: \(key)")
+        let hexPart = String(key.dropFirst(6))
         let allowedSet = CharacterSet(charactersIn: "0123456789abcdef")
-        XCTAssertTrue(key.unicodeScalars.allSatisfy { allowedSet.contains($0) },
-                      "trustKey 必须全 lowercase hex，实际: \(key)")
+        XCTAssertTrue(hexPart.unicodeScalars.allSatisfy { allowedSet.contains($0) },
+                      "trustKey hex 部分必须全 lowercase hex，实际: \(hexPart)")
     }
 
     // MARK: - SC-03: trustKey 变化检测（cmd / args / executable 任一改动）

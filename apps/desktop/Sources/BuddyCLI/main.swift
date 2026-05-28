@@ -1071,9 +1071,14 @@ private struct CLIPluginManifestCheck: Codable {
     let version: String
     let description: String
     let keywords: [String]
-    let mode: String?              // NEW，nil 默认 "stdin"
-    let cmd: String?               // 改 Optional
-    let args: [String]?            // 改 Optional
+    let mode: String?              // nil 默认 "stdin"
+    // stdin 字段
+    let cmd: String?
+    let args: [String]?
+    // prompt 字段（NEW）
+    let systemPrompt: String?
+    let maxIterations: Int?
+    let model: String?
 }
 
 private func cliLoadTrustFile() -> CLITrustFile {
@@ -1151,13 +1156,23 @@ private func cmdLauncherAdd(_ userRepo: String) {
     print("Installed \(userRepo) -> \(targetDir.path)")
 }
 
-private func cliComputeTrustKey(cmd: String, args: [String], executableURL: URL) -> String? {
+private func cliComputeTrustKeyStdin(cmd: String, args: [String], executableURL: URL) -> String? {
     guard let exeData = try? Data(contentsOf: executableURL) else { return nil }
     let exeDigest = SHA256.hash(data: exeData)
     let exeHashHex = exeDigest.map { String(format: "%02x", $0) }.joined()
     let combined = "\(cmd)\n\(args.joined(separator: "\n"))\n\(exeHashHex)"
     let digest = SHA256.hash(data: Data(combined.utf8))
-    return digest.map { String(format: "%02x", $0) }.joined()
+    return "stdin:" + digest.map { String(format: "%02x", $0) }.joined()
+}
+
+private func cliComputeTrustKeyPrompt(systemPrompt: String, maxIterations: Int, model: String?) -> String {
+    // 结构性 tag：nil → "0", 非 nil → "1:value"，避免 nil 与字符串 "default" 等碰撞
+    // SOURCE OF TRUTH: BuddyCore/Launcher/Plugin/TrustStore.swift trustKey()
+    let modelPart = model.map { "1:\($0)" } ?? "0"
+    let combined = "\(systemPrompt)\n\(maxIterations)\n\(modelPart)"
+    let digest = SHA256.hash(data: Data(combined.utf8))
+    let hex = digest.map { String(format: "%02x", $0) }.joined()
+    return "prompt:" + hex
 }
 
 private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) -> String {
@@ -1172,14 +1187,20 @@ private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) ->
             return "untrusted"
         }
         let exeURL = pluginDir.appending(path: cmd)
-        guard let currentKey = cliComputeTrustKey(cmd: cmd, args: args, executableURL: exeURL) else {
+        guard let currentKey = cliComputeTrustKeyStdin(cmd: cmd, args: args, executableURL: exeURL) else {
             return "untrusted"
         }
         return currentKey == record.trustKey ? "trusted" : "untrusted"
     case "prompt":
-        // task 005 实现 trust mode-aware 后会替换此 placeholder
-        _ = record
-        return "trusted_pending_task_005"
+        guard let systemPrompt = manifest.systemPrompt else {
+            return "untrusted"
+        }
+        let currentKey = cliComputeTrustKeyPrompt(
+            systemPrompt: systemPrompt,
+            maxIterations: manifest.maxIterations ?? 1,
+            model: manifest.model
+        )
+        return currentKey == record.trustKey ? "trusted" : "untrusted"
     default:
         _ = record
         return "unknown_mode"

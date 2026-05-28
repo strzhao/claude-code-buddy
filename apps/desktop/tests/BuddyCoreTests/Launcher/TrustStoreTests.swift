@@ -60,9 +60,13 @@ final class TrustStoreTests: XCTestCase {
         let manifest = makeManifest()
         let key = try TrustStore.trustKey(for: manifest, executablePath: exe)
 
-        XCTAssertEqual(key.count, 64, "trustKey 应为 64 字节 SHA256 hex")
-        XCTAssertTrue(key.allSatisfy { "0123456789abcdef".contains($0) },
-                      "trustKey 应为全 lowercase hex")
+        // task 005: trustKey 加 mode 前缀，stdin manifest → "stdin:" + 64 hex = 70 chars
+        XCTAssertEqual(key.count, 70, "trustKey 应为 'stdin:' + 64 字节 SHA256 hex = 70 chars")
+        XCTAssertTrue(key.hasPrefix("stdin:"),
+                      "trustKey stdin manifest 应以 'stdin:' 开头")
+        let hashPart = String(key.dropFirst("stdin:".count))
+        XCTAssertTrue(hashPart.allSatisfy { "0123456789abcdef".contains($0) },
+                      "trustKey 去前缀后应为全 lowercase hex")
     }
 
     // MARK: - SC-03: trustKey 变化检测（cmd / args / executable 任一改动 → key 不同）

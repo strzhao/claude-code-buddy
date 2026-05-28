@@ -1,97 +1,91 @@
-project: buddy-launcher
-description: Alfred 式 AI 启动器子系统（⌘⇧Space 浮窗 + AI 路由 + CLI 插件），集成进现有 claude-code-buddy macOS app，与像素猫互不干扰
-state_file: .autopilot/runtime/requirements/20260525-新增类似-alfred-这样的/state.md
+project: buddy-launcher-plugin-multimode
+description: Launcher 插件协议从单一 stdin 升级为 mode discriminated union（stdin + prompt），落地首个 prompt mode 实例 builtin-translate（翻译插件）
+state_file: .autopilot/runtime/sessions/translate/requirements/20260528-按照-launcher-的社区化/state.md
 
 tasks:
-  - id: "001-launcher-skeleton"
-    title: "启动器骨架：NSPanel 浮窗 + 全局快捷键 + SwiftUI 输入框 + echo 占位"
+  - id: "001-provider-system-field"
+    title: "LauncherProvider 协议扩展 system 字段 + 两个 impl 适配 + Router hack 迁移"
+    depends_on: []
+    complexity: S
+    status: pending
+    acceptance_scenarios: [SC-1, SC-2, SC-7]
+    notes: |
+      - send() 加 system: String? = nil 可选参数，编译零改动
+      - AnthropicProvider 用原生 system 字段；OpenAICompatibleProvider prepend role=system message
+      - LauncherRouter.swift:75-91 的 user-message 前缀 hack 迁移到 system 参数
+      - 实测 Qwen 本地 endpoint 对 prepend role=system 的兼容性（避免静默错误）
+
+  - id: "002-manifest-discriminated-union"
+    title: "PluginManifest Codable 重构为 mode discriminated union + mode-aware validate()"
     depends_on: []
     complexity: M
-    status: done
-    milestone: M1
-    acceptance_scenarios: [SC-01, SC-08, SC-10]
-
-  - id: "002-provider-abstraction"
-    title: "Provider 协议 + Anthropic/OpenAI 兼容实现 + SecretStore 探针降级 + 配置文件"
-    depends_on: ["001-launcher-skeleton"]
-    complexity: M
-    status: done
-    milestone: M2
-    acceptance_scenarios: [SC-02, SC-07, SC-12]
-
-  - id: "003-agent-loop"
-    title: "翻译 learn-everything v1 永远 loop + 流式 markdown 渲染"
-    depends_on: ["002-provider-abstraction"]
-    complexity: M
-    status: done
-    milestone: M2
-    acceptance_scenarios: [SC-03, SC-08]
-
-  - id: "004-plugin-runtime"
-    title: "plugin.json schema + PluginManager + Process 执行 + PATH 注入 + hello-world demo plugin"
-    depends_on: ["001-launcher-skeleton"]
-    complexity: M
-    status: done
-    milestone: M3
-    acceptance_scenarios: [SC-04, SC-05]
-
-  - id: "005-routing"
-    title: "keyword 缩候选 + AI 选 plugin + 候选列表 UI"
-    depends_on: ["003-agent-loop", "004-plugin-runtime"]
-    complexity: M
-    status: done
-    milestone: M4
-    acceptance_scenarios: [SC-03, SC-04, SC-05]
-
-  - id: "006-install-and-tofu"
-    title: "BuddyCLI launcher add/list/remove/config/inspect + git clone + TOFU NSAlert"
-    depends_on: ["004-plugin-runtime"]
-    complexity: M
-    status: done
-    milestone: M5
+    status: pending
+    acceptance_scenarios: [SC-4]
     notes: |
-      复杂度升级理由：BuddyCLI/main.swift 是 841 行单文件 raw CommandLine（无 ArgumentParser）。
-      实施路径：在 main.swift 现有 switch 内追加 case "launcher": handleLauncher(args)，
-      内部用 nested switch 分发 5 个子命令。**不引入 swift-argument-parser**（避免跨任务重构）。
-    acceptance_scenarios: [SC-02, SC-04, SC-05, SC-06, SC-09, SC-11, SC-12]
+      - enum PluginModeConfig { case stdin(StdinConfig), case prompt(PromptConfig) }
+      - decode 按顶层 "mode" 字段分发；缺 mode 默认 stdin（向后兼容）
+      - validate() mode 分支：prompt mode 跳过 cmd 非空校验（首个红队测试用例）
+      - 现有 plugin.json 解析为 stdin 兼容 + 新写的 mode 字段必须显式
 
-  - id: "007-e2e-and-docs"
-    title: "端到端验收测试 + Snapshot 测试 + LauncherIsolationTests + CLAUDE.md 更新"
-    depends_on: ["005-routing", "006-install-and-tofu"]
+  - id: "003-plugin-dispatcher"
+    title: "PluginExecutor 重构为 PluginDispatcher + StdinExecutor"
+    depends_on: ["002-manifest-discriminated-union"]
+    complexity: M
+    status: pending
+    acceptance_scenarios: [SC-4]
+    notes: |
+      - PluginDispatcher 持有 stdinExecutor + promptExecutor，switch manifest.modeConfig 分发
+      - StdinExecutor 保留现有 PluginExecutor 内部逻辑（subprocess 不变）
+      - LauncherManager 从持有 PluginExecutor 改为持有 PluginDispatcher
+      - 现有 builtin-hello 端到端回归测试（stdin path 不受影响）
+
+  - id: "004-prompt-executor"
+    title: "PromptExecutor 实现：单轮 provider.send + 空输入兜底 + Task cancel 传播"
+    depends_on: ["001-provider-system-field", "002-manifest-discriminated-union", "003-plugin-dispatcher"]
+    complexity: M
+    status: pending
+    acceptance_scenarios: [SC-5, SC-6, SC-7]
+    notes: |
+      - 调 provider.send(messages=[user(query)], tools=[], model=config.model ?? activeProviderModel, system=config.systemPrompt)
+      - 空 query 短路：直接返回 "请输入需要翻译的文字" 不发请求
+      - 超时用 Task { } + task.cancel() 模式确保 URLSession 真正释放（不能只 wall-clock）
+      - 错误处理：provider 抛 → PluginResult exitCode=1 + stderr，UI 显示 "翻译失败: <错误>"
+      - 与 003 集成：dispatcher.execute(prompt manifest) 走此路径
+
+  - id: "005-trust-mode-aware"
+    title: "Trust 模型 mode-aware：trustKey 算法重设 + NSAlert 显示 prompt mode 摘要"
+    depends_on: ["002-manifest-discriminated-union"]
     complexity: S
-    status: done
-    milestone: M5
-    acceptance_scenarios: [SC-10, SC-11, all]
+    status: pending
+    acceptance_scenarios: [SC-8, SC-9]
+    notes: |
+      - stdin trustKey: "stdin:" + cmd + args + sha256(executable_bytes)
+      - prompt trustKey: "prompt:" + systemPrompt + maxIterations + (model ?? "default")
+      - mode 前缀强制隔离，systemPrompt 任一字符变化 → trustKey 变化 → NSAlert 重弹
+      - NSAlert 文案对 prompt mode 显示 systemPrompt 摘要（前 200 字 + "..."）
+      - 注意：已安装 stdin plugin 因加 mode 前缀会重新弹一次 alert（一次性迁移，可接受）
 
-milestones:
-  M1: 可见性 — ⌘⇧Space 召唤窗口 + echo 输出
-  M2: 对话 — BYOK 配置 + 流式 markdown 渲染
-  M3: 插件能力 — plugin 协议验证（hello-world）
-  M4: 智能路由 — AI 选中正确 plugin
-  M5: 生态闭环 — git clone 安装 + TOFU + 完整测试
+  - id: "006-builtin-translate"
+    title: "builtin-translate prompt plugin 部署 + 自动复制剪贴板 + inspect 显示 mode"
+    depends_on: ["004-prompt-executor", "005-trust-mode-aware"]
+    complexity: M
+    status: pending
+    acceptance_scenarios: [SC-1, SC-2, SC-3, SC-4, SC-10]
+    notes: |
+      - Sources/ClaudeCodeBuddy/Plugins/TranslatePlugin/plugin.json（无 sh 文件）
+      - installBundledPlugins() 对 prompt mode 跳过 chmod（必须 mode 分支防对不存在 sh 抛异常）
+      - PromptExecutor 成功响应后 NSPasteboard.general 复制译文 + 渲染 "(已复制到剪贴板)" 提示
+      - buddy launcher inspect 显示 mode 字段（JSON schema 输出补 mode）
+      - 端到端验证：app 启动 → ctrl+space → 输入 "hello" → 显示 "你好" + 剪贴板含 "你好"
 
-acceptance_scenarios:
-  - id: SC-01
-    name: 全局快捷键召唤与隐藏浮窗
-  - id: SC-02
-    name: BYOK 配置 Anthropic API Key 持久化
-  - id: SC-03
-    name: 直接对话模式（Markdown 流式渲染）
-  - id: SC-04
-    name: CLI 插件安装与首次执行 TOFU 弹框
-  - id: SC-05
-    name: TOFU 允许后插件执行返回 Markdown
-  - id: SC-06
-    name: TOFU 拒绝后插件不执行
-  - id: SC-07
-    name: 未配置 provider 时发起对话显示引导错误
-  - id: SC-08
-    name: 每次唤起为独立新 Session
-  - id: SC-09
-    name: buddy launcher remove 卸载插件
-  - id: SC-10
-    name: Launcher 与像素猫完全互不干扰
-  - id: SC-11
-    name: buddy launcher inspect 查看插件详情
-  - id: SC-12
-    name: 本地 Ollama 配置与失联错误
+execution_order_suggested:
+  - parallel: ["001-provider-system-field", "002-manifest-discriminated-union"]
+  - serial: ["003-plugin-dispatcher"]
+  - parallel: ["004-prompt-executor", "005-trust-mode-aware"]
+  - serial: ["006-builtin-translate"]
+
+estimate:
+  per_task_hours: 1-2
+  total_hours: 6-12
+  note: |
+    每个 task 独立 autopilot 跑（design + implement + qa + auto-fix），可用 /autopilot next 逐个推进。

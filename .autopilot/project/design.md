@@ -1,238 +1,283 @@
-# Buddy Launcher — Alfred 式 AI 启动器子系统
+# Buddy Launcher — 插件协议多 Mode 升级 + 首个 Prompt Mode 插件（翻译）
 
-> 在 claude-code-buddy macOS 应用内新增独立的启动器子系统（⌘⇧Space 浮窗 + AI 路由 + CLI 插件），与现有像素猫互不干扰。完整设计参考 `~/Downloads/prd.txt` 的 Genie 11 项决策（适配 Swift 技术栈）。
+> 把 launcher 插件协议从"单一 subprocess"升级为"mode discriminated union"，借鉴 `~/workspace/claude-code/` 的 hook 模式（command/prompt/http/agent 4 种）。本轮落地 **stdin**（现有 cli 重命名）+ **prompt**（NEW，零代码声明式 LLM 插件），并实现首个 prompt mode 实例 `builtin-translate`。
 
 ## Context
 
-**用户目标**：复用 buddy menu bar app 的 LSUIElement / SocketServer / 打包链路，避免另起一个独立应用，把"召之即来的 AI 助手"和"像素猫陪伴"集成在同一个 app 里。
+**用户目标**：按照 launcher 社区化插件体系，做第一个翻译插件，强调"产品和交互式设计非常重要"。
 
-**核心约束**：MVP 严格匹配 PRD 7 项闭环（仅快捷键+浮窗、CLI 插件原子、plugin.json+README 发现、BYOK provider、永远 loop 早停、Git URL 去中心分发、TOFU 权限）；不做权限矩阵 / 持久会话 / 上下文压缩 / topic search / 跨平台。
+**经过 brainstorm 澄清的真实需求**：
 
-## 整体架构设计
+1. **不只是做一个翻译插件**，而是借此机会**升级 launcher 插件协议**为多 mode 架构（与 claude-code hook 模式对齐）
+2. **翻译插件作为新协议的首个 prompt mode 实例**：零代码、纯声明（systemPrompt only），复用 launcher 当前激活的 provider（用户本地 Qwen at `127.0.0.1:8001`）
+3. **agent 命名让出**：保留给未来"对齐 claude-code 的多轮 LLM loop + tools 完整 agent"实现；本轮做的单轮 LLM 调用称为 **prompt mode**
 
-### 系统概览
+**核心约束**：
+- 不破坏现有 stdin 模式（builtin-hello / 任何已发布的 community plugin）
+- LauncherProvider 协议扩展不能破坏现有 send() 调用方（system 可选参数 + 默认 nil）
+- Trust 体系必须覆盖 prompt mode 的 manifest hash 变化
+- 翻译插件复用 launcher 激活的 provider，不引入新依赖
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  claude-code-buddy App                                           │
-│  ┌────────────────────┐    ┌──────────────────────────────────┐  │
-│  │ 像素猫子系统（不动） │    │  Launcher 子系统（新增）          │  │
-│  │ BuddyWindow/Scene  │    │  ┌────────────────────────────┐  │  │
-│  │ CatSprite          │    │  │ LauncherWindow (NSPanel)   │  │  │
-│  │ SessionManager     │    │  └────────────┬───────────────┘  │  │
-│  │ SocketServer       │    │  ┌────────────▼───────────────┐  │  │
-│  │ MenuBar Popover    │    │  │ LauncherInputView          │  │  │
-│  └────────────────────┘    │  │  (SwiftUI + NSHosting)     │  │  │
-│                            │  └────────────┬───────────────┘  │  │
-│  ┌────────────────────┐    │  ┌────────────▼───────────────┐  │  │
-│  │ AppDelegate        │────┼─→│ LauncherManager            │  │  │
-│  │ +setupLauncher()  │    │  │  Router → Agent → Provider  │  │  │
-│  └────────────────────┘    │  │  + PluginManager+TrustStore │  │  │
-│                            │  └─────────────────────────────┘  │  │
-└──────────────────────────────────────────────────────────────────┘
-                                          │
-                                          ▼
-       ┌─────────────────────────────────────────────────────────┐
-       │  ~/.buddy/launcher.json / launcher-trust.json           │
-       │  ~/.buddy/launcher-plugins/<user>-<repo>/               │
-       │   ├─ plugin.json   └─ README.md  └─ <executable>        │
-       │  Keychain 或 EncryptedFile (CryptoKit) 存 API key        │
-       └─────────────────────────────────────────────────────────┘
-                                          │
-                                          ▼
-       CLI 子进程（任意语言）
-        stdin = JSON {query, sessionId, cwd}
-        stdout = markdown / stderr = log / exit code / 30s timeout
-```
-
-### 关键技术决策
-
-| 决策 | 选定 | 理由 |
-|---|---|---|
-| 窗口类型 | 新建独立 NSPanel + canBecomeKey override | BuddyWindow `ignoresMouseEvents=true` + borderless 用于点击穿透，不能用于输入；NSPanel 是浮窗输入框标准选择 |
-| UI 框架 | SwiftUI + NSHostingController | 启动器表单+列表+markdown 用 SwiftUI 大幅减少代码量 |
-| 全局快捷键 | sindresorhus/KeyboardShortcuts SPM | 自带录制 UI + 持久化 + 冲突检测；零冲突风险 |
-| 默认快捷键 | ⌘⇧Space | Spotlight 占用 ⌘Space；Raycast/Hammerspoon 业界惯例；Xcode 默认 "Show Documentation" 占用同 combo，task 001 需做探针引导改键 |
-| Agent 引擎 | Swift 翻译 learn-everything v1 76 行 | 简单到能 review 全文；URLSession async/await + Codable 足够 |
-| Provider 抽象 | Anthropic-native + OpenAI 兼容 | OpenAI 协议覆盖 80% 本地推理引擎（Ollama/Qwen/DeepSeek） |
-| API key 存储 | 可插拔 SecretStore：Keychain → EncryptedFile 降级 | `bundle.sh:56` 用 ad-hoc 签名+无 entitlements，macOS 13+ 下 `SecItemAdd` 报 `errSecMissingEntitlement(-34018)`；必须探针 + 自动降级 |
-| 配置/插件目录 | `~/.buddy/` | 用户可手编辑、可 dotfile 同步 |
-| 插件协议 | stdin=JSON / stdout=markdown / timeout≤30s / exit code | JSON 可扩展不破协议；markdown 是 LLM 母语 |
-| 插件 PATH 注入 | `/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH` | LSUIElement app 默认 PATH 仅 `/usr/bin:/bin`，plugin 调 git/python/node 会失败；PluginManifest 含 `requiredPath` 字段预检查 |
-| 插件安装 | `buddy launcher add <user/repo>` → git clone | 零依赖；扩展 BuddyCLI 用 nested switch（**不**引入 swift-argument-parser，main.swift 已 841 行 raw CommandLine） |
-| TOFU 信任键 | SHA256(plugin.json.cmd + args.joined() + executableHash) | 防止作者改 cmd/args 绕过；executable hash 防二进制替换 |
-| 会话 | 每次唤起新 messages 数组 | PRD 决策 11 |
-| Markdown 渲染 | `AttributedString(markdown:)` macOS 12+ | 0 依赖 |
-
-### 文件落点
+## 整体架构
 
 ```
-apps/desktop/Sources/ClaudeCodeBuddy/Launcher/  (新建)
-├── LauncherManager.swift
-├── LauncherWindow.swift
-├── LauncherInputView.swift
-├── LauncherHostingController.swift
-├── LauncherHotkey.swift
-├── LauncherRouter.swift
-├── Agent/{LauncherAgent,AgentMessage,AgentEvent}.swift
-├── Provider/{LauncherProvider,AnthropicProvider,OpenAICompatibleProvider}.swift
-├── Plugin/{PluginManifest,PluginManager,PluginExecutor,TrustStore}.swift
-├── Config/{LauncherConfig,SecretStore,KeychainSecretStore,EncryptedFileSecretStore}.swift
-└── LauncherConstants.swift
-
-apps/desktop/Package.swift  (新增依赖)
-+ .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
-
-apps/desktop/Sources/BuddyCLI/main.swift  (单文件 nested switch 扩展)
-+ case "launcher": handleLauncher(args)  // add/list/remove/config/inspect
-
-apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift
-+ setupLauncher()  // 接入点，单行追加
+                    ┌──────────────┐
+                    │ Launcher UI  │
+                    │ (NSPanel +   │
+                    │  Markdown)   │
+                    └──────┬───────┘
+                           │ query string
+                           ▼
+                    ┌──────────────┐
+                    │ LauncherRouter│  ← 现有，不动核心
+                    │ keyword→AI    │     （仅 001 修迁移 user-prefix hack）
+                    └──────┬───────┘
+                           │ RouteDecision(.withPlugin(manifest))
+                           ▼
+                    ┌──────────────┐
+                    │PluginDispatcher│ ← NEW (替代 PluginExecutor，003)
+                    │  switch mode │
+                    └──┬─────────┬─┘
+                       │         │
+        ┌──────────────┘         └──────────────┐
+        ▼                                       ▼
+┌─────────────────┐                    ┌─────────────────┐
+│ StdinExecutor   │ ← 003 (保留现有)   │ PromptExecutor  │ ← NEW (004)
+│ subprocess +    │                    │ provider.send + │
+│ stdin/stdout    │                    │ system field    │
+└─────────────────┘                    └────────┬────────┘
+                                                │
+                                                ▼
+                                     ┌──────────────────┐
+                                     │ LauncherProvider │ ← 协议扩展 (001)
+                                     │  send(...,       │   加 system 字段
+                                     │   system: ?)     │
+                                     └──────────────────┘
+                                                │
+                                       ┌────────┴─────────┐
+                                       ▼                  ▼
+                                AnthropicProvider   OpenAICompatible
+                                                          Provider
 ```
 
-## 任务 DAG
+## 关键设计决策
 
-详见 `dag.yaml`，简要：
+### 决策 1：Manifest discriminated union schema（task 002）
 
+```json
+{
+  "name": "builtin-translate",
+  "version": "0.1.0",
+  "description": "中英互译助手",
+  "keywords": ["翻译", "translate", "tr"],
+  "timeout": 30,
+  "mode": "prompt",                    // 新增 discriminator
+  
+  // stdin mode 专属（mode=stdin 时存在）
+  // "cmd": "...", "args": [], "env": {}, "requiredPath": []
+  
+  // prompt mode 专属（mode=prompt 时存在）
+  "systemPrompt": "你是中英互译助手...",
+  "maxIterations": 1,
+  "model": null                        // null = 用 launcher 激活 provider 的 model
+}
 ```
-001-launcher-skeleton  (M)  ── no deps
-   ↓
-002-provider-abstraction (M)
-   ↓
-003-agent-loop (M)              004-plugin-runtime (M, deps:001)
-       \                         /
-        005-routing (M)
-                |
-                +─→ 007-e2e-and-docs (S, deps:005,006)
-                |
-006-install-and-tofu (M, deps:004)
+
+**Swift Codable 形状**：
+
+```swift
+struct PluginManifest: Codable {
+    let name, version, description: String
+    let keywords: [String]
+    let timeout: Int?
+    let modeConfig: PluginModeConfig
+}
+
+enum PluginModeConfig: Codable {
+    case stdin(StdinConfig)
+    case prompt(PromptConfig)
+    // decode 时按顶层 "mode" 字段分发
+}
 ```
 
-## 跨任务设计约束
+**向后兼容**：缺失 mode 字段 → 默认 `mode: "stdin"`，从 root level 读 cmd/args/env。
 
-- 命名：`Launcher` 前缀；目录 `apps/desktop/Sources/ClaudeCodeBuddy/Launcher/`
-- 测试：`<Module>Tests.swift` 单元；`<Module>.acceptance.test.swift` 红队验收；`<Module>SnapshotTests.swift` 窗口快照
-- 错误：所有 async throws 用 `LauncherError` enum，UI 层 SwiftUI Alert，**不要 fatalError**
-- 子进程超时：30s SIGTERM → +5s SIGKILL
-- 不动现有像素猫代码：BuddyWindow/Scene/CatSprite/SessionManager/SocketServer 等
-- AppDelegate 仅追加 `setupLauncher()` 一行
-- 配置目录 `~/.buddy/` 启动时若不存在则创建；权限 0600（key）/ 0644（manifest/trust）
-
-## 契约规约（项目级）
-
-> 跨任务共享接口形状的权威。每个子任务 brief 继承本契约 + 内部细化。
-
-### LauncherProvider（task 002 定义，003/005 消费）
+### 决策 2：LauncherProvider 协议扩展 system 字段（task 001）
 
 ```swift
 protocol LauncherProvider {
     func send(
         messages: [AgentMessage],
         tools: [AgentTool],
-        model: String
+        model: String,
+        system: String? = nil           // NEW
     ) async throws -> AgentResponse
 }
-
-struct AgentResponse: Codable {
-    let content: [AgentContent]   // 含 text 和 tool_use 混合
-    let stopReason: String         // "tool_use" / "end_turn" / "max_tokens"
-    let usage: AgentUsage?
-}
-
-enum AgentContent: Codable {
-    case text(String)
-    case toolUse(id: String, name: String, input: [String: AnyCodable])
-}
 ```
 
-### LauncherAgent（task 003 定义，005 消费）
+- AnthropicProvider：`request.system = system`（Anthropic 原生字段）
+- OpenAICompatibleProvider：`messages.prepend({role: "system", content: ...})`
+- LauncherRouter.swift:75-91 的 user-message 前缀 hack 同时迁移到 system 参数
+
+### 决策 3：Trust mode-aware（task 005）
+
+```
+stdin:  trustKey = SHA256("stdin:" + cmd + args + sha256(executable_bytes))
+prompt: trustKey = SHA256("prompt:" + systemPrompt + maxIterations + (model ?? "default"))
+```
+
+- mode 前缀防止 mode 切换冒充（`prompt:X` ≠ `stdin:X`）
+- prompt 任一字段变化 → trustKey 变化 → 重新弹 NSAlert
+
+### 决策 4：PluginDispatcher 替代 PluginExecutor（task 003）
 
 ```swift
-func run(prompt: String, tools: [AgentTool], systemPrompt: String?) -> AsyncStream<AgentEvent>
-
-enum AgentEvent {
-    case text(String)              // 增量 markdown 片段
-    case toolCall(name: String, input: [String: AnyCodable])
-    case toolResult(name: String, output: String)
-    case done
-    case error(LauncherError)
+final class PluginDispatcher {
+    let stdinExecutor: StdinExecutor       // 等价现有 PluginExecutor 内部逻辑
+    let promptExecutor: PromptExecutor     // NEW
+    
+    func execute(manifest:query:sessionId:cwd:) async throws -> PluginResult {
+        switch manifest.modeConfig {
+        case .stdin: stdinExecutor.execute(...)
+        case .prompt: promptExecutor.execute(...)
+        }
+    }
 }
 ```
 
-### PluginManifest / PluginManager（task 004 定义，005/006 消费）
+### 决策 5：PromptExecutor 单轮调用（task 004）
 
 ```swift
-struct PluginManifest: Codable {
-    let name: String              // 必须匹配目录名最后一段
-    let version: String
-    let description: String
-    let keywords: [String]
-    let cmd: String               // plugin 目录内相对路径
-    let args: [String]
-    let env: [String: String]?
-    let timeout: Int?             // 秒，缺省 30，上限 120
-    let requiredPath: [String]?   // 预检查外部 binary
+final class PromptExecutor {
+    func execute(manifest: PluginManifest, query: String) async throws -> PluginResult {
+        // 空 query 短路（验收 Scenario 5）
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return PluginResult(stdout: "请输入需要翻译的文字", ...)
+        }
+        
+        let response = try await provider.send(
+            messages: [user(query)],
+            tools: [],
+            model: config.model ?? activeProviderModel,
+            system: config.systemPrompt
+        )
+        return PluginResult(stdout: response.text, ...)
+    }
 }
-
-func PluginManager.list() throws -> [PluginManifest]
-
-struct PluginInput: Codable { let query, sessionId, cwd: String }
-
-struct PluginResult {
-    let stdout, stderr: String
-    let exitCode: Int32
-    let durationMs: Int
-}
-
-func PluginManager.execute(_ plugin: PluginManifest, input: PluginInput) async throws -> PluginResult
 ```
 
-### 边界值（DbC）
+- 超时：用 `Task { ... }` + `task.cancel()` 模式（URLSession cancel 真正传播）
+- 错误：provider 抛 → PluginResult exitCode=1 + stderr 描述 → UI "翻译失败: <错误>"
 
-- Agent loop 最大迭代：≤ 10
-- Provider HTTP 超时：≤ 120s
-- Plugin 子进程超时：≤ 30s（manifest 可改但 ≤ 120s）
-- Plugin stdout 最大读取：≤ 1 MiB（超过截断 + 警告）
-- API key 长度：≥ 8 字符
-- 路由候选数量：≤ 5
-- 输入框最大输入：≤ 8000 字符
+### 决策 6：builtin-translate 作为 SPM Bundle plugin（task 006）
 
-### 错误码（LauncherError）
+部署在 `Sources/ClaudeCodeBuddy/Plugins/TranslatePlugin/plugin.json`（无可执行文件），与 builtin-hello 同等首次启动安装路径。`installBundledPlugins()` 扩展时对 prompt mode 跳过 chmod（无 sh 文件可改）。
 
-| 错误码 | 触发 |
-|---|---|
-| `providerNotConfigured` | 无 provider 配置 |
-| `invalidAPIKey` | Keychain/EncryptedFile 无 key |
-| `networkFailure(Error)` | URLSession 错误 |
-| `providerHTTPError(Int, String)` | 4xx/5xx |
-| `pluginNotFound(String)` | 路由选中插件不存在 |
-| `pluginNotTrusted(String)` | TOFU 未通过 |
-| `pluginTimeout(Int)` | 子进程超时 |
-| `pluginCrash(Int32, String)` | exit code 非 0 |
-| `pluginMissingDependency(String)` | requiredPath binary 不存在 |
-| `maxIterations` | Agent loop > 10 |
-| `secretStoreUnavailable` | Keychain 失败且 EncryptedFile 不可写 |
-| `hotkeyConflict(String)` | 快捷键注册失败 |
+systemPrompt：
 
-## Handoff 策略
+```
+你是一个专业的中英互译助手。
 
-每个 task merge 阶段写 `tasks/<id>.handoff.md`，含：实现的接口签名 + 关键文件路径 + 配置增量 + 已知限制 + 下游接入示例（最小 3 行代码）。
+规则：
+1. 检测输入语言：含中文字符 → 译为英文；纯英文/拉丁字符 → 译为中文
+2. 输出仅包含译文本身，不要任何解释、引号、Markdown 格式
+3. 保留原文的换行结构与标点风格
+4. 对于专有名词、代码片段、URL，保持原样不译
+5. 译文风格：日常流畅，避免机械直译；商务/技术文本保持正式
+```
 
-## 风险与缓解
+## 任务 DAG
 
-| 风险 | 概率/影响 | 缓解 |
-|---|---|---|
-| KeyboardShortcuts SPM 冲突 | 低/中 | task 001 单独验证 SPM resolve |
-| NSPanel canBecomeKey 在 LSUIElement 异常 | 中/高 | task 001 优先验证 |
-| Ollama OpenAI 兼容协议字段差异 | 中/中 | task 002 用 qwen2.5 实测 + Quirks 文档 |
-| 子进程 stdin/stdout buffering | 中/中 | task 004 用 Pipe + readDataToEndOfFile |
-| NSAlert 在浮窗下卡 | 低/中 | task 006 测试 modal 共存，fallback SwiftUI Alert |
-| 流式 markdown 代码块未闭合 | 中/低 | task 003 增量累积 buffer，done 才最终渲染 |
-| **Keychain ad-hoc 签名失效** | 高/高 | task 002 SecretStore 探针自动降级 EncryptedFile |
-| **⌘⇧Space 与 Xcode 冲突** | 高/中 | task 001 探针失败弹录制 UI |
-| **子进程 PATH 无 Homebrew** | 高/高 | task 004 注入扩展 PATH + manifest.requiredPath 预检查 |
+详见 [`dag.yaml`](dag.yaml)。
 
-## 关联
+**关键路径**：001 → 002 → 003 → 004 → 006（顺序 5 task）  
+**可并行**：001 ∥ 002（互不依赖）；005 ∥ 003/004（仅依赖 002）
 
-完整 design / contract / 12 验收场景在状态文件：
-`.autopilot/runtime/requirements/20260525-新增类似-alfred-这样的/state.md`
+## 跨任务设计约束
+
+### 共享 contract
+
+1. **PluginManifest Codable 形状**（002 引入）：003/004/005/006 依赖此 schema。不允许绕过直接构造 mode-specific config
+2. **PluginResult 不变**：所有 executor 输出统一为 PluginResult，便于上层渲染
+3. **LauncherProvider.send 签名**（001 修改）：system 可选参数 + 默认 nil 保证现有调用方零改动
+4. **trustKey 算法**（005 定义）：mode 前缀强制 + 子字段顺序固定
+
+### 命名约定
+
+- mode 字段值 `"stdin"` | `"prompt"`（小写，预留 `"agent"` / `"http"`）
+- Executor 类名 `StdinExecutor` / `PromptExecutor`
+- Manifest 字段 `systemPrompt`（驼峰）
+- builtin plugin 前缀 `builtin-`
+
+### 向后兼容矩阵
+
+| 改动点 | 现有行为 | 新行为 | 兼容策略 |
+|--------|----------|--------|----------|
+| send() 调用方 | 3 参数 | 4 参数（system 可选） | 默认 nil，编译零改动 |
+| plugin.json 解析 | root cmd/args | mode discriminated | 缺 mode 字段 = stdin |
+| stdin plugin trustKey | exe-bytes hash | `stdin:` 前缀 + exe-bytes hash | mode 前缀变化重新弹 alert（一次性迁移） |
+
+注：stdin plugin trustKey 加 `stdin:` 前缀会导致**已安装 stdin plugin** 重新弹 NSAlert 一次（一次性迁移成本，可接受）。005 brief 中明确此点。
+
+### Handoff 策略
+
+每个 task merge 阶段写 `tasks/00N-name.handoff.md`，含：
+1. 实现摘要 1-2 段
+2. 新引入的契约/接口（精确签名 + 文件路径 + 行号）
+3. 下游须知（依赖此 task 的下游 task 实现时需注意什么）
+4. 偏差说明（与 brief 不一致处 + 原因）
+
+**关键 handoff 链**：
+
+- 001 → 003/004/006：新 send 签名 + 默认 nil 兼容策略 + Router hack 迁移完成确认
+- 002 → 003/004/005/006：PluginManifest 新 Codable 结构 + 向后兼容 decoder + mode-aware validate()
+- 003 → 004/006：PluginDispatcher 接口 + StdinExecutor 与现有逻辑一致性
+- 004 → 006：PromptExecutor 构造方法 + 错误码语义 + 空 query 行为
+- 005 → 006：trustKey 计算函数签名 + NSAlert 显示 prompt mode 摘要的方式
+
+## 验收场景覆盖
+
+完整 SC 列表见 `state.md ## 验收场景`（10 个场景）。任务覆盖矩阵：
+
+| SC | 主负责 task | 备注 |
+|----|-------------|------|
+| 1 中→英翻译 | 006 | 端到端，需 provider 启动 |
+| 2 英→中翻译 | 006 | — |
+| 3 混合符号 | 006 | systemPrompt 规则保障 |
+| 4 路由分流 | 003 | dispatcher mode 分流 |
+| 5 空输入兜底 | 004 | PromptExecutor 短路逻辑 |
+| 6 超长输入 | 004 | provider 超时或截断 |
+| 7 LLM 不可达 | 004 | exitCode=1 + stderr |
+| 8 首次 NSAlert | 005 | TOFU mode-aware |
+| 9 systemPrompt 改动重弹 | 005 | trustKey 变化 |
+| 10 复制提示 | 006 | UI 反馈 |
+
+## 已知风险与已识别陷阱
+
+### 必须规避的陷阱
+
+1. **OpenAICompatibleProvider system message 兼容性**：本地 Qwen 对首条 `role=system` 消息 schema 要求未验证 → task 001 必须实测（curl + Qwen 真实返回 200）
+2. **withTimeout URLSession cancel 传播**：Swift 默认 `Task.sleep`-based timeout 不会取消 URLSession 任务 → task 004 用 `Task { provider.send() }` + `task.cancel()` 显式传播
+3. **PluginManifest.validate() mode-aware**：现有 validate() 强制 cmd 非空 → task 002 必须加 mode 分支跳过 prompt mode 的 cmd 校验（红队首个测试用例）
+4. **installBundledPlugins chmod**：现有逻辑对每个 bundled plugin 的 cmd 文件 chmod 0755 → task 006 对 prompt mode 跳过 chmod（无 sh 文件）
+
+### 已在设计中处理的风险
+
+- ✅ Trust 模型 mode 前缀防伪造
+- ✅ Manifest 向后兼容（缺 mode = stdin）
+- ✅ Provider 系统字段向后兼容（默认 nil）
+
+## 时间预估
+
+每个 task 1-2h autopilot 自动跑（含 design + implement + qa + auto-fix）。
+
+总预估：6-12h 自动驾驶时间，跨多次 /autopilot next 调用完成。
+
+## 知识沉淀候选（merge 阶段）
+
+- **决策**：launcher plugin 协议从单一 stdin 升级为 mode discriminated union（与 claude-code hook 模式对齐）
+- **模式**：Swift Codable enum 实现 discriminated union（decode 按 type 字段分发）的范式
+- **模式**：prompt mode plugin trust 模型（manifest hash 而非 exe bytes）
+- **决策**：LauncherProvider 协议 system 字段从可选扩展引入的兼容性策略
+- **陷阱**：OpenAI 兼容服务对首条 role=system 消息的 schema 差异（task 001 验证后记录）
+- **陷阱**：Swift withTimeout 对 URLSession 任务的 cancel 传播

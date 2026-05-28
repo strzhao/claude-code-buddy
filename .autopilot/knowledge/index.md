@@ -80,3 +80,6 @@
 - [2026-05-28] SwiftUI 跨 NSPanel 桥接 light/dark 颜色用 NSColor(name:dynamicProvider:) 比 @Environment(\.colorScheme) 更稳，hidesOnDeactivate 场景下 environment 传播不可靠 | tags: swiftui, appkit, nspanel, nshostingcontroller, dynamic-color, nscolor-name-provider, colorscheme, environment, hidesondeactivate, dark-mode, light-mode, theme, design-tokens, launcher | → patterns/2026-05-28-swiftui-nspanel-dynamic-color-bridge.md
 - [2026-05-28] swift test 按模块 filter 跳过 SpriteKit/Snapshot 节省 97% 时间（claude-code-buddy 全量 626s → filtered 17.5s） | tags: swift-test, spm, filter, qa, performance, spritekit, snapshot-testing, buddy-launcher, ci-time | → patterns/2026-05-28-swift-test-filter-skips-spritekit.md
 - [2026-05-28] Swift 5.9 协议方法不支持默认参数值，需 concrete impl 各加默认 + 协议引用调用方显式传 | tags: swift, protocol, default-parameter, swift-5.9, language-limitation, launcher-provider, api-evolution, backward-compatibility | → patterns/2026-05-28-swift-protocol-method-no-default-values.md
+
+## 2026-05-29 新增条目
+- [2026-05-29] Swift 字符串字面量混用 ASCII 双引号包含中文文本会触发隐晦编译错误（误报 "missing argument label 'file:'"）| tags: swift, string-literal, double-quote, cjk, xctest, compilation-error, escape, red-team-test, message-string | → patterns/2026-05-29-swift-string-literal-cjk-quote-bug.md

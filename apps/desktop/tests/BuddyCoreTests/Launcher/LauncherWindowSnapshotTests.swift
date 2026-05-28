@@ -6,40 +6,45 @@ import SnapshotTesting
 @MainActor
 final class LauncherWindowSnapshotTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        // isRecording = true  // 重录基线时取消注释
+    }
+
     func test_LauncherInputView_emptyState() {
         let manager = LauncherManager.shared
         let view = LauncherInputView(manager: manager)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 80)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 80)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 90)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 90)))
     }
 
     func test_LauncherInputView_withQuery() {
         let manager = LauncherManager.shared
         // We create a view with a pre-set query via a wrapper
-        let view = LauncherInputViewPreview(manager: manager, initialQuery: "hello")
+        let view = LauncherInputViewPreview(manager: manager, initialQuery: "hello", previewHeight: 90)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 80)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 80)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 90)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 90)))
     }
 
     func test_LauncherInputView_withOutput() {
         let manager = LauncherManager.shared
         let output = AttributedString("echo: test")
-        let view = LauncherInputViewPreview(manager: manager, initialRendered: output)
+        let view = LauncherInputViewPreview(manager: manager, initialRendered: output, previewHeight: 200)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 200)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 200)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 200)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 200)))
     }
 }
 
 /// 用于快照测试的 preview 包装 view，可注入初始状态
-/// task 003 适配：新增 outputBuffer + rendered + isRunning 三状态字段
 private struct LauncherInputViewPreview: View {
     let manager: LauncherManager
     var initialQuery: String = ""
     var initialRendered: AttributedString?
     var initialIsRunning: Bool = false
+    var previewHeight: CGFloat = 90
 
     @State private var query: String
     @State private var outputBuffer: String
@@ -50,35 +55,66 @@ private struct LauncherInputViewPreview: View {
         manager: LauncherManager,
         initialQuery: String = "",
         initialRendered: AttributedString? = nil,
-        initialIsRunning: Bool = false
+        initialIsRunning: Bool = false,
+        previewHeight: CGFloat = 90
     ) {
         self.manager = manager
         self._query = State(initialValue: initialQuery)
         self._outputBuffer = State(initialValue: "")
         self._rendered = State(initialValue: initialRendered)
         self._isRunning = State(initialValue: initialIsRunning)
+        self.previewHeight = previewHeight
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             TextField("Ask anything...", text: $query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 18))
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .font(LauncherTheme.bodyText)
+                .foregroundStyle(LauncherTheme.ink)
+                .padding(.horizontal, LauncherConstants.inputPaddingH)
+                .padding(.vertical, LauncherConstants.inputPaddingV)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .disabled(isRunning)
             if query.count >= LauncherConstants.maxQueryLength - 1000 {
                 Text("\(query.count) / \(LauncherConstants.maxQueryLength)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength ? .red : .secondary)
-                    .padding(.horizontal, 12)
+                    .font(LauncherTheme.footerMono)
+                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength
+                        ? Color.red : LauncherTheme.smoke)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                    .padding(.bottom, 4)
             }
             if let out = rendered {
-                Divider()
-                ScrollView { Text(out).textSelection(.enabled).padding(.horizontal, 12) }
-                    .frame(maxHeight: 400)
+                LauncherTheme.borderPixel.opacity(0.4)
+                    .frame(height: 1)
+                ScrollView {
+                    Text(out)
+                        .font(LauncherTheme.outputBody)
+                        .foregroundStyle(LauncherTheme.ink)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, LauncherConstants.inputPaddingH)
+                        .padding(.vertical, 12)
+                }
+                .frame(maxHeight: LauncherConstants.outputMaxHeight)
+                .background(LauncherTheme.surface)
             }
         }
-        .padding(.vertical, 4)
-        .background(.regularMaterial)
+        .frame(
+            width: LauncherConstants.windowWidth,
+            height: previewHeight,
+            alignment: .top
+        )
+        .background(
+            RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                .fill(LauncherTheme.canvas)
+                .overlay(
+                    RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                        .strokeBorder(LauncherTheme.borderPixel,
+                                      lineWidth: LauncherTheme.pixelBorderWidth)
+                )
+        )
+        .shadow(color: LauncherTheme.shadowPixel, radius: 0,
+                x: LauncherTheme.pixelShadowOffset.width,
+                y: LauncherTheme.pixelShadowOffset.height)
     }
 }

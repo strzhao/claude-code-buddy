@@ -9,11 +9,15 @@ struct LauncherInputView: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            // 输入区
             TextField("Ask anything...", text: $query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 18))
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .font(LauncherTheme.bodyText)
+                .foregroundStyle(LauncherTheme.ink)
+                .padding(.horizontal, LauncherConstants.inputPaddingH)
+                .padding(.vertical, LauncherConstants.inputPaddingV)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .focused($focused)
                 .disabled(isRunning)
                 .onSubmit { Task { await submit() } }
@@ -22,26 +26,62 @@ struct LauncherInputView: View {
                         query = String(new.prefix(LauncherConstants.maxQueryLength))
                     }
                 }
-            // 候选插件列表（task 005：仅在 candidates 非空时显示）
+
+            // 候选插件列表（仅在 candidates 非空时显示）
             LauncherCandidateView(
                 candidates: manager.lastRouteCandidates,
                 selectedIndex: manager.lastRouteSelectedIndex
             )
-            // 接近上限时显示字数指示（warning UI，契约要求）
+
+            // 接近上限时显示字数指示（warning UI）
             if query.count >= LauncherConstants.maxQueryLength - 1000 {
                 Text("\(query.count) / \(LauncherConstants.maxQueryLength)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength ? .red : .secondary)
-                    .padding(.horizontal, 12)
+                    .font(LauncherTheme.footerMono)
+                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength
+                        ? Color.red : LauncherTheme.smoke)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                    .padding(.bottom, 4)
             }
+
+            // 输出区（有内容时显示）
             if let out = rendered {
-                Divider()
-                ScrollView { Text(out).textSelection(.enabled).padding(.horizontal, 12) }
-                    .frame(maxHeight: 400)
+                // 1px hairline 分隔线
+                LauncherTheme.borderPixel.opacity(0.4)
+                    .frame(height: 1)
+
+                ScrollView {
+                    Text(out)
+                        .font(LauncherTheme.outputBody)
+                        .foregroundStyle(LauncherTheme.ink)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, LauncherConstants.inputPaddingH)
+                        .padding(.vertical, 12)
+                }
+                .frame(maxHeight: LauncherConstants.outputMaxHeight)
+                .background(LauncherTheme.surface)
             }
-        }
-        .padding(.vertical, 4)
-        .background(.regularMaterial)
+        } // end VStack
+        .frame(
+            width: LauncherConstants.windowWidth,
+            height: LauncherInputView.panelHeight(
+                candidateCount: manager.lastRouteCandidates.count,
+                hasSelected: manager.lastRouteSelectedIndex >= 0,
+                outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0
+            ),
+            alignment: .top
+        )
+        .background(
+            RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                .fill(LauncherTheme.canvas)
+                .overlay(
+                    RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                        .strokeBorder(LauncherTheme.borderPixel,
+                                      lineWidth: LauncherTheme.pixelBorderWidth)
+                )
+        )
+        .shadow(color: LauncherTheme.shadowPixel, radius: 0,
+                x: LauncherTheme.pixelShadowOffset.width,
+                y: LauncherTheme.pixelShadowOffset.height)
         .onAppear {
             focused = true
             query = ""
@@ -50,8 +90,6 @@ struct LauncherInputView: View {
             isRunning = false
         }
         .onDisappear {
-            // 浮窗关闭时取消正在跑的 AsyncStream，避免后台流式继续 yield
-            // 通过将 isRunning=false 反向通知（task 内 onTermination 监听）
             isRunning = false
         }
         .onExitCommand { manager.hide() }   // Esc → hide
@@ -69,7 +107,6 @@ struct LauncherInputView: View {
             case .text(let s):
                 await MainActor.run {
                     outputBuffer += s
-                    // 增量渲染：每次累积后用 MarkdownRenderer 渲染整个 buffer
                     rendered = MarkdownRenderer.render(outputBuffer)
                 }
             case .toolCall(let name, _):
@@ -93,5 +130,25 @@ struct LauncherInputView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - panelHeight 纯函数（C3 / C7 契约）
+
+extension LauncherInputView {
+    /// 三态自适应面板高度公式（C3/C7 契约）
+    /// - Parameters:
+    ///   - candidateCount: 候选数量
+    ///   - hasSelected: 是否有选中候选（输出态时决定是否额外加 44）
+    ///   - outputHeight: 输出内容高度（0 表示无输出）
+    /// - Returns: 面板内容区高度
+    static func panelHeight(candidateCount: Int, hasSelected: Bool, outputHeight: CGFloat) -> CGFloat {
+        if outputHeight > 0 {
+            return 90 + (hasSelected ? 44 : 0) + min(outputHeight, 400)
+        }
+        if candidateCount > 0 {
+            return 90 + CGFloat(min(candidateCount, 5)) * 44
+        }
+        return 90
     }
 }

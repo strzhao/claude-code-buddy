@@ -83,3 +83,4 @@
 
 ## 2026-05-29 新增条目
 - [2026-05-29] Swift 字符串字面量混用 ASCII 双引号包含中文文本会触发隐晦编译错误（误报 "missing argument label 'file:'"）| tags: swift, string-literal, double-quote, cjk, xctest, compilation-error, escape, red-team-test, message-string | → patterns/2026-05-29-swift-string-literal-cjk-quote-bug.md
+- [2026-05-29] Swift Optional 用 `?? "default"` 序列化到 hash 时 nil 与"default"碰撞，需结构性 tag (0/1:value) 区分 | tags: swift, optional, hash, sha256, serialization, collision, trustkey, structural-tag, security, red-team, plan-reviewer-miss | → patterns/2026-05-29-swift-optional-hash-structural-tag-vs-default-collision.md

@@ -69,7 +69,7 @@ tasks:
     title: "builtin-translate prompt plugin 部署 + 自动复制剪贴板 + inspect 显示 mode"
     depends_on: ["004-prompt-executor", "005-trust-mode-aware"]
     complexity: M
-    status: pending
+    status: done
     acceptance_scenarios: [SC-1, SC-2, SC-3, SC-4, SC-10]
     notes: |
       - Sources/ClaudeCodeBuddy/Plugins/TranslatePlugin/plugin.json（无 sh 文件）

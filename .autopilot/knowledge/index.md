@@ -74,3 +74,7 @@
 - [2026-05-27] TOFU trustKey 必须包含 executable bytes hash，cmd+args 不足以防替换攻击 | tags: tofu, trust, security, sha256, executable-hash, plugin-system, supply-chain, trustkey, cryptokit | → patterns/2026-05-27-tofu-trust-key-includes-exe-bytes.md
 - [2026-05-27] Swift 测试 #file 上溯目录层数必须等于实际目录嵌套深度，少一层会被 XCTSkip 静默掩盖 | tags: swift, swift-testing, xctest, file-path, deletinglastpathcomponent, test-skip, xctskip, source-scan, spm | → patterns/2026-05-27-swift-file-path-test-upcount.md
 - [2026-05-27] SC 覆盖矩阵替代重复 e2e 测试，作为多任务 DAG 末尾"端到端验收"任务的兜底归档 | tags: project-mode, dag, e2e, acceptance-scenario, coverage-matrix, autopilot, sc-mapping, audit, brief-mode, final-task | → patterns/2026-05-27-sc-coverage-matrix-as-e2e-substitute.md
+
+## 2026-05-28 新增条目
+- [2026-05-28] SwiftUI root view 缺 .frame 让 NSHostingController 把 NSPanel 缩到内容最小尺寸；snapshot Preview 复制粘贴 + assertSnapshot(size:) 掩盖此 bug | tags: swiftui, nshostingcontroller, nspanel, frame, intrinsic-size, snapshot-testing, preview-wrapper, layout-bug, zstack, vstack, lsuielement, alfred, launcher | → patterns/2026-05-28-swiftui-frame-nshosting-controller-resize.md
+- [2026-05-28] SwiftUI 跨 NSPanel 桥接 light/dark 颜色用 NSColor(name:dynamicProvider:) 比 @Environment(\.colorScheme) 更稳，hidesOnDeactivate 场景下 environment 传播不可靠 | tags: swiftui, appkit, nspanel, nshostingcontroller, dynamic-color, nscolor-name-provider, colorscheme, environment, hidesondeactivate, dark-mode, light-mode, theme, design-tokens, launcher | → patterns/2026-05-28-swiftui-nspanel-dynamic-color-bridge.md

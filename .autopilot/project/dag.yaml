@@ -56,7 +56,7 @@ tasks:
     title: "Trust 模型 mode-aware：trustKey 算法重设 + NSAlert 显示 prompt mode 摘要"
     depends_on: ["002-manifest-discriminated-union"]
     complexity: S
-    status: pending
+    status: done
     acceptance_scenarios: [SC-8, SC-9]
     notes: |
       - stdin trustKey: "stdin:" + cmd + args + sha256(executable_bytes)

@@ -78,10 +78,10 @@ struct LauncherInputView: View {
                         .strokeBorder(LauncherTheme.borderPixel,
                                       lineWidth: LauncherTheme.pixelBorderWidth)
                 )
+                .shadow(color: LauncherTheme.shadowPixel, radius: 0,
+                        x: LauncherTheme.pixelShadowOffset.width,
+                        y: LauncherTheme.pixelShadowOffset.height)
         )
-        .shadow(color: LauncherTheme.shadowPixel, radius: 0,
-                x: LauncherTheme.pixelShadowOffset.width,
-                y: LauncherTheme.pixelShadowOffset.height)
         .onAppear {
             focused = true
             query = ""

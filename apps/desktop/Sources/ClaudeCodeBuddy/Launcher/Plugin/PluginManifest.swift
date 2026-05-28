@@ -27,6 +27,7 @@ struct PromptConfig: Codable, Equatable {
     let systemPrompt: String
     let maxIterations: Int
     let model: String?
+    let autoCopyToClipboard: Bool
 }
 
 // MARK: - Codable
@@ -35,7 +36,7 @@ extension PluginManifest {
     enum CodingKeys: String, CodingKey {
         case name, version, description, keywords, timeout, mode
         case cmd, args, env, requiredPath
-        case systemPrompt, maxIterations, model
+        case systemPrompt, maxIterations, model, autoCopyToClipboard
     }
 
     init(from decoder: Decoder) throws {
@@ -59,7 +60,8 @@ extension PluginManifest {
             modeConfig = .prompt(PromptConfig(
                 systemPrompt: try c.decode(String.self, forKey: .systemPrompt),
                 maxIterations: try c.decodeIfPresent(Int.self, forKey: .maxIterations) ?? 1,
-                model: try c.decodeIfPresent(String.self, forKey: .model)
+                model: try c.decodeIfPresent(String.self, forKey: .model),
+                autoCopyToClipboard: try c.decodeIfPresent(Bool.self, forKey: .autoCopyToClipboard) ?? false
             ))
         default:
             throw LauncherError.pluginManifestInvalid("unknown mode: \(mode)")
@@ -85,6 +87,7 @@ extension PluginManifest {
             try c.encode(cfg.systemPrompt, forKey: .systemPrompt)
             try c.encode(cfg.maxIterations, forKey: .maxIterations)
             try c.encodeIfPresent(cfg.model, forKey: .model)
+            try c.encode(cfg.autoCopyToClipboard, forKey: .autoCopyToClipboard)
         }
     }
 }

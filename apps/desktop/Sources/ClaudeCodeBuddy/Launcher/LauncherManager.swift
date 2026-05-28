@@ -166,8 +166,8 @@ final class LauncherManager: ObservableObject {
                 }
 
                 // 构造 tools 和 toolExecutor
-                let tools: [AgentTool]
-                let toolExecutor: (String, [String: AnyCodable]) async throws -> String
+                var tools: [AgentTool] = []
+                var toolExecutor: (String, [String: AnyCodable]) async throws -> String = { _, _ in throw LauncherError.providerNotConfigured }
 
                 switch decision {
                 case .directChat:
@@ -175,31 +175,65 @@ final class LauncherManager: ObservableObject {
                     toolExecutor = { _, _ in throw LauncherError.providerNotConfigured }
 
                 case .withPlugin(let manifest):
-                    tools = [manifest.toAgentTool()]
-                    toolExecutor = { name, input in
-                        guard name == manifest.name else {
-                            throw LauncherError.pluginNotFound(name)
+                    // trust check 提前到 mode 分支之前（stdin/prompt 都做）
+                    let dir = try PluginManager.shared.pluginDir(for: manifest)
+                    let executablePath = dir.appending(path: manifest.cmd)
+                    let trusted = await TrustStore.shared.checkAndPrompt(
+                        manifest, executablePath: executablePath
+                    )
+                    guard trusted else {
+                        continuation.yield(.error(.pluginNotTrusted(manifest.name)))
+                        continuation.finish()
+                        return
+                    }
+
+                    switch manifest.modeConfig {
+                    case .stdin:
+                        // 现有路径：toolExecutor 闭包 + LauncherAgent loop
+                        tools = [manifest.toAgentTool()]
+                        toolExecutor = { name, input in
+                            guard name == manifest.name else {
+                                throw LauncherError.pluginNotFound(name)
+                            }
+                            let pluginInput = PluginInput(
+                                query: input["query"]?.value as? String ?? query,
+                                sessionId: UUID().uuidString,
+                                cwd: NSHomeDirectory()
+                            )
+                            let result = try await PluginDispatcher.shared.execute(
+                                manifest,
+                                pluginDir: dir,
+                                input: pluginInput
+                            )
+                            return result.stdout
                         }
-                        // task 006: trust check（TOFU）
-                        let dir = try PluginManager.shared.pluginDir(for: manifest)
-                        let executablePath = dir.appending(path: manifest.cmd)
-                        let trusted = await TrustStore.shared.checkAndPrompt(
-                            manifest, executablePath: executablePath
-                        )
-                        guard trusted else {
-                            throw LauncherError.pluginNotTrusted(manifest.name)
-                        }
+                        // 继续走下面 LauncherAgent.run
+
+                    case .prompt:
+                        // prompt mode bypass agent loop：直接调 PromptExecutor，结果映射为 AgentEvent.text
+                        let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
+                        let dispatcher = PluginDispatcher(stdinExecutor: .shared, promptExecutor: promptExecutor)
                         let pluginInput = PluginInput(
-                            query: input["query"]?.value as? String ?? query,
+                            query: query,
                             sessionId: UUID().uuidString,
                             cwd: NSHomeDirectory()
                         )
-                        let result = try await PluginDispatcher.shared.execute(
-                            manifest,
-                            pluginDir: dir,
-                            input: pluginInput
-                        )
-                        return result.stdout
+                        do {
+                            let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
+                            if result.exitCode == 0 {
+                                continuation.yield(.text(result.stdout))
+                            } else {
+                                // 错误时 stderr 作为用户可见文本展示（含"执行超时" / "执行失败:"）
+                                continuation.yield(.text(result.stderr))
+                            }
+                            continuation.yield(.done(reason: "end_turn"))
+                        } catch let err as LauncherError {
+                            continuation.yield(.error(err))
+                        } catch {
+                            continuation.yield(.error(.networkFailure(error)))
+                        }
+                        continuation.finish()
+                        return // prompt mode 提前 return，跳过 LauncherAgent.run
                     }
                 }
 

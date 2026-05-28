@@ -10,7 +10,7 @@ enum RouteDecision: Equatable {
 final class LauncherRouter {
     private let pluginManager: PluginManager
     private let provider: LauncherProvider
-    /// 复用 chatModel（LauncherProvider 不暴露 system 字段，routerModel = chatModel）
+    /// 复用 chatModel（routerModel = chatModel，system 走 send 参数）
     private let routerModel: String
 
     init(pluginManager: PluginManager, provider: LauncherProvider, routerModel: String) {
@@ -72,10 +72,7 @@ final class LauncherRouter {
 
     /// 第 2 阶段：AI 选 1（异步，调一次 provider.send，无 tools）
     ///
-    /// **system prompt 通过 user message 前缀传递**：
-    /// LauncherProvider.send 协议不暴露独立 system 字段（task 002 设计），
-    /// 故将 system prompt 嵌入 user message 首段，再追加 "User query: ..."。
-    /// Trade-off：claude-haiku/sonnet 对此差异不显著；用"Reply ONLY with..."强约束输出。
+    /// system prompt 通过 send 的 system 参数传递，user message 仅包含原始 query。
     func aiSelect(query: String, candidates: [PluginManifest]) async throws -> RouteDecision {
         guard !candidates.isEmpty else { return .directChat }
         let candidateLines = candidates.map { p in
@@ -88,9 +85,8 @@ final class LauncherRouter {
 
         Reply ONLY with the plugin name (e.g. "translate"), or "NONE" for direct chat. No other text.
         """
-        let combinedPrompt = systemPrompt + "\n\nUser query: " + query
-        let messages: [AgentMessage] = [.init(role: "user", content: [.text(combinedPrompt)])]
-        let resp = try await provider.send(messages: messages, tools: [], model: routerModel)
+        let messages: [AgentMessage] = [.init(role: "user", content: [.text(query)])]
+        let resp = try await provider.send(messages: messages, tools: [], model: routerModel, system: systemPrompt)
 
         let answer = resp.content.compactMap { c -> String? in
             if case .text(let s) = c { return s }

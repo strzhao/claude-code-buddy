@@ -15,7 +15,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
         self.session = session
     }
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String? = nil) async throws -> AgentResponse {
         guard apiKey.count >= LauncherConstants.minAPIKeyLength else {
             throw LauncherError.invalidAPIKey("too short")
         }
@@ -28,12 +28,15 @@ final class OpenAICompatibleProvider: LauncherProvider {
         request.timeoutInterval = LauncherConstants.httpTimeoutSec
 
         // OpenAI 兼容协议：messages content 是 string（仅 MVP text 内容，tool_calls 留 task 003）
-        let oaiMessages = messages.map { msg -> OAIMessage in
+        var oaiMessages = messages.map { msg -> OAIMessage in
             let text = msg.content.compactMap { content -> String? in
                 if case .text(let s) = content { return s }
                 return nil
             }.joined(separator: "\n")
             return OAIMessage(role: msg.role, content: text)
+        }
+        if let system = system, !system.isEmpty {
+            oaiMessages.insert(OAIMessage(role: "system", content: system), at: 0)
         }
 
         let body = OAIRequestBody(model: model, messages: oaiMessages, maxTokens: 4096)

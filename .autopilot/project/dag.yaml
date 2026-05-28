@@ -19,7 +19,7 @@ tasks:
     title: "PluginManifest Codable 重构为 mode discriminated union + mode-aware validate()"
     depends_on: []
     complexity: M
-    status: pending
+    status: done
     acceptance_scenarios: [SC-4]
     notes: |
       - enum PluginModeConfig { case stdin(StdinConfig), case prompt(PromptConfig) }

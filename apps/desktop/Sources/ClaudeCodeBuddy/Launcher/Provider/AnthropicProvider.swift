@@ -12,7 +12,7 @@ final class AnthropicProvider: LauncherProvider {
         self.session = session
     }
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String? = nil) async throws -> AgentResponse {
         guard apiKey.count >= LauncherConstants.minAPIKeyLength else {
             throw LauncherError.invalidAPIKey("too short")
         }
@@ -29,7 +29,8 @@ final class AnthropicProvider: LauncherProvider {
             model: model,
             maxTokens: 4096,
             messages: messages,
-            tools: tools.isEmpty ? nil : tools
+            tools: tools.isEmpty ? nil : tools,
+            system: system?.isEmpty == true ? nil : system
         )
         request.httpBody = try JSONEncoder().encode(body)
 
@@ -59,11 +60,13 @@ private struct AnthropicRequestBody: Encodable {
     let maxTokens: Int
     let messages: [AgentMessage]
     let tools: [AgentTool]?
+    let system: String?
 
     private enum CodingKeys: String, CodingKey {
         case model
         case maxTokens = "max_tokens"
         case messages
         case tools
+        case system
     }
 }

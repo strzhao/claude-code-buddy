@@ -12,10 +12,12 @@ private final class MockRouterProvider: LauncherProvider {
     var callCount = 0
     private(set) var capturedMessages: [[AgentMessage]] = []
     private(set) var capturedTools: [[AgentTool]] = []
+    private(set) var capturedSystem: [String?] = []
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String?) async throws -> AgentResponse {
         capturedMessages.append(messages)
         capturedTools.append(tools)
+        capturedSystem.append(system)
         guard callCount < responses.count else {
             throw LauncherError.networkFailure(URLError(.unknown))
         }

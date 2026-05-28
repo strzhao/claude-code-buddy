@@ -7,9 +7,11 @@ final class MockProvider: LauncherProvider {
     var responses: [Result<AgentResponse, Error>] = []
     var callCount = 0
     var capturedMessages: [[AgentMessage]] = []
+    private(set) var capturedSystem: [String?] = []
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String?) async throws -> AgentResponse {
         capturedMessages.append(messages)
+        capturedSystem.append(system)
         guard callCount < responses.count else {
             throw LauncherError.providerNotConfigured
         }

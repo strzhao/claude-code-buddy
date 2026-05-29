@@ -22,7 +22,8 @@ tasks:
   - id: "003-marketplace-manager-replace-builtin"
     name: "MarketplaceManager 替换 installBundledPlugins"
     brief: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.handoff.md"
+    status: done
     depends_on: ["001", "002"]
     summary: 新建 MarketplaceManager.{seedFromBundle, syncFromRemote, install, migrateLegacy, reseed, inspect}；LauncherManager.setup 切换调用；删除 PluginManager.installBundledPlugins；migrateLegacy 两阶段（先复制新目录+新 trust 记录、再删旧），幂等；syncFromRemote 1h debounce + lastSyncedAt 持久化 + JSONDecoder 失败 cache 不写
 

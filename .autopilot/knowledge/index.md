@@ -87,3 +87,6 @@
 - [2026-05-29] NSPasteboard 测试隔离用 `NSPasteboard(name:)` 创建具名独立 pasteboard，避免 `.general` 全局污染 + CI 无桌面会话问题 | tags: nspasteboard, appkit, testing, isolation, global-singleton, dependency-injection, named-pasteboard, ci, macos, prompt-executor | → patterns/2026-05-29-nspasteboard-test-isolation-via-named-pasteboard.md
 - [2026-05-29] SwiftUI 循环动画作用于派生函数值（如 sin）必须用 TimelineView(.animation)，withAnimation+repeatForever 只对单一插值有效 | tags: swiftui, animation, withanimation, repeatforever, timelineview, derived-value, scaleeffect, sin, pulse, launcher, periodic-animation | → patterns/2026-05-29-swiftui-pulse-animation-needs-timelineview.md
 - [2026-05-29] Swift enum 多形态 JSON Codable：先 try String 再 try keyed container（PluginSourceConfig 4 形态 — 短字符串简写 + 三种 keyed 长形式）| tags: swift, codable, jsondecoder, enum, polymorphic, associated-values, marketplace, schema | → patterns/2026-05-29-swift-enum-polymorphic-json-codable.md
+
+## 2026-05-29 buddy-plugin-market task 002 新增条目
+- [2026-05-29] Swift Process 桥接 async 用 terminationHandler + Task.sleep + resumeOnce 守卫，不要 DispatchQueue + waitUntilExit | tags: swift, process, concurrency, async, continuation, terminationhandler, deadlock, timeout, git-clone, resource-leak | → patterns/2026-05-29-swift-process-async-bridge-terminationhandler.md

@@ -389,6 +389,7 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
             case .pluginCrash(let c, _): return "pluginCrash(\(c))"
             case .pluginManifestInvalid(let s): return "pluginManifestInvalid(\(s))"
             case .pluginNotTrusted(let s): return "pluginNotTrusted(\(s))"
+            case .pluginInvalid(let s): return "pluginInvalid(\(s))"
             case .promptExecutorNotAvailable: return "promptExecutorNotAvailable"
             }
         }

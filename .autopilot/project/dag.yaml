@@ -6,7 +6,8 @@ tasks:
   - id: "001-marketplace-schema-and-bundle-seed"
     name: "Marketplace schema + bundle seed 迁移"
     brief: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.handoff.md"
+    status: done
     depends_on: []
     summary: 定义 MarketplaceManifest + PluginSourceConfig 多态 enum；迁移 Sources/.../Plugins/{HelloPlugin,TranslatePlugin}/ → Sources/.../Marketplace/plugins/{hello,translate}/；新建 marketplace.json (seed)；plugin.json name 字段同步改为 "hello"/"translate"；Package.swift 加 .copy("Marketplace")，保留旧 .copy("Plugins") 兼容（task 003 删）
 

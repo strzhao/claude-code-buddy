@@ -14,7 +14,8 @@ tasks:
   - id: "002-plugin-source-resolver"
     name: "PluginSourceResolver 多态加载"
     brief: ".autopilot/project/tasks/002-plugin-source-resolver.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/002-plugin-source-resolver.handoff.md"
+    status: done
     depends_on: ["001"]
     summary: 实现 4 种 source 类型解析（localSubdir/gitSubdir/gitURL/file）→ 本地插件目录 URL；git 类型复用现有 cmdLauncherAdd 的 /usr/bin/git Process + --depth 1 + 60s timeout；sha 验证
 

@@ -5,27 +5,38 @@ struct LauncherInputView: View {
     @State private var query: String = ""
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
     @State private var rendered: AttributedString?          // 渲染后 markdown
-    @State private var isRunning: Bool = false
     @FocusState private var focused: Bool
+
+    /// 派生自 manager.stage（不再维护独立 @State isRunning）
+    private var isRunning: Bool {
+        manager.stage != .idle && manager.stage != .error
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 输入区
-            TextField("Ask anything...", text: $query)
-                .textFieldStyle(.plain)
-                .font(LauncherTheme.bodyText)
-                .foregroundStyle(LauncherTheme.ink)
-                .padding(.horizontal, LauncherConstants.inputPaddingH)
-                .padding(.vertical, LauncherConstants.inputPaddingV)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .focused($focused)
-                .disabled(isRunning)
-                .onSubmit { Task { await submit() } }
-                .onChange(of: query) { _, new in
-                    if new.count > LauncherConstants.maxQueryLength {
-                        query = String(new.prefix(LauncherConstants.maxQueryLength))
+            HStack(spacing: 8) {
+                TextField("Ask anything...", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(LauncherTheme.bodyText)
+                    .foregroundStyle(LauncherTheme.ink)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                    .padding(.vertical, LauncherConstants.inputPaddingV)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focused)
+                    .disabled(isRunning)
+                    .onSubmit { Task { await submit() } }
+                    .onChange(of: query) { _, new in
+                        if new.count > LauncherConstants.maxQueryLength {
+                            query = String(new.prefix(LauncherConstants.maxQueryLength))
+                        }
                     }
-                }
+
+                // 执行中 3 点脉冲动画（C8 契约）
+                LauncherPulseDots()
+                    .padding(.trailing, LauncherConstants.inputPaddingH)
+                    .opacity(isRunning ? 1 : 0)
+            }
 
             // 候选插件列表（仅在 candidates 非空时显示）
             LauncherCandidateView(
@@ -87,22 +98,51 @@ struct LauncherInputView: View {
             query = ""
             outputBuffer = ""
             rendered = nil
-            isRunning = false
         }
-        .onDisappear {
-            isRunning = false
-        }
+        .onDisappear {}
         .onExitCommand { manager.hide() }   // Esc → hide
+        // 上下箭头键导航候选列表（C5 契约）：循环跳转
+        .onKeyPress(.upArrow) {
+            let count = manager.lastRouteCandidates.count
+            guard count > 0 else { return .ignored }
+            let current = manager.lastRouteSelectedIndex
+            // 循环：< 0 或 == 0 跳到末尾
+            let next = (current <= 0) ? count - 1 : current - 1
+            manager.setSelectedIndex(next)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            let count = manager.lastRouteCandidates.count
+            guard count > 0 else { return .ignored }
+            let current = manager.lastRouteSelectedIndex
+            // 循环：到末尾跳回 0
+            let next = (current >= count - 1) ? 0 : current + 1
+            manager.setSelectedIndex(next)
+            return .handled
+        }
     }
 
     private func submit() async {
+        // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约）
+        let selectedIdx = manager.lastRouteSelectedIndex
+        let candidates = manager.lastRouteCandidates
         let q = query
+
         await MainActor.run {
             outputBuffer = ""
             rendered = nil
-            isRunning = true
         }
-        for await event in manager.submit(q) {
+
+        // 若用户通过键盘选了特定候选（selectedIndex >= 0），构造一个只含该候选的路由流
+        let stream: AsyncStream<AgentEvent>
+        if selectedIdx >= 0, selectedIdx < candidates.count {
+            // 用已选中候选覆盖 AI 路由，直接进入 calling 阶段
+            stream = manager.submitWithPlugin(candidates[selectedIdx], query: q)
+        } else {
+            stream = manager.submit(q)
+        }
+
+        for await event in stream {
             switch event {
             case .text(let s):
                 await MainActor.run {
@@ -122,11 +162,10 @@ struct LauncherInputView: View {
                     rendered = MarkdownRenderer.render(outputBuffer)
                 }
             case .done:
-                await MainActor.run { isRunning = false; query = "" }
+                await MainActor.run { query = "" }
             case .error(let err):
                 await MainActor.run {
                     rendered = MarkdownRenderer.renderError(err)
-                    isRunning = false
                 }
             }
         }

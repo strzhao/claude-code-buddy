@@ -1,0 +1,12 @@
+{
+  "name": "translate",
+  "version": "0.1.0",
+  "description": "中英互译助手，自动检测语言方向",
+  "keywords": ["翻译", "translate", "tr", "中英", "英中", "fy"],
+  "timeout": 30,
+  "mode": "prompt",
+  "systemPrompt": "你是一个专业的中英互译助手。\n\n规则：\n1. 检测输入语言：含中文字符 → 译为英文；纯英文/拉丁字符 → 译为中文\n2. 输出仅包含译文本身，不要任何解释、引号、Markdown 格式\n3. 保留原文的换行结构与标点风格\n4. 对于专有名词、代码片段、URL，保持原样不译\n5. 译文风格：日常流畅，避免机械直译；商务/技术文本保持正式",
+  "maxIterations": 1,
+  "model": null,
+  "autoCopyToClipboard": true
+}

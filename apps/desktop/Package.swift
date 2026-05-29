@@ -26,7 +26,8 @@ let package = Package(
             exclude: ["Resources", "App/main.swift"],
             resources: [
                 .copy("Assets"),
-                .copy("Plugins")
+                .copy("Plugins"),
+                .copy("Marketplace")
             ]
         ),
         .executableTarget(

@@ -90,3 +90,6 @@
 
 ## 2026-05-29 buddy-plugin-market task 002 新增条目
 - [2026-05-29] Swift Process 桥接 async 用 terminationHandler + Task.sleep + resumeOnce 守卫，不要 DispatchQueue + waitUntilExit | tags: swift, process, concurrency, async, continuation, terminationhandler, deadlock, timeout, git-clone, resource-leak | → patterns/2026-05-29-swift-process-async-bridge-terminationhandler.md
+
+## 2026-05-29 buddy-plugin-market task 003 新增条目
+- [2026-05-29] 两阶段迁移幂等 + crash safe：每 Phase 入口重读 state，不复用前 Phase 变量（shape-based 状态机 vs flag-based）| tags: migration, idempotency, crash-safe, state-machine, marketplace-manager, plan-reviewer-blocker, swift, filesystem, trust-store, multi-phase | → patterns/2026-05-29-two-phase-migration-idempotent-crash-safe.md

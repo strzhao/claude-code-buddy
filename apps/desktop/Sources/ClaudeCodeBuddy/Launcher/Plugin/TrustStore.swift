@@ -116,3 +116,17 @@ final class TrustStore {
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
     }
 }
+
+// MARK: - addRecord（B2 修复：必须同文件 extension 才能访问 private loadRecords/saveRecords）
+
+extension TrustStore {
+    /// 直接追加 TrustRecord（用于 MarketplaceManager.migrateLegacy 时保留旧 trustKey + approvedAt）。
+    ///
+    /// 同名 pluginName 旧记录覆盖（与 approve 行为一致）。
+    func addRecord(_ record: TrustRecord) throws {
+        var records = (try? loadRecords()) ?? []
+        records.removeAll { $0.pluginName == record.pluginName }
+        records.append(record)
+        try saveRecords(records)
+    }
+}

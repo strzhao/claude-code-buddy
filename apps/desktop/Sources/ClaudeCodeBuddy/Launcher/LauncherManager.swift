@@ -61,12 +61,15 @@ final class LauncherManager: ObservableObject {
             }
         }
 
-        // task 004 追加：异步安装 bundled plugins（不阻塞 UI）
+        // task 003 (market) 切换：MarketplaceManager 替换 installBundledPlugins
+        // 顺序：先 migrateLegacy 老用户路径 → seedFromBundle 离线 fallback → syncFromRemote 后台拉
         Task.detached {
             do {
-                try PluginManager.shared.installBundledPlugins()
+                try MarketplaceManager.shared.migrateLegacy()
+                try await MarketplaceManager.shared.seedFromBundle()
+                await MarketplaceManager.shared.syncFromRemote()
             } catch {
-                NSLog("[Launcher] installBundledPlugins failed: \(error)")
+                NSLog("[Launcher] marketplace setup failed: \(error)")
             }
         }
     }

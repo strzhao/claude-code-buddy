@@ -270,88 +270,10 @@ final class BuiltinTranslateAcceptanceTests: XCTestCase {
                        "provider 抛错时隔离 pasteboard 应保持 sentinel 不变，实际: \(pb.string(forType: .string) ?? "nil")")
     }
 
-    // MARK: - SC-6: installBundledPlugins 多 plugin 部署
-
-    /// 调用 installBundledPlugins 后 builtin-hello 和 builtin-translate 目录均存在。
-    func test_SC6_installBundledPlugins_createsBothPluginDirs() throws {
-        let tmpRoot = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("BuddyTranslateTest-SC6-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: tmpRoot) }
-
-        let mgr = PluginManager(rootDir: tmpRoot)
-        try mgr.installBundledPlugins()
-
-        let helloDir = tmpRoot.appendingPathComponent("builtin-hello")
-        let translateDir = tmpRoot.appendingPathComponent("builtin-translate")
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: helloDir.path),
-                      "installBundledPlugins 后 builtin-hello 目录应存在")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: translateDir.path),
-                      "installBundledPlugins 后 builtin-translate 目录应存在")
-    }
-
-    // MARK: - SC-7: prompt mode skip chmod（builtin-translate 无可执行文件）
-
-    /// builtin-translate 目录内仅有 plugin.json，无可执行文件。
-    func test_SC7_builtinTranslate_hasOnlyPluginJson_noExecutable() throws {
-        let tmpRoot = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("BuddyTranslateTest-SC7-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: tmpRoot) }
-
-        let mgr = PluginManager(rootDir: tmpRoot)
-        try mgr.installBundledPlugins()
-
-        let translateDir = tmpRoot.appendingPathComponent("builtin-translate")
-        let pluginJsonPath = translateDir.appendingPathComponent("plugin.json")
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: pluginJsonPath.path),
-                      "builtin-translate/plugin.json 应存在")
-
-        // 枚举目录内容，确认无可执行文件（无 .sh 或有执行权限的非 json 文件）
-        let contents = try FileManager.default.contentsOfDirectory(
-            at: translateDir,
-            includingPropertiesForKeys: [.isExecutableKey],
-            options: []
-        )
-        let executableFiles = try contents.filter { url in
-            guard url.lastPathComponent != "plugin.json" else { return false }
-            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-            let perms = (attrs[.posixPermissions] as? Int) ?? 0
-            return (perms & 0o111) != 0  // 任意执行位被设置
-        }
-        XCTAssertTrue(executableFiles.isEmpty,
-                      "builtin-translate 目录内不应有可执行文件，实际: \(executableFiles.map(\.lastPathComponent))")
-    }
-
-    // MARK: - SC-8: stdin mode 保留 chmod（builtin-hello/hello.sh 仍 0o755）
-
-    /// builtin-hello/hello.sh 安装后 posix permissions 应有执行位（0o755）。
-    func test_SC8_builtinHello_shellScript_hasExecutePermissions() throws {
-        let tmpRoot = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("BuddyTranslateTest-SC8-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: tmpRoot) }
-
-        let mgr = PluginManager(rootDir: tmpRoot)
-        try mgr.installBundledPlugins()
-
-        let helloDir = tmpRoot.appendingPathComponent("builtin-hello")
-        let contents = try FileManager.default.contentsOfDirectory(
-            at: helloDir,
-            includingPropertiesForKeys: [.isExecutableKey],
-            options: []
-        )
-        let shFiles = contents.filter { $0.pathExtension == "sh" }
-
-        XCTAssertFalse(shFiles.isEmpty,
-                       "builtin-hello 目录内应至少有一个 .sh 文件")
-
-        for shFile in shFiles {
-            let attrs = try FileManager.default.attributesOfItem(atPath: shFile.path)
-            let perms = (attrs[.posixPermissions] as? Int) ?? 0
-            XCTAssertEqual(perms & 0o755, 0o755,
-                           "builtin-hello/\(shFile.lastPathComponent) 应有 0o755 执行权限，实际: \(String(perms, radix: 8))")
-        }
-    }
+    // MARK: - SC-6/SC-7/SC-8 已迁移到 MarketplaceManagerTests（task 003 market）
+    //
+    // 旧 installBundledPlugins 路径已删除，bundled Plugins/ 资源不再存在；
+    // 等价覆盖：MarketplaceManagerTests.seedFromBundle 系列（含 prompt/stdin chmod 行为）。
 
     // MARK: - SC-9: inspect 替代方案（prompt mode manifest JSON encode 含 mode 字段）
 

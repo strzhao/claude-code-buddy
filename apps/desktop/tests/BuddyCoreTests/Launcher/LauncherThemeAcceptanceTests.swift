@@ -166,13 +166,13 @@ final class LauncherThemeAcceptanceTests: XCTestCase {
         )
     }
 
-    /// panelCornerRadius 必须 == 14
-    func test_C1E_panelCornerRadius_is14() {
+    /// panelCornerRadius 必须 == 16（task 010 UI 升级：14 → 16，与系统 popover 对齐）
+    func test_C1E_panelCornerRadius_is16() {
         XCTAssertEqual(
             LauncherTheme.panelCornerRadius,
-            14.0,
+            16.0,
             accuracy: 0.001,
-            "LauncherTheme.panelCornerRadius 必须 == 14（14px 圆角契约）"
+            "LauncherTheme.panelCornerRadius 必须 == 16（task 010 起从 14 升到 16，与系统 popover 圆角对齐）"
         )
     }
 

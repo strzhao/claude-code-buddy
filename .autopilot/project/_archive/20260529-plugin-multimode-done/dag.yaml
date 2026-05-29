@@ -1,0 +1,91 @@
+project: buddy-launcher-plugin-multimode
+description: Launcher 插件协议从单一 stdin 升级为 mode discriminated union（stdin + prompt），落地首个 prompt mode 实例 builtin-translate（翻译插件）
+state_file: .autopilot/runtime/sessions/translate/requirements/20260528-按照-launcher-的社区化/state.md
+
+tasks:
+  - id: "001-provider-system-field"
+    title: "LauncherProvider 协议扩展 system 字段 + 两个 impl 适配 + Router hack 迁移"
+    depends_on: []
+    complexity: S
+    status: done
+    acceptance_scenarios: [SC-1, SC-2, SC-7]
+    notes: |
+      - send() 加 system: String? = nil 可选参数，编译零改动
+      - AnthropicProvider 用原生 system 字段；OpenAICompatibleProvider prepend role=system message
+      - LauncherRouter.swift:75-91 的 user-message 前缀 hack 迁移到 system 参数
+      - 实测 Qwen 本地 endpoint 对 prepend role=system 的兼容性（避免静默错误）
+
+  - id: "002-manifest-discriminated-union"
+    title: "PluginManifest Codable 重构为 mode discriminated union + mode-aware validate()"
+    depends_on: []
+    complexity: M
+    status: done
+    acceptance_scenarios: [SC-4]
+    notes: |
+      - enum PluginModeConfig { case stdin(StdinConfig), case prompt(PromptConfig) }
+      - decode 按顶层 "mode" 字段分发；缺 mode 默认 stdin（向后兼容）
+      - validate() mode 分支：prompt mode 跳过 cmd 非空校验（首个红队测试用例）
+      - 现有 plugin.json 解析为 stdin 兼容 + 新写的 mode 字段必须显式
+
+  - id: "003-plugin-dispatcher"
+    title: "PluginExecutor 重构为 PluginDispatcher + StdinExecutor"
+    depends_on: ["002-manifest-discriminated-union"]
+    complexity: M
+    status: done
+    acceptance_scenarios: [SC-4]
+    notes: |
+      - PluginDispatcher 持有 stdinExecutor + promptExecutor，switch manifest.modeConfig 分发
+      - StdinExecutor 保留现有 PluginExecutor 内部逻辑（subprocess 不变）
+      - LauncherManager 从持有 PluginExecutor 改为持有 PluginDispatcher
+      - 现有 builtin-hello 端到端回归测试（stdin path 不受影响）
+
+  - id: "004-prompt-executor"
+    title: "PromptExecutor 实现：单轮 provider.send + 空输入兜底 + Task cancel 传播"
+    depends_on: ["001-provider-system-field", "002-manifest-discriminated-union", "003-plugin-dispatcher"]
+    complexity: M
+    status: done
+    acceptance_scenarios: [SC-5, SC-6, SC-7]
+    notes: |
+      - 调 provider.send(messages=[user(query)], tools=[], model=config.model ?? activeProviderModel, system=config.systemPrompt)
+      - 空 query 短路：直接返回 "请输入需要翻译的文字" 不发请求
+      - 超时用 Task { } + task.cancel() 模式确保 URLSession 真正释放（不能只 wall-clock）
+      - 错误处理：provider 抛 → PluginResult exitCode=1 + stderr，UI 显示 "翻译失败: <错误>"
+      - 与 003 集成：dispatcher.execute(prompt manifest) 走此路径
+
+  - id: "005-trust-mode-aware"
+    title: "Trust 模型 mode-aware：trustKey 算法重设 + NSAlert 显示 prompt mode 摘要"
+    depends_on: ["002-manifest-discriminated-union"]
+    complexity: S
+    status: done
+    acceptance_scenarios: [SC-8, SC-9]
+    notes: |
+      - stdin trustKey: "stdin:" + cmd + args + sha256(executable_bytes)
+      - prompt trustKey: "prompt:" + systemPrompt + maxIterations + (model ?? "default")
+      - mode 前缀强制隔离，systemPrompt 任一字符变化 → trustKey 变化 → NSAlert 重弹
+      - NSAlert 文案对 prompt mode 显示 systemPrompt 摘要（前 200 字 + "..."）
+      - 注意：已安装 stdin plugin 因加 mode 前缀会重新弹一次 alert（一次性迁移，可接受）
+
+  - id: "006-builtin-translate"
+    title: "builtin-translate prompt plugin 部署 + 自动复制剪贴板 + inspect 显示 mode"
+    depends_on: ["004-prompt-executor", "005-trust-mode-aware"]
+    complexity: M
+    status: done
+    acceptance_scenarios: [SC-1, SC-2, SC-3, SC-4, SC-10]
+    notes: |
+      - Sources/ClaudeCodeBuddy/Plugins/TranslatePlugin/plugin.json（无 sh 文件）
+      - installBundledPlugins() 对 prompt mode 跳过 chmod（必须 mode 分支防对不存在 sh 抛异常）
+      - PromptExecutor 成功响应后 NSPasteboard.general 复制译文 + 渲染 "(已复制到剪贴板)" 提示
+      - buddy launcher inspect 显示 mode 字段（JSON schema 输出补 mode）
+      - 端到端验证：app 启动 → ctrl+space → 输入 "hello" → 显示 "你好" + 剪贴板含 "你好"
+
+execution_order_suggested:
+  - parallel: ["001-provider-system-field", "002-manifest-discriminated-union"]
+  - serial: ["003-plugin-dispatcher"]
+  - parallel: ["004-prompt-executor", "005-trust-mode-aware"]
+  - serial: ["006-builtin-translate"]
+
+estimate:
+  per_task_hours: 1-2
+  total_hours: 6-12
+  note: |
+    每个 task 独立 autopilot 跑（design + implement + qa + auto-fix），可用 /autopilot next 逐个推进。

@@ -13,23 +13,32 @@ final class LauncherRouter {
     /// 复用 chatModel（LauncherProvider 不暴露 system 字段，routerModel = chatModel）
     private let routerModel: String
 
+    /// 测试用：覆盖 pluginManager.list() 的返回值（SC-13/SC-14 注入固定候选列表）
+    var pluginsOverride: [PluginManifest]?
+
     init(pluginManager: PluginManager, provider: LauncherProvider, routerModel: String) {
         self.pluginManager = pluginManager
         self.provider = provider
         self.routerModel = routerModel
     }
 
-    /// 主入口：keyword 缩候选 → AI 选 1
+    /// 主入口 wrapper：keyword 缩候选 → AI 选 1（保留兼容旧调用路径）
     func route(query: String) async throws -> (decision: RouteDecision, candidates: [PluginManifest]) {
-        let plugins = (try? pluginManager.list()) ?? []
-        let candidates = narrowCandidates(query: query, plugins: plugins)
+        let candidates = narrowCandidates(query)
         if candidates.isEmpty { return (.directChat, []) }
-        let decision = try await aiSelect(query: query, candidates: candidates)
+        let decision = try await pickWithAI(query: query, from: candidates)
         return (decision, candidates)
     }
 
-    /// 第 1 阶段：keyword 缩候选（同步、本地，几 ms）
+    /// 第 1 阶段：keyword 缩候选（同步纯函数，几 ms）
     /// 中文兼容：unicode > 127 字符不作为分隔符（整段保留，走 contains 整词匹配）
+    /// pluginsOverride 非 nil 时跳过 pluginManager（用于测试注入固定候选列表）
+    func narrowCandidates(_ query: String) -> [PluginManifest] {
+        let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
+        return narrowCandidates(query: query, plugins: plugins)
+    }
+
+    /// 第 1 阶段（内部重载）：接受外部 plugins 列表，供测试注入
     func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
         // 按 ASCII 标点分割；unicode > 127（中文/CJK 等）不作分隔符，整段保留
         let queryTokens = query.lowercased()
@@ -68,6 +77,11 @@ final class LauncherRouter {
             .sorted { $0.1 > $1.1 }
             .prefix(LauncherConstants.routerMaxCandidates)
             .map { $0.0 }
+    }
+
+    /// 第 2 阶段（公开接口）：AI 选 1（C3 契约）
+    func pickWithAI(query: String, from candidates: [PluginManifest]) async throws -> RouteDecision {
+        try await aiSelect(query: query, candidates: candidates)
     }
 
     /// 第 2 阶段：AI 选 1（异步，调一次 provider.send，无 tools）

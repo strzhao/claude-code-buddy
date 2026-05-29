@@ -23,6 +23,8 @@ struct LauncherCandidateView: View {
     @ViewBuilder
     private func candidateRow(candidate: PluginManifest, index: Int) -> some View {
         let isSelected = index == selectedIndex
+        // AI 推荐 badge：selectedIndex >= 0（非哨兵）且是当前 AI 选中行（C7 契约）
+        let isAIPick = selectedIndex >= 0 && index == selectedIndex
         HStack(spacing: 8) {
             // 指示符：选中 ▶ / 未选 ◯
             Text(isSelected ? "\u{25B6}" : "\u{25EF}")
@@ -42,6 +44,13 @@ struct LauncherCandidateView: View {
                 .lineLimit(1)
 
             Spacer()
+
+            // AI 推荐标签（仅 AI 选中行显示；C7 契约）
+            if isAIPick {
+                Text("✨ AI")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(LauncherTheme.primary)
+            }
         }
         .padding(.horizontal, LauncherConstants.inputPaddingH)
         .frame(height: LauncherConstants.candidateRowHeight)

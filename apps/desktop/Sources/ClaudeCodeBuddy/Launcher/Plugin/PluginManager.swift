@@ -61,9 +61,16 @@ final class PluginManager {
         throw LauncherError.pluginNotFound(manifest.name)
     }
 
-    /// 首次启动时把 bundled HelloPlugin 拷贝到 ~/.buddy/launcher-plugins/builtin-hello/
-    /// 幂等：plugin.json 内容相等则跳过；不等则删旧拷新
+    /// （task 010 retry 2 起停用）首次启动时把 bundled HelloPlugin 拷贝到 ~/.buddy/launcher-plugins/hello/
+    /// 停用理由：示例插件 description 含通用词（stdin/stdout/markdown/示例），narrow 算法
+    /// 在大量无关 query 下都将其排到候选首位，干扰真实使用。需要 demo 时用户手动 add 即可。
+    /// 双保险：LauncherManager 已不再调用本方法；本方法内部也直接 return，防止其他路径意外触发。
     func installBundledPlugins() throws {
+        return  // 直接返回，不再自动安装示例插件
+    }
+
+    /// 原始实现保留备份（未使用），如需恢复 demo 自动安装可调用此方法
+    private func _installBundledPlugins_legacy() throws {
         try FileManager.default.createDirectory(
             at: rootDir,
             withIntermediateDirectories: true,

@@ -5,6 +5,7 @@ struct LauncherInputView: View {
     @State private var query: String = ""
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
     @State private var rendered: AttributedString?          // 渲染后 markdown
+    @State private var visible: Bool = false                // 入场动画状态（C6 契约）
     @FocusState private var focused: Bool
 
     /// 派生自 manager.stage（不再维护独立 @State isRunning）
@@ -14,14 +15,13 @@ struct LauncherInputView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 输入区
+            // 输入区（固定 inputHeight=64，让 TextField 内 SwiftUI 自动垂直居中）
             HStack(spacing: 8) {
-                TextField("Ask anything...", text: $query)
+                TextField("搜索插件、运行命令、或直接提问…", text: $query)
                     .textFieldStyle(.plain)
                     .font(LauncherTheme.bodyText)
                     .foregroundStyle(LauncherTheme.ink)
                     .padding(.horizontal, LauncherConstants.inputPaddingH)
-                    .padding(.vertical, LauncherConstants.inputPaddingV)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .focused($focused)
                     .disabled(isRunning)
@@ -37,11 +37,18 @@ struct LauncherInputView: View {
                     .padding(.trailing, LauncherConstants.inputPaddingH)
                     .opacity(isRunning ? 1 : 0)
             }
+            .frame(height: LauncherConstants.inputHeight)
 
             // 候选插件列表（仅在 candidates 非空时显示）
             LauncherCandidateView(
                 candidates: manager.lastRouteCandidates,
                 selectedIndex: manager.lastRouteSelectedIndex
+            )
+
+            // 底部状态栏（C5 契约）：stage != .idle 时显示
+            LauncherStatusFooter(
+                stage: manager.stage,
+                pluginName: manager.lastRoutePluginName
             )
 
             // 接近上限时显示字数指示（warning UI）
@@ -56,8 +63,8 @@ struct LauncherInputView: View {
 
             // 输出区（有内容时显示）
             if let out = rendered {
-                // 1px hairline 分隔线
-                LauncherTheme.borderPixel.opacity(0.4)
+                // 1px hairline 分隔线（系统 separatorColor）
+                Color(nsColor: .separatorColor)
                     .frame(height: 1)
 
                 ScrollView {
@@ -65,10 +72,11 @@ struct LauncherInputView: View {
                         .font(LauncherTheme.outputBody)
                         .foregroundStyle(LauncherTheme.ink)
                         .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, LauncherConstants.inputPaddingH)
                         .padding(.vertical, 12)
                 }
-                .frame(maxHeight: LauncherConstants.outputMaxHeight)
+                .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
                 .background(LauncherTheme.surface)
             }
         } // end VStack
@@ -77,30 +85,48 @@ struct LauncherInputView: View {
             height: LauncherInputView.panelHeight(
                 candidateCount: manager.lastRouteCandidates.count,
                 hasSelected: manager.lastRouteSelectedIndex >= 0,
-                outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0
+                outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0,
+                hasFooter: manager.stage == .error
             ),
             alignment: .top
         )
+        // 视觉容器：SwiftUI .ultraThinMaterial 原生毛玻璃 (macOS 12+) + innerHighlight 内边框
+        // 注：之前用 NSVisualEffectView 作为 NSHostingView subview 被 SwiftUI 渲染覆盖不可见，
+        // 改用 SwiftUI 原生 Material（底层亦是 NSVisualEffectView）保证在渲染层级正确合成。
+        // NSVisualEffectView 注入仍保留在 LauncherWindow 中作为 C1 红队契约的结构性兜底。
         .background(
             RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
-                .fill(LauncherTheme.canvas)
+                .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
-                        .strokeBorder(LauncherTheme.borderPixel,
-                                      lineWidth: LauncherTheme.pixelBorderWidth)
+                        .strokeBorder(LauncherTheme.innerHighlight, lineWidth: 1)
                 )
-                .shadow(color: LauncherTheme.shadowPixel, radius: 0,
-                        x: LauncherTheme.pixelShadowOffset.width,
-                        y: LauncherTheme.pixelShadowOffset.height)
         )
+        // 入场 spring 动效（C6 契约）
+        .scaleEffect(visible ? 1.0 : 0.96)
+        .opacity(visible ? 1.0 : 0.0)
         .onAppear {
+            visible = false
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                visible = true
+            }
             focused = true
             query = ""
             outputBuffer = ""
             rendered = nil
         }
+        // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
+        // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/rendered
+        .onChange(of: manager.isVisible) { _, isNowVisible in
+            if isNowVisible {
+                query = ""
+                outputBuffer = ""
+                rendered = nil
+                focused = true
+            }
+        }
         .onDisappear {}
-        .onExitCommand { manager.hide() }   // Esc → hide
+        .onExitCommand { manager.hide() }   // Esc → hide（focus 在 view 内时生效）
         // 上下箭头键导航候选列表（C5 契约）：循环跳转
         .onKeyPress(.upArrow) {
             let count = manager.lastRouteCandidates.count
@@ -162,10 +188,14 @@ struct LauncherInputView: View {
                     rendered = MarkdownRenderer.render(outputBuffer)
                 }
             case .done:
-                await MainActor.run { query = "" }
+                await MainActor.run {
+                    query = ""
+                    focused = true   // 流式结束后重新聚焦输入框，方便连续提问
+                }
             case .error(let err):
                 await MainActor.run {
                     rendered = MarkdownRenderer.renderError(err)
+                    focused = true   // 出错后也重新聚焦，方便重试
                 }
             }
         }
@@ -180,14 +210,17 @@ extension LauncherInputView {
     ///   - candidateCount: 候选数量
     ///   - hasSelected: 是否有选中候选（输出态时决定是否额外加 44）
     ///   - outputHeight: 输出内容高度（0 表示无输出）
+    ///   - hasFooter: 是否有状态栏（额外加 22）
     /// - Returns: 面板内容区高度
-    static func panelHeight(candidateCount: Int, hasSelected: Bool, outputHeight: CGFloat) -> CGFloat {
+    static func panelHeight(candidateCount: Int, hasSelected: Bool, outputHeight: CGFloat, hasFooter: Bool = false) -> CGFloat {
+        let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
+        let inputH = LauncherConstants.inputHeight   // 64
         if outputHeight > 0 {
-            return 90 + (hasSelected ? 44 : 0) + min(outputHeight, 400)
+            return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + footerExtra
         }
         if candidateCount > 0 {
-            return 90 + CGFloat(min(candidateCount, 5)) * 44
+            return inputH + CGFloat(min(candidateCount, 5)) * 44 + footerExtra
         }
-        return 90
+        return inputH + footerExtra
     }
 }

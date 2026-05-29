@@ -67,13 +67,13 @@ final class LauncherWindowAppearanceAcceptanceTests: XCTestCase {
         )
     }
 
-    // MARK: - C5-C: panel.hasShadow == false（契约核心）
+    // MARK: - C5-C: panel.hasShadow == true（迁移自 task 008 旧契约，task 010 UI 升级改为系统阴影）
 
-    /// hasShadow 必须 == false（关键契约：避免系统阴影与 SwiftUI 4px 硬阴影叠加）
-    func test_C5C_panel_hasShadow_isFalse() {
-        XCTAssertFalse(
+    /// hasShadow 必须 == true（task 010 UI 升级：硬阴影 → 系统阴影，配合 NSVisualEffectView 毛玻璃）
+    func test_C5C_panel_hasShadow_isTrue() {
+        XCTAssertTrue(
             window.hasShadow,
-            "LauncherWindow.hasShadow 必须 == false（系统阴影关闭，硬阴影由 SwiftUI shadow(radius:0,x:4,y:4) 负责）"
+            "LauncherWindow.hasShadow 必须 == true（task 010 起改为系统阴影，替代旧的 SwiftUI 硬阴影 shadow(radius:0,x:4,y:4)）"
         )
     }
 

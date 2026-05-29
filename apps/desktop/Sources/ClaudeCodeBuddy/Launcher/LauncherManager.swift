@@ -13,11 +13,16 @@ final class LauncherManager: ObservableObject {
     @Published private(set) var lastRouteCandidates: [PluginManifest] = []
     /// 最近一次路由选中的候选索引（task 008 改为哨兵 -1）
     @Published private(set) var lastRouteSelectedIndex: Int = -1
+    /// 当前 calling/streaming 阶段使用的插件名（供 LauncherStatusFooter 显示）
+    @Published private(set) var lastRoutePluginName: String?
 
     private lazy var launcherWindow: LauncherWindow = makeWindow()
     private var hostingController: LauncherHostingController?
     private var resignKeyObserver: NSObjectProtocol?
     private var isSetup = false
+
+    /// 召唤 launcher 前的前台 app，hide() 时切回去（让光标继续回到原命令行/编辑器）
+    private var previousFrontApp: NSRunningApplication?
 
     /// SC-12 防重入标志（独立于 stage，避免测试间 stage 残留影响）
     private var isSubmitting = false
@@ -40,6 +45,8 @@ final class LauncherManager: ObservableObject {
         let hc = LauncherHostingController(manager: self)
         w.contentViewController = hc
         self.hostingController = hc
+        // 注入毛玻璃背景（C1 契约）：contentViewController 设置后 contentView 已就绪
+        w.installVisualEffect()
 
         // 失焦自动隐藏
         resignKeyObserver = NotificationCenter.default.addObserver(
@@ -71,18 +78,26 @@ final class LauncherManager: ObservableObject {
             }
         }
 
-        // task 004 追加：异步安装 bundled plugins（不阻塞 UI）
-        Task.detached {
-            do {
-                try PluginManager.shared.installBundledPlugins()
-            } catch {
-                NSLog("[Launcher] installBundledPlugins failed: \(error)")
-            }
-        }
+        // task 010 retry 2：停用 builtin-hello 自动安装
+        // 原因：示例插件 description 中通用词 (stdin/stdout/markdown/示例) 让 narrow 算法
+        // 在大量无关 query 下都把它排到候选首位，干扰真实使用。需要 demo 时用户手动 add 即可。
     }
 
     func show() {
         let w = launcherWindow
+        // 记录召唤前的前台 app（Terminal/编辑器等），hide() 时切回去恢复光标位置
+        // 排除 buddy app 自己，避免重新激活循环
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != myPID {
+            previousFrontApp = front
+        }
+        // 召唤时清空残留路由状态：避免上次执行的候选行 / 选中项 / footer 文案在新会话开头闪现
+        lastRouteCandidates = []
+        lastRouteSelectedIndex = -1
+        lastRoutePluginName = nil
+        stage = .idle
+        // 重置 panel 尺寸到初始小高度，避免上次执行后的大尺寸导致 centerOnScreen y 算偏高
+        w.setContentSize(NSSize(width: LauncherConstants.windowWidth, height: LauncherConstants.windowMinHeight))
         w.centerOnScreen()
         isVisible = true   // 先更新状态，防止 makeKeyAndOrderFront 触发的通知在 isVisible=true 之前 hide()
         NSApp.activate(ignoringOtherApps: true)
@@ -97,6 +112,14 @@ final class LauncherManager: ObservableObject {
         guard isVisible else { return }
         isVisible = false  // 先更新状态，防止 orderOut 触发的通知重入
         launcherWindow.orderOut(nil)
+        // 切回召唤前的前台 app（Terminal/编辑器等），光标继续回到原位置
+        // 注：必须在 orderOut 后异步执行，否则 macOS 会忽略 activate 调用
+        if let prev = previousFrontApp {
+            previousFrontApp = nil
+            DispatchQueue.main.async {
+                prev.activate(options: [])
+            }
+        }
     }
 
     func toggle() {
@@ -146,6 +169,7 @@ final class LauncherManager: ObservableObject {
         isSubmitting = true
         lastRouteCandidates = []
         lastRouteSelectedIndex = -1
+        lastRoutePluginName = nil
         stage = .narrowing
 
         return AsyncStream { continuation in
@@ -224,6 +248,12 @@ final class LauncherManager: ObservableObject {
                     }) {
                         LauncherManager.shared.lastRouteSelectedIndex = idx
                     }
+                    // 记录 calling 阶段的 plugin 名（用于 status footer 显示）
+                    if case .withPlugin(let m) = decision {
+                        LauncherManager.shared.lastRoutePluginName = m.name
+                    } else {
+                        LauncherManager.shared.lastRoutePluginName = nil
+                    }
                     // directChat 或 hallucinate fallback 时 selectedIndex 保持 -1（哨兵）
                     LauncherManager.shared.stage = .calling
                 }
@@ -285,6 +315,7 @@ final class LauncherManager: ObservableObject {
                     if case .done = event {
                         await MainActor.run {
                             LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.lastRoutePluginName = nil
                             LauncherManager.shared.isSubmitting = false
                         }
                     }
@@ -300,6 +331,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.lastRoutePluginName = nil
                     }
                     LauncherManager.shared.isSubmitting = false
                 }
@@ -333,7 +365,8 @@ final class LauncherManager: ObservableObject {
         }
         let factoryOverride = providerFactoryOverride
 
-        // 直接进入 calling 阶段（跳过 narrowing/routing）
+        // 直接进入 calling 阶段（跳过 narrowing/routing），记录 plugin 名
+        lastRoutePluginName = manifest.name
         stage = .calling
 
         return AsyncStream { continuation in
@@ -394,7 +427,10 @@ final class LauncherManager: ObservableObject {
                     }
                     continuation.yield(event)
                     if case .done = event {
-                        await MainActor.run { LauncherManager.shared.stage = .idle }
+                        await MainActor.run {
+                            LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.lastRoutePluginName = nil
+                        }
                     }
                     if case .error = event {
                         await MainActor.run { LauncherManager.shared.stage = .error }
@@ -404,6 +440,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.lastRoutePluginName = nil
                     }
                 }
                 continuation.finish()

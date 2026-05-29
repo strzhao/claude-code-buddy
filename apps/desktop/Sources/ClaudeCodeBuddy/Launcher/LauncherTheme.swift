@@ -80,16 +80,48 @@ enum LauncherTheme {
             : NSColor(red: 0xff / 255, green: 0xff / 255, blue: 0xff / 255, alpha: 1.0)
     })
 
+    /// 选中态半透明背景（C2 契约）：light 0.12 / dark 0.18，基于 primary sage
+    static let selectionTint = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(red: 0x52 / 255, green: 0xa6 / 255, blue: 0x88 / 255, alpha: 0.18)
+            : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 0.12)
+    })
+
+    /// 选中行左侧指示竖条颜色（不带 alpha，实色 sage）
+    static let selectionIndicator = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(red: 0x52 / 255, green: 0xa6 / 255, blue: 0x88 / 255, alpha: 1.0)
+            : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 1.0)
+    })
+
+    /// 内边框高光（C1 辅助）：light 0.12 / dark 0.20（retry 2 加强，dark 桌面下可见性）
+    static let innerHighlight = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 1.0, alpha: 0.20)
+            : NSColor(white: 0.0, alpha: 0.12)
+    })
+
+    /// 面板 tint（retry 2 四次平衡）：让 .behindWindow 毛玻璃模糊感透出，但 tint 保证对比度
+    /// light: 白色 alpha 0.55 / dark: 深灰 alpha 0.55
+    static let panelTint = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 0.12, alpha: 0.55)
+            : NSColor(white: 1.0, alpha: 0.55)
+    })
+
     // MARK: - Typography
 
-    /// 输入框主字体 28pt
-    static let bodyText: Font = .system(size: 28)
+    /// 输入框主字体 22pt rounded（C7 契约）
+    static let bodyText: Font = .system(size: 22, weight: .regular, design: .rounded)
 
-    /// 候选项名字 14pt medium
-    static let candidateName: Font = .system(size: 14, weight: .medium)
+    /// 候选项名字 18pt medium rounded（C7 契约，retry 2 第 8 轮 16→18）
+    static let candidateName: Font = .system(size: 18, weight: .medium, design: .rounded)
 
-    /// 候选项描述 12pt
-    static let candidateDesc: Font = .system(size: 12)
+    /// 候选项描述 16pt rounded（C7 契约，retry 2 第 8 轮 14→16）
+    static let candidateDesc: Font = .system(size: 16, design: .rounded)
+
+    /// 底部状态栏 13pt rounded（C7 契约，retry 2 第 7 轮 12→13）
+    static let statusFooter: Font = .system(size: 13, design: .rounded)
 
     /// badge 等宽 10pt semibold monospaced
     static let badgeMono: Font = .system(size: 10, design: .monospaced).weight(.semibold)
@@ -97,8 +129,8 @@ enum LauncherTheme {
     /// 底部提示等宽 9pt monospaced
     static let footerMono: Font = .system(size: 9, design: .monospaced)
 
-    /// 输出区正文 14pt
-    static let outputBody: Font = .system(size: 14)
+    /// 输出区正文 18pt（retry 2 第 8 轮 16→18）
+    static let outputBody: Font = .system(size: 18)
 
     // MARK: - Layout Constants
 
@@ -111,6 +143,6 @@ enum LauncherTheme {
     /// 像素边框宽度
     static let pixelBorderWidth: CGFloat = 2
 
-    /// 面板圆角
-    static let panelCornerRadius: CGFloat = 14
+    /// 面板圆角 16pt
+    static let panelCornerRadius: CGFloat = 16
 }

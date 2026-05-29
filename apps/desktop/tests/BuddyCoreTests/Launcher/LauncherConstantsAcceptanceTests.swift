@@ -31,27 +31,27 @@ final class LauncherConstantsUIAcceptanceTests: XCTestCase {
         )
     }
 
-    // MARK: - C2-B: windowMinHeight == 90
+    // MARK: - C2-B: windowMinHeight == 64（task 010 retry 2 演化：90 → 64 与 inputHeight 对齐）
 
-    /// windowMinHeight 必须从 80 升级到 90（空态高度）
-    func test_C2B_windowMinHeight_is90() {
+    /// windowMinHeight 必须 == inputHeight (64)，避免 idle 状态底部空白导致输入文字看着不居中
+    func test_C2B_windowMinHeight_is64() {
         XCTAssertEqual(
             LauncherConstants.windowMinHeight,
-            90.0,
+            64.0,
             accuracy: 0.001,
-            "LauncherConstants.windowMinHeight 必须 == 90（空态高度 = 输入区 64 + 上下 padding 13×2）"
+            "LauncherConstants.windowMinHeight 必须 == 64（task 010 retry 2 起与 inputHeight 对齐，TextField 垂直居中）"
         )
     }
 
-    // MARK: - C2-C: inputFontSize == 28
+    // MARK: - C2-C: inputFontSize == 22（task 010 UI 升级：28 → 22，与 Spotlight 视重对齐 + .rounded design）
 
-    /// 输入框字号必须 == 28（大字体，Alfred 级可用性）
-    func test_C2C_inputFontSize_is28() {
+    /// 输入框字号必须 == 22（task 010 起，Apple HIG / Raycast 风格字号）
+    func test_C2C_inputFontSize_is22() {
         XCTAssertEqual(
             LauncherConstants.inputFontSize,
-            28.0,
+            22.0,
             accuracy: 0.001,
-            "LauncherConstants.inputFontSize 必须 == 28（从旧值 18 升级，Alfred 级字号契约）"
+            "LauncherConstants.inputFontSize 必须 == 22（task 010 起从 28 降到 22，与 Spotlight 视重对齐，配合 .rounded 设计）"
         )
     }
 

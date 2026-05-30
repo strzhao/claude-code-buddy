@@ -102,3 +102,8 @@
 
 ## 2026-05-30 buddy-plugin-market task 006 新增条目
 - [2026-05-30] Swift Concurrency: @MainActor 协议方法跨 actor 调用编译器自动 hop，**不**嵌套 MainActor.run（plan-reviewer 抓 B2 案例）| tags: swift, concurrency, mainactor, protocol, async, hop, mainactor-run, plan-reviewer-blocker, market-hud, swift-6 | → patterns/2026-05-30-swift-mainactor-protocol-cross-actor-call-no-nested-mainactor-run.md
+
+## 2026-05-30 launcher 内置插件 (task 011) 新增条目
+- [2026-05-30] launcher 内置插件：直接动作管线（绕过 LLM）+ BuiltinPlugin 协议 + 跨 plugin priority 仲裁 | tags: launcher, builtin-plugin, architecture, direct-action, llm-bypass, plugin-protocol, registry, priority-arbitration, app-launcher, raycast, extensibility | → decisions.md
+- [2026-05-30] macOS app 搜索必须索引 CFBundleName/CFBundleIdentifier 别名，文件名≠用户搜索名（微信搜 wechat / 哔哩哔哩搜 bilibili 搜不到的根因）| tags: macos, app-launcher, cfbundlename, cfbundleidentifier, info-plist, fuzzy-search, chinese-app, alias, launcher, builtin-plugin | → patterns/2026-05-30-macos-app-search-cfbundle-aliases.md
+- [2026-05-30] SwiftUI 加 emacs 键位 Ctrl-N/Ctrl-P：onKeyPress(phases:.down) catch-all 读 modifiers，非目标键 .ignored 透传普通输入 | tags: swiftui, onkeypress, emacs, ctrl-n, ctrl-p, keyboard-navigation, modifiers, keyequivalent, textfield, passthrough, launcher | → patterns/2026-05-30-swiftui-onkeypress-emacs-ctrl-keys.md

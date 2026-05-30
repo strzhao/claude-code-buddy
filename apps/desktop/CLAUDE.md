@@ -106,9 +106,13 @@ Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**
 - 删除外部 plugin 候选行渲染逻辑（LauncherCandidateView 不再渲染 plugin mode 候选）
 - 改为 `PluginWatermarkChip`（`Launcher/PluginWatermarkChip.swift`）：右上角水印 chip 样式，显示当前插件名
 
-**translate plugin.json（v0.3.0）**：
-- `systemPrompt` 用 5 个 few-shot 示例重写，实现单词/短语/句子智能分流（不同 markdown 模板）
-- `timeout` 30 → 60，`autoCopyToClipboard` 改为 false
+**translate plugin.json（v0.5.0）**（task 013 性能优化）：
+- **P0 thinking off**：Qwen3 等推理模型通过 `chat_template_kwargs.enable_thinking=false` 关闭 CoT，top-level/user-flag 均被服务端忽略，只有此通道生效。TTFT 从 24.5s 降至 0.038s（645×）
+- **P0.1 Router 短路**：唯一命中或 score≥10(`routerSkipScore`) 时跳过 router LLM call，明确场景 LLM 调用 2→1
+- **P0.5 极简 prompt**：`systemPrompt` 从 1273 字 5-few-shot 改为 157 字"查字典助手"风格，模型自由输出常用译义+例句，输出质量从 208 字提升至 1666 字
+- **P1 SSE 流式**：`OpenAICompatibleProvider` 加 `sendStream + parseSSELines`，`PromptExecutor` 改逐 chunk emit，`LauncherProvider` 协议加 `sendStream + ProviderChunk` enum
+- **fix MarkdownRenderer**：加 `preprocessBlockMarkdown`（`###`→粗体、`-/*`→`•`、`---`→`─────`），修复 inline-only parsing 不消化 block markdown 的既存 bug
+- 测试：41 个测试新增/更新，全部 0.013s 全绿
 
 ### 用户配置
 

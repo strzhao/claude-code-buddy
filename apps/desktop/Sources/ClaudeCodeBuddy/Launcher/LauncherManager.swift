@@ -61,6 +61,9 @@ final class LauncherManager: ObservableObject {
             }
         }
 
+        // task 006: 注入 MarketHUD.shared（生产唯一注入点；同实例多次调用 no-op）
+        MarketplaceManager.shared.configureHUD(MarketHUD.shared)
+
         // task 003 (market) 切换：MarketplaceManager 替换 installBundledPlugins
         // 顺序：先 migrateLegacy 老用户路径 → seedFromBundle 离线 fallback → syncFromRemote 后台拉
         Task.detached {

@@ -29,6 +29,14 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         setupSkinHotSwap()
         setupLauncher()
 
+        // task 006: HUD "查看" 按钮 → openBuddyStore() → post 通知 → 本订阅者打开 Settings
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleBuddyStoreShouldOpen),
+            name: .buddyStoreShouldOpen,
+            object: nil
+        )
+
         // Initialize sound manager (subscribes to EventBus for audio playback)
         _ = SoundManager.shared
 
@@ -286,6 +294,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // LSUIElement apps need explicit activation for windows to become key.
         // .accessory policy allows key windows without showing a Dock icon.
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func handleBuddyStoreShouldOpen() {
+        showSettings()
     }
 
     // MARK: - Dock Monitoring

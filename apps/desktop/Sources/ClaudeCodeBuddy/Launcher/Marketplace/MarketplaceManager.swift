@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CryptoKit
 
@@ -56,6 +57,16 @@ final class MarketplaceManager {
     private let urlSession: URLSession
     private let now: () -> Date
     private let remoteURL: URL
+
+    /// 注入的 HUD（生产 = MarketHUD.shared；测试 = mock 或 nil）。
+    ///
+    /// nil 时 `?.show(...)` 短路（单测不依赖 UI）。
+    /// 通过 `configureHUD(_:)` 一次性注入。
+    private(set) var hud: MarketHUDDisplaying?
+
+    /// 并发互斥（仅护 sync-vs-sync，B6：install/reseed vs sync 留 phase 2）。
+    var syncInProgress = false
+    let syncLock = NSLock()
 
     /// 1 小时 debounce 间隔。
     private static let syncDebounceSeconds: TimeInterval = 3600
@@ -150,6 +161,14 @@ final class MarketplaceManager {
     /// - 成功 → 写 cache，failures=0，diff 应用（保留 .disabled）
     /// - 每次执行追加结构化 JSON 行到 `~/.buddy/launcher-sync.log`
     func syncFromRemote() async {
+        // B6：sync-vs-sync 并发互斥（install/reseed vs sync 不在本 task 范围内）
+        // NSLock 操作封装在同步 helper 内（避免 Swift 6 async-context-lock 警告）
+        guard tryAcquireSyncLock() else {
+            appendSyncLog(["status": "noop", "reason": "concurrent-skipped"])
+            return
+        }
+        defer { releaseSyncLock() }
+
         var meta = readMeta() ?? MarketplaceMeta(lastSyncedAt: nil, consecutiveSyncFailures: 0)
 
         // 1h debounce
@@ -174,7 +193,10 @@ final class MarketplaceManager {
                     "consecutiveFailures": meta.consecutiveSyncFailures
                 ])
                 if meta.consecutiveSyncFailures >= 3 {
-                    NSLog("[Marketplace] sync failed 3+ times (http)")
+                    await hud?.show(
+                        text: "无法连接 Market（连续 \(meta.consecutiveSyncFailures) 次失败）",
+                        actions: [.init(label: "查看日志", handler: { [weak self] in self?.openSyncLog() })]
+                    )
                 }
                 return
             }
@@ -192,7 +214,10 @@ final class MarketplaceManager {
                     "consecutiveFailures": meta.consecutiveSyncFailures
                 ])
                 if meta.consecutiveSyncFailures >= 3 {
-                    NSLog("[Marketplace] sync failed 3+ times (malformed)")
+                    await hud?.show(
+                        text: "无法连接 Market（连续 \(meta.consecutiveSyncFailures) 次失败）",
+                        actions: [.init(label: "查看日志", handler: { [weak self] in self?.openSyncLog() })]
+                    )
                 }
                 return
             }
@@ -266,8 +291,11 @@ final class MarketplaceManager {
                 "removed": removed
             ])
 
-            if !updated.isEmpty || !added.isEmpty {
-                NSLog("[Marketplace] updated: \(updated), added: \(added)")
+            if let diffText = makeDiffText(added: added, updated: updated, remoteManifest: remoteManifest) {
+                await hud?.show(
+                    text: diffText,
+                    actions: [.init(label: "查看", handler: { [weak self] in self?.openBuddyStore() })]
+                )
             }
         } catch {
             meta.consecutiveSyncFailures += 1
@@ -278,7 +306,10 @@ final class MarketplaceManager {
                 "consecutiveFailures": meta.consecutiveSyncFailures
             ])
             if meta.consecutiveSyncFailures >= 3 {
-                NSLog("[Marketplace] sync failed 3+ times")
+                await hud?.show(
+                    text: "无法连接 Market（连续 \(meta.consecutiveSyncFailures) 次失败）",
+                    actions: [.init(label: "查看日志", handler: { [weak self] in self?.openSyncLog() })]
+                )
             }
         }
     }
@@ -657,4 +688,86 @@ final class MarketplaceManager {
     private func sha256Hex(_ data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
+
+    // MARK: - task 006 HUD 注入 / 文案 / 跳转
+
+    /// HUD 注入入口（B3 修复语义）。
+    ///
+    /// - 同实例两次调用：no-op（idempotent）
+    /// - 不同实例两次调用：precondition trap
+    /// - LauncherManager.setup 调用一次，注入 `MarketHUD.shared`
+    func configureHUD(_ hud: MarketHUDDisplaying) {
+        if self.hud === hud { return }
+        precondition(self.hud == nil, "HUD already configured with a different instance")
+        self.hud = hud
+    }
+
+    /// 测试 helper（B4 修复）：测试间重置注入的 hud + 并发标志。
+    ///
+    /// internal 可见，仅 `@testable import` 使用。
+    internal func resetHUDForTesting() {
+        self.hud = nil
+        releaseSyncLock()
+    }
+
+    /// 同步获取 syncLock；返回 true 表示进入临界区，false 表示已有 sync 在进行。
+    private func tryAcquireSyncLock() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        if syncInProgress { return false }
+        syncInProgress = true
+        return true
+    }
+
+    /// 同步释放 syncLock；幂等。
+    private func releaseSyncLock() {
+        syncLock.lock()
+        syncInProgress = false
+        syncLock.unlock()
+    }
+
+    /// diff 文案：B1 安全 optional 解构 + 多项时计数（不丢信息）。
+    ///
+    /// - 0 项 → nil（HUD 不弹）
+    /// - 1 项：updated 单项显示 `<name> 已更新到 v<version>`；added 单项显示 `新增插件：<name>`
+    /// - 多项：`Market 同步完成：N 个已更新，M 个新增`
+    func makeDiffText(
+        added: [String],
+        updated: [String],
+        remoteManifest: MarketplaceManifest
+    ) -> String? {
+        let totalCount = added.count + updated.count
+        if totalCount == 0 { return nil }
+        if totalCount == 1 {
+            if let updatedName = updated.first,
+               let plugin = remoteManifest.plugins.first(where: { $0.name == updatedName }) {
+                return "\(updatedName) 已更新到 v\(plugin.version)"
+            }
+            if let addedName = added.first {
+                return "新增插件：\(addedName)"
+            }
+            return nil
+        }
+        var parts: [String] = []
+        if !updated.isEmpty { parts.append("\(updated.count) 个已更新") }
+        if !added.isEmpty { parts.append("\(added.count) 个新增") }
+        return "Market 同步完成：" + parts.joined(separator: "，")
+    }
+
+    /// 打开 ~/.buddy/launcher-sync.log（HUD "查看日志" 按钮）。
+    func openSyncLog() {
+        NSWorkspace.shared.open(syncLogPath)
+    }
+
+    /// 触发 Buddy Store 打开（HUD "查看" 按钮）。AppDelegate 订阅同名通知后调 showSettings()。
+    func openBuddyStore() {
+        NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
+    }
+}
+
+// MARK: - Notification.Name 契约
+
+extension Notification.Name {
+    /// HUD "查看" 按钮触发；AppDelegate 订阅后调 showSettings()。无 userInfo。
+    static let buddyStoreShouldOpen = Notification.Name("BuddyStoreShouldOpen")
 }

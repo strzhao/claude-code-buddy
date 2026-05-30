@@ -46,7 +46,8 @@ tasks:
   - id: "006-remote-sync-and-in-app-hud"
     name: "Market 后台同步 + 自建 in-app HUD"
     brief: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.handoff.md"
+    status: done
     depends_on: ["003", "004"]
     summary: MarketHUD 自建 NSPanel.nonactivatingPanel 浮窗 5s 自隐 (替代 deprecated NSUserNotificationCenter)；syncFromRemote 后调用 MarketHUD.show("translate 已更新到 v0.2.0")；每次同步追加结构化 JSON 行到 ~/.buddy/launcher-sync.log；连续 3 次失败 HUD 提示
 

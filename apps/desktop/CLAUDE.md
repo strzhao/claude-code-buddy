@@ -45,7 +45,10 @@ Sources/
 │   │       ├── BuiltinPlugin.swift        # 协议：id/priority/sectionTitle/actions(for:) async
 │   │       ├── BuiltinPluginRegistry.swift # 仲裁：fan-out 并发 + 跨插件归并 + score 降序 + 截断
 │   │       ├── LauncherAction.swift       # 动作值类型：id/title/subtitle/icon/score/perform
-│   │       └── AppLauncher/              # 首个内置插件：搜索打开 App
+│   │       ├── System/                   # 第二个内置插件：系统命令（task 012）
+   │       │   ├── SystemCommandPlugin.swift  # BuiltinPlugin 实现：lock 命令 → 锁屏（priority=100）
+   │       │   └── ScreenLocking.swift    # seam 协议：生产 LoginFrameworkScreenLocker / 测试 Mock
+   │       └── AppLauncher/              # 首个内置插件：搜索打开 App
 │   │           ├── AppEntry.swift         # 纯值 Sendable：url/name/nameLower/aliases（多别名索引）
 │   │           ├── AppIndex.swift         # @MainActor 内存索引：TTL 扫盘 + 注入构造器
 │   │           ├── AppMatcher.swift       # 纯函数打分：前缀(1000)>词首(500)>子序列(100)
@@ -77,6 +80,12 @@ Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**
 - `priority`：仲裁权重（同 query 多插件并发，按优先级分区）
 - `sectionTitle`：候选列表分区标题
 - `actions(for:) async -> [LauncherAction]`：返回候选动作列表
+
+**SystemCommandPlugin**（第二个内置插件，`priority=100`，task 012）：
+- 关键词匹配：`lock` / `锁屏` → 「锁定屏幕」候选，Enter 直接锁屏
+- 通过 `login.framework` 私有框架 `SACLockScreenImmediate` 动态 dlopen 锁屏（无需额外 TCC 权限）
+- `ScreenLocking` 协议可注入 Mock，测试绝不真锁屏
+- 打分：完全匹配 1000，前缀匹配 800
 
 **AppLauncherPlugin**（首个内置插件，`priority=0`）：
 - 三个扫描目录：`/Applications`、`/System/Applications`、`~/Applications`

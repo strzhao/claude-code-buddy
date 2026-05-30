@@ -20,6 +20,8 @@ enum LauncherError: Error, LocalizedError {
     case pluginNotTrusted(String)
     // task 011 追加（内置插件直接动作管线）：
     case appLaunchFailed(String)   // C9 契约：携带 app 名/路径，中文文案
+    // task 012 追加（系统命令插件）：
+    case systemCommandFailed(String)   // SC7 契约：携带命令名，中文文案
 
     var errorDescription: String? {
         switch self {
@@ -51,6 +53,8 @@ enum LauncherError: Error, LocalizedError {
             return "插件 \(name) 未获信任授权，已拒绝执行"
         case .appLaunchFailed(let nameOrPath):
             return "无法启动应用 \(nameOrPath)，请检查应用是否已安装或未被删除"
+        case .systemCommandFailed(let name):
+            return "无法执行系统命令「\(name)」，请重试或检查系统权限"
         }
     }
 }

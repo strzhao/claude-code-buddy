@@ -18,7 +18,7 @@ final class BuiltinPluginRegistry {
     var limitOverride: Int?
 
     init(plugins: [any BuiltinPlugin]? = nil) {
-        self.plugins = plugins ?? [AppLauncherPlugin.shared]
+        self.plugins = plugins ?? [SystemCommandPlugin.shared, AppLauncherPlugin.shared]
     }
 
     // MARK: - 聚合仲裁（C10）
@@ -68,6 +68,6 @@ final class BuiltinPluginRegistry {
 
     /// 清空所有插件（用于测试）
     func reset(to plugins: [any BuiltinPlugin]? = nil) {
-        self.plugins = plugins ?? [AppLauncherPlugin.shared]
+        self.plugins = plugins ?? [SystemCommandPlugin.shared, AppLauncherPlugin.shared]
     }
 }

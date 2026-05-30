@@ -22,12 +22,19 @@ final class LauncherRouter {
         self.routerModel = routerModel
     }
 
-    /// 主入口 wrapper：keyword 缩候选 → AI 选 1（保留兼容旧调用路径）
+    /// 主入口 wrapper：keyword 缩候选 → 短路判断 → 必要时 AI 选 1
     func route(query: String) async throws -> (decision: RouteDecision, candidates: [PluginManifest]) {
-        let candidates = narrowCandidates(query)
-        if candidates.isEmpty { return (.directChat, []) }
-        let decision = try await pickWithAI(query: query, from: candidates)
-        return (decision, candidates)
+        let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
+        let scored = Self.narrowCandidatesScored(query: query, plugins: plugins)
+        if scored.isEmpty { return (.directChat, []) }
+        let top = scored[0]
+        let isUnique = scored.count == 1
+        let isStrong = top.score >= LauncherConstants.routerSkipScore
+        if isUnique || isStrong {
+            return (.withPlugin(top.manifest), scored.map(\.manifest))
+        }
+        let decision = try await pickWithAI(query: query, from: scored.map(\.manifest))
+        return (decision, scored.map(\.manifest))
     }
 
     /// 第 1 阶段：keyword 缩候选（同步纯函数，几 ms）
@@ -38,9 +45,24 @@ final class LauncherRouter {
         return Self.narrowCandidates(query: query, plugins: plugins)
     }
 
+    /// 第 1 阶段（实例重载）：接受外部 plugins 列表，供测试注入（通过实例调用）
+    /// 转发到静态版本，保持向后兼容（旧测试使用 router.narrowCandidates(query:plugins:)）
+    func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+        return Self.narrowCandidates(query: query, plugins: plugins)
+    }
+
     /// 第 1 阶段（内部重载）：接受外部 plugins 列表，供测试注入
     /// 静态化：不用 self，供其他模块（LauncherManager.updateQuery）直接调
     static func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+        return narrowCandidatesScored(query: query, plugins: plugins).map(\.manifest)
+    }
+
+    /// 带得分的候选列表（保留排序），供路由短路判断使用
+    /// score >= LauncherConstants.routerSkipScore 时直接命中，无需 AI 路由
+    static func narrowCandidatesScored(
+        query: String,
+        plugins: [PluginManifest]
+    ) -> [(manifest: PluginManifest, score: Int)] {
         // 按 ASCII 标点分割；unicode > 127（中文/CJK 等）不作分隔符，整段保留
         let queryTokens = query.lowercased()
             .split(whereSeparator: { c in
@@ -77,7 +99,7 @@ final class LauncherRouter {
         return scored.filter { $0.1 > 0 }
             .sorted { $0.1 > $1.1 }
             .prefix(LauncherConstants.routerMaxCandidates)
-            .map { $0.0 }
+            .map { (manifest: $0.0, score: $0.1) }
     }
 
     /// 第 2 阶段（公开接口）：AI 选 1（C3 契约）

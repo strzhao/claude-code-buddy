@@ -12,6 +12,17 @@ struct ProviderConfig: Codable, Equatable {
     let baseURL: String?
     let model: String
     let keyRef: String       // 在 SecretStore 中的 key（不含真值）
+    /// 关闭 LLM thinking 模式（Qwen3 等支持 chat_template_kwargs.enable_thinking）
+    let noThinking: Bool?
+
+    /// 自定义 init 保持向后兼容（noThinking 默认 nil）
+    init(kind: String, baseURL: String?, model: String, keyRef: String, noThinking: Bool? = nil) {
+        self.kind = kind
+        self.baseURL = baseURL
+        self.model = model
+        self.keyRef = keyRef
+        self.noThinking = noThinking
+    }
 }
 
 /// 启动器全局配置，存储于 ~/.buddy/launcher.json（0600 权限）

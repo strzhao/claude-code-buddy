@@ -175,6 +175,7 @@ final class LauncherManagerAcceptanceTests: XCTestCase {
             case .pluginNotTrusted(let s): return "pluginNotTrusted(\(s))"
             case .pluginInvalid(let s): return "pluginInvalid(\(s))"
             case .promptExecutorNotAvailable: return "promptExecutorNotAvailable"
+            case .appLaunchFailed(let s): return "appLaunchFailed(\(s))"
             }
         }
 

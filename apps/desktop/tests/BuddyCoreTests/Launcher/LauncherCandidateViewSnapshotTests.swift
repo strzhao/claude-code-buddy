@@ -24,8 +24,8 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
     func test_candidateView_empty_noContent() {
         let view = LauncherCandidateView(candidates: [], selectedIndex: 0)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 30)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 30)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 44)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 44)))
     }
 
     // Fixture 2: 1 个候选，selectedIndex = 0
@@ -33,8 +33,8 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
         let candidates = [makeManifest(name: "translate", description: "Translate text between languages")]
         let view = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 30)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 30)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 45)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 45)))
     }
 
     // Fixture 3: 5 个候选，selectedIndex = 2（显示中间那个）
@@ -48,7 +48,20 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
         ]
         let view = LauncherCandidateView(candidates: candidates, selectedIndex: 2)
         let hostingController = NSHostingController(rootView: view)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 600, height: 30)
-        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 600, height: 30)))
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 221)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 221)))
+    }
+
+    // Fixture 4 (C4 契约)：selected candidate has sage background
+    func test_candidateView_selectedRow_hasSageBackground() {
+        let candidates = [
+            makeManifest(name: "translate", description: "Translate text between languages"),
+            makeManifest(name: "search", description: "Search the web")
+        ]
+        // selectedIndex = 0，第一行应填充 sage 主色背景
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
+        let hostingController = NSHostingController(rootView: view)
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 89)
+        assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 89)))
     }
 }

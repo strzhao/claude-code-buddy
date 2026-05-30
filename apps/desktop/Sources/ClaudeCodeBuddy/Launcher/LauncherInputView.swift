@@ -5,71 +5,216 @@ struct LauncherInputView: View {
     @State private var query: String = ""
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
     @State private var rendered: AttributedString?          // 渲染后 markdown
-    @State private var isRunning: Bool = false
+    @State private var visible: Bool = false                // 入场动画状态（C6 契约）
     @FocusState private var focused: Bool
 
+    /// 派生自 manager.stage（不再维护独立 @State isRunning）
+    private var isRunning: Bool {
+        manager.stage != .idle && manager.stage != .error
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("Ask anything...", text: $query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 18))
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .focused($focused)
-                .disabled(isRunning)
-                .onSubmit { Task { await submit() } }
-                .onChange(of: query) { _, new in
-                    if new.count > LauncherConstants.maxQueryLength {
-                        query = String(new.prefix(LauncherConstants.maxQueryLength))
+        VStack(alignment: .leading, spacing: 0) {
+            // 输入区（固定 inputHeight=64，让 TextField 内 SwiftUI 自动垂直居中）
+            HStack(spacing: 8) {
+                TextField("搜索插件、运行命令、或直接提问…", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(LauncherTheme.bodyText)
+                    .foregroundStyle(LauncherTheme.ink)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focused)
+                    .disabled(isRunning)
+                    .onSubmit { Task { await submit() } }
+                    .onChange(of: query) { _, new in
+                        if new.count > LauncherConstants.maxQueryLength {
+                            query = String(new.prefix(LauncherConstants.maxQueryLength))
+                        }
+                        // task 011：即时候选管线 — 每次输入变化触发 debounce 搜索
+                        manager.updateQuery(new)
                     }
-                }
-            // 候选插件列表（task 005：仅在 candidates 非空时显示）
-            LauncherCandidateView(
-                candidates: manager.lastRouteCandidates,
-                selectedIndex: manager.lastRouteSelectedIndex
+
+                // 执行中 3 点脉冲动画（C8 契约）
+                LauncherPulseDots()
+                    .padding(.trailing, LauncherConstants.inputPaddingH)
+                    .opacity(isRunning ? 1 : 0)
+            }
+            .frame(height: LauncherConstants.inputHeight)
+
+            // 候选区：instant 与 route 分时显示（时序互斥）
+            // task 011：instantActions 非空时显示内置 App 候选；否则显示 AI 路由外部 CLI 候选
+            if !manager.instantActions.isEmpty {
+                LauncherInstantCandidateView(
+                    actions: manager.instantActions,
+                    selectedIndex: manager.instantSelectedIndex
+                )
+            } else {
+                LauncherCandidateView(
+                    candidates: manager.lastRouteCandidates,
+                    selectedIndex: manager.lastRouteSelectedIndex
+                )
+            }
+
+            // 底部状态栏（C5 契约）：stage != .idle 时显示
+            LauncherStatusFooter(
+                stage: manager.stage,
+                pluginName: manager.lastRoutePluginName
             )
-            // 接近上限时显示字数指示（warning UI，契约要求）
+
+            // 接近上限时显示字数指示（warning UI）
             if query.count >= LauncherConstants.maxQueryLength - 1000 {
                 Text("\(query.count) / \(LauncherConstants.maxQueryLength)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength ? .red : .secondary)
-                    .padding(.horizontal, 12)
+                    .font(LauncherTheme.footerMono)
+                    .foregroundStyle(query.count >= LauncherConstants.maxQueryLength
+                        ? Color.red : LauncherTheme.smoke)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                    .padding(.bottom, 4)
             }
+
+            // 输出区（有内容时显示）
             if let out = rendered {
-                Divider()
-                ScrollView { Text(out).textSelection(.enabled).padding(.horizontal, 12) }
-                    .frame(maxHeight: 400)
+                // 1px hairline 分隔线（系统 separatorColor）
+                Color(nsColor: .separatorColor)
+                    .frame(height: 1)
+
+                ScrollView {
+                    Text(out)
+                        .font(LauncherTheme.outputBody)
+                        .foregroundStyle(LauncherTheme.ink)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LauncherConstants.inputPaddingH)
+                        .padding(.vertical, 12)
+                }
+                .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
+                .background(LauncherTheme.surface)
             }
-        }
-        .padding(.vertical, 4)
-        .background(.regularMaterial)
+        } // end VStack
+        .frame(
+            width: LauncherConstants.windowWidth,
+            height: LauncherInputView.panelHeight(
+                candidateCount: manager.lastRouteCandidates.count,
+                hasSelected: manager.lastRouteSelectedIndex >= 0,
+                outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0,
+                hasFooter: manager.stage == .error,
+                instantCount: manager.instantActions.count
+            ),
+            alignment: .top
+        )
+        // 视觉容器：SwiftUI .ultraThinMaterial 原生毛玻璃 (macOS 12+) + innerHighlight 内边框
+        // 注：之前用 NSVisualEffectView 作为 NSHostingView subview 被 SwiftUI 渲染覆盖不可见，
+        // 改用 SwiftUI 原生 Material（底层亦是 NSVisualEffectView）保证在渲染层级正确合成。
+        // NSVisualEffectView 注入仍保留在 LauncherWindow 中作为 C1 红队契约的结构性兜底。
+        .background(
+            RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
+                        .strokeBorder(LauncherTheme.innerHighlight, lineWidth: 1)
+                )
+        )
+        // 入场 spring 动效（C6 契约）
+        .scaleEffect(visible ? 1.0 : 0.96)
+        .opacity(visible ? 1.0 : 0.0)
         .onAppear {
+            visible = false
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                visible = true
+            }
             focused = true
             query = ""
             outputBuffer = ""
             rendered = nil
-            isRunning = false
         }
-        .onDisappear {
-            // 浮窗关闭时取消正在跑的 AsyncStream，避免后台流式继续 yield
-            // 通过将 isRunning=false 反向通知（task 内 onTermination 监听）
-            isRunning = false
+        // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
+        // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/rendered
+        .onChange(of: manager.isVisible) { _, isNowVisible in
+            if isNowVisible {
+                query = ""
+                outputBuffer = ""
+                rendered = nil
+                focused = true
+            }
         }
-        .onExitCommand { manager.hide() }   // Esc → hide
+        .onDisappear {}
+        .onExitCommand { manager.hide() }   // Esc → hide（focus 在 view 内时生效）
+        // 上下箭头键导航候选列表：instant 优先，否则原有 lastRoute 逻辑（C5 契约）
+        // task 011：instantActions 非空时，导航 instantSelectedIndex；否则导航 lastRouteSelectedIndex
+        .onKeyPress(.upArrow) { navigateUp() }
+        .onKeyPress(.downArrow) { navigateDown() }
+        // task 011 交互优化：emacs 键位 Ctrl-N（下）/ Ctrl-P（上）。
+        // 用 phases:.down 的 catch-all 读 modifiers/key；非 Ctrl-N/P 一律 .ignored 让普通输入透传到 TextField。
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.control) else { return .ignored }
+            switch press.key {
+            case KeyEquivalent("n"): return navigateDown()
+            case KeyEquivalent("p"): return navigateUp()
+            default: return .ignored
+            }
+        }
+    }
+
+    // MARK: - 候选导航（箭头 / emacs Ctrl-N·P 共用）
+
+    /// 向上移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    private func navigateUp() -> KeyPress.Result {
+        if !manager.instantActions.isEmpty {
+            manager.moveInstantSelection(up: true)
+            return .handled
+        }
+        let count = manager.lastRouteCandidates.count
+        guard count > 0 else { return .ignored }
+        let current = manager.lastRouteSelectedIndex
+        manager.setSelectedIndex((current <= 0) ? count - 1 : current - 1)
+        return .handled
+    }
+
+    /// 向下移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    private func navigateDown() -> KeyPress.Result {
+        if !manager.instantActions.isEmpty {
+            manager.moveInstantSelection(up: false)
+            return .handled
+        }
+        let count = manager.lastRouteCandidates.count
+        guard count > 0 else { return .ignored }
+        let current = manager.lastRouteSelectedIndex
+        manager.setSelectedIndex((current >= count - 1) ? 0 : current + 1)
+        return .handled
     }
 
     private func submit() async {
-        let q = query
+        // task 011 C5 契约：内置管线优先 — 有选中的 instant action → 执行并结束，不触发 AI
+        if manager.performSelectedInstantAction() {
+            await MainActor.run { query = "" }
+            return
+        }
+
+        // 落回现有 AI 流（清空 instantActions，进入 AI 候选时序）
         await MainActor.run {
+            manager.clearInstantActions()
             outputBuffer = ""
             rendered = nil
-            isRunning = true
         }
-        for await event in manager.submit(q) {
+
+        // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约，原有外部 CLI 分支）
+        let selectedIdx = manager.lastRouteSelectedIndex
+        let candidates = manager.lastRouteCandidates
+        let q = query
+
+        // 若用户通过键盘选了特定候选（selectedIndex >= 0），构造一个只含该候选的路由流
+        let stream: AsyncStream<AgentEvent>
+        if selectedIdx >= 0, selectedIdx < candidates.count {
+            // 用已选中候选覆盖 AI 路由，直接进入 calling 阶段
+            stream = manager.submitWithPlugin(candidates[selectedIdx], query: q)
+        } else {
+            stream = manager.submit(q)
+        }
+
+        for await event in stream {
             switch event {
             case .text(let s):
                 await MainActor.run {
                     outputBuffer += s
-                    // 增量渲染：每次累积后用 MarkdownRenderer 渲染整个 buffer
                     rendered = MarkdownRenderer.render(outputBuffer)
                 }
             case .toolCall(let name, _):
@@ -85,13 +230,48 @@ struct LauncherInputView: View {
                     rendered = MarkdownRenderer.render(outputBuffer)
                 }
             case .done:
-                await MainActor.run { isRunning = false; query = "" }
+                await MainActor.run {
+                    query = ""
+                    focused = true   // 流式结束后重新聚焦输入框，方便连续提问
+                }
             case .error(let err):
                 await MainActor.run {
                     rendered = MarkdownRenderer.renderError(err)
-                    isRunning = false
+                    focused = true   // 出错后也重新聚焦，方便重试
                 }
             }
         }
+    }
+}
+
+// MARK: - panelHeight 纯函数（C3 / C7 契约）
+
+extension LauncherInputView {
+    /// 三态自适应面板高度公式（C3/C7 契约）
+    /// - Parameters:
+    ///   - candidateCount: AI 路由候选数量
+    ///   - hasSelected: 是否有选中候选（输出态时决定是否额外加 44）
+    ///   - outputHeight: 输出内容高度（0 表示无输出）
+    ///   - hasFooter: 是否有状态栏（额外加 22）
+    ///   - instantCount: task 011 即时内置候选数量（两者时序互斥，取非零者）
+    /// - Returns: 面板内容区高度
+    static func panelHeight(
+        candidateCount: Int,
+        hasSelected: Bool,
+        outputHeight: CGFloat,
+        hasFooter: Bool = false,
+        instantCount: Int = 0
+    ) -> CGFloat {
+        let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
+        let inputH = LauncherConstants.inputHeight   // 64
+        if outputHeight > 0 {
+            return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + footerExtra
+        }
+        // 时序互斥：instantCount 非零时用 instantCount，否则用 candidateCount
+        let effectiveCount = max(instantCount, candidateCount)
+        if effectiveCount > 0 {
+            return inputH + CGFloat(min(effectiveCount, 5)) * 44 + footerExtra
+        }
+        return inputH + footerExtra
     }
 }

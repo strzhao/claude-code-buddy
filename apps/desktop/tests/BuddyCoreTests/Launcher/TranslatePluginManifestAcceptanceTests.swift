@@ -150,12 +150,8 @@ final class TranslatePluginManifestAcceptanceTests: XCTestCase {
             "12.P2: systemPrompt 字段必须非空"
         )
 
-        // 补充：新 prompt 应包含智能场景路由关键词（D5 新模板）
-        let containsRouteInstruction = systemPrompt.contains("单词") || systemPrompt.contains("句子") || systemPrompt.contains("输入类型")
-        XCTAssertTrue(
-            containsRouteInstruction,
-            "12.P2: 新 systemPrompt 应包含智能场景路由指令（含'单词'/'句子'/'输入类型'），当前: \(systemPrompt.prefix(100))..."
-        )
+        // P0.5 极简 prompt 后：不再断言具体格式指令，只断言 action 标签说明存在
+        // 原"含'单词'/'句子'/'输入类型'"断言已删，验收转交红队 acceptance
     }
 
     /// 12.P2 补充：systemPrompt 包含 action 标签规则（D5 模板的核心）

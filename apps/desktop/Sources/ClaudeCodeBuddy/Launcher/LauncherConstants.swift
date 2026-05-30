@@ -47,6 +47,9 @@ enum LauncherConstants {
 
     // Router（task 005 追加）
     static let routerMaxCandidates: Int = 5
+    /// 路由短路阈值：score >= routerSkipScore 时跳过 AI 选择（直接命中）
+    /// 评分逻辑：name 完全匹配 5+5=10，达到阈值；keyword 精确命中 3+3=6，不触发
+    static let routerSkipScore: Int = 10
 
     // Prompt mode（task 002 追加）
     static let promptMaxSystemPromptBytes: Int = 8192

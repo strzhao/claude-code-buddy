@@ -38,7 +38,8 @@ tasks:
   - id: "005-buddy-store-ui"
     name: "Buddy Store UI 重构（segmentedControl + PluginGallery 四态）"
     brief: ".autopilot/project/tasks/005-buddy-store-ui.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/005-buddy-store-ui.handoff.md"
+    status: done
     depends_on: ["004"]
     summary: SettingsWindowController title 改 "Buddy Store" + 加顶部 NSSegmentedControl(["皮肤","插件"])；上次选中 tab 持久化 UserDefaults；PluginGalleryViewController 四态 (normal/loading/empty/error)；error 态 [重新初始化] 按钮调 MarketplaceManager.reseed()；列表项 [禁用]/[启用] 按钮
 

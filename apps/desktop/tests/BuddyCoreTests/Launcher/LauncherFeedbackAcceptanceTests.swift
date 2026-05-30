@@ -59,14 +59,26 @@ final class LauncherFeedbackAcceptanceTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         cancellables = []
-        // 重置共享状态（确保每次测试 stage 为 idle）
-        // 注意：LauncherManager.shared 是单例，setUp 后 stage 应为 idle
+        // 显式重置共享单例状态：LauncherManager.shared 跨测试共享，前序测试可能留下
+        // stage=.error / isSubmitting=true，导致 test_SC11_stageInitialValueIsIdle 误判
+        // 或 submit 返回空流（顺序相关 flaky，CI 上暴露）。
+        LauncherManager.shared.resetSubmittingStateForTesting()
+        // 注入可用配置：本组测试靠 providerFactoryOverride 注入 mock provider 验证 stage 流转，
+        // 但 submit() 会先校验配置——开发机有真实 ~/.buddy 时通过、CI 无配置时走 providerNotConfigured
+        // 直接 .error，stage 不再流转。注入一个占位 provider 配置使行为与环境解耦。
+        LauncherManager.shared.configOverride = LauncherConfig(
+            activeProvider: "mock",
+            providers: ["mock": ProviderConfig(kind: "anthropic", baseURL: nil, model: "test", keyRef: "test")],
+            hotkey: nil
+        )
     }
 
     override func tearDown() async throws {
         cancellables = []
-        // 清理注入的 mock
+        // 清理注入的 mock 与配置
         LauncherManager.shared.providerFactoryOverride = nil
+        LauncherManager.shared.configOverride = nil
+        LauncherManager.shared.resetSubmittingStateForTesting()
         try await super.tearDown()
     }
 

@@ -152,6 +152,9 @@ extension PluginManifest {
         return nil
     }
 
+    /// 便利访问 autoCopyToClipboard（prompt mode only；stdin mode 返回 false）
+    var autoCopyToClipboard: Bool { promptConfig?.autoCopyToClipboard ?? false }
+
     // ⚠️ 现有消费者 back-compat（stdin 时正常，prompt 时空值兜底）
     // ⚠️ prompt mode 时 .cmd == "" 是已知临时状态（task 003 修复 inspect/trust 路径前）
     // ⚠️ 勿用 accessor 做 mode 判断！应用 `stdinConfig != nil` 或 switch `modeConfig`

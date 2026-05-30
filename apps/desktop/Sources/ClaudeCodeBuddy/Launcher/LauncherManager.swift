@@ -16,6 +16,10 @@ final class LauncherManager: ObservableObject {
     /// 当前 calling/streaming 阶段使用的插件名（供 LauncherStatusFooter 显示）
     @Published private(set) var lastRoutePluginName: String?
 
+    /// 当前激活的插件名（chip 水印显示用）：仅在 calling/streaming 阶段非 nil
+    /// 派生自 stage + lastRoutePluginName（chip 测试通过此属性观察）
+    @Published private(set) var activePluginName: String?
+
     private lazy var launcherWindow: LauncherWindow = makeWindow()
     private var hostingController: LauncherHostingController?
     private var resignKeyObserver: NSObjectProtocol?
@@ -55,7 +59,28 @@ final class LauncherManager: ObservableObject {
     /// 测试注入点（SUGGESTION-1）：覆盖 debounce 毫秒数（测试置 0 跳过等待）
     var instantDebounceMsOverride: Int?
 
-    private init() {}
+    /// Combine 订阅持有（activePluginName 自动同步）
+    private var syncCancellables = Set<AnyCancellable>()
+
+    private init() {
+        // 自动同步 activePluginName：stage 或 lastRoutePluginName 变化时重算
+        Publishers.CombineLatest($stage, $lastRoutePluginName)
+            .map { stage, name -> String? in
+                guard stage == .calling || stage == .streaming else { return nil }
+                return name
+            }
+            .assign(to: \.activePluginName, on: self)
+            .store(in: &syncCancellables)
+    }
+
+    #if DEBUG
+    /// Test seam: 直接驱动 chip / 候选行隐藏路径所需的派生状态。
+    /// 仅限 @testable XCTest 使用；生产代码绝不可调用。
+    func _testSetActivePluginState(stage: LauncherStage, name: String?) {
+        self.stage = stage
+        self.lastRoutePluginName = name
+    }
+    #endif
 
     private func makeWindow() -> LauncherWindow {
         let w = LauncherWindow()
@@ -178,8 +203,15 @@ final class LauncherManager: ObservableObject {
         guard !query.isEmpty else {
             instantActions = []
             instantSelectedIndex = -1
+            // 清空输入 → chip 立即消失
+            lastRoutePluginName = nil
             return
         }
+        // 同步 narrow：让 chip 在用户输入命中 keyword 瞬间就显示（不等 submit）
+        let plugins = (try? PluginManager.shared.list()) ?? []
+        let narrowed = LauncherRouter.narrowCandidates(query: query, plugins: plugins)
+        lastRoutePluginName = narrowed.first?.name
+
         let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
         let registry = registryOverride ?? BuiltinPluginRegistry.shared
         debounceTask = Task { @MainActor [weak self] in
@@ -414,8 +446,10 @@ final class LauncherManager: ObservableObject {
                         // prompt mode bypass agent loop：直接调 PromptExecutor，结果映射为 AgentEvent.text
                         let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
                         let dispatcher = PluginDispatcher(stdinExecutor: .shared, promptExecutor: promptExecutor)
+                        // strip 命中 keyword 前缀（如 "tr buddy" → "buddy"），避免 LLM 把 keyword 当 query
+                        let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
                         let pluginInput = PluginInput(
-                            query: query,
+                            query: strippedQuery,
                             sessionId: UUID().uuidString,
                             cwd: NSHomeDirectory()
                         )
@@ -432,6 +466,12 @@ final class LauncherManager: ObservableObject {
                             continuation.yield(.error(err))
                         } catch {
                             continuation.yield(.error(.networkFailure(error)))
+                        }
+                        // D2 bug fix: prompt mode 完成后 stage 必须归 .idle，否则 TextField 永远 disabled
+                        // 注：lastRoutePluginName 保留到下次 submit/hide，让 chip 在结果展示期间持续显示
+                        await MainActor.run {
+                            LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.isSubmitting = false
                         }
                         continuation.finish()
                         return // prompt mode 提前 return，跳过 LauncherAgent.run
@@ -457,7 +497,7 @@ final class LauncherManager: ObservableObject {
                     if case .done = event {
                         await MainActor.run {
                             LauncherManager.shared.stage = .idle
-                            LauncherManager.shared.lastRoutePluginName = nil
+                            // lastRoutePluginName 保留到下次 submit/hide
                             LauncherManager.shared.isSubmitting = false
                         }
                     }
@@ -473,7 +513,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
-                        LauncherManager.shared.lastRoutePluginName = nil
+                        // lastRoutePluginName 保留到下次 submit/hide
                     }
                     LauncherManager.shared.isSubmitting = false
                 }
@@ -571,7 +611,7 @@ final class LauncherManager: ObservableObject {
                     if case .done = event {
                         await MainActor.run {
                             LauncherManager.shared.stage = .idle
-                            LauncherManager.shared.lastRoutePluginName = nil
+                            // lastRoutePluginName 保留到下次 submit/hide
                         }
                     }
                     if case .error = event {
@@ -582,7 +622,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
-                        LauncherManager.shared.lastRoutePluginName = nil
+                        // lastRoutePluginName 保留到下次 submit/hide
                     }
                 }
                 continuation.finish()
@@ -597,5 +637,30 @@ final class LauncherManager: ObservableObject {
             continuation.yield(.error(err))
             continuation.finish()
         }
+    }
+
+    /// Strip 命中 plugin 的 keyword 前缀（含 manifest.name），让 LLM 只看到真实查询内容。
+    /// 示例：query="tr buddy", manifest.keywords=["tr","translate","翻译"] → 返回 "buddy"
+    /// 长前缀优先匹配（避免 "translator" 被 "tr" 错切）。无前缀命中时返回原 query。
+    nonisolated static func stripKeywordPrefix(_ query: String, manifest: PluginManifest) -> String {
+        let candidates = ([manifest.name] + manifest.keywords)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .sorted { $0.count > $1.count }
+        let queryLower = query.lowercased()
+        for prefix in candidates {
+            let prefixLower = prefix.lowercased()
+            guard queryLower.hasPrefix(prefixLower) else { continue }
+            // 严格分隔：前缀后必须紧跟空白 / 标点 / 行尾，避免 "trace" 被 "tr" 错切
+            let after = query.index(query.startIndex, offsetBy: prefix.count)
+            if after == query.endIndex {
+                return ""  // query 就是 keyword 本身
+            }
+            let nextChar = query[after]
+            if nextChar.isWhitespace || nextChar.isPunctuation {
+                return String(query[after...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return query
     }
 }

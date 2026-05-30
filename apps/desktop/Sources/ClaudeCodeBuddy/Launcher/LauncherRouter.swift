@@ -35,11 +35,12 @@ final class LauncherRouter {
     /// pluginsOverride 非 nil 时跳过 pluginManager（用于测试注入固定候选列表）
     func narrowCandidates(_ query: String) -> [PluginManifest] {
         let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
-        return narrowCandidates(query: query, plugins: plugins)
+        return Self.narrowCandidates(query: query, plugins: plugins)
     }
 
     /// 第 1 阶段（内部重载）：接受外部 plugins 列表，供测试注入
-    func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+    /// 静态化：不用 self，供其他模块（LauncherManager.updateQuery）直接调
+    static func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
         // 按 ASCII 标点分割；unicode > 127（中文/CJK 等）不作分隔符，整段保留
         let queryTokens = query.lowercased()
             .split(whereSeparator: { c in

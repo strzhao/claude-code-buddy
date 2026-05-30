@@ -215,8 +215,12 @@ final class BuiltinTranslateAcceptanceTests: XCTestCase {
 
         XCTAssertEqual(pb.string(forType: .string), responseText,
                        "autoCopyToClipboard=true 时隔离 pasteboard 应等于响应文本")
-        XCTAssertTrue(result.stdout.contains("已复制到剪贴板"),
-                      "stdout 应含已复制到剪贴板提示，实际: \(result.stdout)")
+        // D2 change: "已复制到剪贴板" marker has been removed from stdout
+        // The actual text is returned without the marker
+        XCTAssertFalse(result.stdout.contains("已复制到剪贴板"),
+                      "D2: stdout 不再含已复制到剪贴板提示（marker 已移除），实际: \(result.stdout)")
+        XCTAssertEqual(result.stdout, responseText,
+                      "D2: stdout 应只含实际响应文本，不含 marker，实际: \(result.stdout)")
     }
 
     // MARK: - SC-4: PromptExecutor 空 stdout 不复制

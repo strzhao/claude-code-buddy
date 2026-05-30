@@ -30,7 +30,8 @@ tasks:
   - id: "004-disable-enable-mechanism"
     name: "插件禁用/启用机制"
     brief: ".autopilot/project/tasks/004-disable-enable-mechanism.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/004-disable-enable-mechanism.handoff.md"
+    status: done
     depends_on: ["003"]
     summary: PluginManager.list 跳过含 .disabled 文件的目录；加 disable(name)/enable(name) 方法；红队覆盖：禁用后 router 命中 0 候选、启用后恢复
 

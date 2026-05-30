@@ -104,10 +104,19 @@ final class PluginExecutor {
                     }
                 }
             }
-            // 等进程退出的任务（正常路径）
-            Task.detached {
-                process.waitUntilExit()   // 阻塞 detached 线程池中的线程，不影响主线程
+            // 等进程退出（正常路径）——事件驱动，绝不阻塞线程。
+            // 历史教训：早期用 `process.waitUntilExit()` 阻塞等待，无论放在 Swift 协作线程池
+            // （Task.detached）还是 GCD 全局池，连续派生大量子进程时都会把对应线程池占满；而
+            // readBounded 的 deadline 兜底也调度在 GCD 全局池上，池一饱和 deadline 就永不触发 →
+            // readBounded continuation 永不 resume → execute() 卡死。terminationHandler 由 Foundation
+            // 在进程退出时回调，不占用任何等待线程，从根上消除线程池饱和。
+            process.terminationHandler = { _ in
                 timeoutTask.cancel()      // 正常退出 → 取消 timeout 守护
+                guard_.tryResume { cont.resume(returning: false) }
+            }
+            // 竞态兜底：若进程在设置 handler 之前就已退出，handler 不会被回调，这里补一次检查。
+            if !process.isRunning {
+                timeoutTask.cancel()
                 guard_.tryResume { cont.resume(returning: false) }
             }
         }

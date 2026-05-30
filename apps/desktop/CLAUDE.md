@@ -133,7 +133,9 @@ buddy launcher remove buddy-translate              # 卸载 + 清 trust
 ```bash
 make build          # 编译 debug
 make run            # 编译并启动
-make test           # 运行单元测试
+make test           # 全量单元测试（走看门狗，flaky 死锁会超时失败而非挂死，见下方「测试」）
+make test-fast      # ⚡ 快速逻辑回归：跳过窗口/快照/SpriteKit 等重量级类
+make test-only FILTER=<类名>   # ⚡ 只跑某个测试类（迭代单模块，秒级）
 make lint           # SwiftLint 检查
 make lint-fix       # SwiftLint 自动修复 + 检查
 make format         # SwiftFormat 格式化
@@ -179,11 +181,27 @@ buddy click --id <session-id>
 
 ## 测试
 
-- `swift test` — XCTest 单元测试 (tests/BuddyCoreTests/)
+- `make test` — 全量单元测试，**走看门狗** (`Scripts/test-watchdog.sh`)：超过 `TEST_TIMEOUT`（默认 600s）判定挂死并终止，避免 flaky 死锁把本地/CI 挂死数小时
+- `make test-fast` — ⚡ 快速逻辑回归，跳过窗口/快照/SpriteKit/socket 等重量级类（这些被 `@MainActor` 钉在主线程串行，是全量慢的主因）
+- `make test-only FILTER=<类名>` — ⚡ 只跑指定测试类，迭代单模块用（秒级）
 - `swift test --filter Snapshot` — 视觉快照回归测试
 - `tests/acceptance/run-all.sh` — Shell 验收测试
 - CLI 自动测试: `buddy test --delay 2` — 遍历所有状态
-- 手动测试 socket: `echo '{"event":"session_start","session_id":"test","timestamp":0,"cwd":"/tmp"}' | nc -U /tmp/claude-buddy.sock`
+
+### ⚠️ 迭代加速与两个坑
+
+**坑 1：`--filter`/`--skip` 匹配的是「测试类名」，不是文件名。**
+例如文件 `LauncherRouterAcceptanceTests.swift` 里的类其实叫 `RouteDecisionEquatableTests`。
+查类名：`grep -rh 'final class .*: XCTestCase' Tests/`。
+
+**坑 2：永不终止的 SwiftUI 动画会在测试中空转 RunLoop 导致挂死。**
+`TimelineView(.animation)`（如 `LauncherPulseDots`）逐帧重绘永不停止；被 host 进测试窗口后残留，
+后续测试泵 RunLoop 时把 CFRunLoop 拖入 100% CPU 无限空转，曾导致 `swift test` 偶发挂死数小时。
+**规约**：此类动画必须用 `RuntimeEnvironment.isRunningTests` 在测试下冻结为静态帧（见 `LauncherPulseDots.swift`）。
+新增逐帧动画视图时务必遵循；`RuntimeEnvironmentTests` 守护探测逻辑不被破坏。
+
+**迭代闭环**：改 launcher → `make test-only FILTER=<你在改的类>`（~5s，含增量编译）。
+编译不是瓶颈（增量 ~1-5s），瓶颈是全量跑 87 个串行 UI 测试 + 上述 flaky 挂死。
 
 ### 快照测试 (swift-snapshot-testing)
 

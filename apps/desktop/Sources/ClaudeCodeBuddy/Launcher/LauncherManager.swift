@@ -34,6 +34,12 @@ final class LauncherManager: ObservableObject {
     /// 重要-2：production 路径不变，仅测试初始化时可替换
     var providerFactoryOverride: ((ProviderConfig, SecretStore) throws -> LauncherProvider)?
 
+    /// 测试用：可注入 LauncherConfig（默认走 LauncherConfig.load() 读 ~/.buddy/launcher.json）。
+    /// 必要性：submit/agent 路径依赖全局配置文件，而开发机常有真实配置，会让「无 provider」类
+    /// 测试读到真实 provider 而非走 providerNotConfigured 路径（环境相关 flaky）。测试可注入
+    /// .empty 强制无配置、或注入指定配置，使行为与机器上的 ~/.buddy 解耦。
+    var configOverride: LauncherConfig?
+
     /// 测试用：可注入 router 工厂（默认走 LauncherRouter init）
     /// 红队/蓝队共同约定注入点，用于 SC-13/SC-14 mock candidates
     var routerFactoryOverride: ((PluginManager, LauncherProvider, String) -> LauncherRouter)?
@@ -56,6 +62,14 @@ final class LauncherManager: ObservableObject {
     var instantDebounceMsOverride: Int?
 
     private init() {}
+
+    /// 测试用：重置共享单例的提交状态。
+    /// LauncherManager.shared 是跨测试共享的单例，submit() 入口有 `isSubmitting` 再入守卫
+    /// （为 true 时返回空流）。若前序测试留下 isSubmitting=true，后续依赖 submit 的测试会拿到
+    /// 空流、收不到任何事件而误判失败（顺序相关 flaky）。submit 相关测试可在开头调用本方法清状态。
+    func resetSubmittingStateForTesting() {
+        isSubmitting = false
+    }
 
     private func makeWindow() -> LauncherWindow {
         let w = LauncherWindow()
@@ -242,7 +256,7 @@ final class LauncherManager: ObservableObject {
         // 先在 MainActor 上同步读出依赖（不在 detach 后访问 self）
         let config: LauncherConfig
         do {
-            config = try LauncherConfig.load()
+            config = try configOverride ?? LauncherConfig.load()
         } catch {
             isSubmitting = false
             stage = .error
@@ -446,7 +460,7 @@ final class LauncherManager: ObservableObject {
     func submitWithPlugin(_ manifest: PluginManifest, query: String) -> AsyncStream<AgentEvent> {
         let config: LauncherConfig
         do {
-            config = try LauncherConfig.load()
+            config = try configOverride ?? LauncherConfig.load()
         } catch {
             stage = .error
             return Self.errorStream(.networkFailure(error))

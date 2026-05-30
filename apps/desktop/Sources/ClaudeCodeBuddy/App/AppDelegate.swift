@@ -3,6 +3,18 @@ import SpriteKit
 import Combine
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
+
+    // MARK: - 初始化
+
+    /// 在测试环境（xctest 命令行进程，无 NSApplicationMain）下，
+    /// NSApplication.shared 未被初始化，NSApp 为 nil。
+    /// 此处提前初始化，确保实例化 AppDelegate 后可安全访问 NSApp。
+    /// 生产环境中 NSApplicationMain 已先于此调用，幂等无害。
+    public override init() {
+        _ = NSApplication.shared
+        super.init()
+    }
+
     var window: BuddyWindow?
     var scene: BuddyScene?
     var sessionManager: SessionManager?
@@ -24,6 +36,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupWindow()
         setupMenuBar()
+        setupEditMenu()
         setupSessionManager()
         setupDockMonitoring()
         setupSkinHotSwap()
@@ -213,6 +226,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             guard let adapters = self?.terminalAdapters else { return }
             for adapter in adapters where adapter.activateTab(for: session) { break }
         }
+    }
+
+    // MARK: - Edit Menu
+
+    func setupEditMenu() {
+        NSApp.mainMenu = makeEditMenu()
     }
 
     @objc func togglePopover(_ sender: Any?) {

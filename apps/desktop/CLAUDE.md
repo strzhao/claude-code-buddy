@@ -89,6 +89,27 @@ Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**
 - 选中高亮：纯色 sage pill（light #3a7d68 / dark #52a688，alpha 0.92），无竖条边框
 - 中文 App 可用英文名搜索（见上方多别名索引）
 
+### 翻译插件增强（task 012）
+
+**有道词典级体验**：智能场景路由 + TTS 朗读 + 复制 + 水印 chip。
+
+**Action 标签系统**（`Launcher/Action/`）：
+- LLM 输出嵌入 `<action:speak text="..."/>` / `<action:copy text="..."/>` 标签
+- `MarkdownActionParser`：将标签解析为 `ActionSegment` 枚举值，拼装 `ActionSegmentsView`（SwiftUI 行内 Button）
+- `ActionButton`：统一样式的操作按钮（SF Symbol + 文字）
+
+**服务层**（`Launcher/Service/`）：
+- `SpeechService`：基于 `AVSpeechSynthesizer`，朗读英文 TTS（`AVSpeechUtterance` rate/pitchMultiplier/volume 调优）
+- `CopyService`：基于 `NSPasteboard`，一键写入剪贴板
+
+**候选行 UI 改造**：
+- 删除外部 plugin 候选行渲染逻辑（LauncherCandidateView 不再渲染 plugin mode 候选）
+- 改为 `PluginWatermarkChip`（`Launcher/PluginWatermarkChip.swift`）：右上角水印 chip 样式，显示当前插件名
+
+**translate plugin.json（v0.3.0）**：
+- `systemPrompt` 用 5 个 few-shot 示例重写，实现单词/短语/句子智能分流（不同 markdown 模板）
+- `timeout` 30 → 60，`autoCopyToClipboard` 改为 false
+
 ### 用户配置
 
 API key 存储：Keychain（生产签名）或 `~/.buddy/launcher-secrets.enc`（ad-hoc 签名时 CryptoKit 加密降级）。配置 `~/.buddy/launcher.json` JSON 明文。

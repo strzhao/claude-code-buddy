@@ -54,6 +54,7 @@ tasks:
   - id: "007-cli-install-disable-enable-reseed"
     name: "CLI: install/disable/enable/reseed + list --json"
     brief: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.md"
-    status: pending
+    handoff: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.handoff.md"
+    status: done
     depends_on: ["004"]
     summary: 加 buddy launcher install <name> (marketplace 装) / disable <name> / enable <name> / reseed；list 显示 [禁用]；新增 list --json 输出 MarketplaceInspection JSON 供 QA 断言；旧 buddy launcher add user/repo 保留兼容；help 明确 install vs add 区别

@@ -171,39 +171,45 @@ final class PluginExecutor {
     /// deadline 兜底：超时强制 close handle 让 readabilityHandler 收到 EOF，避免 orphan child（持有
     /// pipe 写端的孤立子进程，如 SIGKILL bash 后残留的 sleep）导致 readBounded 死锁。
     private func readBounded(handle: FileHandle, maxBytes: Int, deadline: Date) async -> Data {
-        return await withCheckedContinuation { (cont: CheckedContinuation<Data, Never>) in
-            let resumeLock = NSLock()
+        // 可变状态收进引用类型：readabilityHandler / asyncAfter 闭包捕获 class 引用，而非捕获并
+        // 修改局部 var。否则在严格并发检查下（CI 工具链）会报「mutation of captured var in
+        // concurrently-executing code」编译错误（本地 Swift 5 语言模式不报，CI 报）。NSLock 守护并发访问。
+        final class State: @unchecked Sendable {
+            let lock = NSLock()
             var resumed = false
             var accumulated = Data()
+        }
+        let state = State()
 
+        return await withCheckedContinuation { (cont: CheckedContinuation<Data, Never>) in
             func tryResume() {
-                resumeLock.lock()
-                defer { resumeLock.unlock() }
-                guard !resumed else { return }
-                resumed = true
+                state.lock.lock()
+                defer { state.lock.unlock() }
+                guard !state.resumed else { return }
+                state.resumed = true
                 handle.readabilityHandler = nil
                 try? handle.close()
-                cont.resume(returning: accumulated)
+                cont.resume(returning: state.accumulated)
             }
 
             handle.readabilityHandler = { h in
                 let chunk = h.availableData
-                resumeLock.lock()
-                let alreadyResumed = resumed
-                let remaining = maxBytes - accumulated.count
+                state.lock.lock()
+                let alreadyResumed = state.resumed
+                let remaining = maxBytes - state.accumulated.count
                 if chunk.isEmpty {
-                    resumeLock.unlock()
+                    state.lock.unlock()
                     if !alreadyResumed { tryResume() }
                     return
                 }
                 if remaining <= 0 {
-                    resumeLock.unlock()
+                    state.lock.unlock()
                     if !alreadyResumed { tryResume() }
                     return
                 }
-                accumulated.append(chunk.prefix(remaining))
-                let hitLimit = accumulated.count >= maxBytes
-                resumeLock.unlock()
+                state.accumulated.append(chunk.prefix(remaining))
+                let hitLimit = state.accumulated.count >= maxBytes
+                state.lock.unlock()
                 if hitLimit { tryResume() }
             }
 

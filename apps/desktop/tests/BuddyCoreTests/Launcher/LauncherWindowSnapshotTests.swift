@@ -6,6 +6,12 @@ import SnapshotTesting
 @MainActor
 final class LauncherWindowSnapshotTests: XCTestCase {
 
+    override func setUpWithError() throws {
+        // CI 字体/SF Symbol 渲染与本地不同，快照必失配；与 SkinGallerySnapshotTests 一致在 CI 跳过，本地仍跑。
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil,
+                      "Snapshot tests skipped on CI (font rendering differs)")
+    }
+
     override func setUp() {
         super.setUp()
         // isRecording = true  // 重录基线时取消注释

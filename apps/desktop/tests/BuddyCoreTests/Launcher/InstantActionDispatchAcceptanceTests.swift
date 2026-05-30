@@ -156,7 +156,11 @@ final class InstantActionDispatchAcceptanceTests: XCTestCase {
 
         LauncherManager.shared.updateQuery("querya")
         LauncherManager.shared.updateQuery("queryb")  // 第二次覆盖第一次
-        await Task.yield()
+        // 有界轮询等待异步查询落地：updateQuery 触发的查询是异步的，单次 Task.yield() 在 CI
+        // 较慢调度下不足以让第二次 query 的结果落地（顺序相关 flaky）。最多等 ~2s。
+        for _ in 0..<200 where !LauncherManager.shared.instantActions.contains(where: { $0.title == "ActionB" }) {
+            try? await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        }
 
         // 最终 instantActions 应是 queryb 的结果
         let titles = LauncherManager.shared.instantActions.map { $0.title }

@@ -52,10 +52,17 @@ WATCHDOG_PID=$!
 wait "$TEST_PID"
 STATUS=$?
 
-# 清理看门狗与 tail
+# 先停看门狗（测试已结束，无需再计时）
 kill "$WATCHDOG_PID" 2>/dev/null
-sleep 0.2          # 让 tail 冲刷完最后的输出
+
+# 等 tail 把 swift test 收尾时的最后一批输出（汇总行、各 suite 结果）冲刷完。
+# 之前 0.2s 太短：测试结束瞬间会刷出大量汇总，tail 还没 echo 完就被 kill，
+# 导致显示的测试数远少于实际（看起来只跑了几个 case）。给足时间后再收尾。
+sleep 1.5
 kill "$TAIL_PID" 2>/dev/null
+wait "$TAIL_PID" 2>/dev/null
+# 兜底：直接补印完整日志的尾部汇总，确保用户总能看到最终统计（即使 tail 仍漏）。
+grep -aE "Executed [0-9]+ tests|Test Suite '.*' (passed|failed)" "$LOG" 2>/dev/null | tail -3
 
 # 被看门狗杀掉时 swift test 退出码非 0，但语义是「挂死」——已在上面打印说明
 exit "$STATUS"

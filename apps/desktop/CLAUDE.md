@@ -134,6 +134,7 @@ buddy launcher remove buddy-translate              # 卸载 + 清 trust
 make build          # 编译 debug
 make run            # 编译并启动
 make test           # 全量单元测试（走看门狗，flaky 死锁会超时失败而非挂死，见下方「测试」）
+make test-launcher  # ⚡ 只跑 launcher 子系统全部测试（开发 launcher 用，不跑猫咪/皮肤/session）
 make test-fast      # ⚡ 快速逻辑回归：跳过窗口/快照/SpriteKit 等重量级类
 make test-only FILTER=<类名>   # ⚡ 只跑某个测试类（迭代单模块，秒级）
 make lint           # SwiftLint 检查
@@ -182,6 +183,7 @@ buddy click --id <session-id>
 ## 测试
 
 - `make test` — 全量单元测试，**走看门狗** (`Scripts/test-watchdog.sh`)：超过 `TEST_TIMEOUT`（默认 600s）判定挂死并终止，避免 flaky 死锁把本地/CI 挂死数小时
+- `make test-launcher` — ⚡ 只跑 launcher 子系统全部测试（`tests/BuddyCoreTests/Launcher/` 下所有类，从目录动态生成 `--filter`，自动覆盖新增类）。开发 launcher 时用，不跑猫咪/皮肤/session/socket 等无关测试
 - `make test-fast` — ⚡ 快速逻辑回归，跳过窗口/快照/SpriteKit/socket 等重量级类（这些被 `@MainActor` 钉在主线程串行，是全量慢的主因）
 - `make test-only FILTER=<类名>` — ⚡ 只跑指定测试类，迭代单模块用（秒级）
 - `swift test --filter Snapshot` — 视觉快照回归测试

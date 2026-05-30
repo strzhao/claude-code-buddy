@@ -99,3 +99,6 @@
 
 ## 2026-05-30 buddy-plugin-market task 005 新增条目
 - [2026-05-30] macOS NSTitlebarAccessoryViewController layoutAttribute=.top 强制要求 NSWindow.styleMask 含 `.fullSizeContentView`（红队 AT 抓 bug 案例）| tags: appkit, nswindow, stylemask, fullsizecontentview, nstitlebaraccessoryviewcontroller, titlebar, segmentedcontrol, macos14, red-team-finding, settings | → patterns/2026-05-30-appkit-titlebar-accessory-requires-fullsizecontentview.md
+
+## 2026-05-30 buddy-plugin-market task 006 新增条目
+- [2026-05-30] Swift Concurrency: @MainActor 协议方法跨 actor 调用编译器自动 hop，**不**嵌套 MainActor.run（plan-reviewer 抓 B2 案例）| tags: swift, concurrency, mainactor, protocol, async, hop, mainactor-run, plan-reviewer-blocker, market-hud, swift-6 | → patterns/2026-05-30-swift-mainactor-protocol-cross-actor-call-no-nested-mainactor-run.md

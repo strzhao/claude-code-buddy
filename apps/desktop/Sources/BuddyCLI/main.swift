@@ -239,6 +239,8 @@ private struct CLIOptions {
     var baseURL: String = ""
     var model: String = ""
     var apiKey: String = ""
+    // Generic boolean long-form flags (task 007)
+    var flags: [String] = []
 }
 
 private func printHelp() {
@@ -282,6 +284,17 @@ private func printHelp() {
       buddy test-tokens --delay 3
       buddy inspect --id debug-A
       buddy session end --id debug-A
+
+    Launcher subcommands:
+      buddy launcher config <get|set|use> ...   查看/设置/切换 LLM provider
+      buddy launcher install <name>             从官方 marketplace 安装插件（gitURL/gitSubdir/file）
+      buddy launcher add <user>/<repo>          从任意 GitHub repo 安装（与 marketplace 无关）
+      buddy launcher list [--json]              列出已装插件；--json 输出 MarketplaceInspection
+      buddy launcher disable <name>             禁用插件（touch .disabled）
+      buddy launcher enable <name>              启用插件（rm .disabled）
+      buddy launcher reseed                     清 marketplace cache，下次 app 启动重新 seed
+      buddy launcher remove <name>              彻底删除插件目录
+      buddy launcher inspect <name>             查看插件详情（JSON）
     """)
 }
 
@@ -331,6 +344,9 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--api-key":
             i += 1
             if i < args.count { opts.apiKey = args[i] }
+        case let f where f.hasPrefix("--") && !f.contains("="):
+            // 通用布尔型长 flag（task 007）：--json / --strict 等，不消费下一个 arg
+            opts.flags.append(f)
         default:
             if opts.command.isEmpty {
                 opts.command = arg
@@ -884,14 +900,26 @@ private func main() {
             }
         case "add":
             cmdLauncherAdd(opts.positionalArgs.first ?? "")
+        case "install":
+            cmdLauncherInstall(opts.positionalArgs.first ?? "")
+        case "disable":
+            cmdLauncherDisable(opts.positionalArgs.first ?? "")
+        case "enable":
+            cmdLauncherEnable(opts.positionalArgs.first ?? "")
+        case "reseed":
+            cmdLauncherReseed()
         case "list":
-            cmdLauncherList()
+            if opts.flags.contains("--json") {
+                cmdLauncherListJSON()
+            } else {
+                cmdLauncherList()
+            }
         case "remove":
             cmdLauncherRemove(opts.positionalArgs.first ?? "")
         case "inspect":
             cmdLauncherInspect(opts.positionalArgs.first ?? "")
         default:
-            fputs("Usage: buddy launcher <config|add|list|remove|inspect> ...\n", stderr)
+            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect> ...\n", stderr)
             exit(2)
         }
     case "help", "--help", "-h", "":
@@ -1214,15 +1242,31 @@ private func cmdLauncherList() {
         print("No plugins installed.")
         return
     }
+    var listedNames = Set<String>()
     var count = 0
+    // 第一遍：扫描所有有效 plugin（含已禁用），加 [禁用] 后缀
     for entry in entries {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir), isDir.boolValue else { continue }
         let manifestURL = entry.appending(path: "plugin.json")
         guard let data = try? Data(contentsOf: manifestURL),
               let m = try? JSONDecoder().decode(CLIPluginManifestCheck.self, from: data) else { continue }
+        let disabled = FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
         let status = cliTrustStatus(manifest: m, pluginDir: entry)
-        print("\(m.name) (v\(m.version)) [\(status)] - \(m.description)")
+        let suffix = disabled ? " [禁用]" : ""
+        print("\(m.name)\(suffix) (v\(m.version)) [\(status)] - \(m.description)")
+        listedNames.insert(m.name)
+        count += 1
+    }
+    // 第二遍：扫描 plugin.json 无效但带 .disabled marker 的目录
+    for entry in entries {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir), isDir.boolValue else { continue }
+        let dirName = entry.lastPathComponent
+        if listedNames.contains(dirName) { continue }
+        let disabled = FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
+        guard disabled else { continue }
+        print("\(dirName) [禁用] (info unavailable)")
         count += 1
     }
     if count == 0 {
@@ -1317,6 +1361,472 @@ private func cmdLauncherInspect(_ name: String) {
         print(str)
     } else {
         fputs("Failed to encode inspect output\n", stderr)
+        exit(1)
+    }
+}
+
+// MARK: - Marketplace Mirror Schema (task 007)
+// ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/Marketplace/{MarketplaceManifest,MarketplaceManager}.swift
+// CLI mirror 与 marketplace.json / marketplace-meta.json JSON 字段完全一致
+// 任何 BuddyCore schema 改动都必须同步到此 mirror（双绑陷阱）
+
+struct CLIMarketplaceManifest: Codable {
+    let schemaVersion: Int
+    let name: String
+    let plugins: [CLIMarketplacePlugin]
+}
+
+struct CLIMarketplacePlugin: Codable {
+    let name: String
+    let version: String
+    let description: String?
+    let source: CLIPluginSourceConfig
+}
+
+/// 与 BuddyCore `PluginSourceConfig` JSON 表示一致：String 简写 = .localSubdir，
+/// 否则按 `source` 字段判别 `git-subdir` / `url` / `file`
+enum CLIPluginSourceConfig: Codable {
+    case localSubdir(path: String)
+    case gitSubdir(url: String, path: String, ref: String, sha: String)
+    case gitURL(url: String, sha: String?)
+    case file(path: String)
+
+    private enum CodingKeys: String, CodingKey {
+        case source
+        case url
+        case path
+        case ref
+        case sha
+    }
+
+    init(from decoder: Decoder) throws {
+        if let single = try? decoder.singleValueContainer(),
+           let value = try? single.decode(String.self) {
+            self = .localSubdir(path: value)
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(String.self, forKey: .source)
+        switch kind {
+        case "git-subdir":
+            self = .gitSubdir(
+                url: try container.decode(String.self, forKey: .url),
+                path: try container.decode(String.self, forKey: .path),
+                ref: try container.decode(String.self, forKey: .ref),
+                sha: try container.decode(String.self, forKey: .sha)
+            )
+        case "url":
+            self = .gitURL(
+                url: try container.decode(String.self, forKey: .url),
+                sha: try container.decodeIfPresent(String.self, forKey: .sha)
+            )
+        case "file":
+            self = .file(path: try container.decode(String.self, forKey: .path))
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .source,
+                in: container,
+                debugDescription: "unknown source kind: \(kind)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .localSubdir(let path):
+            var single = encoder.singleValueContainer()
+            try single.encode(path)
+        case .gitSubdir(let url, let path, let ref, let sha):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("git-subdir", forKey: .source)
+            try container.encode(url, forKey: .url)
+            try container.encode(path, forKey: .path)
+            try container.encode(ref, forKey: .ref)
+            try container.encode(sha, forKey: .sha)
+        case .gitURL(let url, let sha):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("url", forKey: .source)
+            try container.encode(url, forKey: .url)
+            try container.encodeIfPresent(sha, forKey: .sha)
+        case .file(let path):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("file", forKey: .source)
+            try container.encode(path, forKey: .path)
+        }
+    }
+}
+
+/// Mirror of BuddyCore MarketplaceInspection。lastSyncedAt 用 String? 直接匹配
+/// BuddyCore writeMeta 的 `.iso8601` dateEncodingStrategy 输出。
+struct CLIMarketplaceInspection: Codable {
+    let plugins: [PluginInspection]
+    let sideloadedPlugins: [SideloadedPlugin]
+    let lastSyncedAt: String?
+    let consecutiveSyncFailures: Int
+
+    struct PluginInspection: Codable {
+        let name: String
+        let version: String
+        let enabled: Bool
+        let source: String
+    }
+
+    struct SideloadedPlugin: Codable {
+        let name: String
+        let enabled: Bool
+    }
+}
+
+// MARK: - sanitize helper (task 007 / task 004 follow-up)
+
+private func sanitizePluginName(_ name: String) -> Bool {
+    name.range(of: "^[a-z0-9-]+$", options: .regularExpression) != nil
+}
+
+// MARK: - Marketplace cache paths (函数避免 top-level let init order 陷阱)
+
+private func marketplaceCachePath() -> String { "\(launcherConfigDir)/marketplace.json" }
+private func marketplaceMetaPath() -> String { "\(launcherConfigDir)/marketplace-meta.json" }
+private func reseedPendingPath() -> String { "\(launcherConfigDir)/reseed-pending-disabled.json" }
+
+// MARK: - launcher install / disable / enable / reseed / list --json (task 007)
+
+private func cliSourceLabel(_ source: CLIPluginSourceConfig) -> String {
+    switch source {
+    case .localSubdir(let path):
+        return "local-subdir: \(path)"
+    case .file(let path):
+        return "file: \(path)"
+    case .gitURL(let url, _):
+        return "git-url: \(url)"
+    case .gitSubdir(let url, let path, _, _):
+        return "git-subdir: \(url)/\(path)"
+    }
+}
+
+private func cmdLauncherDisable(_ name: String) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher disable <name>\n", stderr)
+        exit(2)
+    }
+    guard sanitizePluginName(name) else {
+        fputs("Invalid name: '\(name)' (allowed: a-z, 0-9, -)\n", stderr)
+        exit(2)
+    }
+    let dir = URL(fileURLWithPath: launcherPluginsDir).appending(path: name)
+    guard FileManager.default.fileExists(atPath: dir.path) else {
+        fputs("Plugin not found: \(name)\n", stderr)
+        exit(3)
+    }
+    let marker = dir.appending(path: ".disabled")
+    if !FileManager.default.fileExists(atPath: marker.path) {
+        do {
+            try Data().write(to: marker)
+        } catch {
+            fputs("Failed to write .disabled marker: \(error)\n", stderr)
+            exit(1)
+        }
+    }
+    print("Disabled: \(name)")
+}
+
+private func cmdLauncherEnable(_ name: String) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher enable <name>\n", stderr)
+        exit(2)
+    }
+    guard sanitizePluginName(name) else {
+        fputs("Invalid name: '\(name)' (allowed: a-z, 0-9, -)\n", stderr)
+        exit(2)
+    }
+    let dir = URL(fileURLWithPath: launcherPluginsDir).appending(path: name)
+    guard FileManager.default.fileExists(atPath: dir.path) else {
+        fputs("Plugin not found: \(name)\n", stderr)
+        exit(3)
+    }
+    let marker = dir.appending(path: ".disabled")
+    if FileManager.default.fileExists(atPath: marker.path) {
+        do {
+            try FileManager.default.removeItem(at: marker)
+        } catch {
+            fputs("Failed to remove .disabled marker: \(error)\n", stderr)
+            exit(1)
+        }
+    }
+    print("Enabled: \(name)")
+}
+
+private func cmdLauncherReseed() {
+    let cacheURL = URL(fileURLWithPath: marketplaceCachePath())
+    let metaURL = URL(fileURLWithPath: marketplaceMetaPath())
+    let pluginsBase = URL(fileURLWithPath: launcherPluginsDir)
+
+    // Step 1: 读 cache 收集 marketplace 列出的 plugin 名
+    var pluginNames: [String] = []
+    if let data = try? Data(contentsOf: cacheURL),
+       let manifest = try? JSONDecoder().decode(CLIMarketplaceManifest.self, from: data) {
+        pluginNames = manifest.plugins.map { $0.name }
+    }
+
+    // Step 2: 收集需保留 .disabled 的 plugin
+    var disabledNames: [String] = []
+    for name in pluginNames {
+        let markerPath = pluginsBase.appending(path: name).appending(path: ".disabled").path
+        if FileManager.default.fileExists(atPath: markerPath) {
+            disabledNames.append(name)
+        }
+    }
+
+    // Step 3: 删 plugin dirs（仅 marketplace 列出的，保留用户 sideloaded）
+    for name in pluginNames {
+        let dir = pluginsBase.appending(path: name)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    // Step 4: 删 marketplace.json + marketplace-meta.json
+    try? FileManager.default.removeItem(at: cacheURL)
+    try? FileManager.default.removeItem(at: metaURL)
+
+    // Step 5: 写 reseed-pending-disabled.json 供 app 下次启动 seedFromBundle 完成后读取恢复 .disabled
+    if !disabledNames.isEmpty {
+        let sorted = disabledNames.sorted()
+        if let encoded = try? JSONEncoder().encode(sorted) {
+            try? FileManager.default.createDirectory(
+                atPath: launcherConfigDir,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            try? encoded.write(to: URL(fileURLWithPath: reseedPendingPath()))
+        }
+    } else {
+        try? FileManager.default.removeItem(at: URL(fileURLWithPath: reseedPendingPath()))
+    }
+
+    print("Reseed staged: cleared cache + \(pluginNames.count) plugin dirs.")
+    print("Next app launch will re-seed marketplace and restore disabled markers (\(disabledNames.count) tracked).")
+}
+
+private func cliGitCloneFull(url: String, ref: String?, targetDir: URL, pluginName: String) {
+    try? FileManager.default.createDirectory(
+        atPath: launcherPluginsDir,
+        withIntermediateDirectories: true,
+        attributes: nil
+    )
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("buddy-install-\(UUID().uuidString)")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    var args = ["clone", "--depth", "1"]
+    if let ref = ref, !ref.isEmpty {
+        args += ["--branch", ref]
+    }
+    args += [url, tempDir.path]
+    process.arguments = args
+    process.environment = ProcessInfo.processInfo.environment
+
+    do {
+        try process.run()
+    } catch {
+        fputs("git clone failed to start: \(error)\n", stderr)
+        exit(1)
+    }
+    let timeoutWork = DispatchWorkItem {
+        if process.isRunning { process.terminate() }
+    }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timeoutWork)
+    process.waitUntilExit()
+    timeoutWork.cancel()
+
+    guard process.terminationStatus == 0 else {
+        try? FileManager.default.removeItem(at: tempDir)
+        fputs("git clone failed (exit \(process.terminationStatus))\n", stderr)
+        exit(1)
+    }
+    do {
+        try FileManager.default.moveItem(at: tempDir, to: targetDir)
+    } catch {
+        try? FileManager.default.removeItem(at: tempDir)
+        fputs("Failed to move clone to plugin dir: \(error)\n", stderr)
+        exit(1)
+    }
+    print("Installed: \(pluginName) (from \(url))")
+}
+
+private func cliGitCloneSubdir(url: String, path: String, ref: String, targetDir: URL, pluginName: String) {
+    try? FileManager.default.createDirectory(
+        atPath: launcherPluginsDir,
+        withIntermediateDirectories: true,
+        attributes: nil
+    )
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("buddy-install-\(UUID().uuidString)")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    var args = ["clone", "--depth", "1"]
+    if !ref.isEmpty {
+        args += ["--branch", ref]
+    }
+    args += [url, tempDir.path]
+    process.arguments = args
+    process.environment = ProcessInfo.processInfo.environment
+
+    do {
+        try process.run()
+    } catch {
+        fputs("git clone failed to start: \(error)\n", stderr)
+        exit(1)
+    }
+    let timeoutWork = DispatchWorkItem {
+        if process.isRunning { process.terminate() }
+    }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timeoutWork)
+    process.waitUntilExit()
+    timeoutWork.cancel()
+
+    guard process.terminationStatus == 0 else {
+        try? FileManager.default.removeItem(at: tempDir)
+        fputs("git clone failed (exit \(process.terminationStatus))\n", stderr)
+        exit(1)
+    }
+    let subdir = tempDir.appending(path: path)
+    guard FileManager.default.fileExists(atPath: subdir.path) else {
+        try? FileManager.default.removeItem(at: tempDir)
+        fputs("Subdir not found in cloned repo: \(path)\n", stderr)
+        exit(1)
+    }
+    do {
+        try FileManager.default.moveItem(at: subdir, to: targetDir)
+    } catch {
+        try? FileManager.default.removeItem(at: tempDir)
+        fputs("Failed to move subdir to plugin dir: \(error)\n", stderr)
+        exit(1)
+    }
+    try? FileManager.default.removeItem(at: tempDir)
+    print("Installed: \(pluginName) (from \(url):\(path))")
+}
+
+private func cmdLauncherInstall(_ name: String) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher install <name>\n", stderr)
+        exit(2)
+    }
+    guard sanitizePluginName(name) else {
+        fputs("Invalid name: '\(name)' (allowed: a-z, 0-9, -)\n", stderr)
+        exit(2)
+    }
+    // 1. 读 marketplace cache
+    let cacheURL = URL(fileURLWithPath: marketplaceCachePath())
+    guard let data = try? Data(contentsOf: cacheURL),
+          let manifest = try? JSONDecoder().decode(CLIMarketplaceManifest.self, from: data) else {
+        fputs("Marketplace cache not found. Run `buddy launcher reseed` then start the app.\n", stderr)
+        exit(4)
+    }
+    guard let plugin = manifest.plugins.first(where: { $0.name == name }) else {
+        fputs("Plugin not in marketplace: \(name)\n", stderr)
+        exit(3)
+    }
+    // 2. 检查是否已装
+    let targetDir = URL(fileURLWithPath: launcherPluginsDir).appending(path: name)
+    if FileManager.default.fileExists(atPath: targetDir.path) {
+        fputs("Plugin already installed: \(name)\nUse `buddy launcher remove \(name)` first.\n", stderr)
+        exit(5)
+    }
+    // 3. 按 source 类型分发
+    switch plugin.source {
+    case .localSubdir(let path):
+        fputs("Plugin '\(name)' is bundled with the app (source=\(path)).\nRun `buddy launcher reseed` and restart the app to install.\n", stderr)
+        exit(6)
+    case .gitURL(let url, _):
+        cliGitCloneFull(url: url, ref: nil, targetDir: targetDir, pluginName: name)
+    case .gitSubdir(let url, let path, let ref, _):
+        cliGitCloneSubdir(url: url, path: path, ref: ref, targetDir: targetDir, pluginName: name)
+    case .file(let path):
+        do {
+            try FileManager.default.createDirectory(
+                atPath: launcherPluginsDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: path), to: targetDir)
+            print("Installed: \(name) (from file://\(path))")
+        } catch {
+            fputs("Failed to copy plugin from \(path): \(error)\n", stderr)
+            exit(1)
+        }
+    }
+}
+
+private func buildCLIInspection() -> CLIMarketplaceInspection {
+    // Step 1: 读 marketplace.json cache，构造 plugins 列表
+    let cacheURL = URL(fileURLWithPath: marketplaceCachePath())
+    let pluginsBase = URL(fileURLWithPath: launcherPluginsDir)
+    var marketPlugins: [CLIMarketplaceInspection.PluginInspection] = []
+    var marketNames = Set<String>()
+    if let data = try? Data(contentsOf: cacheURL),
+       let manifest = try? JSONDecoder().decode(CLIMarketplaceManifest.self, from: data) {
+        for p in manifest.plugins {
+            let dir = pluginsBase.appending(path: p.name)
+            let enabled = !FileManager.default.fileExists(atPath: dir.appending(path: ".disabled").path)
+            marketPlugins.append(.init(
+                name: p.name,
+                version: p.version,
+                enabled: enabled,
+                source: cliSourceLabel(p.source)
+            ))
+            marketNames.insert(p.name)
+        }
+    }
+
+    // Step 2: 扫 launcher-plugins/ 找 sideloaded（cache 未声明但 dir 存在且 plugin.json 有效）
+    var sideloaded: [CLIMarketplaceInspection.SideloadedPlugin] = []
+    if let entries = try? FileManager.default.contentsOfDirectory(
+        at: pluginsBase,
+        includingPropertiesForKeys: nil
+    ) {
+        for entry in entries {
+            let name = entry.lastPathComponent
+            if marketNames.contains(name) { continue }
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir),
+                  isDir.boolValue,
+                  FileManager.default.fileExists(atPath: entry.appending(path: "plugin.json").path)
+                  else { continue }
+            let enabled = !FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
+            sideloaded.append(.init(name: name, enabled: enabled))
+        }
+    }
+
+    // Step 3: 读 marketplace-meta.json（BuddyCore 用 .iso8601 strategy 写出 string）
+    struct CLIMeta: Codable {
+        let lastSyncedAt: String?
+        let consecutiveSyncFailures: Int
+    }
+    let metaURL = URL(fileURLWithPath: marketplaceMetaPath())
+    let meta: CLIMeta
+    if let data = try? Data(contentsOf: metaURL),
+       let decoded = try? JSONDecoder().decode(CLIMeta.self, from: data) {
+        meta = decoded
+    } else {
+        meta = CLIMeta(lastSyncedAt: nil, consecutiveSyncFailures: 0)
+    }
+
+    return CLIMarketplaceInspection(
+        plugins: marketPlugins,
+        sideloadedPlugins: sideloaded,
+        lastSyncedAt: meta.lastSyncedAt,
+        consecutiveSyncFailures: meta.consecutiveSyncFailures
+    )
+}
+
+private func cmdLauncherListJSON() {
+    let inspection = buildCLIInspection()
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    do {
+        let data = try encoder.encode(inspection)
+        print(String(data: data, encoding: .utf8) ?? "{}")
+    } catch {
+        fputs("Failed to encode inspection JSON: \(error)\n", stderr)
         exit(1)
     }
 }

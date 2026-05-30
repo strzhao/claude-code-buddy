@@ -150,6 +150,21 @@ final class MarketplaceManager {
         for plugin in manifest.plugins {
             try await seedOne(plugin: plugin, bundleRoot: bundleRoot)
         }
+
+        // CLI reseed 配套（task 007）：seed 完成后读 reseed-pending-disabled.json → 恢复 .disabled → 删 pending
+        let pendingPath = LauncherConstants.buddyDir.appendingPathComponent("reseed-pending-disabled.json")
+        if let pendingData = try? Data(contentsOf: pendingPath),
+           let pendingNames = try? JSONDecoder().decode([String].self, from: pendingData) {
+            for name in pendingNames {
+                let dir = pluginsDir.appendingPathComponent(name)
+                guard FileManager.default.fileExists(atPath: dir.path) else { continue }
+                let marker = dir.appendingPathComponent(".disabled")
+                if !FileManager.default.fileExists(atPath: marker.path) {
+                    try? Data().write(to: marker)
+                }
+            }
+            try? FileManager.default.removeItem(at: pendingPath)
+        }
     }
 
     /// 异步从远程拉取最新 marketplace.json。

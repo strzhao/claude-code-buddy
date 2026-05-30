@@ -87,6 +87,14 @@ enum LauncherTheme {
             : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 0.12)
     })
 
+    /// 即时候选选中态实色填充（task 011 交互优化）：去边框/竖条，纯色 pill 突出高亮，简洁。
+    /// 实色 sage（带轻微透明让毛玻璃质感透出），白色文字。light #3a7d68 / dark #52a688，alpha 0.92
+    static let instantSelectionFill = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(red: 0x52 / 255, green: 0xa6 / 255, blue: 0x88 / 255, alpha: 0.92)
+            : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 0.92)
+    })
+
     /// 选中行左侧指示竖条颜色（不带 alpha，实色 sage）
     static let selectionIndicator = Color(nsColor: NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

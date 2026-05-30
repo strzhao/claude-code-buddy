@@ -30,6 +30,8 @@ struct LauncherInputView: View {
                         if new.count > LauncherConstants.maxQueryLength {
                             query = String(new.prefix(LauncherConstants.maxQueryLength))
                         }
+                        // task 011：即时候选管线 — 每次输入变化触发 debounce 搜索
+                        manager.updateQuery(new)
                     }
 
                 // 执行中 3 点脉冲动画（C8 契约）
@@ -39,11 +41,19 @@ struct LauncherInputView: View {
             }
             .frame(height: LauncherConstants.inputHeight)
 
-            // 候选插件列表（仅在 candidates 非空时显示）
-            LauncherCandidateView(
-                candidates: manager.lastRouteCandidates,
-                selectedIndex: manager.lastRouteSelectedIndex
-            )
+            // 候选区：instant 与 route 分时显示（时序互斥）
+            // task 011：instantActions 非空时显示内置 App 候选；否则显示 AI 路由外部 CLI 候选
+            if !manager.instantActions.isEmpty {
+                LauncherInstantCandidateView(
+                    actions: manager.instantActions,
+                    selectedIndex: manager.instantSelectedIndex
+                )
+            } else {
+                LauncherCandidateView(
+                    candidates: manager.lastRouteCandidates,
+                    selectedIndex: manager.lastRouteSelectedIndex
+                )
+            }
 
             // 底部状态栏（C5 契约）：stage != .idle 时显示
             LauncherStatusFooter(
@@ -86,7 +96,8 @@ struct LauncherInputView: View {
                 candidateCount: manager.lastRouteCandidates.count,
                 hasSelected: manager.lastRouteSelectedIndex >= 0,
                 outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0,
-                hasFooter: manager.stage == .error
+                hasFooter: manager.stage == .error,
+                instantCount: manager.instantActions.count
             ),
             alignment: .top
         )
@@ -127,37 +138,68 @@ struct LauncherInputView: View {
         }
         .onDisappear {}
         .onExitCommand { manager.hide() }   // Esc → hide（focus 在 view 内时生效）
-        // 上下箭头键导航候选列表（C5 契约）：循环跳转
-        .onKeyPress(.upArrow) {
-            let count = manager.lastRouteCandidates.count
-            guard count > 0 else { return .ignored }
-            let current = manager.lastRouteSelectedIndex
-            // 循环：< 0 或 == 0 跳到末尾
-            let next = (current <= 0) ? count - 1 : current - 1
-            manager.setSelectedIndex(next)
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            let count = manager.lastRouteCandidates.count
-            guard count > 0 else { return .ignored }
-            let current = manager.lastRouteSelectedIndex
-            // 循环：到末尾跳回 0
-            let next = (current >= count - 1) ? 0 : current + 1
-            manager.setSelectedIndex(next)
-            return .handled
+        // 上下箭头键导航候选列表：instant 优先，否则原有 lastRoute 逻辑（C5 契约）
+        // task 011：instantActions 非空时，导航 instantSelectedIndex；否则导航 lastRouteSelectedIndex
+        .onKeyPress(.upArrow) { navigateUp() }
+        .onKeyPress(.downArrow) { navigateDown() }
+        // task 011 交互优化：emacs 键位 Ctrl-N（下）/ Ctrl-P（上）。
+        // 用 phases:.down 的 catch-all 读 modifiers/key；非 Ctrl-N/P 一律 .ignored 让普通输入透传到 TextField。
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.control) else { return .ignored }
+            switch press.key {
+            case KeyEquivalent("n"): return navigateDown()
+            case KeyEquivalent("p"): return navigateUp()
+            default: return .ignored
+            }
         }
     }
 
-    private func submit() async {
-        // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约）
-        let selectedIdx = manager.lastRouteSelectedIndex
-        let candidates = manager.lastRouteCandidates
-        let q = query
+    // MARK: - 候选导航（箭头 / emacs Ctrl-N·P 共用）
 
+    /// 向上移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    private func navigateUp() -> KeyPress.Result {
+        if !manager.instantActions.isEmpty {
+            manager.moveInstantSelection(up: true)
+            return .handled
+        }
+        let count = manager.lastRouteCandidates.count
+        guard count > 0 else { return .ignored }
+        let current = manager.lastRouteSelectedIndex
+        manager.setSelectedIndex((current <= 0) ? count - 1 : current - 1)
+        return .handled
+    }
+
+    /// 向下移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    private func navigateDown() -> KeyPress.Result {
+        if !manager.instantActions.isEmpty {
+            manager.moveInstantSelection(up: false)
+            return .handled
+        }
+        let count = manager.lastRouteCandidates.count
+        guard count > 0 else { return .ignored }
+        let current = manager.lastRouteSelectedIndex
+        manager.setSelectedIndex((current >= count - 1) ? 0 : current + 1)
+        return .handled
+    }
+
+    private func submit() async {
+        // task 011 C5 契约：内置管线优先 — 有选中的 instant action → 执行并结束，不触发 AI
+        if manager.performSelectedInstantAction() {
+            await MainActor.run { query = "" }
+            return
+        }
+
+        // 落回现有 AI 流（清空 instantActions，进入 AI 候选时序）
         await MainActor.run {
+            manager.clearInstantActions()
             outputBuffer = ""
             rendered = nil
         }
+
+        // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约，原有外部 CLI 分支）
+        let selectedIdx = manager.lastRouteSelectedIndex
+        let candidates = manager.lastRouteCandidates
+        let q = query
 
         // 若用户通过键盘选了特定候选（selectedIndex >= 0），构造一个只含该候选的路由流
         let stream: AsyncStream<AgentEvent>
@@ -207,19 +249,28 @@ struct LauncherInputView: View {
 extension LauncherInputView {
     /// 三态自适应面板高度公式（C3/C7 契约）
     /// - Parameters:
-    ///   - candidateCount: 候选数量
+    ///   - candidateCount: AI 路由候选数量
     ///   - hasSelected: 是否有选中候选（输出态时决定是否额外加 44）
     ///   - outputHeight: 输出内容高度（0 表示无输出）
     ///   - hasFooter: 是否有状态栏（额外加 22）
+    ///   - instantCount: task 011 即时内置候选数量（两者时序互斥，取非零者）
     /// - Returns: 面板内容区高度
-    static func panelHeight(candidateCount: Int, hasSelected: Bool, outputHeight: CGFloat, hasFooter: Bool = false) -> CGFloat {
+    static func panelHeight(
+        candidateCount: Int,
+        hasSelected: Bool,
+        outputHeight: CGFloat,
+        hasFooter: Bool = false,
+        instantCount: Int = 0
+    ) -> CGFloat {
         let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
         let inputH = LauncherConstants.inputHeight   // 64
         if outputHeight > 0 {
             return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + footerExtra
         }
-        if candidateCount > 0 {
-            return inputH + CGFloat(min(candidateCount, 5)) * 44 + footerExtra
+        // 时序互斥：instantCount 非零时用 instantCount，否则用 candidateCount
+        let effectiveCount = max(instantCount, candidateCount)
+        if effectiveCount > 0 {
+            return inputH + CGFloat(min(effectiveCount, 5)) * 44 + footerExtra
         }
         return inputH + footerExtra
     }

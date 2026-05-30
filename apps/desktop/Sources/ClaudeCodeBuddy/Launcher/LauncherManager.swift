@@ -38,6 +38,23 @@ final class LauncherManager: ObservableObject {
     /// 红队/蓝队共同约定注入点，用于 SC-13/SC-14 mock candidates
     var routerFactoryOverride: ((PluginManager, LauncherProvider, String) -> LauncherRouter)?
 
+    // MARK: - 即时候选管线（task 011 内置插件）
+
+    /// 即时候选列表（live 阶段：边输入边搜索）
+    @Published private(set) var instantActions: [LauncherAction] = []
+    /// 即时候选选中索引（哨兵 -1；有候选时置 0）
+    @Published private(set) var instantSelectedIndex: Int = -1
+    /// 启动失败错误（呈现中文文案，修复 SUGGESTION-2）
+    @Published private(set) var lastInstantError: LauncherError?
+
+    /// debounce Task（连续输入时 cancel 旧 Task）
+    private var debounceTask: Task<Void, Never>?
+
+    /// 测试注入点（SUGGESTION-1）：覆盖 Registry
+    var registryOverride: BuiltinPluginRegistry?
+    /// 测试注入点（SUGGESTION-1）：覆盖 debounce 毫秒数（测试置 0 跳过等待）
+    var instantDebounceMsOverride: Int?
+
     private init() {}
 
     private func makeWindow() -> LauncherWindow {
@@ -81,6 +98,9 @@ final class LauncherManager: ObservableObject {
         // task 010 retry 2：停用 builtin-hello 自动安装
         // 原因：示例插件 description 中通用词 (stdin/stdout/markdown/示例) 让 narrow 算法
         // 在大量无关 query 下都把它排到候选首位，干扰真实使用。需要 demo 时用户手动 add 即可。
+
+        // task 011：触发 AppIndex 首次后台扫描（fire-and-forget，不阻塞 UI）
+        AppIndex.shared.refreshIfStale(ttl: 0)
     }
 
     func show() {
@@ -96,6 +116,12 @@ final class LauncherManager: ObservableObject {
         lastRouteSelectedIndex = -1
         lastRoutePluginName = nil
         stage = .idle
+        // 清空即时候选状态（task 011）
+        instantActions = []
+        instantSelectedIndex = -1
+        lastInstantError = nil
+        debounceTask?.cancel()
+        debounceTask = nil
         // 重置 panel 尺寸到初始小高度，避免上次执行后的大尺寸导致 centerOnScreen y 算偏高
         w.setContentSize(NSSize(width: LauncherConstants.windowWidth, height: LauncherConstants.windowMinHeight))
         w.centerOnScreen()
@@ -111,6 +137,12 @@ final class LauncherManager: ObservableObject {
         // didResignKeyNotification → observer 递归调 hide() 时绕过 guard 导致重复发布
         guard isVisible else { return }
         isVisible = false  // 先更新状态，防止 orderOut 触发的通知重入
+        // 清空即时候选状态（task 011）
+        instantActions = []
+        instantSelectedIndex = -1
+        lastInstantError = nil
+        debounceTask?.cancel()
+        debounceTask = nil
         launcherWindow.orderOut(nil)
         // 切回召唤前的前台 app（Terminal/编辑器等），光标继续回到原位置
         // 注：必须在 orderOut 后异步执行，否则 macOS 会忽略 activate 调用
@@ -124,6 +156,71 @@ final class LauncherManager: ObservableObject {
 
     func toggle() {
         if isVisible { hide() } else { show() }
+    }
+
+    // MARK: - 即时候选管线方法（task 011）
+
+    /// C7 契约：非空 query → debounce 后更新 instantActions；空 query → 立即清空。
+    /// 连续输入时 cancel 旧 debounceTask，只有最后一次落地。
+    func updateQuery(_ query: String) {
+        debounceTask?.cancel()
+        guard !query.isEmpty else {
+            instantActions = []
+            instantSelectedIndex = -1
+            return
+        }
+        let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
+        let registry = registryOverride ?? BuiltinPluginRegistry.shared
+        debounceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            if delayMs > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+            }
+            guard !Task.isCancelled else { return }
+            let acts = await registry.actions(for: query)
+            guard !Task.isCancelled else { return }
+            self.instantActions = acts
+            self.instantSelectedIndex = acts.isEmpty ? -1 : 0
+        }
+    }
+
+    /// 键盘导航 instant 候选（C5 契约：instantActions 非空时生效）。
+    func moveInstantSelection(up: Bool) {
+        guard !instantActions.isEmpty else { return }
+        let count = instantActions.count
+        if up {
+            instantSelectedIndex = instantSelectedIndex <= 0 ? count - 1 : instantSelectedIndex - 1
+        } else {
+            instantSelectedIndex = instantSelectedIndex >= count - 1 ? 0 : instantSelectedIndex + 1
+        }
+    }
+
+    /// C5 契约：若有选中的即时 action，执行并返回 true（已消费，不走 AI）；否则返回 false。
+    /// 执行失败：设 lastInstantError + stage = .error（C6/C9）。
+    @discardableResult
+    func performSelectedInstantAction() -> Bool {
+        guard instantActions.indices.contains(instantSelectedIndex) else { return false }
+        let action = instantActions[instantSelectedIndex]
+        clearInstantActions()
+        do {
+            try action.perform()
+            hide()
+        } catch let err as LauncherError {
+            lastInstantError = err
+            stage = .error
+        } catch {
+            lastInstantError = .appLaunchFailed(error.localizedDescription)
+            stage = .error
+        }
+        return true
+    }
+
+    /// 清空即时候选（submit 落回 AI 流前调用，C5 契约）
+    func clearInstantActions() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        instantActions = []
+        instantSelectedIndex = -1
     }
 
     /// 键盘覆盖候选索引（C4 契约）：@MainActor + 空 list no-op + clamp

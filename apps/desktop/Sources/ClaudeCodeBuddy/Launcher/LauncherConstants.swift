@@ -47,4 +47,20 @@ enum LauncherConstants {
 
     // Router（task 005 追加）
     static let routerMaxCandidates: Int = 5
+
+    // 内置插件 AppLauncher（task 011 追加）
+    /// App 索引 TTL（秒）：超时后后台重新扫盘
+    static let appIndexTTLSec: TimeInterval = 60
+    /// 即时搜索 debounce（毫秒）：连续输入只触发最后一次
+    static let instantDebounceMs: Int = 120
+    /// 内置插件候选上限（全局截断）
+    static let builtinActionsLimit: Int = 8
+    /// 单次 App 搜索返回上限（传入 AppIndex.search）
+    static let appSearchLimit: Int = 8
+    /// 扫描 App 的目录（含 ~ 展开后的路径）
+    static let appScanDirs: [String] = [
+        "/Applications",
+        "/System/Applications",
+        "\(NSHomeDirectory())/Applications"
+    ]
 }

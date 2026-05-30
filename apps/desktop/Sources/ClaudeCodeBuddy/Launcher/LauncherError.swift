@@ -18,6 +18,8 @@ enum LauncherError: Error, LocalizedError {
     case pluginManifestInvalid(String)
     // task 006 追加：
     case pluginNotTrusted(String)
+    // task 011 追加（内置插件直接动作管线）：
+    case appLaunchFailed(String)   // C9 契约：携带 app 名/路径，中文文案
 
     var errorDescription: String? {
         switch self {
@@ -47,6 +49,8 @@ enum LauncherError: Error, LocalizedError {
             return "plugin.json 格式无效：\(reason)"
         case .pluginNotTrusted(let name):
             return "插件 \(name) 未获信任授权，已拒绝执行"
+        case .appLaunchFailed(let nameOrPath):
+            return "无法启动应用 \(nameOrPath)，请检查应用是否已安装或未被删除"
         }
     }
 }

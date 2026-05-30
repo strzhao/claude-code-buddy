@@ -372,6 +372,11 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
     /// task 003 适配：submit 返回 AsyncStream<AgentEvent>，消费流提取错误类型（非字符串）做语义比对
     func test_SC08_submit_isStateless_noPersistentMessages() async {
         // Given: 无 provider 配置（每次 submit 走相同的错误路径）
+        // 强制注入空配置，与开发机真实 ~/.buddy/launcher.json 解耦——否则有真实 provider 时
+        // submit 会走真实网络而非 providerNotConfigured，本测试将环境相关地失败。
+        LauncherManager.shared.configOverride = .empty
+        LauncherManager.shared.resetSubmittingStateForTesting()
+        defer { LauncherManager.shared.configOverride = nil }
 
         // 提取错误"类型"标签（不含非确定性地址/UUID 字段）
         func errorTypeLabel(_ err: LauncherError) -> String {

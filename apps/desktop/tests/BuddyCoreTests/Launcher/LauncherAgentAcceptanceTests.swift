@@ -561,6 +561,11 @@ final class LauncherAgentAcceptanceTests: XCTestCase {
     /// 若本地有配置，测试可能产生不同结果，但 .error 事件仍应出现。
     @MainActor
     func test_D1_submit_withoutProvider_yieldsProviderNotConfiguredError() async {
+        // 强制注入空配置，与开发机真实 ~/.buddy/launcher.json 解耦（见方法上方注释的环境依赖问题）。
+        LauncherManager.shared.configOverride = .empty
+        LauncherManager.shared.resetSubmittingStateForTesting()
+        defer { LauncherManager.shared.configOverride = nil }
+
         // 收集 submit 流的所有事件
         var collectedEvents: [AgentEvent] = []
         for await event in LauncherManager.shared.submit("test query without provider") {

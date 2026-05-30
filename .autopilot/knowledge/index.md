@@ -74,3 +74,36 @@
 - [2026-05-27] TOFU trustKey 必须包含 executable bytes hash，cmd+args 不足以防替换攻击 | tags: tofu, trust, security, sha256, executable-hash, plugin-system, supply-chain, trustkey, cryptokit | → patterns/2026-05-27-tofu-trust-key-includes-exe-bytes.md
 - [2026-05-27] Swift 测试 #file 上溯目录层数必须等于实际目录嵌套深度，少一层会被 XCTSkip 静默掩盖 | tags: swift, swift-testing, xctest, file-path, deletinglastpathcomponent, test-skip, xctskip, source-scan, spm | → patterns/2026-05-27-swift-file-path-test-upcount.md
 - [2026-05-27] SC 覆盖矩阵替代重复 e2e 测试，作为多任务 DAG 末尾"端到端验收"任务的兜底归档 | tags: project-mode, dag, e2e, acceptance-scenario, coverage-matrix, autopilot, sc-mapping, audit, brief-mode, final-task | → patterns/2026-05-27-sc-coverage-matrix-as-e2e-substitute.md
+
+## 2026-05-28 新增条目
+- [2026-05-28] SwiftUI root view 缺 .frame 让 NSHostingController 把 NSPanel 缩到内容最小尺寸；snapshot Preview 复制粘贴 + assertSnapshot(size:) 掩盖此 bug | tags: swiftui, nshostingcontroller, nspanel, frame, intrinsic-size, snapshot-testing, preview-wrapper, layout-bug, zstack, vstack, lsuielement, alfred, launcher | → patterns/2026-05-28-swiftui-frame-nshosting-controller-resize.md
+- [2026-05-28] SwiftUI 跨 NSPanel 桥接 light/dark 颜色用 NSColor(name:dynamicProvider:) 比 @Environment(\.colorScheme) 更稳，hidesOnDeactivate 场景下 environment 传播不可靠 | tags: swiftui, appkit, nspanel, nshostingcontroller, dynamic-color, nscolor-name-provider, colorscheme, environment, hidesondeactivate, dark-mode, light-mode, theme, design-tokens, launcher | → patterns/2026-05-28-swiftui-nspanel-dynamic-color-bridge.md
+- [2026-05-28] swift test 按模块 filter 跳过 SpriteKit/Snapshot 节省 97% 时间（claude-code-buddy 全量 626s → filtered 17.5s） | tags: swift-test, spm, filter, qa, performance, spritekit, snapshot-testing, buddy-launcher, ci-time | → patterns/2026-05-28-swift-test-filter-skips-spritekit.md
+- [2026-05-28] Swift 5.9 协议方法不支持默认参数值，需 concrete impl 各加默认 + 协议引用调用方显式传 | tags: swift, protocol, default-parameter, swift-5.9, language-limitation, launcher-provider, api-evolution, backward-compatibility | → patterns/2026-05-28-swift-protocol-method-no-default-values.md
+
+## 2026-05-29 新增条目
+- [2026-05-29] Swift 字符串字面量混用 ASCII 双引号包含中文文本会触发隐晦编译错误（误报 "missing argument label 'file:'"）| tags: swift, string-literal, double-quote, cjk, xctest, compilation-error, escape, red-team-test, message-string | → patterns/2026-05-29-swift-string-literal-cjk-quote-bug.md
+- [2026-05-29] Swift Optional 用 `?? "default"` 序列化到 hash 时 nil 与"default"碰撞，需结构性 tag (0/1:value) 区分 | tags: swift, optional, hash, sha256, serialization, collision, trustkey, structural-tag, security, red-team, plan-reviewer-miss | → patterns/2026-05-29-swift-optional-hash-structural-tag-vs-default-collision.md
+- [2026-05-29] NSPasteboard 测试隔离用 `NSPasteboard(name:)` 创建具名独立 pasteboard，避免 `.general` 全局污染 + CI 无桌面会话问题 | tags: nspasteboard, appkit, testing, isolation, global-singleton, dependency-injection, named-pasteboard, ci, macos, prompt-executor | → patterns/2026-05-29-nspasteboard-test-isolation-via-named-pasteboard.md
+- [2026-05-29] SwiftUI 循环动画作用于派生函数值（如 sin）必须用 TimelineView(.animation)，withAnimation+repeatForever 只对单一插值有效 | tags: swiftui, animation, withanimation, repeatforever, timelineview, derived-value, scaleeffect, sin, pulse, launcher, periodic-animation | → patterns/2026-05-29-swiftui-pulse-animation-needs-timelineview.md
+- [2026-05-29] 浮窗毛玻璃：SwiftUI .ultraThinMaterial 优于手动注入 NSVisualEffectView（NSHostingView subview 会被 SwiftUI 渲染覆盖不可见） | tags: swiftui, material, ultrathinmaterial, nsvisualeffectview, nshostingcontroller, nshostingview, vibrancy, glassmorphism, launcher, macos12 | → patterns/2026-05-29-swiftui-material-vs-nsvisualeffectview-injection.md
+- [2026-05-29] NSPanel + SwiftUI 动态高度同步：NSHostingController.sizingOptions = .preferredContentSize（macOS 13+）+ show() setContentSize 回 minHeight 避免居中漂移 | tags: nshostingcontroller, sizingoptions, preferredcontentsize, nspanel, swiftui, frame, dynamic-height, contentsize, macos13, launcher | → patterns/2026-05-29-nshostingcontroller-sizingoptions-preferredcontentsize.md
+- [2026-05-29] LSUIElement launcher 隐藏时切回召唤前的前台 app（NSWorkspace.frontmostApplication 记录 + DispatchQueue.main.async 调 NSRunningApplication.activate） | tags: lsuielement, launcher, nsworkspace, nsrunningapplication, activate, focus-restore, spotlight, alfred, raycast, nspanel, hide | → patterns/2026-05-29-lsuielement-launcher-restore-focus-on-hide.md
+- [2026-05-29] Swift enum 多形态 JSON Codable：先 try String 再 try keyed container（PluginSourceConfig 4 形态 — 短字符串简写 + 三种 keyed 长形式）| tags: swift, codable, jsondecoder, enum, polymorphic, associated-values, marketplace, schema | → patterns/2026-05-29-swift-enum-polymorphic-json-codable.md
+
+## 2026-05-29 buddy-plugin-market task 002 新增条目
+- [2026-05-29] Swift Process 桥接 async 用 terminationHandler + Task.sleep + resumeOnce 守卫，不要 DispatchQueue + waitUntilExit | tags: swift, process, concurrency, async, continuation, terminationhandler, deadlock, timeout, git-clone, resource-leak | → patterns/2026-05-29-swift-process-async-bridge-terminationhandler.md
+
+## 2026-05-29 buddy-plugin-market task 003 新增条目
+- [2026-05-29] 两阶段迁移幂等 + crash safe：每 Phase 入口重读 state，不复用前 Phase 变量（shape-based 状态机 vs flag-based）| tags: migration, idempotency, crash-safe, state-machine, marketplace-manager, plan-reviewer-blocker, swift, filesystem, trust-store, multi-phase | → patterns/2026-05-29-two-phase-migration-idempotent-crash-safe.md
+
+## 2026-05-30 buddy-plugin-market task 005 新增条目
+- [2026-05-30] macOS NSTitlebarAccessoryViewController layoutAttribute=.top 强制要求 NSWindow.styleMask 含 `.fullSizeContentView`（红队 AT 抓 bug 案例）| tags: appkit, nswindow, stylemask, fullsizecontentview, nstitlebaraccessoryviewcontroller, titlebar, segmentedcontrol, macos14, red-team-finding, settings | → patterns/2026-05-30-appkit-titlebar-accessory-requires-fullsizecontentview.md
+
+## 2026-05-30 buddy-plugin-market task 006 新增条目
+- [2026-05-30] Swift Concurrency: @MainActor 协议方法跨 actor 调用编译器自动 hop，**不**嵌套 MainActor.run（plan-reviewer 抓 B2 案例）| tags: swift, concurrency, mainactor, protocol, async, hop, mainactor-run, plan-reviewer-blocker, market-hud, swift-6 | → patterns/2026-05-30-swift-mainactor-protocol-cross-actor-call-no-nested-mainactor-run.md
+
+## 2026-05-30 launcher 内置插件 (task 011) 新增条目
+- [2026-05-30] launcher 内置插件：直接动作管线（绕过 LLM）+ BuiltinPlugin 协议 + 跨 plugin priority 仲裁 | tags: launcher, builtin-plugin, architecture, direct-action, llm-bypass, plugin-protocol, registry, priority-arbitration, app-launcher, raycast, extensibility | → decisions.md
+- [2026-05-30] macOS app 搜索必须索引 CFBundleName/CFBundleIdentifier 别名，文件名≠用户搜索名（微信搜 wechat / 哔哩哔哩搜 bilibili 搜不到的根因）| tags: macos, app-launcher, cfbundlename, cfbundleidentifier, info-plist, fuzzy-search, chinese-app, alias, launcher, builtin-plugin | → patterns/2026-05-30-macos-app-search-cfbundle-aliases.md
+- [2026-05-30] SwiftUI 加 emacs 键位 Ctrl-N/Ctrl-P：onKeyPress(phases:.down) catch-all 读 modifiers，非目标键 .ignored 透传普通输入 | tags: swiftui, onkeypress, emacs, ctrl-n, ctrl-p, keyboard-navigation, modifiers, keyequivalent, textfield, passthrough, launcher | → patterns/2026-05-30-swiftui-onkeypress-emacs-ctrl-keys.md

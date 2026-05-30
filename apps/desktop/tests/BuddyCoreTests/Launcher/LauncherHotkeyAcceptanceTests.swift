@@ -17,7 +17,7 @@ import KeyboardShortcuts
 //   G. hotkeyProbeCompletedKey 精确值 == "launcher.hotkeyProbeCompleted"
 //
 // 常量验收（LauncherConstants）：
-//   H. windowWidth == 600
+//   H. windowWidth == 720
 //   I. maxQueryLength == 8000
 //   J. windowYRatio == 0.3
 //   K. 8000 字符是边界（接受）；8001 字符截断后恰好 8000
@@ -30,7 +30,7 @@ import KeyboardShortcuts
 //   N. canBecomeKey == true；level == .floating
 //   O. collectionBehavior 含 .canJoinAllSpaces；backgroundColor == .clear
 //   P. titlebarAppearsTransparent == true；canBecomeMain == false
-//   Q. 初始 frame.width == LauncherConstants.windowWidth (600)
+//   Q. 初始 frame.width == LauncherConstants.windowWidth (720)
 //
 // LauncherManager submit 无状态（SC-08）：
 //   R. submit("test") 返回 AttributedString("echo: test")
@@ -155,13 +155,13 @@ final class LauncherHotkeyAcceptanceTests: XCTestCase {
 /// 将直接使这些测试变红灯。
 final class LauncherConstantsAcceptanceTests: XCTestCase {
 
-    // MARK: - H. windowWidth == 600
+    // MARK: - H. windowWidth == 720
 
-    func test_constants_windowWidth_is600() {
+    func test_constants_windowWidth_is720() {
         XCTAssertEqual(
             LauncherConstants.windowWidth,
-            600,
-            "LauncherConstants.windowWidth must be exactly 600pt (contract)"
+            720,
+            "LauncherConstants.windowWidth must be exactly 720pt (contract)"
         )
     }
 
@@ -271,10 +271,10 @@ final class LauncherHotkeyErrorAcceptanceTests: XCTestCase {
 ///   - canBecomeKey == true（允许 TextField 获焦）
 ///   - level == .floating（浮窗层级）
 ///   - collectionBehavior 含 .canJoinAllSpaces（跨 Space 可见）
-///   - backgroundColor == .clear（透明背景，配合 .regularMaterial）
+///   - backgroundColor == .clear（透明背景）
 ///   - titlebarAppearsTransparent == true
 ///   - canBecomeMain == false（不抢主窗口）
-///   - 初始 frame.width == LauncherConstants.windowWidth (600pt)
+///   - 初始 frame.width == LauncherConstants.windowWidth (720pt)
 final class LauncherWindowContractTests: XCTestCase {
 
     // MARK: - M. LauncherWindow 是 NSPanel 子类
@@ -343,7 +343,7 @@ final class LauncherWindowContractTests: XCTestCase {
         )
     }
 
-    // MARK: - Q. 初始 frame.width == LauncherConstants.windowWidth (600)
+    // MARK: - Q. 初始 frame.width == LauncherConstants.windowWidth (720)
 
     func test_launcherWindow_initialWidth_equalsWindowWidthConstant() {
         let window = LauncherWindow()
@@ -351,7 +351,7 @@ final class LauncherWindowContractTests: XCTestCase {
             window.frame.width,
             LauncherConstants.windowWidth,
             accuracy: 0.5,
-            "LauncherWindow initial frame.width must equal LauncherConstants.windowWidth (600pt)"
+            "LauncherWindow initial frame.width must equal LauncherConstants.windowWidth (720pt)"
         )
     }
 }
@@ -391,6 +391,7 @@ final class LauncherSubmitStatelessAcceptanceTests: XCTestCase {
             case .pluginNotTrusted(let s): return "pluginNotTrusted(\(s))"
             case .pluginInvalid(let s): return "pluginInvalid(\(s))"
             case .promptExecutorNotAvailable: return "promptExecutorNotAvailable"
+            case .appLaunchFailed(let s): return "appLaunchFailed(\(s))"
             }
         }
 

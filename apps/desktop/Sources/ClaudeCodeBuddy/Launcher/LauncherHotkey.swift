@@ -4,7 +4,7 @@ import AppKit
 enum LauncherHotkey {
     static let toggle = KeyboardShortcuts.Name(
         "launcher-toggle",
-        default: .init(.space, modifiers: [.control])
+        default: .init(.space, modifiers: [.command, .shift])
     )
 
     /// 注册全局快捷键，回调 toggle 启动器

@@ -40,7 +40,17 @@ Sources/
 │   │   ├── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + PluginExecutor(Process子进程) + PluginManifest(Codable schema)
 │   │   │               # + PluginManifest+AgentTool.swift (toAgentTool() extension，inputSchema 含顶层 type:object)
 │   │   ├── LauncherRouter.swift          # keyword 缩候选(routerMaxCandidates=5) + aiSelect 选 1 → RouteDecision
-│   │   └── LauncherCandidateView.swift   # SwiftUI 候选列表展示（嵌入 LauncherInputView）
+│   │   ├── LauncherCandidateView.swift   # SwiftUI 候选列表展示（嵌入 LauncherInputView）
+│   │   └── Builtin/                      # 内置插件体系（task 011）
+│   │       ├── BuiltinPlugin.swift        # 协议：id/priority/sectionTitle/actions(for:) async
+│   │       ├── BuiltinPluginRegistry.swift # 仲裁：fan-out 并发 + 跨插件归并 + score 降序 + 截断
+│   │       ├── LauncherAction.swift       # 动作值类型：id/title/subtitle/icon/score/perform
+│   │       └── AppLauncher/              # 首个内置插件：搜索打开 App
+│   │           ├── AppEntry.swift         # 纯值 Sendable：url/name/nameLower/aliases（多别名索引）
+│   │           ├── AppIndex.swift         # @MainActor 内存索引：TTL 扫盘 + 注入构造器
+│   │           ├── AppMatcher.swift       # 纯函数打分：前缀(1000)>词首(500)>子序列(100)
+│   │           ├── AppLaunching.swift     # seam 协议：生产 NSWorkspace / 测试 Mock
+│   │           └── AppLauncherPlugin.swift # BuiltinPlugin 实现：接 Index+Matcher → LauncherAction
 │   ├── Window/         # 窗口: BuddyWindow, DockTracker, MouseTracker
 │   ├── MenuBar/        # 状态栏弹窗: SessionPopoverController
 │   ├── Assets/Sprites/ # 48x48 像素猫咪精灵图
@@ -57,6 +67,27 @@ Sources/
 Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**与像素猫互不干扰**（独立 NSPanel + 独立配置目录 `~/.buddy/` + 静态隔离测试 SC-10）。
 
 **视觉风格（task 010）**: Apple HIG / Raycast 风格。NSVisualEffectView (.menu) + SwiftUI .ultraThinMaterial 双层毛玻璃，16pt 圆角，spring 入场动画，SF Symbol 选中指示器（chevron.right.fill + 左侧 sage Capsule 竖条），全 .rounded 字体规范。
+
+### 内置插件体系（task 011）
+
+**即时候选管线**：输入时 debounce(120ms) 后查询 `BuiltinPluginRegistry`，`instantActions` 非空时优先显示内置候选（Raycast 风行布局），按 Enter 直接执行，无匹配则落回 AI 流。
+
+**BuiltinPlugin 协议** — 所有内置能力统一实现：
+- `id`：插件唯一标识
+- `priority`：仲裁权重（同 query 多插件并发，按优先级分区）
+- `sectionTitle`：候选列表分区标题
+- `actions(for:) async -> [LauncherAction]`：返回候选动作列表
+
+**AppLauncherPlugin**（首个内置插件，`priority=0`）：
+- 三个扫描目录：`/Applications`、`/System/Applications`、`~/Applications`
+- 多别名索引（`AppEntry.aliases`）：索引 `CFBundleDisplayName/CFBundleName/CFBundleIdentifier 成分`，解决「微信」搜 `wechat`、「哔哩哔哩」搜 `bilibili` 搜不到的问题
+- `AppMatcher` 打分：前缀(1000) > 词首连续(500) > 子序列(100)，同分按 name 字典序稳定排序
+- `AppIndex` TTL=60s 后台重扫，冷启动 fire-and-forget 不阻塞 UI
+
+**3 处交互优化**：
+- Emacs 键位：`Ctrl-N` 下 / `Ctrl-P` 上，在候选列表导航
+- 选中高亮：纯色 sage pill（light #3a7d68 / dark #52a688，alpha 0.92），无竖条边框
+- 中文 App 可用英文名搜索（见上方多别名索引）
 
 ### 用户配置
 

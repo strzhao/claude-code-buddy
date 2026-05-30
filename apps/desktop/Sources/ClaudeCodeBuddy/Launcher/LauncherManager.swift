@@ -63,12 +63,14 @@ final class LauncherManager: ObservableObject {
 
     private init() {}
 
-    /// 测试用：重置共享单例的提交状态。
-    /// LauncherManager.shared 是跨测试共享的单例，submit() 入口有 `isSubmitting` 再入守卫
-    /// （为 true 时返回空流）。若前序测试留下 isSubmitting=true，后续依赖 submit 的测试会拿到
-    /// 空流、收不到任何事件而误判失败（顺序相关 flaky）。submit 相关测试可在开头调用本方法清状态。
+    /// 测试用：重置共享单例的提交相关状态（isSubmitting + stage）。
+    /// LauncherManager.shared 是跨测试共享的单例：submit() 入口有 `isSubmitting` 再入守卫
+    /// （为 true 时返回空流），且 `stage` 会被前序 submit 留成 .error/.calling 等。这些状态
+    /// 跨测试泄漏会让后续测试拿到空流或读到错误的初始 stage（顺序相关 flaky，CI 上尤其暴露）。
+    /// submit/stage 相关测试可在 setUp 或开头调用本方法清状态。
     func resetSubmittingStateForTesting() {
         isSubmitting = false
+        stage = .idle
     }
 
     private func makeWindow() -> LauncherWindow {

@@ -100,30 +100,38 @@ Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**
 - 选中高亮：纯色 sage pill（light #3a7d68 / dark #52a688，alpha 0.92），无竖条边框
 - 中文 App 可用英文名搜索（见上方多别名索引）
 
-### 翻译插件增强（task 012）
+### Render-only meta tool 体系（attach_action）
 
-**有道词典级体验**：智能场景路由 + TTS 朗读 + 复制 + 水印 chip。
+**理念**：交互动作（朗读/复制等）做成框架内置的 **render-only meta tool**，注入给所有 prompt mode 调用（含默认流 + 所有 prompt 插件）。模型调用 tool ≠ 立即执行 —— 它只是「声明一个按钮」，UI 渲染成可点击入口，用户点击才触发。这与 agent/stdin mode 的「真执行 + 回灌结果」工具语义相反。
 
-**Action 标签系统**（`Launcher/Action/`）：
-- LLM 输出嵌入 `<action:speak text="..."/>` / `<action:copy text="..."/>` 标签
-- `MarkdownActionParser`：将标签解析为 `ActionSegment` 枚举值，拼装 `ActionSegmentsView`（SwiftUI 行内 Button）
-- `ActionButton`：统一样式的操作按钮（SF Symbol + 文字）
+**为什么不再用 `<action:>` 标签**：旧方案靠 prompt 硬规则让 LLM 在正文里嵌 `<action:speak>` 标签，再解析成内联按钮。问题：① 译文被塞进按钮 text 属性、正文不可见；② 一段一行 VStack 把输出切碎；③ 依赖模型守标签格式，易飘。已彻底删除（`MarkdownActionParser` / `ActionSegment` / `ActionSegmentsView` / `ActionButton`）。
+
+**meta tool 定义**（`Launcher/Action/MetaTools.swift`）：
+- `attach_action(kind: speak|copy, text, label?)` —— 固定闭集，后续渐增 kind
+- description 用**枚举式锚点**（列「每段英文配 speak / 译文·代码·命令配 copy」「闲聊·解释·追问不挂」），本地 qwen 实测比 claude-code 的「内核式原则」写法稳（弱模型需具体锚点，见 dry-run 结论）
+- `LauncherActionButton`（值类型）+ `LauncherActionKind`：从 tool_call JSON 解析，未知 kind / 缺 text → soft-fail 丢弃
+
+**渲染**（`Launcher/Action/LauncherActionBar.swift`）：
+- 正文走干净 `MarkdownRenderer` 连续渲染（译文永远可见）
+- 按钮全部收进**底部统一工具条** `LauncherActionBar`：1px hairline 分隔 + `FlowLayout` 横向排 `LauncherActionChip`（sage 胶囊、毛玻璃轻填充、hover 加深、copy 点击反馈「✓ 已复制」）
 
 **服务层**（`Launcher/Service/`）：
-- `SpeechService`：基于 `AVSpeechSynthesizer`，朗读英文 TTS（`AVSpeechUtterance` rate/pitchMultiplier/volume 调优）
-- `CopyService`：基于 `NSPasteboard`，一键写入剪贴板
+- `SpeechService`：`AVSpeechSynthesizer` 朗读英文 TTS
+- `CopyService`：`NSPasteboard` 写剪贴板
 
-**候选行 UI 改造**：
-- 删除外部 plugin 候选行渲染逻辑（LauncherCandidateView 不再渲染 plugin mode 候选）
-- 改为 `PluginWatermarkChip`（`Launcher/PluginWatermarkChip.swift`）：右上角水印 chip 样式，显示当前插件名
+**流式 tool_calls 解析**（`OpenAICompatibleProvider`）：
+- `parseSSELines` 按 `index` 累积 `delta.tool_calls[].function.arguments` 碎片，`[DONE]` 时解析每个 index → emit `ProviderChunk.action`
+- 请求体 `tools` 由框架 `AgentTool` 转 OpenAI `{type:function, function:{...}}` 格式
+- `ProviderChunk` 加 `.action` case；`AgentEvent` 加 `.action` case；`PluginResult` 加 `actions` 字段
 
-**translate plugin.json（v0.5.0）**（task 013 性能优化）：
-- **P0 thinking off**：Qwen3 等推理模型通过 `chat_template_kwargs.enable_thinking=false` 关闭 CoT，top-level/user-flag 均被服务端忽略，只有此通道生效。TTFT 从 24.5s 降至 0.038s（645×）
-- **P0.1 Router 短路**：唯一命中或 score≥10(`routerSkipScore`) 时跳过 router LLM call，明确场景 LLM 调用 2→1
-- **P0.5 极简 prompt**：`systemPrompt` 从 1273 字 5-few-shot 改为 157 字"查字典助手"风格，模型自由输出常用译义+例句，输出质量从 208 字提升至 1666 字
-- **P1 SSE 流式**：`OpenAICompatibleProvider` 加 `sendStream + parseSSELines`，`PromptExecutor` 改逐 chunk emit，`LauncherProvider` 协议加 `sendStream + ProviderChunk` enum
-- **fix MarkdownRenderer**：加 `preprocessBlockMarkdown`（`###`→粗体、`-/*`→`•`、`---`→`─────`），修复 inline-only parsing 不消化 block markdown 的既存 bug
-- 测试：41 个测试新增/更新，全部 0.013s 全绿
+**默认流（directChat）= AI native Alfred**（`MetaTools.DefaultAgentPrompt`）：
+- 用户未命中插件 → Buddy「万能输入框」system prompt（极简单一指令，自适应翻译/查词/问答/改写/代码）
+- 走 `PromptExecutor` 单轮路径（非 agent loop）+ 注入 meta tools
+- **翻译/查词已折进默认流**：不再有单独的 translate 插件、无需触发词
+
+**P0 thinking off**（保留）：Qwen3 等推理模型通过 `chat_template_kwargs.enable_thinking=false` 关 CoT，只有此通道生效（top-level/user-flag 被服务端忽略）。TTFT 24.5s→0.038s。
+
+**P0.1 Router 短路**（保留）：唯一命中或 score≥10(`routerSkipScore`) 跳过 router LLM call。
 
 ### 用户配置
 
@@ -146,10 +154,10 @@ buddy launcher config get
 ### 插件管理
 
 ```bash
-buddy launcher add stringzhao/buddy-translate     # git clone --depth 1
+buddy launcher add <user>/<repo>                   # git clone --depth 1
 buddy launcher list                                # 已装插件 + trust 状态
-buddy launcher inspect buddy-translate             # JSON 详情
-buddy launcher remove buddy-translate              # 卸载 + 清 trust
+buddy launcher inspect <name>                      # JSON 详情
+buddy launcher remove <name>                       # 卸载 + 清 trust
 ```
 
 ### TOFU 安全模型

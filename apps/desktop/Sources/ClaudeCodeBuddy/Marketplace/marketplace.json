@@ -15,15 +15,6 @@
       "category": "example",
       "author": {"name": "stringzhao"},
       "source": "./plugins/hello"
-    },
-    {
-      "name": "translate",
-      "description": "中英互译助手",
-      "version": "0.1.0",
-      "category": "productivity",
-      "author": {"name": "stringzhao"},
-      "source": "./plugins/translate",
-      "homepage": "https://github.com/stringzhao/claude-code-buddy/tree/main/marketplace/plugins/translate"
     }
   ]
 }

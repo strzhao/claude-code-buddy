@@ -123,6 +123,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
             messages: oaiMessages,
             maxTokens: 4096,
             stream: true,
+            tools: tools.isEmpty ? nil : tools.map(OAITool.init),
             chatTemplateKwargs: chatTemplateKwargs
         )
         request.httpBody = try JSONEncoder().encode(body)
@@ -153,29 +154,62 @@ final class OpenAICompatibleProvider: LauncherProvider {
 
     /// SSE 行级 parser（纯函数化）：接受任意 `AsyncSequence<String>` 行序列，输出 ProviderChunk 流
     /// 抽出便于测试（避免 URLSession.AsyncBytes 的 mock 困境）
+    ///
+    /// 流式 tool_calls 处理：OpenAI 协议把 tool_call 拆成增量片段——
+    /// 首片带 index/id/name，后续片只带 index + function.arguments 的字符串碎片，
+    /// 按 index 累积 arguments 拼成完整 JSON。流结束（[DONE] 或自然结束）时统一解析每个 index
+    /// 为 attach_action 按钮并 emit `.action`（render-only：不执行，交给 UI 渲染）。
     static func parseSSELines<S: AsyncSequence & Sendable>(
         _ lines: S
     ) -> AsyncThrowingStream<ProviderChunk, Error> where S.Element == String {
         let decoder = JSONDecoder()
         return AsyncThrowingStream { continuation in
             let task = Task {
+                // 按 tool_call index 累积 arguments 碎片（保序）
+                var toolArgsByIndex: [Int: String] = [:]
+                var toolOrder: [Int] = []
+
+                func flushToolCalls() {
+                    for idx in toolOrder {
+                        guard let json = toolArgsByIndex[idx] else { continue }
+                        if let button = LauncherActionButton.from(argumentsJSON: json) {
+                            continuation.yield(.action(button))
+                        }
+                    }
+                }
+
                 do {
                     for try await line in lines {
                         guard !line.isEmpty else { continue }
                         guard line.hasPrefix("data: ") else { continue }
                         let payload = String(line.dropFirst(6))
                         if payload == "[DONE]" {
+                            flushToolCalls()
                             continuation.yield(.done(reason: "stop"))
                             continuation.finish()
                             return
                         }
                         guard let data = payload.data(using: .utf8) else { continue }
                         guard let chunk = try? decoder.decode(OAIStreamChunk.self, from: data) else { continue }
-                        if let content = chunk.choices.first?.delta.content, !content.isEmpty {
+                        let delta = chunk.choices.first?.delta
+                        if let content = delta?.content, !content.isEmpty {
                             continuation.yield(.text(content))
+                        }
+                        // 累积 tool_call arguments 碎片
+                        if let toolCalls = delta?.toolCalls {
+                            for tc in toolCalls {
+                                if toolArgsByIndex[tc.index] == nil {
+                                    toolArgsByIndex[tc.index] = ""
+                                    toolOrder.append(tc.index)
+                                }
+                                if let argFragment = tc.function?.arguments {
+                                    toolArgsByIndex[tc.index, default: ""] += argFragment
+                                }
+                            }
                         }
                     }
                     // 流自然结束（未收到 [DONE]）
+                    flushToolCalls()
                     continuation.yield(.done(reason: "stop"))
                     continuation.finish()
                 } catch {
@@ -233,6 +267,7 @@ private struct OAIRequestBodyStream: Encodable {
     let messages: [OAIMessage]
     let maxTokens: Int
     let stream: Bool
+    let tools: [OAITool]?
     let chatTemplateKwargs: ChatTemplateKwargs?
 
     private enum CodingKeys: String, CodingKey {
@@ -240,6 +275,7 @@ private struct OAIRequestBodyStream: Encodable {
         case messages
         case maxTokens = "max_tokens"
         case stream
+        case tools
         case chatTemplateKwargs = "chat_template_kwargs"
     }
 
@@ -249,8 +285,30 @@ private struct OAIRequestBodyStream: Encodable {
         try container.encode(messages, forKey: .messages)
         try container.encode(maxTokens, forKey: .maxTokens)
         try container.encode(stream, forKey: .stream)
+        try container.encodeIfPresent(tools, forKey: .tools)
         try container.encodeIfPresent(chatTemplateKwargs, forKey: .chatTemplateKwargs)
     }
+}
+
+/// OpenAI 工具格式：{ "type": "function", "function": { name, description, parameters } }
+/// 从框架 AgentTool（Anthropic 风格的 name/description/input_schema）转换而来。
+private struct OAITool: Encodable {
+    let type = "function"
+    let function: OAIFunction
+
+    init(_ tool: AgentTool) {
+        self.function = OAIFunction(
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.inputSchema
+        )
+    }
+}
+
+private struct OAIFunction: Encodable {
+    let name: String
+    let description: String
+    let parameters: [String: AnyCodable]
 }
 
 /// SSE stream chunk: data.choices[0].delta.content
@@ -264,6 +322,23 @@ private struct OAIStreamChoice: Decodable {
 
 private struct OAIDelta: Decodable {
     let content: String?
+    let toolCalls: [OAIStreamToolCall]?
+
+    private enum CodingKeys: String, CodingKey {
+        case content
+        case toolCalls = "tool_calls"
+    }
+}
+
+/// 流式 tool_call 增量片段：首片带 index/id/function.name，后续片仅带 index + function.arguments 碎片
+private struct OAIStreamToolCall: Decodable {
+    let index: Int
+    let function: OAIStreamToolFunction?
+}
+
+private struct OAIStreamToolFunction: Decodable {
+    let name: String?
+    let arguments: String?
 }
 
 private struct OAIResponseChoice: Decodable {

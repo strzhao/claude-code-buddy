@@ -114,4 +114,73 @@ final class MarkdownRendererTests: XCTestCase {
             "Plain text should be preserved in rendered output"
         )
     }
+
+    // MARK: - 泄漏的 <action> 标签剥离（按钮只走 tool_calls 通道）
+
+    // 11. 自闭合 <action .../> 标签从正文剥离，正文其余内容保留
+    func test_stripLeakedActionTags_selfClosing_removed() {
+        let input = "He is my best buddy.\n<action kind=\"speak\" text=\"He is my best buddy.\"/>"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("<action"), "self-closing action tag must be stripped")
+        XCTAssertTrue(out.contains("He is my best buddy."), "surrounding prose must survive")
+    }
+
+    // 12. 渲染输出里不残留任何 <action 字面
+    func test_render_doesNotLeakActionMarkup() {
+        let input = "**buddy** n. 朋友\n<action kind=\"speak\" text=\"buddy\"/>\n<action kind=\"copy\" text=\"朋友\"/>"
+        let text = String(MarkdownRenderer.render(input).characters)
+        XCTAssertFalse(text.contains("<action"), "rendered text must not contain raw action markup")
+        XCTAssertFalse(text.contains("kind="), "rendered text must not contain tag attributes")
+        XCTAssertTrue(text.contains("buddy"), "translation body must remain visible")
+    }
+
+    // 13. 成对 <action>...</action> 标签剥离
+    func test_stripLeakedActionTags_paired_removed() {
+        let input = "正文\n<action kind=\"copy\" text=\"x\">复制</action>\n结尾"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("<action"))
+        XCTAssertFalse(out.contains("</action>"))
+        XCTAssertTrue(out.contains("正文") && out.contains("结尾"))
+    }
+
+    // 14. 流式中途未闭合的 `<action ...` 尾巴也截掉，避免边打字边闪
+    func test_stripLeakedActionTags_streamingPartialTail_removed() {
+        let input = "完整译文。\n<action kind=\"speak\" text=\"hel"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("<action"), "unclosed trailing action fragment must be stripped")
+        XCTAssertTrue(out.contains("完整译文。"), "body before the fragment must survive")
+    }
+
+    // 15. 无标签的普通文本不受影响
+    func test_stripLeakedActionTags_noTags_unchanged() {
+        let input = "这是一段没有任何标签的纯文本。\n带 < 和 > 符号也不误删。"
+        XCTAssertEqual(MarkdownRenderer.stripLeakedActionTags(input), input)
+    }
+
+    // 16. 真实泄漏样本：列表项内的成对标签 → 标签删掉 + 残留空 bullet 整行去掉
+    //     来自 dry-run：`*   <action kind="speak" text="He's my best buddy."></action>`
+    func test_stripLeakedActionTags_realSample_listItemPairedTag() {
+        let input = "**buddy** 释义：\n*   <action kind=\"speak\" text=\"He's my best buddy.\"></action>\n下一段"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("<action"), "tag must be gone")
+        XCTAssertFalse(out.contains("He's my best buddy."), "leaked button text inside tag must be gone")
+        XCTAssertFalse(out.contains("\n*   \n") || out.hasSuffix("*   "), "empty bullet residue must be removed")
+        XCTAssertTrue(out.contains("释义") && out.contains("下一段"), "real prose must survive")
+    }
+
+    // 17. 真实泄漏样本：落单的开标签 <action>（无 /> 无配对）也要清掉
+    func test_stripLeakedActionTags_orphanOpenTag_removed() {
+        let input = "正文一\n<action>\n正文二"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("<action"), "orphan open tag must be stripped")
+        XCTAssertTrue(out.contains("正文一") && out.contains("正文二"))
+    }
+
+    // 18. 落单的闭标签 </action> 也清掉
+    func test_stripLeakedActionTags_orphanCloseTag_removed() {
+        let input = "结果文本</action>"
+        let out = MarkdownRenderer.stripLeakedActionTags(input)
+        XCTAssertFalse(out.contains("</action>"))
+        XCTAssertTrue(out.contains("结果文本"))
+    }
 }

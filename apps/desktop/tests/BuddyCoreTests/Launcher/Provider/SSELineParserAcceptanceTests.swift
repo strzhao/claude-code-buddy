@@ -74,6 +74,7 @@ final class SSELineParserAcceptanceTests: XCTestCase {
         for c in chunks {
             switch c {
             case .text(let s): texts.append(s)
+            case .action: break
             case .done: doneCount += 1
             }
         }
@@ -165,5 +166,62 @@ final class SSELineParserAcceptanceTests: XCTestCase {
         let chunks = try await collectChunks(stream)
         let texts: [String] = chunks.compactMap { if case .text(let s) = $0 { return s }; return nil }
         XCTAssertEqual(texts, ["ok1", "ok2"], "非法 JSON 行被跳过，前后有效行仍 yield")
+    }
+
+    // MARK: - P2: 流式 tool_calls → attach_action 按钮（render-only meta tool）
+
+    /// 单个 attach_action：首片带 name，后续片按 index 累积 arguments 碎片 →
+    /// [DONE] 时解析成一个 .action(LauncherActionButton)。
+    func test_parseSSELines_streamingToolCall_assembledIntoActionButton() async throws {
+        // 模拟 OpenAI 流式 tool_call 分片：arguments 被拆成多段
+        let lines = [
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"x","type":"function","function":{"name":"attach_action","arguments":"{\"kind\":\""}}]}}]}"#,
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"speak\",\"text\":\"buddy\""}}]}}]}"#,
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":",\"label\":\"🔊 朗读\"}"}}]}}]}"#,
+            "data: [DONE]"
+        ]
+        let stream = OpenAICompatibleProvider.parseSSELines(makeLineStream(lines))
+        let chunks = try await collectChunks(stream)
+        let actions: [LauncherActionButton] = chunks.compactMap {
+            if case .action(let b) = $0 { return b }; return nil
+        }
+        XCTAssertEqual(actions.count, 1, "应解析出 1 个按钮")
+        XCTAssertEqual(actions.first?.kind, .speak)
+        XCTAssertEqual(actions.first?.text, "buddy")
+        XCTAssertEqual(actions.first?.label, "🔊 朗读")
+    }
+
+    /// 两个不同 index 的 tool_call 交错 → 各自累积 → 解析出 2 个按钮，保序。
+    func test_parseSSELines_multipleToolCalls_byIndex() async throws {
+        let lines = [
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"attach_action","arguments":"{\"kind\":\"speak\",\"text\":\"hi\"}"}}]}}]}"#,
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":1,"function":{"name":"attach_action","arguments":"{\"kind\":\"copy\",\"text\":\"你好\"}"}}]}}]}"#,
+            "data: [DONE]"
+        ]
+        let stream = OpenAICompatibleProvider.parseSSELines(makeLineStream(lines))
+        let chunks = try await collectChunks(stream)
+        let actions: [LauncherActionButton] = chunks.compactMap {
+            if case .action(let b) = $0 { return b }; return nil
+        }
+        XCTAssertEqual(actions.count, 2)
+        XCTAssertEqual(actions[0].kind, .speak)
+        XCTAssertEqual(actions[0].text, "hi")
+        XCTAssertEqual(actions[1].kind, .copy)
+        XCTAssertEqual(actions[1].text, "你好")
+    }
+
+    /// 未知 kind / 缺 text 的 tool_call → soft-fail 丢弃，不产生按钮，不崩。
+    func test_parseSSELines_invalidToolCall_softFailDropped() async throws {
+        let lines = [
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"attach_action","arguments":"{\"kind\":\"explode\",\"text\":\"x\"}"}}]}}]}"#,
+            #"data: {"choices":[{"delta":{"tool_calls":[{"index":1,"function":{"name":"attach_action","arguments":"{\"kind\":\"copy\"}"}}]}}]}"#,
+            "data: [DONE]"
+        ]
+        let stream = OpenAICompatibleProvider.parseSSELines(makeLineStream(lines))
+        let chunks = try await collectChunks(stream)
+        let actions: [LauncherActionButton] = chunks.compactMap {
+            if case .action(let b) = $0 { return b }; return nil
+        }
+        XCTAssertTrue(actions.isEmpty, "未知 kind 与缺 text 的 tool_call 应被丢弃")
     }
 }

@@ -1,8 +1,11 @@
 import Foundation
 
 /// 流式 chunk 枚举（P1 SSE）
-enum ProviderChunk {
+enum ProviderChunk: Equatable {
     case text(String)
+    /// render-only meta tool 调用：模型声明一个按钮（不立即执行）。
+    /// 在流结束（[DONE]）时由 provider 把累积的 tool_calls 解析后逐个 emit。
+    case action(LauncherActionButton)
     case done(reason: String?)
 }
 

@@ -88,3 +88,51 @@ task 010 launcher UI 升级第 1-5 轮 retry：
 - [[2026-05-26 LSUIElement app 中的浮窗输入框用 NSPanel + nonactivatingPanel + NSApp.activate]]
 - [[2026-05-28 SwiftUI 跨 NSPanel 桥接 light/dark 颜色用 NSColor(name:dynamicProvider:)]]
 - [[swiftui-frame-nshosting-controller-resize]]
+
+---
+
+## ⚠️ 2026-05-31 修正：本结论在 hidesOnDeactivate 浮窗下不成立
+
+上面"SwiftUI Material 优于 NSVisualEffectView"的结论**有反例**，已被实践推翻：
+
+`.ultraThinMaterial` 的 light/dark 解析依赖 `@Environment(\.colorScheme)`。而该 environment 在
+**NSPanel + `hidesOnDeactivate=true`** 浮窗里传播不可靠（同 [[swiftui-nspanel-dynamic-color-bridge]] 的根因）——
+系统切到**浅色**时 material 仍可能停留深色，导致毛玻璃发灰、与跟随 `effectiveAppearance` 的颜色 token
+（白色 surface）错配，**浅色模式整块渲染异常**（用户实测：结果区纯白方块、面板发灰）。
+
+### 正确做法（本场景）：NSVisualEffectView 的 SwiftUI 包装
+
+不是回到"手动 addSubview 注入"（那条路确实不通，上文成立），而是用 `NSViewRepresentable` 包装
+`NSVisualEffectView`，**作为 SwiftUI `.background(...)` 使用**——既在 SwiftUI 渲染管线内正确合成
+（不被覆盖），又由 AppKit 按 `effectiveAppearance` 求值（绕开不可靠的 colorScheme 传播）：
+
+```swift
+struct VisualEffectBackground: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .menu
+    var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = material; v.blendingMode = blendingMode; v.state = .active
+        v.appearance = nil   // 跟随 effectiveAppearance，不锁 light/dark
+        return v
+    }
+    func updateNSView(_ v: NSVisualEffectView, context: Context) {
+        v.material = material; v.blendingMode = blendingMode; v.state = .active; v.appearance = nil
+    }
+}
+// 用法：.background(VisualEffectBackground().clipShape(RoundedRectangle(cornerRadius: 16)))
+```
+
+### 判别标准（修订）
+
+| 场景 | 选 |
+|------|---|
+| 普通窗口 / 不随系统主题动态隐藏的 SwiftUI 容器 | SwiftUI `.ultraThinMaterial`（仍最省事） |
+| **NSPanel + hidesOnDeactivate / LSUIElement 浮窗** | **NSVisualEffectView 的 NSViewRepresentable 包装**（appearance=nil） |
+| 纯 AppKit window（无 hosting controller） | 直接 NSVisualEffectView 注入 |
+
+### Lesson（修订）
+
+- "SwiftUI Material vs NSVisualEffectView" **没有普适胜者**：取决于窗口是否经历 colorScheme 传播不可靠的场景。
+- LSUIElement / hidesOnDeactivate 浮窗里，**毛玻璃和颜色 token 都要走 AppKit effectiveAppearance**（Material 走 SwiftUI environment，会与 dynamic NSColor token 错配）。
+- 多轮调 material/tint 无效 → 怀疑渲染层级（上文）；**浅深色之一坏掉** → 怀疑 colorScheme environment 传播（本修正）。

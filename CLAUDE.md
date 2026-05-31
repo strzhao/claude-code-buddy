@@ -74,6 +74,16 @@ buddy launcher remove <name>            # 卸载
 - **Skin CLI**: `packages/skin-cli/` — 皮肤包上传工具
 - **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — ⌘⇧Space 召唤 + AI 路由 + CLI 插件
 
+## Agent Harness 设计
+
+实现本工程的 agent（首要落地点：Launcher AI 路由 / 插件 agent）前，**必读** [docs/agent-harness-design.md](docs/agent-harness-design.md) —— 从兄弟仓库 `~/workspace/learn-everything/` 的 v1→v12 教学库与 `~/workspace/claude-code/` 工业源码综合的 harness 设计宪法。核心：
+
+- **5 条元原则**：架构正交性（新子系统是加法非改造）、判决与执行分离、安全不依赖 model 自觉、runtime 强契约 vs prompt 软契约、cross-cutting 走单一入口。
+- **12 个子系统**逐个拆解（loop / permission / mode matrix / fork / compaction / hook / observability / streaming / MCP / system-prompt / skill / TodoWrite），每条带 `file:line` 工业对照。
+- **Launcher 现状对照**：已走完 v1 裸 loop + router，最大缺口是「dispatch 同权切面」未成型；推荐演进路线 P0（固化切面）→ P1（双层 permission）→ P2（plugin tool 同权化）。
+
+> 遵循 learn-everything 的 **0 假设原则**：涉及具体函数/行号/调用链时先读源码再下结论，不凭命名推断。
+
 ## 开发环境要求
 
 - **Node.js** >= 20（见 `.nvmrc`）

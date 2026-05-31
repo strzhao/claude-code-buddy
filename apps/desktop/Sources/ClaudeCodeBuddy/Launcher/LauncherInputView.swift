@@ -4,7 +4,7 @@ struct LauncherInputView: View {
     @ObservedObject var manager: LauncherManager
     @State private var query: String = ""
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
-    @State private var segments: [ActionSegment]?           // 预处理后的 segment 列表
+    @State private var actions: [LauncherActionButton] = []  // 模型声明的 render-only 按钮（底部工具条）
     @State private var errorOutput: AttributedString?       // 仅用于 .error 路径
     @State private var visible: Bool = false                // 入场动画状态（C6 契约）
     @FocusState private var focused: Bool
@@ -14,9 +14,9 @@ struct LauncherInputView: View {
         manager.stage != .idle && manager.stage != .error
     }
 
-    /// 是否有可见输出（segments 非空 or 有错误输出）
+    /// 是否有可见输出（正文非空 or 有错误输出）
     private var hasOutput: Bool {
-        !(segments?.isEmpty ?? true) || errorOutput != nil
+        !outputBuffer.isEmpty || errorOutput != nil
     }
 
     /// 命中的 plugin 名字（chip 水印显示用）
@@ -111,13 +111,26 @@ struct LauncherInputView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, LauncherConstants.inputPaddingH)
                             .padding(.vertical, 12)
-                    } else if let segs = segments {
-                        // 正常路径：ActionSegment 流式渲染
-                        segmentedOutputView(segs)
+                    } else {
+                        // 正常路径：正文走干净 markdown 连续渲染（按钮收在底部工具条）
+                        Text(MarkdownRenderer.render(outputBuffer))
+                            .font(LauncherTheme.outputBody)
+                            .foregroundStyle(LauncherTheme.ink)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, LauncherConstants.inputPaddingH)
+                            .padding(.vertical, 12)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
                 .background(LauncherTheme.surface)
+
+                // 底部统一工具条：模型声明的 render-only 按钮（朗读/复制）
+                if errorOutput == nil && !actions.isEmpty {
+                    LauncherActionBar(actions: actions)
+                        .background(LauncherTheme.surface)
+                }
             }
         } // end VStack
         .frame(
@@ -155,7 +168,7 @@ struct LauncherInputView: View {
             focused = true
             query = ""
             outputBuffer = ""
-            segments = nil
+            actions = []
             errorOutput = nil
         }
         // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
@@ -164,7 +177,7 @@ struct LauncherInputView: View {
             if isNowVisible {
                 query = ""
                 outputBuffer = ""
-                segments = nil
+                actions = []
                 errorOutput = nil
                 focused = true
             }
@@ -226,7 +239,7 @@ struct LauncherInputView: View {
         await MainActor.run {
             manager.clearInstantActions()
             outputBuffer = ""
-            segments = nil
+            actions = []
             errorOutput = nil
         }
 
@@ -248,20 +261,21 @@ struct LauncherInputView: View {
             switch event {
             case .text(let s):
                 await MainActor.run {
-                    outputBuffer += s
-                    segments = MarkdownActionParser.preprocess(outputBuffer)
+                    outputBuffer += s   // 正文直接累积，渲染时整体 markdown 解析
                 }
             case .toolCall(let name, _):
                 await MainActor.run {
                     outputBuffer += "\n> 🔧 调用工具 `\(name)`...\n"
-                    segments = MarkdownActionParser.preprocess(outputBuffer)
                 }
             case .toolResult(let name, let output, let isError):
                 await MainActor.run {
                     outputBuffer += isError
                         ? "\n> ❌ \(name): \(output)\n"
                         : "\n> ✅ \(name) →\n```\n\(output)\n```\n"
-                    segments = MarkdownActionParser.preprocess(outputBuffer)
+                }
+            case .action(let button):
+                await MainActor.run {
+                    actions.append(button)   // render-only：收进底部工具条，不执行
                 }
             case .done:
                 await MainActor.run {
@@ -275,20 +289,6 @@ struct LauncherInputView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Segment-based output rendering
-
-    @ViewBuilder
-    private func segmentedOutputView(_ segs: [ActionSegment]) -> some View {
-        // 用 FlowLayout-like 思路：连续 .text 合并为 single Text + AttributedString，
-        // .action 以 ActionButton 内联插入。
-        // 实现策略：把所有 .text 段收集成一个大 markdown 再渲染，
-        // ActionButton 出现在文本"断点"处，用 VStack 行排列（简单实用）。
-        ActionSegmentsView(segments: segs)
-            .padding(.horizontal, LauncherConstants.inputPaddingH)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

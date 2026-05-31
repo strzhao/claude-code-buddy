@@ -42,5 +42,17 @@ fi
 codesign --force --deep --sign - "$DEV_BUNDLE_DIR"
 
 echo "==> Dev bundle signed and ready"
+
+# 杀掉所有已在运行的 ClaudeCodeBuddy 实例（含主仓库旧 build / 上一次 dev build）。
+# 它们都是 .accessory(LSUIElement) app 且注册同一个全局热键 ⌘⇧Space；多实例并存会争抢
+# 热键，表现为「按一次只切焦点不弹窗、按第二次才弹」。launch 前清场保证只有本次 build 持有热键。
+# 仅匹配真正的 app 可执行路径，不会误伤本脚本或 make 进程。
+# 匹配可执行后缀 Contents/MacOS/ClaudeCodeBuddy —— 同时覆盖主仓库 ClaudeCodeBuddy.app
+# 与本脚本产出的 ClaudeCodeBuddy-dev.app 两种 bundle；不会误伤 make / bash / 本脚本自身。
+echo "==> Terminating any running ClaudeCodeBuddy instances ..."
+pkill -f "Contents/MacOS/ClaudeCodeBuddy" 2>/dev/null || true
+# 等 LaunchServices 注销旧实例，避免 open 误判「已在运行」而只聚焦不重启
+sleep 0.5
+
 echo "==> Launching: open '$DEV_BUNDLE_DIR'"
 open "$DEV_BUNDLE_DIR"

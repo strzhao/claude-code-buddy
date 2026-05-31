@@ -420,8 +420,39 @@ final class LauncherManager: ObservableObject {
 
                 switch decision {
                 case .directChat:
-                    tools = []
-                    toolExecutor = { _, _ in throw LauncherError.providerNotConfigured }
+                    // 默认流：单轮流式 + Buddy system prompt + 框架 meta tools（render-only 按钮）。
+                    // 不走 LauncherAgent 的 execute-loop —— attach_action 是「声明按钮」非「执行动作」，
+                    // 用 PromptExecutor 单轮路径收集 .action 后随文本一并展示。
+                    let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
+                    let cfg = PromptConfig(
+                        systemPrompt: DefaultAgentPrompt.system,
+                        maxIterations: 1,
+                        model: nil,
+                        autoCopyToClipboard: false
+                    )
+                    await MainActor.run { LauncherManager.shared.stage = .streaming }
+                    do {
+                        let result = try await promptExecutor.execute(query: query, config: cfg)
+                        if result.exitCode == 0 {
+                            continuation.yield(.text(result.stdout))
+                            for action in result.actions {
+                                continuation.yield(.action(action))
+                            }
+                        } else {
+                            continuation.yield(.text(result.stderr))
+                        }
+                        continuation.yield(.done(reason: "end_turn"))
+                    } catch let err as LauncherError {
+                        continuation.yield(.error(err))
+                    } catch {
+                        continuation.yield(.error(.networkFailure(error)))
+                    }
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    continuation.finish()
+                    return // directChat 单轮路径，跳过 LauncherAgent.run
 
                 case .withPlugin(let manifest):
                     // trust check 提前到 mode 分支之前（stdin/prompt 都做）
@@ -473,6 +504,9 @@ final class LauncherManager: ObservableObject {
                             let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
                             if result.exitCode == 0 {
                                 continuation.yield(.text(result.stdout))
+                                for action in result.actions {
+                                    continuation.yield(.action(action))
+                                }
                             } else {
                                 // 错误时 stderr 作为用户可见文本展示（含"执行超时" / "执行失败:"）
                                 continuation.yield(.text(result.stderr))

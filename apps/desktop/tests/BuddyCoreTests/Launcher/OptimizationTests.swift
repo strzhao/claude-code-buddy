@@ -261,6 +261,8 @@ final class SendStreamTests: XCTestCase {
             switch chunk {
             case .text(let s):
                 collected.append(s)
+            case .action:
+                break
             case .done:
                 doneReceived = true
             }

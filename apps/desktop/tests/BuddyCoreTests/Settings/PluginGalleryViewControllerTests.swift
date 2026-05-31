@@ -53,6 +53,7 @@ final class MockPluginToggling: PluginToggling {
 
 // MARK: - Tests
 
+@MainActor
 final class PluginGalleryViewControllerTests: XCTestCase {
 
     private func makeInspection(
@@ -188,7 +189,6 @@ final class PluginGalleryViewControllerTests: XCTestCase {
     }
 
     // T8: sanitize 白名单 — 非法 name 静默 ignore（NOT 调 disable/enable）
-    @MainActor
     func test_toggleButtonClicked_invalidName_skipsCall() async {
         let plugins = MockPluginToggling()
         let vc = PluginGalleryViewController(
@@ -212,7 +212,6 @@ final class PluginGalleryViewControllerTests: XCTestCase {
     }
 
     // T9: handleReseedButton 调 marketplace.reseed
-    @MainActor
     func test_handleReseedButton_callsReseed() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection())

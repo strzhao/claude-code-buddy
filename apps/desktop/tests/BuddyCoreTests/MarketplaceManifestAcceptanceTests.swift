@@ -131,15 +131,12 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
 
         XCTAssertEqual(manifest.schemaVersion, 1)
         XCTAssertEqual(manifest.name, "buddy-official")
-        XCTAssertEqual(manifest.plugins.count, 2)
+        // translate 已折进默认流（Buddy 万能输入框内建能力），不再作为 bundled 插件
+        XCTAssertEqual(manifest.plugins.count, 1)
 
         let hello = manifest.plugins.first { $0.name == "hello" }
         XCTAssertNotNil(hello)
         XCTAssertEqual(hello?.source, .localSubdir(path: "./plugins/hello"))
-
-        let translate = manifest.plugins.first { $0.name == "translate" }
-        XCTAssertNotNil(translate)
-        XCTAssertEqual(translate?.source, .localSubdir(path: "./plugins/translate"))
     }
 
     // MARK: - AT07 schemaVersion 缺失抛错
@@ -210,22 +207,7 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
         XCTAssertThrowsError(try decode(MarketplacePlugin.self, from: json))
     }
 
-    // MARK: - AT11 Bundle 内 translate plugin.json name == "translate"
-
-    func test_AT11_translatePluginJSONNameMigrated() throws {
-        // AT11: Bundle 内 translate plugin.json name 字段已迁移
-        guard let url = Bundle.module.url(
-            forResource: "plugin",
-            withExtension: "json",
-            subdirectory: "Marketplace/plugins/translate"
-        ) else {
-            XCTFail("translate plugin.json not found in Bundle.module")
-            return
-        }
-        let data = try Data(contentsOf: url)
-        let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        XCTAssertEqual(obj?["name"] as? String, "translate")
-    }
+    // MARK: - AT11 (已移除) translate 折进默认流，不再有 bundled translate plugin.json
 
     // MARK: - AT12 Bundle 内 hello plugin.json name == "hello"
 

@@ -25,27 +25,31 @@ final class PromptExecutor {
         let timeoutSec = LauncherConstants.pluginDefaultTimeoutSec
 
         // P1：走 sendStream（累积 chunks → PluginResult）
-        let workTask = Task { () throws -> String in
+        // 注入框架 meta tools：模型可声明 attach_action 按钮（render-only，由 .action chunk 回传）
+        let workTask = Task { () throws -> (String, [LauncherActionButton]) in
             let stream = try await self.provider.sendStream(
-                messages: messages, tools: [], model: model, system: config.systemPrompt
+                messages: messages, tools: MetaTools.all, model: model, system: config.systemPrompt
             )
             var accumulated = ""
+            var actions: [LauncherActionButton] = []
             for try await chunk in stream {
                 switch chunk {
                 case .text(let s):
                     accumulated += s
+                case .action(let button):
+                    actions.append(button)
                 case .done:
                     break
                 }
             }
-            return accumulated
+            return (accumulated, actions)
         }
         let timeoutTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(timeoutSec) * 1_000_000_000)
             workTask.cancel()
         }
         do {
-            let text = try await workTask.value
+            let (text, actions) = try await workTask.value
             timeoutTask.cancel()
             let durationMs = Int(Date().timeIntervalSince(started) * 1000)
             NSLog("[Translate] llm_durationMs=\(durationMs)")
@@ -59,11 +63,12 @@ final class PromptExecutor {
                     stderr: "",
                     exitCode: 0,
                     durationMs: durationMs,
-                    stdoutTruncated: false
+                    stdoutTruncated: false,
+                    actions: actions
                 )
             }
             return PluginResult(stdout: text, stderr: "", exitCode: 0,
-                durationMs: durationMs, stdoutTruncated: false)
+                durationMs: durationMs, stdoutTruncated: false, actions: actions)
         } catch is CancellationError {
             return PluginResult(stdout: "", stderr: "执行超时（\(timeoutSec)s）",
                 exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
@@ -91,27 +96,31 @@ final class PromptExecutor {
 
         // P1：走 sendStream（累积 chunks → PluginResult）
         // 超时用 Task + cancel 模式（确保 URLSession 真正释放）
-        let workTask = Task { () throws -> String in
+        // 注入框架 meta tools：模型可声明 attach_action 按钮（render-only）
+        let workTask = Task { () throws -> (String, [LauncherActionButton]) in
             let stream = try await self.provider.sendStream(
-                messages: messages, tools: [], model: model, system: cfg.systemPrompt
+                messages: messages, tools: MetaTools.all, model: model, system: cfg.systemPrompt
             )
             var accumulated = ""
+            var actions: [LauncherActionButton] = []
             for try await chunk in stream {
                 switch chunk {
                 case .text(let s):
                     accumulated += s
+                case .action(let button):
+                    actions.append(button)
                 case .done:
                     break
                 }
             }
-            return accumulated
+            return (accumulated, actions)
         }
         let timeoutTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(timeoutSec) * 1_000_000_000)
             workTask.cancel()
         }
         do {
-            let text = try await workTask.value
+            let (text, actions) = try await workTask.value
             timeoutTask.cancel()
             let durationMs = Int(Date().timeIntervalSince(started) * 1000)
             // P1 仪表：wall-clock 可在 Console.app 观察
@@ -122,18 +131,19 @@ final class PromptExecutor {
             if cfg.autoCopyToClipboard && !text.isEmpty {
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
-                // D2: 移除 "_(已复制到剪贴板)_" marker（改用 📋 ActionButton 替代）
+                // D2: 移除 "_(已复制到剪贴板)_" marker（改用 attach_action 按钮替代）
                 return PluginResult(
                     stdout: text,
                     stderr: "",
                     exitCode: 0,
                     durationMs: durationMs,
-                    stdoutTruncated: false
+                    stdoutTruncated: false,
+                    actions: actions
                 )
             }
 
             return PluginResult(stdout: text, stderr: "", exitCode: 0,
-                durationMs: durationMs, stdoutTruncated: false)
+                durationMs: durationMs, stdoutTruncated: false, actions: actions)
         } catch is CancellationError {
             // CancellationError 分支：timeout 已 fire，不调 timeoutTask.cancel()
             return PluginResult(stdout: "", stderr: "执行超时（\(timeoutSec)s）",

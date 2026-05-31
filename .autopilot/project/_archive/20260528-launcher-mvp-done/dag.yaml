@@ -1,0 +1,97 @@
+project: buddy-launcher
+description: Alfred 式 AI 启动器子系统（⌘⇧Space 浮窗 + AI 路由 + CLI 插件），集成进现有 claude-code-buddy macOS app，与像素猫互不干扰
+state_file: .autopilot/runtime/requirements/20260525-新增类似-alfred-这样的/state.md
+
+tasks:
+  - id: "001-launcher-skeleton"
+    title: "启动器骨架：NSPanel 浮窗 + 全局快捷键 + SwiftUI 输入框 + echo 占位"
+    depends_on: []
+    complexity: M
+    status: done
+    milestone: M1
+    acceptance_scenarios: [SC-01, SC-08, SC-10]
+
+  - id: "002-provider-abstraction"
+    title: "Provider 协议 + Anthropic/OpenAI 兼容实现 + SecretStore 探针降级 + 配置文件"
+    depends_on: ["001-launcher-skeleton"]
+    complexity: M
+    status: done
+    milestone: M2
+    acceptance_scenarios: [SC-02, SC-07, SC-12]
+
+  - id: "003-agent-loop"
+    title: "翻译 learn-everything v1 永远 loop + 流式 markdown 渲染"
+    depends_on: ["002-provider-abstraction"]
+    complexity: M
+    status: done
+    milestone: M2
+    acceptance_scenarios: [SC-03, SC-08]
+
+  - id: "004-plugin-runtime"
+    title: "plugin.json schema + PluginManager + Process 执行 + PATH 注入 + hello-world demo plugin"
+    depends_on: ["001-launcher-skeleton"]
+    complexity: M
+    status: done
+    milestone: M3
+    acceptance_scenarios: [SC-04, SC-05]
+
+  - id: "005-routing"
+    title: "keyword 缩候选 + AI 选 plugin + 候选列表 UI"
+    depends_on: ["003-agent-loop", "004-plugin-runtime"]
+    complexity: M
+    status: done
+    milestone: M4
+    acceptance_scenarios: [SC-03, SC-04, SC-05]
+
+  - id: "006-install-and-tofu"
+    title: "BuddyCLI launcher add/list/remove/config/inspect + git clone + TOFU NSAlert"
+    depends_on: ["004-plugin-runtime"]
+    complexity: M
+    status: done
+    milestone: M5
+    notes: |
+      复杂度升级理由：BuddyCLI/main.swift 是 841 行单文件 raw CommandLine（无 ArgumentParser）。
+      实施路径：在 main.swift 现有 switch 内追加 case "launcher": handleLauncher(args)，
+      内部用 nested switch 分发 5 个子命令。**不引入 swift-argument-parser**（避免跨任务重构）。
+    acceptance_scenarios: [SC-02, SC-04, SC-05, SC-06, SC-09, SC-11, SC-12]
+
+  - id: "007-e2e-and-docs"
+    title: "端到端验收测试 + Snapshot 测试 + LauncherIsolationTests + CLAUDE.md 更新"
+    depends_on: ["005-routing", "006-install-and-tofu"]
+    complexity: S
+    status: done
+    milestone: M5
+    acceptance_scenarios: [SC-10, SC-11, all]
+
+milestones:
+  M1: 可见性 — ⌘⇧Space 召唤窗口 + echo 输出
+  M2: 对话 — BYOK 配置 + 流式 markdown 渲染
+  M3: 插件能力 — plugin 协议验证（hello-world）
+  M4: 智能路由 — AI 选中正确 plugin
+  M5: 生态闭环 — git clone 安装 + TOFU + 完整测试
+
+acceptance_scenarios:
+  - id: SC-01
+    name: 全局快捷键召唤与隐藏浮窗
+  - id: SC-02
+    name: BYOK 配置 Anthropic API Key 持久化
+  - id: SC-03
+    name: 直接对话模式（Markdown 流式渲染）
+  - id: SC-04
+    name: CLI 插件安装与首次执行 TOFU 弹框
+  - id: SC-05
+    name: TOFU 允许后插件执行返回 Markdown
+  - id: SC-06
+    name: TOFU 拒绝后插件不执行
+  - id: SC-07
+    name: 未配置 provider 时发起对话显示引导错误
+  - id: SC-08
+    name: 每次唤起为独立新 Session
+  - id: SC-09
+    name: buddy launcher remove 卸载插件
+  - id: SC-10
+    name: Launcher 与像素猫完全互不干扰
+  - id: SC-11
+    name: buddy launcher inspect 查看插件详情
+  - id: SC-12
+    name: 本地 Ollama 配置与失联错误

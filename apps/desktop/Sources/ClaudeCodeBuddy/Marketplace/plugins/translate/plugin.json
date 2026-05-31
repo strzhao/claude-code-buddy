@@ -1,0 +1,12 @@
+{
+  "name": "translate",
+  "version": "0.5.0",
+  "description": "中英互译助手，自动检测语言方向",
+  "keywords": ["翻译", "translate", "tr", "中英", "英中", "fy"],
+  "timeout": 60,
+  "mode": "prompt",
+  "systemPrompt": "你是英汉/汉英查词助手。输出风格像字典：先给最常用的译义，每个译义配一个简短例句，不写文化背景、不写用法辨析、不延伸对话。给所有英文（含例句中的英文）加 <action:speak text=\"英文\">🔊</action> 朗读，给译义加 <action:copy text=\"译文\">📋</action> 复制。",
+  "maxIterations": 1,
+  "model": null,
+  "autoCopyToClipboard": false
+}

@@ -1,97 +1,60 @@
-project: buddy-launcher
-description: Alfred 式 AI 启动器子系统（⌘⇧Space 浮窗 + AI 路由 + CLI 插件），集成进现有 claude-code-buddy macOS app，与像素猫互不干扰
-state_file: .autopilot/runtime/requirements/20260525-新增类似-alfred-这样的/state.md
+project: buddy-plugin-market
+description: Plugin Market 协议 + Buddy Store UI + 离线兜底 + 后台同步；translate 从 builtin 重构为 marketplace 默认预装
+state_file: .autopilot/runtime/sessions/translate/requirements/20260529-新增-market-的概念-1.-做/state.md
 
 tasks:
-  - id: "001-launcher-skeleton"
-    title: "启动器骨架：NSPanel 浮窗 + 全局快捷键 + SwiftUI 输入框 + echo 占位"
+  - id: "001-marketplace-schema-and-bundle-seed"
+    name: "Marketplace schema + bundle seed 迁移"
+    brief: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.md"
+    handoff: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.handoff.md"
+    status: done
     depends_on: []
-    complexity: M
+    summary: 定义 MarketplaceManifest + PluginSourceConfig 多态 enum；迁移 Sources/.../Plugins/{HelloPlugin,TranslatePlugin}/ → Sources/.../Marketplace/plugins/{hello,translate}/；新建 marketplace.json (seed)；plugin.json name 字段同步改为 "hello"/"translate"；Package.swift 加 .copy("Marketplace")，保留旧 .copy("Plugins") 兼容（task 003 删）
+
+  - id: "002-plugin-source-resolver"
+    name: "PluginSourceResolver 多态加载"
+    brief: ".autopilot/project/tasks/002-plugin-source-resolver.md"
+    handoff: ".autopilot/project/tasks/002-plugin-source-resolver.handoff.md"
     status: done
-    milestone: M1
-    acceptance_scenarios: [SC-01, SC-08, SC-10]
+    depends_on: ["001"]
+    summary: 实现 4 种 source 类型解析（localSubdir/gitSubdir/gitURL/file）→ 本地插件目录 URL；git 类型复用现有 cmdLauncherAdd 的 /usr/bin/git Process + --depth 1 + 60s timeout；sha 验证
 
-  - id: "002-provider-abstraction"
-    title: "Provider 协议 + Anthropic/OpenAI 兼容实现 + SecretStore 探针降级 + 配置文件"
-    depends_on: ["001-launcher-skeleton"]
-    complexity: M
+  - id: "003-marketplace-manager-replace-builtin"
+    name: "MarketplaceManager 替换 installBundledPlugins"
+    brief: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.md"
+    handoff: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.handoff.md"
     status: done
-    milestone: M2
-    acceptance_scenarios: [SC-02, SC-07, SC-12]
+    depends_on: ["001", "002"]
+    summary: 新建 MarketplaceManager.{seedFromBundle, syncFromRemote, install, migrateLegacy, reseed, inspect}；LauncherManager.setup 切换调用；删除 PluginManager.installBundledPlugins；migrateLegacy 两阶段（先复制新目录+新 trust 记录、再删旧），幂等；syncFromRemote 1h debounce + lastSyncedAt 持久化 + JSONDecoder 失败 cache 不写
 
-  - id: "003-agent-loop"
-    title: "翻译 learn-everything v1 永远 loop + 流式 markdown 渲染"
-    depends_on: ["002-provider-abstraction"]
-    complexity: M
+  - id: "004-disable-enable-mechanism"
+    name: "插件禁用/启用机制"
+    brief: ".autopilot/project/tasks/004-disable-enable-mechanism.md"
+    handoff: ".autopilot/project/tasks/004-disable-enable-mechanism.handoff.md"
     status: done
-    milestone: M2
-    acceptance_scenarios: [SC-03, SC-08]
+    depends_on: ["003"]
+    summary: PluginManager.list 跳过含 .disabled 文件的目录；加 disable(name)/enable(name) 方法；红队覆盖：禁用后 router 命中 0 候选、启用后恢复
 
-  - id: "004-plugin-runtime"
-    title: "plugin.json schema + PluginManager + Process 执行 + PATH 注入 + hello-world demo plugin"
-    depends_on: ["001-launcher-skeleton"]
-    complexity: M
+  - id: "005-buddy-store-ui"
+    name: "Buddy Store UI 重构（segmentedControl + PluginGallery 四态）"
+    brief: ".autopilot/project/tasks/005-buddy-store-ui.md"
+    handoff: ".autopilot/project/tasks/005-buddy-store-ui.handoff.md"
     status: done
-    milestone: M3
-    acceptance_scenarios: [SC-04, SC-05]
+    depends_on: ["004"]
+    summary: SettingsWindowController title 改 "Buddy Store" + 加顶部 NSSegmentedControl(["皮肤","插件"])；上次选中 tab 持久化 UserDefaults；PluginGalleryViewController 四态 (normal/loading/empty/error)；error 态 [重新初始化] 按钮调 MarketplaceManager.reseed()；列表项 [禁用]/[启用] 按钮
 
-  - id: "005-routing"
-    title: "keyword 缩候选 + AI 选 plugin + 候选列表 UI"
-    depends_on: ["003-agent-loop", "004-plugin-runtime"]
-    complexity: M
+  - id: "006-remote-sync-and-in-app-hud"
+    name: "Market 后台同步 + 自建 in-app HUD"
+    brief: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.md"
+    handoff: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.handoff.md"
     status: done
-    milestone: M4
-    acceptance_scenarios: [SC-03, SC-04, SC-05]
+    depends_on: ["003", "004"]
+    summary: MarketHUD 自建 NSPanel.nonactivatingPanel 浮窗 5s 自隐 (替代 deprecated NSUserNotificationCenter)；syncFromRemote 后调用 MarketHUD.show("translate 已更新到 v0.2.0")；每次同步追加结构化 JSON 行到 ~/.buddy/launcher-sync.log；连续 3 次失败 HUD 提示
 
-  - id: "006-install-and-tofu"
-    title: "BuddyCLI launcher add/list/remove/config/inspect + git clone + TOFU NSAlert"
-    depends_on: ["004-plugin-runtime"]
-    complexity: M
+  - id: "007-cli-install-disable-enable-reseed"
+    name: "CLI: install/disable/enable/reseed + list --json"
+    brief: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.md"
+    handoff: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.handoff.md"
     status: done
-    milestone: M5
-    notes: |
-      复杂度升级理由：BuddyCLI/main.swift 是 841 行单文件 raw CommandLine（无 ArgumentParser）。
-      实施路径：在 main.swift 现有 switch 内追加 case "launcher": handleLauncher(args)，
-      内部用 nested switch 分发 5 个子命令。**不引入 swift-argument-parser**（避免跨任务重构）。
-    acceptance_scenarios: [SC-02, SC-04, SC-05, SC-06, SC-09, SC-11, SC-12]
-
-  - id: "007-e2e-and-docs"
-    title: "端到端验收测试 + Snapshot 测试 + LauncherIsolationTests + CLAUDE.md 更新"
-    depends_on: ["005-routing", "006-install-and-tofu"]
-    complexity: S
-    status: done
-    milestone: M5
-    acceptance_scenarios: [SC-10, SC-11, all]
-
-milestones:
-  M1: 可见性 — ⌘⇧Space 召唤窗口 + echo 输出
-  M2: 对话 — BYOK 配置 + 流式 markdown 渲染
-  M3: 插件能力 — plugin 协议验证（hello-world）
-  M4: 智能路由 — AI 选中正确 plugin
-  M5: 生态闭环 — git clone 安装 + TOFU + 完整测试
-
-acceptance_scenarios:
-  - id: SC-01
-    name: 全局快捷键召唤与隐藏浮窗
-  - id: SC-02
-    name: BYOK 配置 Anthropic API Key 持久化
-  - id: SC-03
-    name: 直接对话模式（Markdown 流式渲染）
-  - id: SC-04
-    name: CLI 插件安装与首次执行 TOFU 弹框
-  - id: SC-05
-    name: TOFU 允许后插件执行返回 Markdown
-  - id: SC-06
-    name: TOFU 拒绝后插件不执行
-  - id: SC-07
-    name: 未配置 provider 时发起对话显示引导错误
-  - id: SC-08
-    name: 每次唤起为独立新 Session
-  - id: SC-09
-    name: buddy launcher remove 卸载插件
-  - id: SC-10
-    name: Launcher 与像素猫完全互不干扰
-  - id: SC-11
-    name: buddy launcher inspect 查看插件详情
-  - id: SC-12
-    name: 本地 Ollama 配置与失联错误
+    depends_on: ["004"]
+    summary: 加 buddy launcher install <name> (marketplace 装) / disable <name> / enable <name> / reseed；list 显示 [禁用]；新增 list --json 输出 MarketplaceInspection JSON 供 QA 断言；旧 buddy launcher add user/repo 保留兼容；help 明确 install vs add 区别

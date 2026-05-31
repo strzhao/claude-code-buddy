@@ -1,238 +1,104 @@
-# Buddy Launcher — Alfred 式 AI 启动器子系统
+# Buddy Plugin Market — 官方插件市场 + Buddy Store UI + Marketplace 协议
 
-> 在 claude-code-buddy macOS 应用内新增独立的启动器子系统（⌘⇧Space 浮窗 + AI 路由 + CLI 插件），与现有像素猫互不干扰。完整设计参考 `~/Downloads/prd.txt` 的 Genie 11 项决策（适配 Swift 技术栈）。
+> 把现有"内置插件 + CLI git clone 安装"双轨模型重构为统一 Marketplace 协议（参考 [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official)）。translate 不再是"builtin"而是 marketplace "默认预装"条目；Settings → Buddy Store 加 [皮肤/插件] tab；官方 marketplace 走 GitHub Raw JSON；用户编辑能力推迟到 phase 2。
 
 ## Context
 
-**用户目标**：复用 buddy menu bar app 的 LSUIElement / SocketServer / 打包链路，避免另起一个独立应用，把"召之即来的 AI 助手"和"像素猫陪伴"集成在同一个 app 里。
+完整设计：见对应需求 state.md 的 `## 设计文档` 区域：
+`.autopilot/runtime/sessions/translate/requirements/20260529-新增-market-的概念-1.-做/state.md`
 
-**核心约束**：MVP 严格匹配 PRD 7 项闭环（仅快捷键+浮窗、CLI 插件原子、plugin.json+README 发现、BYOK provider、永远 loop 早停、Git URL 去中心分发、TOFU 权限）；不做权限矩阵 / 持久会话 / 上下文压缩 / topic search / 跨平台。
+**核心 UX 决策**（与用户对齐 + plan-reviewer 第 2 轮 PASS）：
 
-## 整体架构设计
+- Settings 重命名 "Buddy Store" + 顶部 NSSegmentedControl 切 [皮肤/插件]
+- 官方 marketplace = GitHub Raw JSON（零运营、PR 入口清晰、不依赖 Vercel）
+- Plugin source 多态支持 4 种：`local-subdir` / `git-subdir` / `git-url` / `file`
+- "内置"概念消失：bundle 内带种子 marketplace.json + plugins/ 作离线 fallback；后台从 GitHub Raw 同步
+- Phase 1 **不做** prompt/触发词编辑（YAGNI），marketplace schema 预留 `editable: bool`
+- 仅可"禁用"（`.disabled` 标记），不做真"卸载"
+- 远程更新静默生效，**自建 in-app HUD**（替代 deprecated NSUserNotificationCenter）+ 状态栏提示
 
-### 系统概览
+## 整体架构
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  claude-code-buddy App                                           │
-│  ┌────────────────────┐    ┌──────────────────────────────────┐  │
-│  │ 像素猫子系统（不动） │    │  Launcher 子系统（新增）          │  │
-│  │ BuddyWindow/Scene  │    │  ┌────────────────────────────┐  │  │
-│  │ CatSprite          │    │  │ LauncherWindow (NSPanel)   │  │  │
-│  │ SessionManager     │    │  └────────────┬───────────────┘  │  │
-│  │ SocketServer       │    │  ┌────────────▼───────────────┐  │  │
-│  │ MenuBar Popover    │    │  │ LauncherInputView          │  │  │
-│  └────────────────────┘    │  │  (SwiftUI + NSHosting)     │  │  │
-│                            │  └────────────┬───────────────┘  │  │
-│  ┌────────────────────┐    │  ┌────────────▼───────────────┐  │  │
-│  │ AppDelegate        │────┼─→│ LauncherManager            │  │  │
-│  │ +setupLauncher()  │    │  │  Router → Agent → Provider  │  │  │
-│  └────────────────────┘    │  │  + PluginManager+TrustStore │  │  │
-│                            │  └─────────────────────────────┘  │  │
-└──────────────────────────────────────────────────────────────────┘
-                                          │
-                                          ▼
-       ┌─────────────────────────────────────────────────────────┐
-       │  ~/.buddy/launcher.json / launcher-trust.json           │
-       │  ~/.buddy/launcher-plugins/<user>-<repo>/               │
-       │   ├─ plugin.json   └─ README.md  └─ <executable>        │
-       │  Keychain 或 EncryptedFile (CryptoKit) 存 API key        │
-       └─────────────────────────────────────────────────────────┘
-                                          │
-                                          ▼
-       CLI 子进程（任意语言）
-        stdin = JSON {query, sessionId, cwd}
-        stdout = markdown / stderr = log / exit code / 30s timeout
-```
-
-### 关键技术决策
-
-| 决策 | 选定 | 理由 |
-|---|---|---|
-| 窗口类型 | 新建独立 NSPanel + canBecomeKey override | BuddyWindow `ignoresMouseEvents=true` + borderless 用于点击穿透，不能用于输入；NSPanel 是浮窗输入框标准选择 |
-| UI 框架 | SwiftUI + NSHostingController | 启动器表单+列表+markdown 用 SwiftUI 大幅减少代码量 |
-| 全局快捷键 | sindresorhus/KeyboardShortcuts SPM | 自带录制 UI + 持久化 + 冲突检测；零冲突风险 |
-| 默认快捷键 | ⌘⇧Space | Spotlight 占用 ⌘Space；Raycast/Hammerspoon 业界惯例；Xcode 默认 "Show Documentation" 占用同 combo，task 001 需做探针引导改键 |
-| Agent 引擎 | Swift 翻译 learn-everything v1 76 行 | 简单到能 review 全文；URLSession async/await + Codable 足够 |
-| Provider 抽象 | Anthropic-native + OpenAI 兼容 | OpenAI 协议覆盖 80% 本地推理引擎（Ollama/Qwen/DeepSeek） |
-| API key 存储 | 可插拔 SecretStore：Keychain → EncryptedFile 降级 | `bundle.sh:56` 用 ad-hoc 签名+无 entitlements，macOS 13+ 下 `SecItemAdd` 报 `errSecMissingEntitlement(-34018)`；必须探针 + 自动降级 |
-| 配置/插件目录 | `~/.buddy/` | 用户可手编辑、可 dotfile 同步 |
-| 插件协议 | stdin=JSON / stdout=markdown / timeout≤30s / exit code | JSON 可扩展不破协议；markdown 是 LLM 母语 |
-| 插件 PATH 注入 | `/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH` | LSUIElement app 默认 PATH 仅 `/usr/bin:/bin`，plugin 调 git/python/node 会失败；PluginManifest 含 `requiredPath` 字段预检查 |
-| 插件安装 | `buddy launcher add <user/repo>` → git clone | 零依赖；扩展 BuddyCLI 用 nested switch（**不**引入 swift-argument-parser，main.swift 已 841 行 raw CommandLine） |
-| TOFU 信任键 | SHA256(plugin.json.cmd + args.joined() + executableHash) | 防止作者改 cmd/args 绕过；executable hash 防二进制替换 |
-| 会话 | 每次唤起新 messages 数组 | PRD 决策 11 |
-| Markdown 渲染 | `AttributedString(markdown:)` macOS 12+ | 0 依赖 |
-
-### 文件落点
+### 数据流
 
 ```
-apps/desktop/Sources/ClaudeCodeBuddy/Launcher/  (新建)
-├── LauncherManager.swift
-├── LauncherWindow.swift
-├── LauncherInputView.swift
-├── LauncherHostingController.swift
-├── LauncherHotkey.swift
-├── LauncherRouter.swift
-├── Agent/{LauncherAgent,AgentMessage,AgentEvent}.swift
-├── Provider/{LauncherProvider,AnthropicProvider,OpenAICompatibleProvider}.swift
-├── Plugin/{PluginManifest,PluginManager,PluginExecutor,TrustStore}.swift
-├── Config/{LauncherConfig,SecretStore,KeychainSecretStore,EncryptedFileSecretStore}.swift
-└── LauncherConstants.swift
-
-apps/desktop/Package.swift  (新增依赖)
-+ .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
-
-apps/desktop/Sources/BuddyCLI/main.swift  (单文件 nested switch 扩展)
-+ case "launcher": handleLauncher(args)  // add/list/remove/config/inspect
-
-apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift
-+ setupLauncher()  // 接入点，单行追加
+App 启动
+  ↓
+1. MarketplaceManager.migrateLegacy()         ← 老用户 builtin-translate → translate 两阶段迁移（幂等）
+  ↓
+2. MarketplaceManager.seedFromBundle()        ← 首启或 ~/.buddy/marketplace.json 缺失时
+     从 BuddyCore.bundle/Marketplace/marketplace.json 拷到 ~/.buddy/marketplace.json
+     遍历 plugins[]，按 source 类型用 PluginSourceResolver 解析 → 拷到 ~/.buddy/launcher-plugins/<name>/
+  ↓
+3. PluginManager.list()                       ← 现有调用方
+     扫 ~/.buddy/launcher-plugins/，跳过含 .disabled 的目录
+  ↓
+4. Task.detached: MarketplaceManager.syncFromRemote()   ← 异步后台（1h debounce）
+     GET https://raw.githubusercontent.com/stringzhao/claude-code-buddy/main/marketplace/marketplace.json
+     检测 schemaVersion 兼容；JSONDecoder 失败时本地 cache 不写
+     diff plugins[] → 新插件/版本升级/移除 → 应用变更（保留 .disabled 标记）
+     diff 非空 → MarketHUD.show("translate 已更新到 v0.2.0", actions:[查看diff, 重置])
+     每次执行追加结构化日志到 ~/.buddy/launcher-sync.log
 ```
 
-## 任务 DAG
-
-详见 `dag.yaml`，简要：
+### 模块拓扑
 
 ```
-001-launcher-skeleton  (M)  ── no deps
-   ↓
-002-provider-abstraction (M)
-   ↓
-003-agent-loop (M)              004-plugin-runtime (M, deps:001)
-       \                         /
-        005-routing (M)
-                |
-                +─→ 007-e2e-and-docs (S, deps:005,006)
-                |
-006-install-and-tofu (M, deps:004)
+Sources/ClaudeCodeBuddy/
+├── Launcher/
+│   ├── Marketplace/                          ← 新增目录
+│   │   ├── MarketplaceManifest.swift         (Codable schema + PluginSourceConfig enum)
+│   │   ├── PluginSourceResolver.swift        (4 类 source 解析: local-subdir/git-subdir/git-url/file)
+│   │   ├── MarketplaceManager.swift          (seed/sync/install/migrateLegacy/reseed/inspect)
+│   │   └── MarketHUD.swift                   (in-app NSPanel toast 替代 NSUserNotificationCenter)
+│   ├── Plugin/
+│   │   ├── PluginManager.swift               (改造：list() 加 .disabled 过滤，删 installBundledPlugins)
+│   │   └── ... (其他保留)
+│   └── ...
+├── Settings/
+│   ├── SettingsWindowController.swift        (改造：title → Buddy Store，加 segmentedControl)
+│   ├── PluginGalleryViewController.swift     ← 新增（四态: normal/loading/empty/error）
+│   └── SkinGalleryViewController.swift       (保留不动)
+└── Marketplace/                              ← 新增 bundle 资源根
+    ├── marketplace.json                      (seed，含 translate + hello)
+    └── plugins/
+        ├── translate/plugin.json             (从原 TranslatePlugin/ 迁移，name 改 "translate")
+        └── hello/plugin.json                 (从原 HelloPlugin/ 迁移，name 改 "hello")
 ```
 
-## 跨任务设计约束
+## 任务 DAG 概览
 
-- 命名：`Launcher` 前缀；目录 `apps/desktop/Sources/ClaudeCodeBuddy/Launcher/`
-- 测试：`<Module>Tests.swift` 单元；`<Module>.acceptance.test.swift` 红队验收；`<Module>SnapshotTests.swift` 窗口快照
-- 错误：所有 async throws 用 `LauncherError` enum，UI 层 SwiftUI Alert，**不要 fatalError**
-- 子进程超时：30s SIGTERM → +5s SIGKILL
-- 不动现有像素猫代码：BuddyWindow/Scene/CatSprite/SessionManager/SocketServer 等
-- AppDelegate 仅追加 `setupLauncher()` 一行
-- 配置目录 `~/.buddy/` 启动时若不存在则创建；权限 0600（key）/ 0644（manifest/trust）
+7 个任务，分两段：
 
-## 契约规约（项目级）
-
-> 跨任务共享接口形状的权威。每个子任务 brief 继承本契约 + 内部细化。
-
-### LauncherProvider（task 002 定义，003/005 消费）
-
-```swift
-protocol LauncherProvider {
-    func send(
-        messages: [AgentMessage],
-        tools: [AgentTool],
-        model: String
-    ) async throws -> AgentResponse
-}
-
-struct AgentResponse: Codable {
-    let content: [AgentContent]   // 含 text 和 tool_use 混合
-    let stopReason: String         // "tool_use" / "end_turn" / "max_tokens"
-    let usage: AgentUsage?
-}
-
-enum AgentContent: Codable {
-    case text(String)
-    case toolUse(id: String, name: String, input: [String: AnyCodable])
-}
+```
+001 ──→ 002 ──→ 003 ──→ 004 ──┬→ 005 (Buddy Store UI)
+                              ├→ 006 (后台同步 + MarketHUD)
+                              └→ 007 (CLI install/disable/enable/reseed)
 ```
 
-### LauncherAgent（task 003 定义，005 消费）
+- 001-004 串行：核心数据层 + 协议
+- 005/006/007 并行：UI + 同步 + CLI 三独立子系统
 
-```swift
-func run(prompt: String, tools: [AgentTool], systemPrompt: String?) -> AsyncStream<AgentEvent>
+详见 `dag.yaml`。
 
-enum AgentEvent {
-    case text(String)              // 增量 markdown 片段
-    case toolCall(name: String, input: [String: AnyCodable])
-    case toolResult(name: String, output: String)
-    case done
-    case error(LauncherError)
-}
-```
+## 跨任务设计约束（执行铁律）
 
-### PluginManifest / PluginManager（task 004 定义，005/006 消费）
-
-```swift
-struct PluginManifest: Codable {
-    let name: String              // 必须匹配目录名最后一段
-    let version: String
-    let description: String
-    let keywords: [String]
-    let cmd: String               // plugin 目录内相对路径
-    let args: [String]
-    let env: [String: String]?
-    let timeout: Int?             // 秒，缺省 30，上限 120
-    let requiredPath: [String]?   // 预检查外部 binary
-}
-
-func PluginManager.list() throws -> [PluginManifest]
-
-struct PluginInput: Codable { let query, sessionId, cwd: String }
-
-struct PluginResult {
-    let stdout, stderr: String
-    let exitCode: Int32
-    let durationMs: Int
-}
-
-func PluginManager.execute(_ plugin: PluginManifest, input: PluginInput) async throws -> PluginResult
-```
-
-### 边界值（DbC）
-
-- Agent loop 最大迭代：≤ 10
-- Provider HTTP 超时：≤ 120s
-- Plugin 子进程超时：≤ 30s（manifest 可改但 ≤ 120s）
-- Plugin stdout 最大读取：≤ 1 MiB（超过截断 + 警告）
-- API key 长度：≥ 8 字符
-- 路由候选数量：≤ 5
-- 输入框最大输入：≤ 8000 字符
-
-### 错误码（LauncherError）
-
-| 错误码 | 触发 |
-|---|---|
-| `providerNotConfigured` | 无 provider 配置 |
-| `invalidAPIKey` | Keychain/EncryptedFile 无 key |
-| `networkFailure(Error)` | URLSession 错误 |
-| `providerHTTPError(Int, String)` | 4xx/5xx |
-| `pluginNotFound(String)` | 路由选中插件不存在 |
-| `pluginNotTrusted(String)` | TOFU 未通过 |
-| `pluginTimeout(Int)` | 子进程超时 |
-| `pluginCrash(Int32, String)` | exit code 非 0 |
-| `pluginMissingDependency(String)` | requiredPath binary 不存在 |
-| `maxIterations` | Agent loop > 10 |
-| `secretStoreUnavailable` | Keychain 失败且 EncryptedFile 不可写 |
-| `hotkeyConflict(String)` | 快捷键注册失败 |
+1. **PluginManager 协议不破坏**：list/find/pluginDir 接口保留，上游零改动
+2. **TrustStore 兼容**：prompt-mode trustKey 仅依赖 systemPrompt/maxIter/model，**不依赖 pluginName**
+3. **plugin.json `name` 字段同步迁移**：`builtin-translate` → `translate`，`builtin-hello` → `hello`
+4. **`migrateLegacy()` 两阶段迁移**（crash safe）：先写新（目录 + trust），再删旧；幂等
+5. **离线兜底**：seedFromBundle 必须无网可跑（CI 验证）
+6. **后台同步失败不阻塞**：JSONDecoder 失败本地 cache 不写；连续 3 次失败 HUD 提示
+7. **003/004 改 PluginManager.swift 必须串行**
+8. **手动恢复**：CLI `buddy launcher reseed` 强制重新 seed（保留 .disabled）
+9. **marketplace.json `schemaVersion: 1`**：phase 2 演进基础
 
 ## Handoff 策略
 
-每个 task merge 阶段写 `tasks/<id>.handoff.md`，含：实现的接口签名 + 关键文件路径 + 配置增量 + 已知限制 + 下游接入示例（最小 3 行代码）。
+每个 task 完成后产出 `tasks/NNN-*.handoff.md`（≤500 字）：实现摘要 + 文件变更 + 下游须知 + 偏差说明。
 
-## 风险与缓解
+## 验证方案（项目级集成 QA）
 
-| 风险 | 概率/影响 | 缓解 |
-|---|---|---|
-| KeyboardShortcuts SPM 冲突 | 低/中 | task 001 单独验证 SPM resolve |
-| NSPanel canBecomeKey 在 LSUIElement 异常 | 中/高 | task 001 优先验证 |
-| Ollama OpenAI 兼容协议字段差异 | 中/中 | task 002 用 qwen2.5 实测 + Quirks 文档 |
-| 子进程 stdin/stdout buffering | 中/中 | task 004 用 Pipe + readDataToEndOfFile |
-| NSAlert 在浮窗下卡 | 低/中 | task 006 测试 modal 共存，fallback SwiftUI Alert |
-| 流式 markdown 代码块未闭合 | 中/低 | task 003 增量累积 buffer，done 才最终渲染 |
-| **Keychain ad-hoc 签名失效** | 高/高 | task 002 SecretStore 探针自动降级 EncryptedFile |
-| **⌘⇧Space 与 Xcode 冲突** | 高/中 | task 001 探针失败弹录制 UI |
-| **子进程 PATH 无 Homebrew** | 高/高 | task 004 注入扩展 PATH + manifest.requiredPath 预检查 |
+8 个 Tier 1.5 场景，6 个 CLI 自动化 + 2 个 GUI（详见 state.md `## 验证方案`）。
 
-## 关联
-
-完整 design / contract / 12 验收场景在状态文件：
-`.autopilot/runtime/requirements/20260525-新增类似-alfred-这样的/state.md`
+每个 task 自己的 Tier 1.5 在 brief 内定义；项目级集成 QA 在所有 task done 后执行。

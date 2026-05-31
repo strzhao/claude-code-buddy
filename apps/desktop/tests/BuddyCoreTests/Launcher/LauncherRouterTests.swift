@@ -11,7 +11,7 @@ private final class RouterMockProvider: LauncherProvider {
         self.reply = reply
     }
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String?) async throws -> AgentResponse {
         AgentResponse(
             content: [.text(reply)],
             stopReason: "end_turn",

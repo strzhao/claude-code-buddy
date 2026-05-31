@@ -20,7 +20,11 @@ enum ProviderFactory {
                   url.scheme == "http" || url.scheme == "https" else {
                 throw LauncherError.providerNotConfigured
             }
-            return OpenAICompatibleProvider(apiKey: apiKey, baseURL: url)
+            return OpenAICompatibleProvider(
+                apiKey: apiKey,
+                baseURL: url,
+                noThinking: config.noThinking ?? false
+            )
         default:
             throw LauncherError.providerNotConfigured
         }

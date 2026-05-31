@@ -117,6 +117,22 @@ enum LauncherTheme {
             : NSColor(white: 1.0, alpha: 0.55)
     })
 
+    // MARK: - Plugin Watermark Chip tokens
+
+    /// Chip 文字色：低对比度灰色（#6c7a7a / 0.65 opacity）
+    static let chipText = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(red: 0x6c / 255, green: 0x7a / 255, blue: 0x7a / 255, alpha: 0.65)
+            : NSColor(red: 0x6c / 255, green: 0x7a / 255, blue: 0x7a / 255, alpha: 0.65)
+    })
+
+    /// Chip 边框色：rgba(255,255,255,0.16) dark / rgba(0,0,0,0.12) light
+    static let chipBorder = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 1.0, alpha: 0.16)
+            : NSColor(white: 0.0, alpha: 0.12)
+    })
+
     // MARK: - Typography
 
     /// 输入框主字体 22pt rounded（C7 契约）

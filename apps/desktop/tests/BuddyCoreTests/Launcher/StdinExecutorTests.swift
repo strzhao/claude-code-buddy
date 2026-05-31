@@ -1,16 +1,16 @@
 import XCTest
 @testable import BuddyCore
 
-/// 蓝队单测：PluginExecutor 5 个场景（在 tmpDir 用 fixture shell 脚本）
-final class PluginExecutorTests: XCTestCase {
+/// 蓝队单测：StdinExecutor 5 个场景（在 tmpDir 用 fixture shell 脚本）
+final class StdinExecutorTests: XCTestCase {
 
     private var tmpDir: URL!
-    private let executor = PluginExecutor.shared
+    private let executor = StdinExecutor.shared
 
     override func setUp() {
         super.setUp()
         tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("PluginExecutorTests-\(UUID().uuidString)")
+            .appendingPathComponent("StdinExecutorTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 
-final class PluginExecutor {
-    static let shared = PluginExecutor()
+class StdinExecutor {
+    static let shared = StdinExecutor()
 
     init() {}
 

@@ -63,11 +63,6 @@ struct LauncherInputView: View {
                             .padding(.trailing, 14)
                     }
                 }
-
-                // 执行中 3 点脉冲动画（C8 契约）
-                LauncherPulseDots()
-                    .padding(.trailing, LauncherConstants.inputPaddingH)
-                    .opacity(isRunning ? 1 : 0)
             }
             .frame(height: LauncherConstants.inputHeight)
 
@@ -79,7 +74,7 @@ struct LauncherInputView: View {
                 )
             }
 
-            // 底部状态栏（C5 契约）：stage != .idle 时显示
+            // 底部状态栏（C5 契约）：仅 error 时显示「执行失败」；loading 态无任何状态文字
             LauncherStatusFooter(
                 stage: manager.stage,
                 pluginName: manager.lastRoutePluginName
@@ -97,9 +92,11 @@ struct LauncherInputView: View {
 
             // 输出区（有内容时显示）
             if hasOutput {
-                // 1px hairline 分隔线（系统 separatorColor）
-                Color(nsColor: .separatorColor)
+                // 输入行与结果区之间的极淡分隔（曾用系统 separatorColor，在毛玻璃上偏重突兀）。
+                // 改为很淡的 ink hairline + 左右内缩留白，弱化为"气口"而非硬线。
+                LauncherTheme.ink.opacity(0.06)
                     .frame(height: 1)
+                    .padding(.horizontal, LauncherConstants.inputPaddingH)
 
                 ScrollView {
                     if let errOut = errorOutput {
@@ -117,7 +114,8 @@ struct LauncherInputView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
-                .background(LauncherTheme.surface)
+                // 不再盖不透明白底（曾用 LauncherTheme.surface=#fff，浅色下成生硬白方块 + 底部直角，
+                // 遮住毛玻璃与圆角）。改为透明 → 结果区与输入行共用同一块毛玻璃，整面板连续、底部圆角自然。
             }
         } // end VStack
         .frame(
@@ -132,18 +130,32 @@ struct LauncherInputView: View {
             ),
             alignment: .top
         )
-        // 视觉容器：SwiftUI .ultraThinMaterial 原生毛玻璃 (macOS 12+) + innerHighlight 内边框
-        // 注：之前用 NSVisualEffectView 作为 NSHostingView subview 被 SwiftUI 渲染覆盖不可见，
-        // 改用 SwiftUI 原生 Material（底层亦是 NSVisualEffectView）保证在渲染层级正确合成。
+        // 视觉容器：NSVisualEffectView 毛玻璃（跟随 effectiveAppearance）+ innerHighlight 内边框。
+        // 注：曾用 SwiftUI `.ultraThinMaterial`，但其 light/dark 依赖 @Environment(\.colorScheme)，
+        // 在 NSPanel+hidesOnDeactivate 浮窗里传播不可靠 → 浅色模式毛玻璃停留深色发灰、与白色 surface
+        // 错配（见 VisualEffectBackground 注释与 .autopilot/knowledge 2026-05-28 条目）。
+        // 改用 NSVisualEffectView 包装，AppKit 直接按真实外观求值，浅/深色一致。
         // NSVisualEffectView 注入仍保留在 LauncherWindow 中作为 C1 红队契约的结构性兜底。
         .background(
-            RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
-                .fill(.ultraThinMaterial)
+            VisualEffectBackground()
+                .clipShape(RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: LauncherTheme.panelCornerRadius)
                         .strokeBorder(LauncherTheme.innerHighlight, lineWidth: 1)
                 )
         )
+        // loading 态：边框单彗星流光（取代旧的右侧 pulse dots + "正在处理" 文案）。
+        // 流光沿面板既有圆角边框路径流动，整圈只有一条边框线；loading 不再有任何状态文字。
+        .overlay {
+            if isRunning {
+                LauncherLoadingBorder()
+                    .accessibilityElement()
+                    .accessibilityLabel("正在处理")
+                    .accessibilityAddTraits(.updatesFrequently)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: isRunning)
         // 入场 spring 动效（C6 契约）
         .scaleEffect(visible ? 1.0 : 0.96)
         .opacity(visible ? 1.0 : 0.0)
@@ -172,7 +184,6 @@ struct LauncherInputView: View {
         .onDisappear {}
         .onExitCommand { manager.hide() }   // Esc → hide（focus 在 view 内时生效）
         // 上下箭头键导航候选列表：instant 优先，否则原有 lastRoute 逻辑（C5 契约）
-        // task 011：instantActions 非空时，导航 instantSelectedIndex；否则导航 lastRouteSelectedIndex
         .onKeyPress(.upArrow) { navigateUp() }
         .onKeyPress(.downArrow) { navigateDown() }
         // task 011 交互优化：emacs 键位 Ctrl-N（下）/ Ctrl-P（上）。
@@ -281,10 +292,6 @@ struct LauncherInputView: View {
 
     @ViewBuilder
     private func segmentedOutputView(_ segs: [ActionSegment]) -> some View {
-        // 用 FlowLayout-like 思路：连续 .text 合并为 single Text + AttributedString，
-        // .action 以 ActionButton 内联插入。
-        // 实现策略：把所有 .text 段收集成一个大 markdown 再渲染，
-        // ActionButton 出现在文本"断点"处，用 VStack 行排列（简单实用）。
         ActionSegmentsView(segments: segs)
             .padding(.horizontal, LauncherConstants.inputPaddingH)
             .padding(.vertical, 12)
@@ -296,13 +303,6 @@ struct LauncherInputView: View {
 
 extension LauncherInputView {
     /// 三态自适应面板高度公式（C3/C7 契约）
-    /// - Parameters:
-    ///   - candidateCount: AI 路由候选数量
-    ///   - hasSelected: 是否有选中候选（输出态时决定是否额外加 44）
-    ///   - outputHeight: 输出内容高度（0 表示无输出）
-    ///   - hasFooter: 是否有状态栏（额外加 22）
-    ///   - instantCount: task 011 即时内置候选数量（两者时序互斥，取非零者）
-    /// - Returns: 面板内容区高度
     static func panelHeight(
         candidateCount: Int,
         hasSelected: Bool,

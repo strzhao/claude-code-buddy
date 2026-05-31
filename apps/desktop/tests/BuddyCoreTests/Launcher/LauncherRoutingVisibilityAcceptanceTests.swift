@@ -40,7 +40,7 @@ private final class MockSlowAIProvider: LauncherProvider {
         self.delayNs = delayNs
     }
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String?) async throws -> AgentResponse {
         sendCallCount += 1
         // 模拟 AI 路由网络延迟
         try await Task.sleep(nanoseconds: delayNs)

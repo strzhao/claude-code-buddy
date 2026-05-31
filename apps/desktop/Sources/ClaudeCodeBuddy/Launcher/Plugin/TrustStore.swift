@@ -22,17 +22,26 @@ final class TrustStore {
 
     // MARK: - trustKey
 
-    /// trustKey = SHA256(cmd + "\n" + args.joined("\n") + "\n" + sha256(executable_bytes) hex)
-    /// 任何 cmd / args / executable 改动都会使旧信任失效
+    /// mode-aware trustKey:
+    ///   stdin:  "stdin:"  + SHA256(cmd + "\n" + args.joined("\n") + "\n" + sha256(exe_bytes)_hex)
+    ///   prompt: "prompt:" + SHA256(systemPrompt + "\n" + maxIterations + "\n" + modelPart)
+    ///           其中 modelPart = "0" (nil) | "1:\(model)" (非 nil)
+    ///           结构性 tag 区分 nil 与字符串 "default"，避免 ?? 默认值碰撞
+    /// mode 前缀防止跨 mode 伪造；任一字段变化 → trustKey 变化 → NSAlert 重弹
     static func trustKey(for plugin: PluginManifest, executablePath: URL) throws -> String {
-        let cmdPart = plugin.cmd
-        let argsPart = plugin.args.joined(separator: "\n")
-        let exeData = try Data(contentsOf: executablePath)
-        let exeHash = SHA256.hash(data: exeData)
-        let exeHashHex = exeHash.compactMap { String(format: "%02x", $0) }.joined()
-        let combined = "\(cmdPart)\n\(argsPart)\n\(exeHashHex)"
-        let digest = SHA256.hash(data: Data(combined.utf8))
-        return digest.compactMap { String(format: "%02x", $0) }.joined()
+        switch plugin.modeConfig {
+        case .stdin(let cfg):
+            let exeData = try Data(contentsOf: executablePath)
+            let exeHashHex = SHA256.hash(data: exeData).hexString
+            let argsPart = cfg.args.joined(separator: "\n")
+            let combined = "\(cfg.cmd)\n\(argsPart)\n\(exeHashHex)"
+            return "stdin:" + SHA256.hash(data: Data(combined.utf8)).hexString
+        case .prompt(let cfg):
+            // 结构性 tag：nil → "0", 非 nil → "1:value"，避免 nil 与字符串 "default" 等碰撞
+            let modelPart = cfg.model.map { "1:\($0)" } ?? "0"
+            let combined = "\(cfg.systemPrompt)\n\(cfg.maxIterations)\n\(modelPart)"
+            return "prompt:" + SHA256.hash(data: Data(combined.utf8)).hexString
+        }
     }
 
     // MARK: - Public API
@@ -105,5 +114,19 @@ final class TrustStore {
         let data = try encoder.encode(schema)
         try data.write(to: file)
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+    }
+}
+
+// MARK: - addRecord（B2 修复：必须同文件 extension 才能访问 private loadRecords/saveRecords）
+
+extension TrustStore {
+    /// 直接追加 TrustRecord（用于 MarketplaceManager.migrateLegacy 时保留旧 trustKey + approvedAt）。
+    ///
+    /// 同名 pluginName 旧记录覆盖（与 approve 行为一致）。
+    func addRecord(_ record: TrustRecord) throws {
+        var records = (try? loadRecords()) ?? []
+        records.removeAll { $0.pluginName == record.pluginName }
+        records.append(record)
+        try saveRecords(records)
     }
 }

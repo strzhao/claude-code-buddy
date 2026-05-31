@@ -16,6 +16,10 @@ final class LauncherManager: ObservableObject {
     /// 当前 calling/streaming 阶段使用的插件名（供 LauncherStatusFooter 显示）
     @Published private(set) var lastRoutePluginName: String?
 
+    /// 当前激活的插件名（chip 水印显示用）：仅在 calling/streaming 阶段非 nil
+    /// 派生自 stage + lastRoutePluginName（chip 测试通过此属性观察）
+    @Published private(set) var activePluginName: String?
+
     private lazy var launcherWindow: LauncherWindow = makeWindow()
     private var hostingController: LauncherHostingController?
     private var resignKeyObserver: NSObjectProtocol?
@@ -61,7 +65,28 @@ final class LauncherManager: ObservableObject {
     /// 测试注入点（SUGGESTION-1）：覆盖 debounce 毫秒数（测试置 0 跳过等待）
     var instantDebounceMsOverride: Int?
 
-    private init() {}
+    /// Combine 订阅持有（activePluginName 自动同步）
+    private var syncCancellables = Set<AnyCancellable>()
+
+    private init() {
+        // 自动同步 activePluginName：stage 或 lastRoutePluginName 变化时重算
+        Publishers.CombineLatest($stage, $lastRoutePluginName)
+            .map { stage, name -> String? in
+                guard stage == .calling || stage == .streaming else { return nil }
+                return name
+            }
+            .assign(to: \.activePluginName, on: self)
+            .store(in: &syncCancellables)
+    }
+
+    #if DEBUG
+    /// Test seam: 直接驱动 chip / 候选行隐藏路径所需的派生状态。
+    /// 仅限 @testable XCTest 使用；生产代码绝不可调用。
+    func _testSetActivePluginState(stage: LauncherStage, name: String?) {
+        self.stage = stage
+        self.lastRoutePluginName = name
+    }
+    #endif
 
     /// 测试用：重置共享单例的提交相关状态（isSubmitting + stage）。
     /// LauncherManager.shared 是跨测试共享的单例：submit() 入口有 `isSubmitting` 再入守卫
@@ -111,9 +136,20 @@ final class LauncherManager: ObservableObject {
             }
         }
 
-        // task 010 retry 2：停用 builtin-hello 自动安装
-        // 原因：示例插件 description 中通用词 (stdin/stdout/markdown/示例) 让 narrow 算法
-        // 在大量无关 query 下都把它排到候选首位，干扰真实使用。需要 demo 时用户手动 add 即可。
+        // task 006: 注入 MarketHUD.shared（生产唯一注入点；同实例多次调用 no-op）
+        MarketplaceManager.shared.configureHUD(MarketHUD.shared)
+
+        // task 003 (market) 切换：MarketplaceManager 替换 installBundledPlugins
+        // 顺序：先 migrateLegacy 老用户路径 → seedFromBundle 离线 fallback → syncFromRemote 后台拉
+        Task.detached {
+            do {
+                try MarketplaceManager.shared.migrateLegacy()
+                try await MarketplaceManager.shared.seedFromBundle()
+                await MarketplaceManager.shared.syncFromRemote()
+            } catch {
+                NSLog("[Launcher] marketplace setup failed: \(error)")
+            }
+        }
 
         // task 011：触发 AppIndex 首次后台扫描（fire-and-forget，不阻塞 UI）
         AppIndex.shared.refreshIfStale(ttl: 0)
@@ -183,8 +219,15 @@ final class LauncherManager: ObservableObject {
         guard !query.isEmpty else {
             instantActions = []
             instantSelectedIndex = -1
+            // 清空输入 → chip 立即消失
+            lastRoutePluginName = nil
             return
         }
+        // 同步 narrow：让 chip 在用户输入命中 keyword 瞬间就显示（不等 submit）
+        let plugins = (try? PluginManager.shared.list()) ?? []
+        let narrowed = LauncherRouter.narrowCandidates(query: query, plugins: plugins)
+        lastRoutePluginName = narrowed.first?.name
+
         let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
         let registry = registryOverride ?? BuiltinPluginRegistry.shared
         debounceTask = Task { @MainActor [weak self] in
@@ -372,8 +415,8 @@ final class LauncherManager: ObservableObject {
                 }
 
                 // 构造 tools 和 toolExecutor
-                let tools: [AgentTool]
-                let toolExecutor: (String, [String: AnyCodable]) async throws -> String
+                var tools: [AgentTool] = []
+                var toolExecutor: (String, [String: AnyCodable]) async throws -> String = { _, _ in throw LauncherError.providerNotConfigured }
 
                 switch decision {
                 case .directChat:
@@ -381,31 +424,73 @@ final class LauncherManager: ObservableObject {
                     toolExecutor = { _, _ in throw LauncherError.providerNotConfigured }
 
                 case .withPlugin(let manifest):
-                    tools = [manifest.toAgentTool()]
-                    toolExecutor = { name, input in
-                        guard name == manifest.name else {
-                            throw LauncherError.pluginNotFound(name)
+                    // trust check 提前到 mode 分支之前（stdin/prompt 都做）
+                    let dir = try PluginManager.shared.pluginDir(for: manifest)
+                    let executablePath = dir.appending(path: manifest.cmd)
+                    let trusted = await TrustStore.shared.checkAndPrompt(
+                        manifest, executablePath: executablePath
+                    )
+                    guard trusted else {
+                        continuation.yield(.error(.pluginNotTrusted(manifest.name)))
+                        continuation.finish()
+                        return
+                    }
+
+                    switch manifest.modeConfig {
+                    case .stdin:
+                        // 现有路径：toolExecutor 闭包 + LauncherAgent loop
+                        tools = [manifest.toAgentTool()]
+                        toolExecutor = { name, input in
+                            guard name == manifest.name else {
+                                throw LauncherError.pluginNotFound(name)
+                            }
+                            let pluginInput = PluginInput(
+                                query: input["query"]?.value as? String ?? query,
+                                sessionId: UUID().uuidString,
+                                cwd: NSHomeDirectory()
+                            )
+                            let result = try await PluginDispatcher.shared.execute(
+                                manifest,
+                                pluginDir: dir,
+                                input: pluginInput
+                            )
+                            return result.stdout
                         }
-                        // task 006: trust check（TOFU）
-                        let dir = try PluginManager.shared.pluginDir(for: manifest)
-                        let executablePath = dir.appending(path: manifest.cmd)
-                        let trusted = await TrustStore.shared.checkAndPrompt(
-                            manifest, executablePath: executablePath
-                        )
-                        guard trusted else {
-                            throw LauncherError.pluginNotTrusted(manifest.name)
-                        }
+                        // 继续走下面 LauncherAgent.run
+
+                    case .prompt:
+                        // prompt mode bypass agent loop：直接调 PromptExecutor，结果映射为 AgentEvent.text
+                        let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
+                        let dispatcher = PluginDispatcher(stdinExecutor: .shared, promptExecutor: promptExecutor)
+                        // strip 命中 keyword 前缀（如 "tr buddy" → "buddy"），避免 LLM 把 keyword 当 query
+                        let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
                         let pluginInput = PluginInput(
-                            query: input["query"]?.value as? String ?? query,
+                            query: strippedQuery,
                             sessionId: UUID().uuidString,
                             cwd: NSHomeDirectory()
                         )
-                        let result = try await PluginExecutor.shared.execute(
-                            manifest,
-                            pluginDir: dir,
-                            input: pluginInput
-                        )
-                        return result.stdout
+                        do {
+                            let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
+                            if result.exitCode == 0 {
+                                continuation.yield(.text(result.stdout))
+                            } else {
+                                // 错误时 stderr 作为用户可见文本展示（含"执行超时" / "执行失败:"）
+                                continuation.yield(.text(result.stderr))
+                            }
+                            continuation.yield(.done(reason: "end_turn"))
+                        } catch let err as LauncherError {
+                            continuation.yield(.error(err))
+                        } catch {
+                            continuation.yield(.error(.networkFailure(error)))
+                        }
+                        // D2 bug fix: prompt mode 完成后 stage 必须归 .idle，否则 TextField 永远 disabled
+                        // 注：lastRoutePluginName 保留到下次 submit/hide，让 chip 在结果展示期间持续显示
+                        await MainActor.run {
+                            LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.isSubmitting = false
+                        }
+                        continuation.finish()
+                        return // prompt mode 提前 return，跳过 LauncherAgent.run
                     }
                 }
 
@@ -428,7 +513,7 @@ final class LauncherManager: ObservableObject {
                     if case .done = event {
                         await MainActor.run {
                             LauncherManager.shared.stage = .idle
-                            LauncherManager.shared.lastRoutePluginName = nil
+                            // lastRoutePluginName 保留到下次 submit/hide
                             LauncherManager.shared.isSubmitting = false
                         }
                     }
@@ -444,7 +529,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
-                        LauncherManager.shared.lastRoutePluginName = nil
+                        // lastRoutePluginName 保留到下次 submit/hide
                     }
                     LauncherManager.shared.isSubmitting = false
                 }
@@ -517,7 +602,7 @@ final class LauncherManager: ObservableObject {
                         sessionId: UUID().uuidString,
                         cwd: NSHomeDirectory()
                     )
-                    let result = try await PluginExecutor.shared.execute(
+                    let result = try await PluginDispatcher.shared.execute(
                         manifest,
                         pluginDir: dir,
                         input: pluginInput
@@ -542,7 +627,7 @@ final class LauncherManager: ObservableObject {
                     if case .done = event {
                         await MainActor.run {
                             LauncherManager.shared.stage = .idle
-                            LauncherManager.shared.lastRoutePluginName = nil
+                            // lastRoutePluginName 保留到下次 submit/hide
                         }
                     }
                     if case .error = event {
@@ -553,7 +638,7 @@ final class LauncherManager: ObservableObject {
                     if LauncherManager.shared.stage == .streaming ||
                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
-                        LauncherManager.shared.lastRoutePluginName = nil
+                        // lastRoutePluginName 保留到下次 submit/hide
                     }
                 }
                 continuation.finish()
@@ -568,5 +653,30 @@ final class LauncherManager: ObservableObject {
             continuation.yield(.error(err))
             continuation.finish()
         }
+    }
+
+    /// Strip 命中 plugin 的 keyword 前缀（含 manifest.name），让 LLM 只看到真实查询内容。
+    /// 示例：query="tr buddy", manifest.keywords=["tr","translate","翻译"] → 返回 "buddy"
+    /// 长前缀优先匹配（避免 "translator" 被 "tr" 错切）。无前缀命中时返回原 query。
+    nonisolated static func stripKeywordPrefix(_ query: String, manifest: PluginManifest) -> String {
+        let candidates = ([manifest.name] + manifest.keywords)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .sorted { $0.count > $1.count }
+        let queryLower = query.lowercased()
+        for prefix in candidates {
+            let prefixLower = prefix.lowercased()
+            guard queryLower.hasPrefix(prefixLower) else { continue }
+            // 严格分隔：前缀后必须紧跟空白 / 标点 / 行尾，避免 "trace" 被 "tr" 错切
+            let after = query.index(query.startIndex, offsetBy: prefix.count)
+            if after == query.endIndex {
+                return ""  // query 就是 keyword 本身
+            }
+            let nextChar = query[after]
+            if nextChar.isWhitespace || nextChar.isPunctuation {
+                return String(query[after...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return query
     }
 }

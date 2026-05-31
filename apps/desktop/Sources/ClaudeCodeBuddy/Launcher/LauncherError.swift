@@ -10,6 +10,7 @@ enum LauncherError: Error, LocalizedError {
     case secretStoreUnavailable
     // task 003 追加：
     case maxIterations
+    case promptExecutorNotAvailable
     // task 004 追加：
     case pluginNotFound(String)
     case pluginMissingDependency(String)
@@ -18,6 +19,8 @@ enum LauncherError: Error, LocalizedError {
     case pluginManifestInvalid(String)
     // task 006 追加：
     case pluginNotTrusted(String)
+    // task 002 (market) 追加：PluginSourceResolver 用
+    case pluginInvalid(String)
     // task 011 追加（内置插件直接动作管线）：
     case appLaunchFailed(String)   // C9 契约：携带 app 名/路径，中文文案
     // task 012 追加（系统命令插件）：
@@ -39,6 +42,8 @@ enum LauncherError: Error, LocalizedError {
             return "无法安全存储 API key，请检查 ~/.buddy/ 权限"
         case .maxIterations:
             return "Agent 循环达到最大迭代次数（默认 10），可能存在递归 tool_use；请简化查询重试"
+        case .promptExecutorNotAvailable:
+            return "prompt mode plugin 无法执行：PromptExecutor 未实现（task 004）"
         case .pluginNotFound(let name):
             return "插件 \(name) 未安装"
         case .pluginMissingDependency(let bin):
@@ -51,6 +56,8 @@ enum LauncherError: Error, LocalizedError {
             return "plugin.json 格式无效：\(reason)"
         case .pluginNotTrusted(let name):
             return "插件 \(name) 未获信任授权，已拒绝执行"
+        case .pluginInvalid(let reason):
+            return "插件无效：\(reason)"
         case .appLaunchFailed(let nameOrPath):
             return "无法启动应用 \(nameOrPath)，请检查应用是否已安装或未被删除"
         case .systemCommandFailed(let name):

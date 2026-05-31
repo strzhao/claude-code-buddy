@@ -10,7 +10,7 @@ enum RouteDecision: Equatable {
 final class LauncherRouter {
     private let pluginManager: PluginManager
     private let provider: LauncherProvider
-    /// 复用 chatModel（LauncherProvider 不暴露 system 字段，routerModel = chatModel）
+    /// 复用 chatModel（routerModel = chatModel，system 走 send 参数）
     private let routerModel: String
 
     /// 测试用：覆盖 pluginManager.list() 的返回值（SC-13/SC-14 注入固定候选列表）
@@ -22,12 +22,19 @@ final class LauncherRouter {
         self.routerModel = routerModel
     }
 
-    /// 主入口 wrapper：keyword 缩候选 → AI 选 1（保留兼容旧调用路径）
+    /// 主入口 wrapper：keyword 缩候选 → 短路判断 → 必要时 AI 选 1
     func route(query: String) async throws -> (decision: RouteDecision, candidates: [PluginManifest]) {
-        let candidates = narrowCandidates(query)
-        if candidates.isEmpty { return (.directChat, []) }
-        let decision = try await pickWithAI(query: query, from: candidates)
-        return (decision, candidates)
+        let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
+        let scored = Self.narrowCandidatesScored(query: query, plugins: plugins)
+        if scored.isEmpty { return (.directChat, []) }
+        let top = scored[0]
+        let isUnique = scored.count == 1
+        let isStrong = top.score >= LauncherConstants.routerSkipScore
+        if isUnique || isStrong {
+            return (.withPlugin(top.manifest), scored.map(\.manifest))
+        }
+        let decision = try await pickWithAI(query: query, from: scored.map(\.manifest))
+        return (decision, scored.map(\.manifest))
     }
 
     /// 第 1 阶段：keyword 缩候选（同步纯函数，几 ms）
@@ -35,11 +42,27 @@ final class LauncherRouter {
     /// pluginsOverride 非 nil 时跳过 pluginManager（用于测试注入固定候选列表）
     func narrowCandidates(_ query: String) -> [PluginManifest] {
         let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
-        return narrowCandidates(query: query, plugins: plugins)
+        return Self.narrowCandidates(query: query, plugins: plugins)
+    }
+
+    /// 第 1 阶段（实例重载）：接受外部 plugins 列表，供测试注入（通过实例调用）
+    /// 转发到静态版本，保持向后兼容（旧测试使用 router.narrowCandidates(query:plugins:)）
+    func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+        return Self.narrowCandidates(query: query, plugins: plugins)
     }
 
     /// 第 1 阶段（内部重载）：接受外部 plugins 列表，供测试注入
-    func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+    /// 静态化：不用 self，供其他模块（LauncherManager.updateQuery）直接调
+    static func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
+        return narrowCandidatesScored(query: query, plugins: plugins).map(\.manifest)
+    }
+
+    /// 带得分的候选列表（保留排序），供路由短路判断使用
+    /// score >= LauncherConstants.routerSkipScore 时直接命中，无需 AI 路由
+    static func narrowCandidatesScored(
+        query: String,
+        plugins: [PluginManifest]
+    ) -> [(manifest: PluginManifest, score: Int)] {
         // 按 ASCII 标点分割；unicode > 127（中文/CJK 等）不作分隔符，整段保留
         let queryTokens = query.lowercased()
             .split(whereSeparator: { c in
@@ -76,7 +99,7 @@ final class LauncherRouter {
         return scored.filter { $0.1 > 0 }
             .sorted { $0.1 > $1.1 }
             .prefix(LauncherConstants.routerMaxCandidates)
-            .map { $0.0 }
+            .map { (manifest: $0.0, score: $0.1) }
     }
 
     /// 第 2 阶段（公开接口）：AI 选 1（C3 契约）
@@ -86,10 +109,7 @@ final class LauncherRouter {
 
     /// 第 2 阶段：AI 选 1（异步，调一次 provider.send，无 tools）
     ///
-    /// **system prompt 通过 user message 前缀传递**：
-    /// LauncherProvider.send 协议不暴露独立 system 字段（task 002 设计），
-    /// 故将 system prompt 嵌入 user message 首段，再追加 "User query: ..."。
-    /// Trade-off：claude-haiku/sonnet 对此差异不显著；用"Reply ONLY with..."强约束输出。
+    /// system prompt 通过 send 的 system 参数传递，user message 仅包含原始 query。
     func aiSelect(query: String, candidates: [PluginManifest]) async throws -> RouteDecision {
         guard !candidates.isEmpty else { return .directChat }
         let candidateLines = candidates.map { p in
@@ -102,9 +122,8 @@ final class LauncherRouter {
 
         Reply ONLY with the plugin name (e.g. "translate"), or "NONE" for direct chat. No other text.
         """
-        let combinedPrompt = systemPrompt + "\n\nUser query: " + query
-        let messages: [AgentMessage] = [.init(role: "user", content: [.text(combinedPrompt)])]
-        let resp = try await provider.send(messages: messages, tools: [], model: routerModel)
+        let messages: [AgentMessage] = [.init(role: "user", content: [.text(query)])]
+        let resp = try await provider.send(messages: messages, tools: [], model: routerModel, system: systemPrompt)
 
         let answer = resp.content.compactMap { c -> String? in
             if case .text(let s) = c { return s }

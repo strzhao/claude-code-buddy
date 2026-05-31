@@ -4,7 +4,8 @@ struct LauncherInputView: View {
     @ObservedObject var manager: LauncherManager
     @State private var query: String = ""
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
-    @State private var rendered: AttributedString?          // 渲染后 markdown
+    @State private var segments: [ActionSegment]?           // 预处理后的 segment 列表
+    @State private var errorOutput: AttributedString?       // 仅用于 .error 路径
     @State private var visible: Bool = false                // 入场动画状态（C6 契约）
     @FocusState private var focused: Bool
 
@@ -13,26 +14,55 @@ struct LauncherInputView: View {
         manager.stage != .idle && manager.stage != .error
     }
 
+    /// 是否有可见输出（segments 非空 or 有错误输出）
+    private var hasOutput: Bool {
+        !(segments?.isEmpty ?? true) || errorOutput != nil
+    }
+
+    /// 命中的 plugin 名字（chip 水印显示用）
+    /// 直接跟随 manager.lastRoutePluginName（updateQuery 同步算 narrow 维护，
+    /// 用户清空输入 → updateQuery 把它设 nil → chip 自动消失）
+    private var activePluginName: String? {
+        manager.lastRoutePluginName
+    }
+
+    /// 内置 App 候选（AppLauncher 用）是否显示：safe period 且无结果展示
+    /// 外部 plugin 候选行已完全去掉（用 chip 水印替代）
+    private var showInstantCandidates: Bool {
+        guard !hasOutput else { return false }
+        return manager.stage == .idle || manager.stage == .narrowing || manager.stage == .routing
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 输入区（固定 inputHeight=64，让 TextField 内 SwiftUI 自动垂直居中）
             HStack(spacing: 8) {
-                TextField("搜索插件、运行命令、或直接提问…", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(LauncherTheme.bodyText)
-                    .foregroundStyle(LauncherTheme.ink)
-                    .padding(.horizontal, LauncherConstants.inputPaddingH)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .focused($focused)
-                    .disabled(isRunning)
-                    .onSubmit { Task { await submit() } }
-                    .onChange(of: query) { _, new in
-                        if new.count > LauncherConstants.maxQueryLength {
-                            query = String(new.prefix(LauncherConstants.maxQueryLength))
+                ZStack(alignment: .trailing) {
+                    TextField("搜索插件、运行命令、或直接提问…", text: $query)
+                        .textFieldStyle(.plain)
+                        .font(LauncherTheme.bodyText)
+                        .foregroundStyle(LauncherTheme.ink)
+                        .padding(.horizontal, LauncherConstants.inputPaddingH)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .focused($focused)
+                        .disabled(isRunning)
+                        .onSubmit { Task { await submit() } }
+                        .onChange(of: query) { _, new in
+                            if new.count > LauncherConstants.maxQueryLength {
+                                query = String(new.prefix(LauncherConstants.maxQueryLength))
+                            }
+                            // task 011：即时候选管线 — 每次输入变化触发 debounce 搜索
+                            // updateQuery 内部已经维护 lastRoutePluginName（chip 信号源）
+                            // 不在这里清 segments — 让 .done 后 query="" 不会瞬间擦掉结果
+                            manager.updateQuery(new)
                         }
-                        // task 011：即时候选管线 — 每次输入变化触发 debounce 搜索
-                        manager.updateQuery(new)
+
+                    // Plugin watermark chip — 显示命中的 plugin 名称
+                    if let pluginName = activePluginName {
+                        PluginWatermarkChip(name: pluginName)
+                            .padding(.trailing, 14)
                     }
+                }
 
                 // 执行中 3 点脉冲动画（C8 契约）
                 LauncherPulseDots()
@@ -41,17 +71,11 @@ struct LauncherInputView: View {
             }
             .frame(height: LauncherConstants.inputHeight)
 
-            // 候选区：instant 与 route 分时显示（时序互斥）
-            // task 011：instantActions 非空时显示内置 App 候选；否则显示 AI 路由外部 CLI 候选
-            if !manager.instantActions.isEmpty {
+            // 内置 App 候选（AppLauncher）保留；外部 plugin 候选行已删（用 chip 水印替代）
+            if showInstantCandidates && !manager.instantActions.isEmpty {
                 LauncherInstantCandidateView(
                     actions: manager.instantActions,
                     selectedIndex: manager.instantSelectedIndex
-                )
-            } else {
-                LauncherCandidateView(
-                    candidates: manager.lastRouteCandidates,
-                    selectedIndex: manager.lastRouteSelectedIndex
                 )
             }
 
@@ -72,19 +96,25 @@ struct LauncherInputView: View {
             }
 
             // 输出区（有内容时显示）
-            if let out = rendered {
+            if hasOutput {
                 // 1px hairline 分隔线（系统 separatorColor）
                 Color(nsColor: .separatorColor)
                     .frame(height: 1)
 
                 ScrollView {
-                    Text(out)
-                        .font(LauncherTheme.outputBody)
-                        .foregroundStyle(LauncherTheme.ink)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, LauncherConstants.inputPaddingH)
-                        .padding(.vertical, 12)
+                    if let errOut = errorOutput {
+                        // 错误路径：单一 AttributedString
+                        Text(errOut)
+                            .font(LauncherTheme.outputBody)
+                            .foregroundStyle(LauncherTheme.ink)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, LauncherConstants.inputPaddingH)
+                            .padding(.vertical, 12)
+                    } else if let segs = segments {
+                        // 正常路径：ActionSegment 流式渲染
+                        segmentedOutputView(segs)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
                 .background(LauncherTheme.surface)
@@ -93,11 +123,12 @@ struct LauncherInputView: View {
         .frame(
             width: LauncherConstants.windowWidth,
             height: LauncherInputView.panelHeight(
-                candidateCount: manager.lastRouteCandidates.count,
-                hasSelected: manager.lastRouteSelectedIndex >= 0,
-                outputHeight: rendered != nil ? LauncherConstants.outputMaxHeight : 0,
+                // 外部 plugin 候选行已删除，永远不占高度
+                candidateCount: 0,
+                hasSelected: false,
+                outputHeight: hasOutput ? LauncherConstants.outputMaxHeight : 0,
                 hasFooter: manager.stage == .error,
-                instantCount: manager.instantActions.count
+                instantCount: showInstantCandidates ? manager.instantActions.count : 0
             ),
             alignment: .top
         )
@@ -124,15 +155,17 @@ struct LauncherInputView: View {
             focused = true
             query = ""
             outputBuffer = ""
-            rendered = nil
+            segments = nil
+            errorOutput = nil
         }
         // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
-        // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/rendered
+        // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/segments
         .onChange(of: manager.isVisible) { _, isNowVisible in
             if isNowVisible {
                 query = ""
                 outputBuffer = ""
-                rendered = nil
+                segments = nil
+                errorOutput = nil
                 focused = true
             }
         }
@@ -193,7 +226,8 @@ struct LauncherInputView: View {
         await MainActor.run {
             manager.clearInstantActions()
             outputBuffer = ""
-            rendered = nil
+            segments = nil
+            errorOutput = nil
         }
 
         // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约，原有外部 CLI 分支）
@@ -215,19 +249,19 @@ struct LauncherInputView: View {
             case .text(let s):
                 await MainActor.run {
                     outputBuffer += s
-                    rendered = MarkdownRenderer.render(outputBuffer)
+                    segments = MarkdownActionParser.preprocess(outputBuffer)
                 }
             case .toolCall(let name, _):
                 await MainActor.run {
                     outputBuffer += "\n> 🔧 调用工具 `\(name)`...\n"
-                    rendered = MarkdownRenderer.render(outputBuffer)
+                    segments = MarkdownActionParser.preprocess(outputBuffer)
                 }
             case .toolResult(let name, let output, let isError):
                 await MainActor.run {
                     outputBuffer += isError
                         ? "\n> ❌ \(name): \(output)\n"
                         : "\n> ✅ \(name) →\n```\n\(output)\n```\n"
-                    rendered = MarkdownRenderer.render(outputBuffer)
+                    segments = MarkdownActionParser.preprocess(outputBuffer)
                 }
             case .done:
                 await MainActor.run {
@@ -236,11 +270,25 @@ struct LauncherInputView: View {
                 }
             case .error(let err):
                 await MainActor.run {
-                    rendered = MarkdownRenderer.renderError(err)
+                    errorOutput = MarkdownRenderer.renderError(err)
                     focused = true   // 出错后也重新聚焦，方便重试
                 }
             }
         }
+    }
+
+    // MARK: - Segment-based output rendering
+
+    @ViewBuilder
+    private func segmentedOutputView(_ segs: [ActionSegment]) -> some View {
+        // 用 FlowLayout-like 思路：连续 .text 合并为 single Text + AttributedString，
+        // .action 以 ActionButton 内联插入。
+        // 实现策略：把所有 .text 段收集成一个大 markdown 再渲染，
+        // ActionButton 出现在文本"断点"处，用 VStack 行排列（简单实用）。
+        ActionSegmentsView(segments: segs)
+            .padding(.horizontal, LauncherConstants.inputPaddingH)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

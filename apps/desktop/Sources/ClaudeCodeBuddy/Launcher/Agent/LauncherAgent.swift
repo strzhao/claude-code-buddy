@@ -45,7 +45,7 @@ final class LauncherAgent {
 
                     let resp: AgentResponse
                     do {
-                        resp = try await provider.send(messages: messages, tools: tools, model: model)
+                        resp = try await provider.send(messages: messages, tools: tools, model: model, system: nil)
                     } catch let err as LauncherError {
                         continuation.yield(.error(err))
                         continuation.finish()

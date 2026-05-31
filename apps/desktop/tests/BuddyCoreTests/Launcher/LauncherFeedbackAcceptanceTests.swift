@@ -35,7 +35,7 @@ private final class MockFeedbackProvider: LauncherProvider {
         )
     )
 
-    func send(messages: [AgentMessage], tools: [AgentTool], model: String) async throws -> AgentResponse {
+    func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String?) async throws -> AgentResponse {
         sendCallCount += 1
         if delayNanoseconds > 0 {
             try await Task.sleep(nanoseconds: delayNanoseconds)

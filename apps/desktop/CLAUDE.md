@@ -37,7 +37,7 @@ Sources/
 │   │   ├── Provider/   # LauncherProvider 协议 + AnthropicProvider + OpenAICompatibleProvider + ProviderFactory
 │   │   ├── Config/     # SecretStore(Keychain→EncryptedFile 探针降级) + LauncherConfig JSON
 │   │   ├── Agent/      # LauncherAgent(永远 loop+tool_use 早停) + AgentEvent enum + AgentMessage/AgentTool/AnyCodable
-│   │   ├── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + PluginExecutor(Process子进程) + PluginManifest(Codable schema)
+│   │   ├── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + StdinExecutor(Process子进程) + PluginDispatcher(mode分发) + PluginManifest(Codable schema)
 │   │   │               # + PluginManifest+AgentTool.swift (toAgentTool() extension，inputSchema 含顶层 type:object)
 │   │   ├── LauncherRouter.swift          # keyword 缩候选(routerMaxCandidates=5) + aiSelect 选 1 → RouteDecision
 │   │   ├── LauncherCandidateView.swift   # SwiftUI 候选列表展示（嵌入 LauncherInputView）
@@ -97,6 +97,31 @@ Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**
 - Emacs 键位：`Ctrl-N` 下 / `Ctrl-P` 上，在候选列表导航
 - 选中高亮：纯色 sage pill（light #3a7d68 / dark #52a688，alpha 0.92），无竖条边框
 - 中文 App 可用英文名搜索（见上方多别名索引）
+
+### 翻译插件增强（task 012）
+
+**有道词典级体验**：智能场景路由 + TTS 朗读 + 复制 + 水印 chip。
+
+**Action 标签系统**（`Launcher/Action/`）：
+- LLM 输出嵌入 `<action:speak text="..."/>` / `<action:copy text="..."/>` 标签
+- `MarkdownActionParser`：将标签解析为 `ActionSegment` 枚举值，拼装 `ActionSegmentsView`（SwiftUI 行内 Button）
+- `ActionButton`：统一样式的操作按钮（SF Symbol + 文字）
+
+**服务层**（`Launcher/Service/`）：
+- `SpeechService`：基于 `AVSpeechSynthesizer`，朗读英文 TTS（`AVSpeechUtterance` rate/pitchMultiplier/volume 调优）
+- `CopyService`：基于 `NSPasteboard`，一键写入剪贴板
+
+**候选行 UI 改造**：
+- 删除外部 plugin 候选行渲染逻辑（LauncherCandidateView 不再渲染 plugin mode 候选）
+- 改为 `PluginWatermarkChip`（`Launcher/PluginWatermarkChip.swift`）：右上角水印 chip 样式，显示当前插件名
+
+**translate plugin.json（v0.5.0）**（task 013 性能优化）：
+- **P0 thinking off**：Qwen3 等推理模型通过 `chat_template_kwargs.enable_thinking=false` 关闭 CoT，top-level/user-flag 均被服务端忽略，只有此通道生效。TTFT 从 24.5s 降至 0.038s（645×）
+- **P0.1 Router 短路**：唯一命中或 score≥10(`routerSkipScore`) 时跳过 router LLM call，明确场景 LLM 调用 2→1
+- **P0.5 极简 prompt**：`systemPrompt` 从 1273 字 5-few-shot 改为 157 字"查字典助手"风格，模型自由输出常用译义+例句，输出质量从 208 字提升至 1666 字
+- **P1 SSE 流式**：`OpenAICompatibleProvider` 加 `sendStream + parseSSELines`，`PromptExecutor` 改逐 chunk emit，`LauncherProvider` 协议加 `sendStream + ProviderChunk` enum
+- **fix MarkdownRenderer**：加 `preprocessBlockMarkdown`（`###`→粗体、`-/*`→`•`、`---`→`─────`），修复 inline-only parsing 不消化 block markdown 的既存 bug
+- 测试：41 个测试新增/更新，全部 0.013s 全绿
 
 ### 用户配置
 

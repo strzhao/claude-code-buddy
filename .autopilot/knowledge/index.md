@@ -121,3 +121,7 @@
 
 ## 2026-05-31 launcher 锁屏系统命令 新增条目
 - [2026-05-31] macOS 锁屏首选 login.framework 私有 API SACLockScreenImmediate（dlopen/dlsym 零 TCC 权限），优于需辅助功能授权的 AppleScript ⌃⌘Q / 语义不达标的 pmset；系统动作走可注入 ScreenLocking seam + 真机冒烟验证 | tags: macos, screen-lock, private-api, login-framework, saclockscreenimmediate, dlopen, dlsym, tcc, applescript, launcher, builtin-plugin, system-command, seam | → patterns/2026-05-31-macos-screen-lock-private-api.md
+
+## 2026-05-31 launcher 边框流光 loading 新增条目
+- [2026-05-31] SwiftUI 圆角边框流光用周长弧长参数化+单次stroke沿线linearGradient（禁AngularGradient防宽扁矩形假双线、禁多段stroke防珠链） | tags: swiftui, canvas, border-beam, comet, arc-length, linear-gradient, angular-gradient, launcher, loading, timelineview, perimeter | → patterns/2026-05-31-swiftui-border-comet-arc-length.md
+- [2026-05-31] 修正：.ultraThinMaterial 在 NSPanel+hidesOnDeactivate 浮窗浅色模式渲染异常（colorScheme environment 传播不可靠），改用 NSVisualEffectView 的 NSViewRepresentable 包装(appearance=nil)按 effectiveAppearance 求值 | tags: swiftui, nsvisualeffectview, ultrathinmaterial, nsviewrepresentable, colorscheme, effectiveappearance, nspanel, hidesondeactivate, light-mode, launcher, glassmorphism | → patterns/2026-05-29-swiftui-material-vs-nsvisualeffectview-injection.md

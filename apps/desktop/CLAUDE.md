@@ -69,7 +69,9 @@ Sources/
 
 Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**与像素猫互不干扰**（独立 NSPanel + 独立配置目录 `~/.buddy/` + 静态隔离测试 SC-10）。
 
-**视觉风格（task 010）**: Apple HIG / Raycast 风格。NSVisualEffectView (.menu) + SwiftUI .ultraThinMaterial 双层毛玻璃，16pt 圆角，spring 入场动画，SF Symbol 选中指示器（chevron.right.fill + 左侧 sage Capsule 竖条），全 .rounded 字体规范。
+**视觉风格（task 010）**: Apple HIG / Raycast 风格。`VisualEffectBackground`（NSVisualEffectView .menu/.behindWindow 的 SwiftUI 包装）单层毛玻璃，16pt 圆角，spring 入场动画，SF Symbol 选中指示器（chevron.right.fill + 左侧 sage Capsule 竖条），全 .rounded 字体规范。**注**：曾用 SwiftUI `.ultraThinMaterial`，但其 light/dark 依赖 `@Environment(\.colorScheme)`，在 NSPanel+`hidesOnDeactivate` 浮窗里传播不可靠，浅色模式整块渲染异常（毛玻璃发灰、结果区白方块）；改用 `NSVisualEffectView` 按 `effectiveAppearance` 求值，浅深色一致。结果输出区透明、与输入行共用同一块毛玻璃。
+
+**Loading 反馈**: 回车执行时不再有外挂 pulse dots / 「正在处理」文案，改为 `LauncherLoadingBorder` —— 沿面板圆角边框「周长弧长参数化」匀速跑一道单彗星流光（`TimelineView(.animation)` + `Canvas`，单次 stroke + 沿线 linearGradient，连续无珠子）。遵守测试冻结铁律：`RuntimeEnvironment.isRunningTests || reduceMotion` 时渲染静态帧不启逐帧循环（见下方测试坑 2）。
 
 ### 内置插件体系（task 011）
 

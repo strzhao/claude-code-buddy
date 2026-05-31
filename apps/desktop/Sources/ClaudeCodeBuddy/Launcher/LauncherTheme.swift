@@ -102,11 +102,11 @@ enum LauncherTheme {
             : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 1.0)
     })
 
-    /// 内边框高光（C1 辅助）：light 0.12 / dark 0.20（retry 2 加强，dark 桌面下可见性）
+    /// 内边框高光（C1 辅助）：淡描边，浅色下尤其克制避免突兀（light 0.06 / dark 0.14）
     static let innerHighlight = Color(nsColor: NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(white: 1.0, alpha: 0.20)
-            : NSColor(white: 0.0, alpha: 0.12)
+            ? NSColor(white: 1.0, alpha: 0.14)
+            : NSColor(white: 0.0, alpha: 0.06)
     })
 
     /// 面板 tint（retry 2 四次平衡）：让 .behindWindow 毛玻璃模糊感透出，但 tint 保证对比度

@@ -23,5 +23,10 @@
     "@stringzhao/skin-cli": "workspace:*",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "tmp": ">=0.2.6"
+    }
   }
 }

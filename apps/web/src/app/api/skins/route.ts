@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { CACHE_MAX_AGE } from "@/lib/constants";
+import { CACHE_MAX_AGE, REDIS_READ_TIMEOUT_MS } from "@/lib/constants";
 import { errorResponse } from "@/lib/errors";
 import { listSkinsByStatus } from "@/lib/kv";
+import { withTimeout } from "@/lib/timeout";
 import type { RemoteSkinEntry, SkinRecord } from "@/lib/types";
 
 function toRemoteSkinEntry(record: SkinRecord): RemoteSkinEntry {
@@ -20,7 +21,13 @@ function toRemoteSkinEntry(record: SkinRecord): RemoteSkinEntry {
 
 export async function GET() {
   try {
-    const approved = await listSkinsByStatus("approved");
+    // Fail fast on a Redis outage instead of hanging on the client's backoff
+    // retries; the catch below turns this into a prompt 500.
+    const approved = await withTimeout(
+      listSkinsByStatus("approved"),
+      REDIS_READ_TIMEOUT_MS,
+      "redis read timed out",
+    );
 
     // Deduplicate by id (keep latest version per id, comparing created_at)
     const latestById = new Map<string, SkinRecord>();

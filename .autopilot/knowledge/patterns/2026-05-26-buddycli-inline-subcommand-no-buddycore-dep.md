@@ -1,0 +1,6 @@
+# BuddyCLI 扩展配置子命令用 nested switch 内联实现，**不**给 buddy-cli target 加 BuddyCore 依赖
+
+<!-- tags: buddy-cli, swift-package-manager, target-dependency, argument-parser, nested-switch, cli-design, source-of-truth, command-line, lsuielement, cold-start -->
+**Scenario**: BuddyCLI/main.swift 是 841 行单文件 raw `CommandLine.arguments` + switch 分发（无 ArgumentParser）。task 002 要加 `buddy launcher config set/get/use` 子命令调 LauncherConfig + SecretStoreFactory，这些类型位于 BuddyCore（AppKit/SwiftUI/SpriteKit 混合）。给 buddy-cli 加 BuddyCore 依赖会拉入 GUI 框架显著增加 CLI 启动开销。
+**Lesson**: 三种方案权衡 — ① 抽取 BuddyLauncherKit（最干净但重构成本高）② socket 委托（违反 app 未启动时也能配置的 PRD 意图）③ **内联实现 + SOURCE-OF-TRUTH 注释**（推荐 MVP）。选 ③：在 main.swift 顶部加 `// ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift` 注释段，mirror keychainService / launcherConfigPath / encryptedSecretsPath 等常量字符串；JSON I/O + Keychain 调用用 ~80 行 Foundation/Security 内联完成。**红队 acceptance 测试同时验证 CLI 写 ↔ app load 的互操作**，作为常量漂移的"检测网"。**parseArguments 必须在 default 分支显式提取 subcommand**：`else if opts.command == "launcher" && opts.subcommand.isEmpty { opts.subcommand = arg }`，否则 main switch 拿到的 subcommand 永远是空字符串。
+**Evidence**: task 002 落地 BuddyCLI/main.swift +~150 行内联 launcher config 子命令，Package.swift buddy-cli target 保持无 dependencies；真实 `buddy launcher config set` 命令验证 launcher.json + Keychain 写入；plan-reviewer 第 1 轮 BLOCKER 即在此问题，第 2 轮经此方案通过。

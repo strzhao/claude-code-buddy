@@ -10,3 +10,7 @@ export const REDIS_INDEX_REJECTED = "skin-ids:rejected";
 
 export const BLOB_BASE_PATH = "skins";
 export const CACHE_MAX_AGE = 300; // 5 min edge cache
+
+// Upper bound for public-path Redis reads; on outage the Upstash client
+// otherwise retries with backoff for ~4s, hanging the response.
+export const REDIS_READ_TIMEOUT_MS = 1500;

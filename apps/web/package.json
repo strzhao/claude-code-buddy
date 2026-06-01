@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage -c vitest.config.mts",
     "test:acceptance": "vitest run -c vitest.config.ts",
     "test:e2e": "playwright test",
-    "size": "size-limit"
+    "size": "size-limit",
+    "lhci": "next build && lhci autorun"
   },
   "dependencies": {
     "@stringzhao/auth-sdk": "^0.1.1",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.59.1",
     "@size-limit/preset-app": "^12.1.0",
     "@tailwindcss/postcss": "^4",

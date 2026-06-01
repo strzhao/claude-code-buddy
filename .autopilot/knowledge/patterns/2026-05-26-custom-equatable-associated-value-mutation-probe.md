@@ -1,0 +1,6 @@
+# 自定义 Equatable 的 mutation 探针陷阱：toolCall.== 必须比较所有携带状态
+
+<!-- tags: equatable, mutation-testing, false-positive, swift-enum, associated-values, anycodable, red-team, acceptance-test, tdd, plan-reviewer -->
+**Scenario**: `enum AgentEvent { case toolCall(name: String, input: [String: AnyCodable]); ... }` 自定义 Equatable 时常见的偷懒写法：`case (.toolCall(let n1, _), .toolCall(let n2, _)): return n1 == n2` —— input 用 `_` 丢弃，"留给测试断言"。问题：所有依赖 `XCTAssertEqual(events, expected)` 数组比较的测试都会**假阳性**：两个 name 相同但 input 不同的 toolCall 事件被判等。如果实现把 tool input 解析错（如把 user message 当 tool input），测试仍然绿灯。
+**Lesson**: 自定义 Equatable 必须**比较 enum case 的所有 associated value**，除非有明确的"宽松比较"语义（如 `.error(Error)` 因为 Error 协议不是 Equatable，可以仅按 case 类型比较，但需注释说明）。对 `[String: AnyCodable]` 类型，AnyCodable 自身需先实现 Equatable（通常通过 JSONEncoder 字节比较：`JSONEncoder().encode(lhs) == JSONEncoder().encode(rhs)`）。**红队测试应有 mutation 探针**：写 `XCTAssertNotEqual(.toolCall("x", ["k":"a"]), .toolCall("x", ["k":"b"]))` 显式验证 input 不同则不等，否则 == 的实现 bug 永远不会暴露。
+**Evidence**: task 003 plan-reviewer 第 1 轮 BLOCKER-1 即此问题（设计草图写 `n1 == n2 // input 比较留给测试`，但测试草图全用数组 Equatable）；修复为 `n1 == n2 && i1 == i2`；红队 acceptance `test_agentEvent_toolCall_notEqualsWhenInputDiffers` 作为 mutation 探针验证。

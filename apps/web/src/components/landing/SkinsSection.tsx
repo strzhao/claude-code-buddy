@@ -3,13 +3,21 @@ import SkinCard from "./SkinCard";
 import CatSkinCard from "./CatSkinCard";
 import type { SkinRecord } from "@/lib/types";
 
+// Homepage is non-critical to the skins list: if Redis is slow/unreachable
+// (e.g. an outage, or no creds in CI), the @upstash/redis client retries with
+// exponential backoff for several seconds. Bound the wait so the page always
+// renders fast, degrading to an empty list rather than hanging on the request.
+const SKINS_FETCH_TIMEOUT_MS = 1500;
+
 async function getApprovedSkins(): Promise<SkinRecord[]> {
-  try {
-    const { listSkinsByStatus } = await import("@/lib/kv");
-    return await listSkinsByStatus("approved");
-  } catch {
-    return [];
-  }
+  const { listSkinsByStatus } = await import("@/lib/kv");
+  // .catch here keeps the (possibly slow) fetch from surfacing as an unhandled
+  // rejection after the timeout already won the race.
+  const fetchSkins = listSkinsByStatus("approved").catch(() => [] as SkinRecord[]);
+  const timeout = new Promise<SkinRecord[]>((resolve) =>
+    setTimeout(() => resolve([]), SKINS_FETCH_TIMEOUT_MS),
+  );
+  return Promise.race([fetchSkins, timeout]);
 }
 
 export default async function SkinsSection() {

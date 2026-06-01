@@ -8,7 +8,10 @@ test.describe("Smoke tests", () => {
 
   test("should have navigation links", async ({ page }) => {
     await page.goto("/");
-    const uploadLink = page.getByRole("link", { name: /upload/i });
+    // The homepage links to the upload page (link text is Chinese, so match by
+    // href rather than an English accessible name); SkinsSection + Footer both
+    // render one, assert the first is visible.
+    const uploadLink = page.locator('a[href="/upload"]').first();
     await expect(uploadLink).toBeVisible();
   });
 

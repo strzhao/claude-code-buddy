@@ -16,8 +16,9 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (85)
+## Patterns (86)
 
+- [2026-06-16] KeyboardShortcuts 库升级后旧 UserDefaults 值与新库不兼容致全局热键失效（注册成功但不触发；裸 Carbon 测试隔离系统 vs app 库存储；迁移清理 + reset 非 setShortcut(nil)）| tags: keyboardshortcuts, upgrade-migration, userdefaults, hotkey, launcher, carbon, registerhotkey, ad-hoc, sindresorhus, version-compat | → patterns/2026-06-16-keyboardshortcuts-upgrade-userdefaults-incompatible.md
 - [2026-05-31] [2026-05-31] systemPrompt 用 few-shot 真实示例驱动 markdown 输出，模板占位符会被字面照搬 | tags: llm, prompt-engineering, systemprompt, few-shot, template, placeholder, markdown, translate, output-format, in-context-learning, hallucination | → patterns/2026-05-31-llm-fewshot-vs-template-placeholders.md
 - [2026-05-31] [2026-05-31] LLM 输出内嵌 `<action:*>` 标签 + 前端 MarkdownActionParser 渲染为 SwiftUI Button | tags: llm, markdown, action-tag, ui-interaction, plugin, launcher, swiftui, button, tts, copy, prompt-engineering, protocol-design, structured-output | → patterns/2026-05-31-llm-embedded-action-tag-protocol.md
 - [2026-05-31] [2026-05-31] launcher router 短路：唯一/strong 命中跳过 aiSelect LLM call | tags: launcher, router, ai-router, llm-call, perf, score, narrow-candidates, plugin-selection, architecture, yagni | → patterns/2026-05-31-launcher-router-shortcircuit-unique-match.md

@@ -240,6 +240,9 @@ private struct CLIOptions {
     var baseURL: String = ""
     var model: String = ""
     var apiKey: String = ""
+    // Launcher hotkey (task 2026-06-15)
+    var hotkeyKey: String = ""
+    var hotkeyModifiers: String = ""
     // Generic boolean long-form flags (task 007)
     var flags: [String] = []
 }
@@ -296,6 +299,21 @@ private func printHelp() {
       buddy launcher reseed                     清 marketplace cache，下次 app 启动重新 seed
       buddy launcher remove <name>              彻底删除插件目录
       buddy launcher inspect <name>             查看插件详情（JSON）
+      buddy launcher hotkey show                查看当前启动器热键（含 isDefault）
+      buddy launcher hotkey set --key K --modifiers CSV   设置热键（如 --key space --modifiers control）
+      buddy launcher hotkey clear               重置为默认热键 (Ctrl+Space)
+
+    Hotkey 参数：
+      --key <key>           热键主键（如 space, a, f1, return；字母 a-z / 数字 0-9）
+      --modifiers <csv>     修饰键逗号列表（command,shift,control,option）
+                            例：--modifiers control
+                                --modifiers command,shift
+
+    热键示例：
+      buddy launcher hotkey show
+      buddy launcher hotkey set --key space --modifiers control
+      buddy launcher hotkey set --key p --modifiers command,shift
+      buddy launcher hotkey clear
     """)
 }
 
@@ -345,6 +363,12 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--api-key":
             i += 1
             if i < args.count { opts.apiKey = args[i] }
+        case "--key":
+            i += 1
+            if i < args.count { opts.hotkeyKey = args[i] }
+        case "--modifiers":
+            i += 1
+            if i < args.count { opts.hotkeyModifiers = args[i] }
         case let f where f.hasPrefix("--") && !f.contains("="):
             // 通用布尔型长 flag（task 007）：--json / --strict 等，不消费下一个 arg
             opts.flags.append(f)
@@ -919,8 +943,20 @@ private func main() {
             cmdLauncherRemove(opts.positionalArgs.first ?? "")
         case "inspect":
             cmdLauncherInspect(opts.positionalArgs.first ?? "")
+        case "hotkey":
+            switch opts.positionalArgs.first {
+            case "set":
+                cmdLauncherHotkeySet(opts)
+            case "show":
+                cmdLauncherHotkeyShow()
+            case "clear":
+                cmdLauncherHotkeyClear()
+            default:
+                fputs("Usage: buddy launcher hotkey <set|show|clear> ...\n", stderr)
+                exit(2)
+            }
         default:
-            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect> ...\n", stderr)
+            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|hotkey> ...\n", stderr)
             exit(2)
         }
     case "help", "--help", "-h", "":
@@ -1163,6 +1199,90 @@ private func cmdLauncherConfigUse(_ opts: CLIOptions) {
         exit(1)
     }
     print("Active provider: \(target)")
+}
+
+// MARK: - Launcher Hotkey Commands (2026-06-15)
+// 通过 socket 让 app 进程调 KeyboardShortcuts 库 API（CLI 不依赖 BuddyCore/KeyboardShortcuts 库）
+// 契约 2：请求 action ∈ {hotkey_set, hotkey_show, hotkey_clear}；
+//         响应 {status:"ok", data:{combo, isDefault}} 或 {status:"error", message}
+
+private func cmdLauncherHotkeyShow() {
+    let query: [String: Any] = ["action": "hotkey_show"]
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdLauncherHotkeySet(_ opts: CLIOptions) {
+    guard !opts.hotkeyKey.isEmpty else {
+        fputs("Usage: buddy launcher hotkey set --key <key> [--modifiers <csv>]\n", stderr)
+        fputs("  --key: 主键（如 space, a, f1, return；字母 a-z / 数字 0-9）\n", stderr)
+        fputs("  --modifiers: 修饰键逗号列表（command,shift,control,option）\n", stderr)
+        exit(2)
+    }
+    let modStrs = opts.hotkeyModifiers
+        .split(separator: ",")
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.isEmpty }
+    // CLI 侧纯字符串校验（真正的 Key 构造在 app 侧 HotkeyKeyMapper 完成）
+    let validModifiers: Set<String> = ["command", "cmd", "super", "shift", "control", "ctrl", "option", "opt", "alt"]
+    for m in modStrs {
+        guard validModifiers.contains(m.lowercased()) else {
+            fputs("Error: invalid modifier '\(m)'. Allowed: command, shift, control, option\n", stderr)
+            exit(2)
+        }
+    }
+    // 至少需要一个修饰键（无修饰键的全局热键会与普通打字冲突，库也建议带修饰键）
+    guard !modStrs.isEmpty else {
+        fputs("Error: --modifiers is required (at least one of: command, shift, control, option)\n", stderr)
+        fputs("  全局热键必须带修饰键，否则会与普通打字冲突\n", stderr)
+        exit(2)
+    }
+
+    let query: [String: Any] = [
+        "action": "hotkey_set",
+        "key": opts.hotkeyKey,
+        "modifiers": modStrs,
+    ]
+    do {
+        let data = try sendQuery(query)
+        // 解析响应：成功打印 combo，失败打印 message 到 stderr 并 exit 非 0
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            fputs("Error: invalid response from app: \(String(data: data, encoding: .utf8) ?? "?")\n", stderr)
+            exit(1)
+        }
+        if let status = json["status"] as? String, status == "ok" {
+            if let str = String(data: data, encoding: .utf8) {
+                print(str)
+            }
+        } else {
+            let message = json["message"] as? String ?? "unknown error"
+            fputs("Error: \(message)\n", stderr)
+            exit(1)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdLauncherHotkeyClear() {
+    let query: [String: Any] = ["action": "hotkey_clear"]
+    do {
+        let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
 }
 
 // MARK: - Launcher Plugin Management (task 006)

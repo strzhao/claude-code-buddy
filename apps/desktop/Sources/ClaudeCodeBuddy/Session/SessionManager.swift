@@ -64,8 +64,12 @@ class SessionManager {
 
         server.onQuery = { [weak self] query, clientFD in
             guard let self = self, let handler = self.queryHandler else { return }
-            let responseData = handler.handle(query: query)
-            self.server.sendResponse(data: responseData, to: clientFD)
+            // handle() 标注 @MainActor（hotkey 命令调用 KeyboardShortcuts 库 API），通过 Task 派主线程（qa-reviewer B-1）
+            Task { @MainActor in
+                let responseData = handler.handle(query: query)
+                // 写回 socket queue 而非主线程（qa-reviewer B-2：避免主线程同步写循环卡 UI）
+                self.server.sendResponseAsync(data: responseData, to: clientFD)
+            }
         }
 
         server.start()

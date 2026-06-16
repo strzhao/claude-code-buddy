@@ -1,6 +1,7 @@
 import XCTest
 @testable import BuddyCore
 
+@MainActor
 final class QueryHandlerTests: XCTestCase {
 
     private var manager: SessionManager!

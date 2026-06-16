@@ -67,7 +67,9 @@ Sources/
 
 ## Launcher 子系统
 
-Alfred 式 AI 启动器：⌘⇧Space 召唤浮窗 + AI 路由 + CLI 插件。**与像素猫互不干扰**（独立 NSPanel + 独立配置目录 `~/.buddy/` + 静态隔离测试 SC-10）。
+Alfred 式 AI 启动器：Ctrl+Space 召唤浮窗 + AI 路由 + CLI 插件。**与像素猫互不干扰**（独立 NSPanel + 独立配置目录 `~/.buddy/` + 静态隔离测试 SC-10）。
+
+**热键配置（2026-06-15）**：默认键从 ⌘⇧Space 改为 Ctrl+Space（参考 Alfred 大而方便）。热键存储由 KeyboardShortcuts 库的 UserDefaults 单一真相源管理（key `KeyboardShortcuts_launcher-toggle`），不在 launcher.json 双轨存储。三入口改键：① 设置面板「热键」tab（Alfred 风格大 RecorderCocoa + 重置按钮）；② `buddy launcher hotkey set/show/clear` CLI；③ app 启动迁移 `launcher.hotkeyMigrationV1` 清理旧不兼容值。重置一律用 `KeyboardShortcuts.reset(.toggle)`（回 default），禁用 `setShortcut(nil)`（清除非回 default）。
 
 **视觉风格（task 010）**: Apple HIG / Raycast 风格。`VisualEffectBackground`（NSVisualEffectView .menu/.behindWindow 的 SwiftUI 包装）单层毛玻璃，16pt 圆角，spring 入场动画，SF Symbol 选中指示器（chevron.right.fill + 左侧 sage Capsule 竖条），全 .rounded 字体规范。**注**：曾用 SwiftUI `.ultraThinMaterial`，但其 light/dark 依赖 `@Environment(\.colorScheme)`，在 NSPanel+`hidesOnDeactivate` 浮窗里传播不可靠，浅色模式整块渲染异常（毛玻璃发灰、结果区白方块）；改用 `NSVisualEffectView` 按 `effectiveAppearance` 求值，浅深色一致。结果输出区透明、与输入行共用同一块毛玻璃。
 
@@ -151,6 +153,18 @@ buddy launcher config use ollama
 buddy launcher config get
 ```
 
+### 热键配置（2026-06-15）
+
+```bash
+buddy launcher hotkey show                              # 查看当前热键 + isDefault
+buddy launcher hotkey set --key space --modifiers control    # 设置为 Ctrl+Space
+buddy launcher hotkey set --key p --modifiers command,shift # 设置为 ⌘⇧P
+buddy launcher hotkey clear                             # 重置为默认 (Ctrl+Space)
+```
+
+参数：`--key <key>`（字母 a-z / 数字 0-9 / space / f1-f20 / return 等）+ `--modifiers <csv>`（command,shift,control,option）。
+CLI 通过 socket 让 app 进程调 KeyboardShortcuts 库 API，即时重注册 Carbon 热键（无需重启 app）。
+
 ### 插件管理
 
 ```bash
@@ -166,7 +180,7 @@ buddy launcher remove <name>                       # 卸载 + 清 trust
 
 ### 故障排查
 
-- **快捷键被占用** → `buddy launcher config get` 查看 `hotkey` 字段，或在 LauncherWindow 显示时按 ⌘, 改键
+- **快捷键被占用/失效** → `buddy launcher hotkey show` 查看当前热键 + 是否默认，或打开设置面板「热键」tab 用 RecorderCocoa 改键；`buddy launcher hotkey clear` 重置为默认 (Ctrl+Space)
 - **trust.json 损坏** → 删除 `~/.buddy/launcher-trust.json`，下次执行重新弹框
 - **SecretStore 探针降级** → ad-hoc 签名时自动从 Keychain 降级到 EncryptedFile；查 logs `LauncherSecretStore probe failed`
 - **plugin 安装失败 exit 1** → 检查网络 / `git clone` 60s 超时

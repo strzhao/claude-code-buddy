@@ -124,6 +124,10 @@ final class LauncherManager: ObservableObject {
         // 触发 secretStore lazy 初始化（probe Keychain 一次，选择存储后端）
         _ = secretStore
 
+        // T6 迁移：一次性幂等清理旧版（⌘⇧Space 默认时期）可能残留的不兼容 UserDefaults 值
+        // 必须在 register 之前执行，确保库用新 default Ctrl+Space 重注册
+        LauncherHotkey.migrateLegacyIfNeeded()
+
         // 注册全局快捷键
         LauncherHotkey.register { [weak self] in self?.toggle() }
 

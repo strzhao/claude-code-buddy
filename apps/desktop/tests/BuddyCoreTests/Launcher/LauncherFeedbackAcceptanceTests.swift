@@ -68,8 +68,7 @@ final class LauncherFeedbackAcceptanceTests: XCTestCase {
         // 直接 .error，stage 不再流转。注入一个占位 provider 配置使行为与环境解耦。
         LauncherManager.shared.configOverride = LauncherConfig(
             activeProvider: "mock",
-            providers: ["mock": ProviderConfig(kind: "anthropic", baseURL: nil, model: "test", keyRef: "test")],
-            hotkey: nil
+            providers: ["mock": ProviderConfig(kind: "anthropic", baseURL: nil, model: "test", keyRef: "test")]
         )
     }
 

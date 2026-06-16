@@ -12,8 +12,8 @@ import CryptoKit
 //   B. 空数据 / 无效 JSON 文件 → load 返回 .empty（不抛错）
 //   C. save → 文件存在 + 权限 == 0600
 //   D. round-trip：save(cfg) → load() 返回 cfg（Equatable 精确断言）
-//   E. JSON schema 含 activeProvider / providers / hotkey 字段（CodingKey 验证）
-//   F. ProviderConfig 的 baseURL 和 hotkey 是 Optional（缺失时不报错）
+//   E. JSON schema 含 activeProvider / providers 字段（CodingKey 验证）
+//   F. ProviderConfig 的 baseURL 是 Optional（缺失时不报错）
 //   G. LauncherConfig.empty 的 activeProvider 精确是 ""
 //   H. save 写入到测试目录（通过 fixture path 注入）
 //   I. providers 字典 round-trip 正确（含 ProviderConfig 各字段）
@@ -58,8 +58,6 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
                        "文件不存在时 activeProvider 必须精确是空字符串")
         XCTAssertTrue(result.providers.isEmpty,
                       "文件不存在时 providers 必须是空字典")
-        XCTAssertNil(result.hotkey,
-                     "文件不存在时 hotkey 必须是 nil")
     }
 
     // MARK: - B. 空 JSON / 无效 JSON → load 返回 .empty
@@ -126,8 +124,7 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
         )
         let original = LauncherConfig(
             activeProvider: "anthropic",
-            providers: ["anthropic": providerCfg],
-            hotkey: nil
+            providers: ["anthropic": providerCfg]
         )
 
         try original.save(to: configPath)
@@ -155,8 +152,7 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
         )
         let original = LauncherConfig(
             activeProvider: "ollama",
-            providers: ["ollama": providerCfg],
-            hotkey: nil
+            providers: ["ollama": providerCfg]
         )
 
         try original.save(to: configPath)
@@ -169,21 +165,14 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
                        "kind 必须精确还原为 \"openai-compatible\"")
     }
 
-    /// 含 hotkey 的 config round-trip
-    func test_roundTrip_withHotkey() throws {
-        let original = LauncherConfig(
-            activeProvider: "anthropic",
-            providers: [:],
-            hotkey: HotkeyConfig(key: "space", modifiers: ["command", "shift"])
-        )
-        try original.save(to: configPath)
-        let loaded = try LauncherConfig.load(from: configPath)
-
-        XCTAssertEqual(loaded, original)
-        XCTAssertEqual(loaded.hotkey?.key, "space",
-                       "hotkey.key 必须还原为 \"space\"")
-        XCTAssertEqual(loaded.hotkey?.modifiers, ["command", "shift"],
-                       "hotkey.modifiers 必须还原为 [\"command\", \"shift\"]")
+    /// HotkeyConfig 类型 round-trip（类型保留供 socket/CLI 参数结构复用，LauncherConfig.hotkey 字段已移除）
+    func test_roundTrip_hotkeyConfig_typePreserved() throws {
+        let original = HotkeyConfig(key: "space", modifiers: ["control"])
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(HotkeyConfig.self, from: data)
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.key, "space", "HotkeyConfig.key 必须还原")
+        XCTAssertEqual(decoded.modifiers, ["control"], "HotkeyConfig.modifiers 必须还原")
     }
 
     // MARK: - E. JSON schema CodingKey 验证
@@ -199,8 +188,7 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
         )
         let cfg = LauncherConfig(
             activeProvider: "anthropic",
-            providers: ["anthropic": providerCfg],
-            hotkey: nil
+            providers: ["anthropic": providerCfg]
         )
         try cfg.save(to: configPath)
 
@@ -211,7 +199,6 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
                         "JSON 必须含 activeProvider 字段")
         XCTAssertNotNil(json?["providers"],
                         "JSON 必须含 providers 字段")
-        // hotkey 是 nil，可能不含该字段或含 null
         XCTAssertEqual(json?["activeProvider"] as? String, "anthropic",
                        "activeProvider 值必须是 \"anthropic\"")
 
@@ -229,7 +216,7 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
 
     // MARK: - F. Optional 字段缺失不报错
 
-    /// 从缺少 hotkey 和 baseURL 的 JSON 解码不报错
+    /// 从缺少 baseURL 的 JSON 解码不报错（hotkey 字段已移除，不再测试）
     func test_decode_optionalFieldsMissing_doesNotThrow() throws {
         let json = """
         {
@@ -247,7 +234,6 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
         try json.data(using: .utf8)!.write(to: configPath)
         let cfg = try LauncherConfig.load(from: configPath)
 
-        XCTAssertNil(cfg.hotkey, "缺少 hotkey 字段时必须解码为 nil")
         XCTAssertNil(cfg.providers["anthropic"]?.baseURL,
                      "缺少 baseURL 字段时 ProviderConfig.baseURL 必须解码为 nil")
         XCTAssertEqual(cfg.providers["anthropic"]?.kind, "anthropic",
@@ -263,8 +249,6 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
                        "LauncherConfig.empty.activeProvider 必须精确是空字符串 \"\"")
         XCTAssertTrue(empty.providers.isEmpty,
                       "LauncherConfig.empty.providers 必须是空字典")
-        XCTAssertNil(empty.hotkey,
-                     "LauncherConfig.empty.hotkey 必须是 nil")
     }
 
     // MARK: - I. providers 字典多项 round-trip
@@ -279,8 +263,7 @@ final class LauncherConfigAcceptanceTests: XCTestCase {
                 "ollama": ProviderConfig(kind: "openai-compatible",
                                          baseURL: "http://localhost:11434/v1",
                                          model: "qwen2.5:7b", keyRef: "ollama.apiKey")
-            ],
-            hotkey: nil
+            ]
         )
         try original.save(to: configPath)
         let loaded = try LauncherConfig.load(from: configPath)

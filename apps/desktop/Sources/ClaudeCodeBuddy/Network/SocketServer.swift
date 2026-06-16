@@ -265,4 +265,13 @@ class SocketServer {
         }
         NSLog("[SocketServer] Sent %d bytes response to fd=%d", totalWritten, clientFD)
     }
+
+    /// 异步发送响应：在 socket queue 上执行同步写循环，避免阻塞调用方线程。
+    /// qa-reviewer B-2：hotkey 命令经 Task @MainActor 处理后，写回 socket queue 而非主线程，
+    /// 避免主线程同步 Darwin.write 循环在客户端 fd 异常时卡 UI。
+    func sendResponseAsync(data: Data, to clientFD: Int32) {
+        queue.async { [weak self] in
+            self?.sendResponse(data: data, to: clientFD)
+        }
+    }
 }

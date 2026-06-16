@@ -10,6 +10,7 @@ final class SettingsWindowController: NSWindowController {
     enum Tab: String {
         case skins
         case plugins
+        case hotkey
     }
 
     static let selectedTabDefaultsKey = "BuddyStoreSelectedTab"
@@ -17,6 +18,7 @@ final class SettingsWindowController: NSWindowController {
     private let segmentedControl = NSSegmentedControl()
     private var skinGallery: SkinGalleryViewController?
     private var pluginGallery: PluginGalleryViewController?
+    private var hotkeyVC: KeyboardShortcutsViewController?
     private weak var settingsPanel: SettingsPanel?
 
     convenience init() {
@@ -36,7 +38,7 @@ final class SettingsWindowController: NSWindowController {
 
         let savedTab = UserDefaults.standard.string(forKey: Self.selectedTabDefaultsKey)
             .flatMap(Tab.init(rawValue:)) ?? .skins
-        segmentedControl.selectedSegment = savedTab == .skins ? 0 : 1
+        segmentedControl.selectedSegment = segmentIndex(for: savedTab)
         switchTo(tab: savedTab)
     }
 
@@ -44,16 +46,17 @@ final class SettingsWindowController: NSWindowController {
 
     private func setupSegmentedControl() {
         segmentedControl.segmentStyle = .texturedRounded
-        segmentedControl.segmentCount = 2
+        segmentedControl.segmentCount = 3
         segmentedControl.setLabel("皮肤", forSegment: 0)
         segmentedControl.setLabel("插件", forSegment: 1)
+        segmentedControl.setLabel("热键", forSegment: 2)
         segmentedControl.target = self
         segmentedControl.action = #selector(segmentChanged)
         segmentedControl.translatesAutoresizingMaskIntoConstraints = false
 
         // 嵌入 titlebar accessory（macOS 11+ 原生支持）。
         let accessoryVC = NSTitlebarAccessoryViewController()
-        let accessoryContainer = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 32))
+        let accessoryContainer = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
         accessoryContainer.addSubview(segmentedControl)
         NSLayoutConstraint.activate([
             segmentedControl.centerXAnchor.constraint(equalTo: accessoryContainer.centerXAnchor),
@@ -64,8 +67,27 @@ final class SettingsWindowController: NSWindowController {
         settingsPanel?.addTitlebarAccessoryViewController(accessoryVC)
     }
 
+    /// Tab → segmentedControl segment index 映射。
+    private func segmentIndex(for tab: Tab) -> Int {
+        switch tab {
+        case .skins: return 0
+        case .plugins: return 1
+        case .hotkey: return 2
+        }
+    }
+
+    /// segmentedControl segment index → Tab 映射。
+    private func tab(forSegment index: Int) -> Tab {
+        switch index {
+        case 0: return .skins
+        case 1: return .plugins
+        case 2: return .hotkey
+        default: return .skins
+        }
+    }
+
     @objc private func segmentChanged() {
-        let tab: Tab = segmentedControl.selectedSegment == 0 ? .skins : .plugins
+        let tab = tab(forSegment: segmentedControl.selectedSegment)
         UserDefaults.standard.set(tab.rawValue, forKey: Self.selectedTabDefaultsKey)
         switchTo(tab: tab)
     }
@@ -81,6 +103,10 @@ final class SettingsWindowController: NSWindowController {
             let gallery = pluginGallery ?? PluginGalleryViewController()
             pluginGallery = gallery
             vc = gallery
+        case .hotkey:
+            let hotkey = hotkeyVC ?? KeyboardShortcutsViewController()
+            hotkeyVC = hotkey
+            vc = hotkey
         }
         settingsPanel?.contentViewController = vc
         settingsPanel?.activeTab = vc

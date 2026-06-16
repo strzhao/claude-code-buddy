@@ -72,7 +72,7 @@ buddy launcher remove <name>            # 卸载
 - **桌面应用**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md) — Swift 架构、状态机、调试猫、快照测试
 - **Web 商店**: [apps/web/CLAUDE.md](apps/web/CLAUDE.md) — Next.js 架构、API 端点、认证系统
 - **Skin CLI**: `packages/skin-cli/` — 皮肤包上传工具
-- **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — ⌘⇧Space 召唤 + AI 路由 + CLI 插件
+- **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — Ctrl+Space 召唤 + AI 路由 + CLI 插件
 
 ## Agent Harness 设计
 

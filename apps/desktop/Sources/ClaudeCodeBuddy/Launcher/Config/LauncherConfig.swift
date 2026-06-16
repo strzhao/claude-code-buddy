@@ -26,12 +26,14 @@ struct ProviderConfig: Codable, Equatable {
 }
 
 /// 启动器全局配置，存储于 ~/.buddy/launcher.json（0600 权限）
+///
+/// 注：热键存储由 KeyboardShortcuts 库的 UserDefaults 单一真相源管理（方案 A），
+/// 不再在 launcher.json 双轨存储。HotkeyConfig 类型保留供 socket/CLI 参数结构复用。
 struct LauncherConfig: Codable, Equatable {
     var activeProvider: String                // 空表示未配置
     var providers: [String: ProviderConfig]
-    var hotkey: HotkeyConfig?
 
-    static let empty = LauncherConfig(activeProvider: "", providers: [:], hotkey: nil)
+    static let empty = LauncherConfig(activeProvider: "", providers: [:])
 
     /// 从指定路径加载配置；文件不存在或解析失败时返回 .empty
     static func load(from path: URL) throws -> LauncherConfig {

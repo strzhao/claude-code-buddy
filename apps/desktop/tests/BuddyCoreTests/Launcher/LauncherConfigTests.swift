@@ -26,8 +26,7 @@ final class LauncherConfigTests: XCTestCase {
             activeProvider: "anthropic",
             providers: [
                 "anthropic": ProviderConfig(kind: "anthropic", baseURL: nil, model: "claude-sonnet-4-5", keyRef: "anthropic.apiKey")
-            ],
-            hotkey: HotkeyConfig(key: "space", modifiers: ["command", "shift"])
+            ]
         )
         let data = try JSONEncoder().encode(cfg)
         let decoded = try JSONDecoder().decode(LauncherConfig.self, from: data)
@@ -38,7 +37,6 @@ final class LauncherConfigTests: XCTestCase {
         let cfg = LauncherConfig.empty
         XCTAssertEqual(cfg.activeProvider, "")
         XCTAssertTrue(cfg.providers.isEmpty)
-        XCTAssertNil(cfg.hotkey)
     }
 
     // MARK: - 使用 LauncherConfig 直接操作文件系统（通过写入默认路径测试）
@@ -65,8 +63,7 @@ final class LauncherConfigTests: XCTestCase {
             activeProvider: "anthropic",
             providers: [
                 "anthropic": ProviderConfig(kind: "anthropic", baseURL: nil, model: "claude-sonnet-4-5", keyRef: "anthropic.apiKey")
-            ],
-            hotkey: nil
+            ]
         )
         try cfg.save()
 
@@ -109,8 +106,7 @@ final class LauncherConfigTests: XCTestCase {
             activeProvider: "ollama",
             providers: [
                 "ollama": ProviderConfig(kind: "openai-compatible", baseURL: "http://localhost:11434/v1", model: "llama3", keyRef: "ollama.apiKey")
-            ],
-            hotkey: nil
+            ]
         )
         let data = try JSONEncoder().encode(cfg)
         let decoded = try JSONDecoder().decode(LauncherConfig.self, from: data)

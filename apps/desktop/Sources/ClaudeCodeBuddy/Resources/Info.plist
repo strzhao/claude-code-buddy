@@ -11,7 +11,11 @@
     <key>CFBundleVersion</key>
     <string>2.0</string>
     <key>CFBundleShortVersionString</key>
+<<<<<<< Updated upstream
     <string>0.31.0</string>
+=======
+    <string>0.31.2</string>
+>>>>>>> Stashed changes
     <key>CFBundleExecutable</key>
     <string>ClaudeCodeBuddy</string>
     <key>CFBundleIconFile</key>

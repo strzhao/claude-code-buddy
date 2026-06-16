@@ -6,12 +6,23 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build-and-release:
-    name: Build ClaudeCodeBuddy.app
-    runs-on: macos-14
-
-    permissions:
-      contents: write
+  # ──────────────────────────────────────────────────────────────────────────
+  # build-arch: 每个 arch 在对应 native runner 上 build（避免 cross-compile）。
+  # 根因：arm64 runner 上 --arch x86_64 交叉编译的 x86_64 slice 在 Intel Mac 上
+  # KeyboardShortcuts 库 Bundle.module fatalError 崩溃（v0.31.0/v0.31.1）。
+  # 修复：arm64 用 macos-14 native、x86_64 用 macos-13 native，lipo 合并 universal。
+  # ──────────────────────────────────────────────────────────────────────────
+  build-arch:
+    name: Build ${{ matrix.arch }} (native)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14    # Apple Silicon → arm64 native
+            arch: arm64
+          - runner: macos-13    # Intel → x86_64 native
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -21,31 +32,57 @@ jobs:
         run: swift --version
         working-directory: apps/desktop
 
-      - name: Build release (arm64)
-        run: swift build -c release --arch arm64
+      - name: Build ClaudeCodeBuddy (${{ matrix.arch }})
+        run: swift build -c release --arch ${{ matrix.arch }}
         working-directory: apps/desktop
 
-      - name: Build release (x86_64)
-        run: swift build -c release --arch x86_64
+      - name: Build CLI (${{ matrix.arch }})
+        run: swift build -c release --arch ${{ matrix.arch }} --target buddy-cli
         working-directory: apps/desktop
 
-      - name: Build CLI (arm64)
-        run: swift build -c release --arch arm64 --target buddy-cli
+      - name: Upload build artifacts (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.arch }}
+          path: |
+            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/ClaudeCodeBuddy
+            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/buddy-cli
+            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle
+            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # release: 下载两 arch 产物 → lipo 合并 universal binary → assemble .app → 发布
+  # ──────────────────────────────────────────────────────────────────────────
+  release:
+    name: Assemble + Release
+    needs: build-arch
+    runs-on: macos-14
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all arch artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Layout build dirs (还原 .build/<arch>/release 结构)
+        run: |
+          mkdir -p .build/arm64-apple-macosx/release .build/x86_64-apple-macosx/release
+          cp -R artifacts/build-arm64/* .build/arm64-apple-macosx/release/
+          cp -R artifacts/build-x86_64/* .build/x86_64-apple-macosx/release/
         working-directory: apps/desktop
 
-      - name: Build CLI (x86_64)
-        run: swift build -c release --arch x86_64 --target buddy-cli
-        working-directory: apps/desktop
-
-      - name: Create universal binary
+      - name: Create universal binaries (lipo 合并两 native arch，零 cross-compile)
         run: |
           lipo -create -output ClaudeCodeBuddy \
             .build/arm64-apple-macosx/release/ClaudeCodeBuddy \
             .build/x86_64-apple-macosx/release/ClaudeCodeBuddy
-        working-directory: apps/desktop
-
-      - name: Create universal CLI binary
-        run: |
           lipo -create -output buddy \
             .build/arm64-apple-macosx/release/buddy-cli \
             .build/x86_64-apple-macosx/release/buddy-cli
@@ -69,7 +106,14 @@ jobs:
           # Copy app icon
           cp Sources/ClaudeCodeBuddy/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+<<<<<<< Updated upstream
           # Copy SPM resource bundle (Bundle.module looks for it at .app root)
+=======
+          # Copy SPM resource bundles (Bundle.module needs both at .app root)
+          # - ClaudeCodeBuddy_BuddyCore.bundle: buddy 自己的资源
+          # - KeyboardShortcuts_KeyboardShortcuts.bundle: KeyboardShortcuts 库的本地化（key name，
+          #   Shortcut.description/keyToCharacter 需要；缺失会 EXC_BAD_INSTRUCTION 崩 v0.31.0）
+>>>>>>> Stashed changes
           cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/Contents/Resources/"
 
           # Update version in Info.plist
@@ -87,7 +131,8 @@ jobs:
             "$APP/Contents/MacOS/buddy" \
             "$APP/Contents/Info.plist" \
             "$APP/Contents/Resources/AppIcon.icns" \
-            "$APP/Contents/Resources/ClaudeCodeBuddy_BuddyCore.bundle"; do
+            "$APP/Contents/Resources/ClaudeCodeBuddy_BuddyCore.bundle" \
+            "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"; do
             if [ ! -e "$f" ]; then
               echo "MISSING: $f"
               exit 1
@@ -150,7 +195,7 @@ jobs:
 
   update-homebrew-tap:
     name: Update Homebrew Tap
-    needs: build-and-release
+    needs: release
     runs-on: ubuntu-latest
 
     permissions:

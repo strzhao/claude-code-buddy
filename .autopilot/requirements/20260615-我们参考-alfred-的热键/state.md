@@ -1,6 +1,6 @@
 ---
 active: true
-phase: "merge"
+phase: "done"
 gate: ""
 iteration: 2
 max_iterations: 30
@@ -198,3 +198,4 @@ html_review: false
 - [2026-06-15T12:10:00Z] QA 完成（轮次1）：Wave 1 全绿（make test-fast 1117 passed 0 failures + lint 0 + 编译通过，SourceKit 报错确认新建文件索引滞后误报）；Tier 1.5 QA 独立执行 16 场景全通过（dev app + dev buddy-cli socket 往返/迁移清理/幂等持久化/app 未运行/非法参数 exit 2，E=16 N=19 差额 3=B3/C1/C2 GUI·外部手动 QA）；Wave 2 qa-reviewer PASS（6/6 契约 + 3 非阻断技术债 B-1/B-2/B-3）。判定全部 ✅（仅基础设施类 ⚠️）→ gate review-accept。
 - [2026-06-15T12:50:00Z] QA 后加固（用户 review 要求修 qa-reviewer B-1+B-3）：B-1 QueryHandler.handle 标 @MainActor（编译期保证，去掉 hotkey 分支 MainActor.assumeIsolated，SessionManager.onQuery 改 Task { @MainActor }）；B-3 handleHotkeySet 拒绝空/nil modifiers（与 CLI 护栏对齐）。重验：test-fast 1117 绿 + 真实 socket 往返（show/set/clear Task @MainActor 正常不 hang）+ lint 0。B-2（主线程写 socket P2）未修（需重构 sendResponse，本地小 payload影响小，单独跟进）。
 - [2026-06-16T01:10:00Z] B-2 修复（用户要求继续修）：SocketServer 加 sendResponseAsync（queue.async 上执行同步写循环），SessionManager.onQuery 改用 sendResponseAsync —— handle 仍 @MainActor 主线程（B-1），sendResponse 回 socket queue 不阻塞 UI。重验：test-fast 1117 passed 0 failures + lint 0 + 真实 socket 往返（hotkey show/set/clear + 非 hotkey status 全部经 sendResponseAsync 正确返回不 hang）。**qa-reviewer B-1/B-2/B-3 全部修复完成**。
+- [2026-06-16T03:36:00Z] merge：热键 tab frame 修复（container 固定 580x480 对齐 SkinGallery，translatesAutoresizingMaskIntoConstraints=false 致缩 fittingSize）。提交 3 commit（2566e97 热键功能 + e4c9f9c 知识沉淀 + 238dfb3 CI lint 修复：字面量 URL force unwrap 改 guard 避免 superfluous_disable_command 版本差异）。push origin main。**CI Desktop 绿**（27592862416 ✓ Build+Test+Lint 4m6s）。本地 make lint --strict 0 violations + test-fast 1117 passed。phase → done。

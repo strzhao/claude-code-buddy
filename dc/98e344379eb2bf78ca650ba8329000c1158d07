@@ -1,0 +1,46 @@
+.autopilot/requirements/20260615-我们参考-alfred-的热键/state.md
+  9c9c9bbe835d764d 15
+.autopilot/knowledge/index.md
+  9c9c9bbe835d764d 19,21
+.autopilot/knowledge/patterns/2026-06-16-appkit-contentviewcontroller-root-view-frame-fitting-size.md
+  9c9c9bbe835d764d 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "dc98e344379eb2bf78ca650ba8329000c1158d07",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 3,
+      "accepted_lines": 40,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-16-appkit-contentviewcontroller-root-view-frame-fitting-size.md": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        ".autopilot/requirements/20260615-我们参考-alfred-的热键/state.md": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "accepted_lines": 16
+        }
+      }
+    }
+  }
+}

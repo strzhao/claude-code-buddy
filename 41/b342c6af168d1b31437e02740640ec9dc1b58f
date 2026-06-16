@@ -1,0 +1,29 @@
+.gitignore
+  f609b81de2666198 31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "41b342c6af168d1b31437e02740640ec9dc1b58f",
+  "prompts": {
+    "f609b81de2666198": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d6e44b4-accc-4b21-bc0b-c8a730fd7af3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".gitignore": {
+          "additions": 2,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

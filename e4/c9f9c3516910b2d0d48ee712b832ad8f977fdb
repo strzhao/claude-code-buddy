@@ -1,0 +1,39 @@
+.autopilot/knowledge/patterns/2026-06-16-keyboardshortcuts-upgrade-userdefaults-incompatible.md
+  9c9c9bbe835d764d 1-22
+.autopilot/knowledge/index.md
+  9c9c9bbe835d764d 19,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e4c9f9c3516910b2d0d48ee712b832ad8f977fdb",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 1,
+      "accepted_lines": 40,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-16-keyboardshortcuts-upgrade-userdefaults-incompatible.md": {
+          "additions": 22,
+          "accepted_lines": 22
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "accepted_lines": 16
+        }
+      }
+    }
+  }
+}

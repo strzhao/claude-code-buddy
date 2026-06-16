@@ -1,0 +1,33 @@
+.github/workflows/release.yml
+  9c9c9bbe835d764d 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ded648365857c5eaa6228a506d0c743e7e94e2db",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 8,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".github/workflows/release.yml": {
+          "additions": 1,
+          "deletions": 4,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "deletions": 4
+        }
+      }
+    }
+  }
+}

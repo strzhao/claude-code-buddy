@@ -1,0 +1,40 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift
+  9c9c9bbe835d764d 24-30
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/AnthropicProvider.swift
+  9c9c9bbe835d764d 20-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "238dfb38805f5becf5d3d057ed7b25c4d63515ad",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 4,
+      "accepted_lines": 28,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "additions": 7,
+          "deletions": 2,
+          "accepted_lines": 7
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "accepted_lines": 16
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/AnthropicProvider.swift": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 5
+        }
+      }
+    }
+  }
+}

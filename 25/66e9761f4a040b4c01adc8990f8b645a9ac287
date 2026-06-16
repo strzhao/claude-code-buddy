@@ -1,0 +1,178 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  9c9c9bbe835d764d 2-3,7-10,25-28,45-50,174-257
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherFeedbackAcceptanceTests.swift
+  9c9c9bbe835d764d 71
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift
+  9c9c9bbe835d764d 1-91,93-100,104-263,266-284,288,291-300,304,307-466
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Config/LauncherConfig.swift
+  9c9c9bbe835d764d 29-31,36
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherConfigAcceptanceTests.swift
+  9c9c9bbe835d764d 15-16,127,155,168-175,191,219,266
+apps/desktop/Sources/ClaudeCodeBuddy/Network/SocketServer.swift
+  9c9c9bbe835d764d 268-276
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  9c9c9bbe835d764d 127-130
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift
+  9c9c9bbe835d764d 13,21,41,49,52,59,70-88,90,106-109
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  9c9c9bbe835d764d 14
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyDefaultAcceptanceTests.swift
+  9c9c9bbe835d764d 7,9-12,14-15,17-18,23,25,29-31,34-38,44,46-48,50-52,54-56,59,61,63-65,71,76-95,98,100-102,104-105
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift
+  9c9c9bbe835d764d 1-206
+apps/desktop/tests/BuddyCoreTests/QueryHandlerTests.swift
+  9c9c9bbe835d764d 4
+CLAUDE.md
+  9c9c9bbe835d764d 75
+apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  9c9c9bbe835d764d 67-72
+apps/desktop/CLAUDE.md
+  9c9c9bbe835d764d 70-72,156-167,183
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherHotkey.swift
+  9c9c9bbe835d764d 5-6,9,12-18,39-53
+apps/desktop/Sources/ClaudeCodeBuddy/Network/HotkeyKeyMapper.swift
+  9c9c9bbe835d764d 1-176
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherConfigTests.swift
+  9c9c9bbe835d764d 29,66,109
+apps/desktop/Sources/BuddyCLI/main.swift
+  9c9c9bbe835d764d 243-245,302-316,366-371,946-957,959,1204-1287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "2566e9761f4a040b4c01adc8990f8b645a9ac287",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1292,
+      "total_deletions": 161,
+      "accepted_lines": 1250,
+      "overriden_lines": 10,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "additions": 30,
+          "deletions": 4,
+          "accepted_lines": 30
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift": {
+          "additions": 9,
+          "deletions": 5,
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/BuddyCoreTests/QueryHandlerTests.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyDefaultAcceptanceTests.swift": {
+          "additions": 64,
+          "deletions": 64,
+          "accepted_lines": 64
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherConfigAcceptanceTests.swift": {
+          "additions": 15,
+          "deletions": 32,
+          "accepted_lines": 15
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherFeedbackAcceptanceTests.swift": {
+          "additions": 1,
+          "deletions": 2,
+          "accepted_lines": 1
+        },
+        "CLAUDE.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 5,
+          "deletions": 1,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Config/LauncherConfig.swift": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 114,
+          "deletions": 14,
+          "accepted_lines": 100
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 16,
+          "deletions": 2,
+          "accepted_lines": 16
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/HotkeyKeyMapper.swift": {
+          "additions": 178,
+          "deletions": 2,
+          "accepted_lines": 176
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "additions": 462,
+          "deletions": 2,
+          "accepted_lines": 450,
+          "overriden_lines": 10
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/SocketServer.swift": {
+          "additions": 9,
+          "accepted_lines": 9
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "additions": 16,
+          "deletions": 10,
+          "accepted_lines": 16
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 121,
+          "deletions": 1,
+          "accepted_lines": 121
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherConfigTests.swift": {
+          "additions": 3,
+          "deletions": 7,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherHotkey.swift": {
+          "additions": 27,
+          "deletions": 2,
+          "accepted_lines": 26
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 215,
+          "deletions": 9,
+          "accepted_lines": 206
+        }
+      }
+    },
+    "ec9e23f741513c7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1ee147c-5dbd-4e7d-8df4-1958b9d0e0ae",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-04-30-obstacle-path-tolerance-backward-jump-loop.md": {
+          "additions": 6
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  9c9c9bbe835d764d 14,16-18
+.github/workflows/release.yml
+  9c9c9bbe835d764d 9-10,24-25,35-36,40,72,75,109,111,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "0d035a7f5a51ab8af1c233228faf13a5ce6124e0",
+  "prompts": {
+    "9c9c9bbe835d764d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "476c39ef-72c2-4373-aaa5-cee3840be962",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 1,
+      "accepted_lines": 82,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 4,
+          "accepted_lines": 5
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "accepted_lines": 16
+        },
+        ".github/workflows/release.yml": {
+          "additions": 4,
+          "deletions": 1,
+          "accepted_lines": 61
+        }
+      }
+    }
+  }
+}

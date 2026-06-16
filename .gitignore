@@ -28,6 +28,8 @@ secrets.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 .autopilot/runtime/
+# autopilot 活跃任务标记（瞬态状态文件，不入库）
+.autopilot/active
 
 # Test artifacts
 test-results/

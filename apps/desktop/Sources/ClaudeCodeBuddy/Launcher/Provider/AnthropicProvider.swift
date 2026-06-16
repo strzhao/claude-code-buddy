@@ -17,8 +17,11 @@ final class AnthropicProvider: LauncherProvider {
             throw LauncherError.invalidAPIKey("too short")
         }
 
-        // swiftlint:disable:next force_unwrapping
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+        // guard 兜底避免 force_unwrapping（不同 SwiftLint 版本对字面量 URL 的 `!` 触发不一致）
+        guard let apiURL = URL(string: "https://api.anthropic.com/v1/messages") else {
+            fatalError("Invalid Anthropic API URL literal")
+        }
+        var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")

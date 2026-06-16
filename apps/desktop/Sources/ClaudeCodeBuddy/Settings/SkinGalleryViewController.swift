@@ -21,8 +21,13 @@ class SkinGalleryViewController: NSViewController {
     private let alwaysShowLabelLabel = NSTextField(labelWithString: "Always Show Label")
 
     // Catalog URL — can be overridden for testing
-    // swiftlint:disable:next force_unwrapping
-    var catalogURL: URL = URL(string: "https://buddy.stringzhao.life/api/skins")!
+    // guard 兜底避免 force_unwrapping（不同 SwiftLint 版本对字面量 URL 的 `!` 触发不一致）
+    var catalogURL: URL = {
+        guard let url = URL(string: "https://buddy.stringzhao.life/api/skins") else {
+            fatalError("Invalid catalog URL literal")
+        }
+        return url
+    }()
 
     // MARK: - Computed data
 

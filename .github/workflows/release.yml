@@ -106,15 +106,12 @@ jobs:
           # Copy app icon
           cp Sources/ClaudeCodeBuddy/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-<<<<<<< Updated upstream
-          # Copy SPM resource bundle (Bundle.module looks for it at .app root)
-=======
           # Copy SPM resource bundles (Bundle.module needs both at .app root)
           # - ClaudeCodeBuddy_BuddyCore.bundle: buddy 自己的资源
           # - KeyboardShortcuts_KeyboardShortcuts.bundle: KeyboardShortcuts 库的本地化（key name，
           #   Shortcut.description/keyToCharacter 需要；缺失会 EXC_BAD_INSTRUCTION 崩 v0.31.0）
->>>>>>> Stashed changes
           cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/Contents/Resources/"
+          cp -R .build/arm64-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle "$APP/Contents/Resources/"
 
           # Update version in Info.plist
           TAG="${GITHUB_REF_NAME#v}"

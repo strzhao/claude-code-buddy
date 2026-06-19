@@ -1,0 +1,48 @@
+.autopilot/knowledge/index.md
+  dec0f53e30e4dd7e 3,5,20,22-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "62fbaad289cefec4a095378a22ae9573cb717ac8",
+  "prompts": {
+    "dec0f53e30e4dd7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "66e13683-ce31-44cf-9e7a-8ddee9e8858b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 2,
+      "accepted_lines": 5,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 5
+        }
+      }
+    },
+    "ec55893ed8e76d8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0667ed3c-e8e8-41d6-8952-78900f41a8c3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 22,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/launcher/builtin/calculator/mathevaluator.swift": {
+          "accepted_lines": 22
+        }
+      }
+    }
+  }
+}

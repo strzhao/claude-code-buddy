@@ -1,0 +1,71 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  ec55893ed8e76d8d 59-65,75-76
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  ec55893ed8e76d8d 11-13,18-23,25-31,35-36,43-44,48,70-75,283-360
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift
+  ec55893ed8e76d8d 76-77,93-94,110-111,131-132,146-147,160-161,175-176,187-188,202-203,215-216,237,239,251,272-273,288,293,311,313,322,336,338,344,352,372,403,438,444,457
+apps/desktop/tests/BuddyCoreTests/QueryHandlerTests.swift
+  ec55893ed8e76d8d 22-23,29-30,40,45,56,62,72-73,83,87,99,103,111,117,127-128,148-149,155-156
+apps/desktop/Sources/BuddyCLI/main.swift
+  ec55893ed8e76d8d 246-247,307-309,377-379,966-988,990,1319-1374
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugQueryHandlerAcceptanceTests.swift
+  ec55893ed8e76d8d 1-546
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6c16cb998144fbfa6d437f571771d9fead9704ce",
+  "prompts": {
+    "ec55893ed8e76d8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0667ed3c-e8e8-41d6-8952-78900f41a8c3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 923,
+      "total_deletions": 76,
+      "accepted_lines": 831,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 110,
+          "deletions": 7,
+          "accepted_lines": 105
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 88,
+          "deletions": 1,
+          "accepted_lines": 88
+        },
+        "apps/desktop/tests/BuddyCoreTests/ZZScratchDebugSmokeTests.swift": {
+          "additions": 104
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherHotkeyConfigAcceptanceTests.swift": {
+          "additions": 39,
+          "deletions": 39,
+          "accepted_lines": 39
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift": {
+          "additions": 13,
+          "deletions": 6,
+          "accepted_lines": 9
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugQueryHandlerAcceptanceTests.swift": {
+          "additions": 547,
+          "deletions": 1,
+          "accepted_lines": 546
+        },
+        "apps/desktop/tests/BuddyCoreTests/QueryHandlerTests.swift": {
+          "additions": 22,
+          "deletions": 22,
+          "accepted_lines": 22
+        },
+        "apps/desktop/sources/claudecodebuddy/launcher/builtin/calculator/mathevaluator.swift": {
+          "accepted_lines": 22
+        }
+      }
+    }
+  }
+}

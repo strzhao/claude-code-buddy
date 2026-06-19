@@ -16,8 +16,10 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (87)
+## Patterns (89)
 
+- [2026-06-19] launcher 计算器用纯 Swift 递归下降求值器而非 NSExpression（char 白名单拒字母/函数从结构防注入 + 纯函数可测；`^` 右结合；TOFU 安全模型下的选型）| tags: launcher, calculator, math-evaluator, recursive-descent, parser, nsexpression, javascriptcore, security, char-whitelist, injection-prevention, pure-function, testability, tofu, builtin-plugin, swift, operator-precedence, right-associative | → patterns/2026-06-19-launcher-calculator-handwritten-parser-over-nsexpression.md
+- [2026-06-19] launcher 功能测试禁用 osascript 键盘自动化（System Events keystroke 抢占真实前台 app 焦点 + Enter 后 toggle 时序致假阴性；走 XCTest 编程接口 / CLI 驱动，禁止键盘模拟）| tags: launcher, e2e, testing, osascript, keyboard-automation, system-events, nspanel, hotkey, ctrl-space, destructive-test, cli-testing, qa, automation, accessibility, hijack, buddy-cli | → patterns/2026-06-19-launcher-e2e-keyboard-automation-destructive-use-cli.md
 - [2026-06-16] NSViewController 作 NSPanel contentViewController：root view translatesAutoresizingMaskIntoConstraints=false + 无尺寸约束会缩到 fittingSize（对比 SkinGallery 固定 frame + 默认 autoresize；新 tab 对齐既有 working tab 模式）| tags: appkit, nsviewcontroller, nspanel, contentview, translatesautoresizingmask, frame, fitting-size, autoresize, settings-panel, layout | → patterns/2026-06-16-appkit-contentviewcontroller-root-view-frame-fitting-size.md
 - [2026-06-16] KeyboardShortcuts 库升级后旧 UserDefaults 值与新库不兼容致全局热键失效（注册成功但不触发；裸 Carbon 测试隔离系统 vs app 库存储；迁移清理 + reset 非 setShortcut(nil)）| tags: keyboardshortcuts, upgrade-migration, userdefaults, hotkey, launcher, carbon, registerhotkey, ad-hoc, sindresorhus, version-compat | → patterns/2026-06-16-keyboardshortcuts-upgrade-userdefaults-incompatible.md
 - [2026-05-31] [2026-05-31] systemPrompt 用 few-shot 真实示例驱动 markdown 输出，模板占位符会被字面照搬 | tags: llm, prompt-engineering, systemprompt, few-shot, template, placeholder, markdown, translate, output-format, in-context-learning, hallucination | → patterns/2026-05-31-llm-fewshot-vs-template-placeholders.md

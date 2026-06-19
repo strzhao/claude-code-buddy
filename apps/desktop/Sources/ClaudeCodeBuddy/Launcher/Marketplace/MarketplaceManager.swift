@@ -648,10 +648,11 @@ final class MarketplaceManager {
         }
     }
 
-    /// stdin mode 插件的 cmd 文件 chmod 0o755（仅当文件存在）。
+    /// stdin/command mode 插件的 cmd 文件 chmod 0o755（仅当文件存在）。
     ///
     /// Bundle 资源是只读，拷到 launcher-plugins 后需手动赋执行权限。
-    /// 仅 stdin mode 需要；prompt mode 无可执行文件，跳过。
+    /// stdin + command mode 都有可执行子进程；prompt mode 无可执行文件，跳过。
+    /// 引用知识库：2026-05-26-spm-copy-executable-script-chmod-755
     private func ensureStdinChmod(in dir: URL) throws {
         let manifestPath = dir.appendingPathComponent("plugin.json")
         guard FileManager.default.fileExists(atPath: manifestPath.path),
@@ -659,8 +660,15 @@ final class MarketplaceManager {
               let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data) else {
             return
         }
-        if case .stdin(let cfg) = manifest.modeConfig {
-            let exeBase = (cfg.cmd as NSString).lastPathComponent
+        // stdin 与 command 共享 cmd 字段路径，统一 chmod
+        let cmdStr: String?
+        switch manifest.modeConfig {
+        case .stdin(let cfg): cmdStr = cfg.cmd
+        case .command(let cfg): cmdStr = cfg.cmd
+        case .prompt: cmdStr = nil
+        }
+        if let cmd = cmdStr {
+            let exeBase = (cmd as NSString).lastPathComponent
             let exePath = dir.appendingPathComponent(exeBase).path
             if FileManager.default.fileExists(atPath: exePath) {
                 try FileManager.default.setAttributes(

@@ -37,6 +37,9 @@ test-results/
 # Sprite processing backup
 Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
 
+# qr-gen universal binary（Makefile build-qr-gen 产物，不入库；源码 qr-gen.swift 入库）
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen
+
 claude-code-buddy-web/
 
 # === monorepo additions ===

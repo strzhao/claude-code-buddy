@@ -23,10 +23,12 @@ final class TrustStore {
     // MARK: - trustKey
 
     /// mode-aware trustKey:
-    ///   stdin:  "stdin:"  + SHA256(cmd + "\n" + args.joined("\n") + "\n" + sha256(exe_bytes)_hex)
-    ///   prompt: "prompt:" + SHA256(systemPrompt + "\n" + maxIterations + "\n" + modelPart)
-    ///           其中 modelPart = "0" (nil) | "1:\(model)" (非 nil)
-    ///           结构性 tag 区分 nil 与字符串 "default"，避免 ?? 默认值碰撞
+    ///   stdin:    "stdin:"    + SHA256(cmd + "\n" + args.joined("\n") + "\n" + sha256(exe_bytes)_hex)
+    ///   command:  "command:"  + SHA256(cmd + "\n" + args.joined("\n") + "\n" + sha256(exe_bytes)_hex)
+    ///             （与 stdin 同构，仅 mode 前缀不同 —— command 零 LLM、bypass agent loop，仍需 TOFU）
+    ///   prompt:   "prompt:"   + SHA256(systemPrompt + "\n" + maxIterations + "\n" + modelPart)
+    ///             其中 modelPart = "0" (nil) | "1:\(model)" (非 nil)
+    ///             结构性 tag 区分 nil 与字符串 "default"，避免 ?? 默认值碰撞
     /// mode 前缀防止跨 mode 伪造；任一字段变化 → trustKey 变化 → NSAlert 重弹
     static func trustKey(for plugin: PluginManifest, executablePath: URL) throws -> String {
         switch plugin.modeConfig {
@@ -36,6 +38,14 @@ final class TrustStore {
             let argsPart = cfg.args.joined(separator: "\n")
             let combined = "\(cfg.cmd)\n\(argsPart)\n\(exeHashHex)"
             return "stdin:" + SHA256.hash(data: Data(combined.utf8)).hexString
+        case .command(let cfg):
+            // 与 stdin 同构：复用 cmd + args + sha256(exe_bytes) 算法，仅前缀不同
+            // 引用知识库 2026-05-27-tofu-trust-key-includes-exe-bytes
+            let exeData = try Data(contentsOf: executablePath)
+            let exeHashHex = SHA256.hash(data: exeData).hexString
+            let argsPart = cfg.args.joined(separator: "\n")
+            let combined = "\(cfg.cmd)\n\(argsPart)\n\(exeHashHex)"
+            return "command:" + SHA256.hash(data: Data(combined.utf8)).hexString
         case .prompt(let cfg):
             // 结构性 tag：nil → "0", 非 nil → "1:value"，避免 nil 与字符串 "default" 等碰撞
             let modelPart = cfg.model.map { "1:\($0)" } ?? "0"

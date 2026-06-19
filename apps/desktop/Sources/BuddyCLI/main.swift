@@ -1408,6 +1408,17 @@ private func cliComputeTrustKeyPrompt(systemPrompt: String, maxIterations: Int, 
     return "prompt:" + hex
 }
 
+private func cliComputeTrustKeyCommand(cmd: String, args: [String], executableURL: URL) -> String? {
+    // SOURCE OF TRUTH: BuddyCore/Launcher/Plugin/TrustStore.swift trustKey() .command case
+    // 与 stdin 同构（cmd + args + sha256(exe_bytes)），仅 mode 前缀 "command:" 不同
+    guard let exeData = try? Data(contentsOf: executableURL) else { return nil }
+    let exeDigest = SHA256.hash(data: exeData)
+    let exeHashHex = exeDigest.map { String(format: "%02x", $0) }.joined()
+    let combined = "\(cmd)\n\(args.joined(separator: "\n"))\n\(exeHashHex)"
+    let digest = SHA256.hash(data: Data(combined.utf8))
+    return "command:" + digest.map { String(format: "%02x", $0) }.joined()
+}
+
 private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) -> String {
     let mode = manifest.mode ?? "stdin"
     let trustFile = cliLoadTrustFile()
@@ -1433,6 +1444,16 @@ private func cliTrustStatus(manifest: CLIPluginManifestCheck, pluginDir: URL) ->
             maxIterations: manifest.maxIterations ?? 1,
             model: manifest.model
         )
+        return currentKey == record.trustKey ? "trusted" : "untrusted"
+    case "command":
+        // command mode：与 stdin 同构 trustKey（cmd+args+sha256(exe)），仅前缀 "command:"
+        guard let cmd = manifest.cmd, let args = manifest.args else {
+            return "untrusted"
+        }
+        let exeURL = pluginDir.appending(path: cmd)
+        guard let currentKey = cliComputeTrustKeyCommand(cmd: cmd, args: args, executableURL: exeURL) else {
+            return "untrusted"
+        }
         return currentKey == record.trustKey ? "trusted" : "untrusted"
     default:
         _ = record
@@ -1557,6 +1578,10 @@ private func cmdLauncherInspect(_ name: String) {
         if let maxIterations = m.maxIterations { out["max_iterations"] = maxIterations }
         if let model = m.model { out["model"] = model }
         if let autoCopy = m.autoCopyToClipboard { out["auto_copy_to_clipboard"] = autoCopy }
+    case "command":
+        // command mode：与 stdin 同构，输出 cmd/args（CLAUDE.md SOURCE OF TRUTH 双绑）
+        if let cmd = m.cmd { out["cmd"] = cmd }
+        if let args = m.args { out["args"] = args }
     default:
         break
     }

@@ -12,6 +12,7 @@ struct PluginManifest: Codable, Equatable {
 enum PluginModeConfig: Equatable {
     case stdin(StdinConfig)
     case prompt(PromptConfig)
+    case command(CommandConfig)
     // 注意：故意不声明 Codable，由 PluginManifest 自定义 init/encode 负责序列化
     // （enum 关联值的 Codable 自动合成会要求特定 case 格式，加上反而引发编译错误）
 }
@@ -28,6 +29,15 @@ struct PromptConfig: Codable, Equatable {
     let maxIterations: Int
     let model: String?
     let autoCopyToClipboard: Bool
+}
+
+/// command mode：零 LLM、bypass agent loop，子进程直接产出（含可选图片通道）。
+/// 与 StdinConfig 同构（cmd/args/env/requiredPath），复用 cmd 路径校验。
+struct CommandConfig: Codable, Equatable {
+    let cmd: String
+    let args: [String]              // decode 时 decodeIfPresent ?? [] 容旧格式
+    let env: [String: String]?
+    let requiredPath: [String]?
 }
 
 // MARK: - Codable
@@ -63,6 +73,13 @@ extension PluginManifest {
                 model: try c.decodeIfPresent(String.self, forKey: .model),
                 autoCopyToClipboard: try c.decodeIfPresent(Bool.self, forKey: .autoCopyToClipboard) ?? false
             ))
+        case "command":
+            modeConfig = .command(CommandConfig(
+                cmd: try c.decode(String.self, forKey: .cmd),
+                args: try c.decodeIfPresent([String].self, forKey: .args) ?? [],
+                env: try c.decodeIfPresent([String: String].self, forKey: .env),
+                requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath)
+            ))
         default:
             throw LauncherError.pluginManifestInvalid("unknown mode: \(mode)")
         }
@@ -88,6 +105,12 @@ extension PluginManifest {
             try c.encode(cfg.maxIterations, forKey: .maxIterations)
             try c.encodeIfPresent(cfg.model, forKey: .model)
             try c.encode(cfg.autoCopyToClipboard, forKey: .autoCopyToClipboard)
+        case .command(let cfg):
+            try c.encode("command", forKey: .mode)
+            try c.encode(cfg.cmd, forKey: .cmd)
+            try c.encode(cfg.args, forKey: .args)
+            try c.encodeIfPresent(cfg.env, forKey: .env)
+            try c.encodeIfPresent(cfg.requiredPath, forKey: .requiredPath)
         }
     }
 }
@@ -132,6 +155,19 @@ extension PluginManifest {
                     "maxIterations 必须在 [1, \(LauncherConstants.promptMaxIterations)]"
                 )
             }
+        case .command(let cfg):
+            // 复用 stdin cmd 校验（禁绝对路径 / ..，参考 patterns/2026-05-26-plugin-manifest-validation-path-traversal）
+            guard !cfg.cmd.hasPrefix("/") else {
+                throw LauncherError.pluginManifestInvalid("cmd '\(cfg.cmd)' 不能是绝对路径")
+            }
+            guard !cfg.cmd.contains("/.."), !cfg.cmd.contains("../") else {
+                throw LauncherError.pluginManifestInvalid("cmd '\(cfg.cmd)' 不能包含 ..")
+            }
+            if let paths = cfg.requiredPath, paths.count > LauncherConstants.pluginRequiredPathMaxCount {
+                throw LauncherError.pluginManifestInvalid(
+                    "requiredPath 数组长度 \(paths.count) 超过上限 \(LauncherConstants.pluginRequiredPathMaxCount)"
+                )
+            }
         }
     }
 
@@ -151,19 +187,24 @@ extension PluginManifest {
         if case .prompt(let c) = modeConfig { return c }
         return nil
     }
+    /// 仅 command mode 返回非 nil
+    var commandConfig: CommandConfig? {
+        if case .command(let c) = modeConfig { return c }
+        return nil
+    }
 
     /// 便利访问 autoCopyToClipboard（prompt mode only；stdin mode 返回 false）
     var autoCopyToClipboard: Bool { promptConfig?.autoCopyToClipboard ?? false }
 
-    // ⚠️ 现有消费者 back-compat（stdin 时正常，prompt 时空值兜底）
+    // ⚠️ 现有消费者 back-compat（stdin/command 时正常，prompt 时空值兜底）
     // ⚠️ prompt mode 时 .cmd == "" 是已知临时状态（task 003 修复 inspect/trust 路径前）
-    // ⚠️ 勿用 accessor 做 mode 判断！应用 `stdinConfig != nil` 或 switch `modeConfig`
+    // ⚠️ 勿用 accessor 做 mode 判断！应用 `stdinConfig != nil` / `commandConfig != nil` 或 switch `modeConfig`
     // ⚠️ 已知问题：BuddyCLI/main.swift:1167-1168 的 cliComputeTrustKey 会对 prompt mode
     //    的 manifest.cmd="" 计算错误 trust key —— 由 task 003 修复
-    var cmd: String { stdinConfig?.cmd ?? "" }
-    var args: [String] { stdinConfig?.args ?? [] }
-    var env: [String: String]? { stdinConfig?.env }
-    var requiredPath: [String]? { stdinConfig?.requiredPath }
+    var cmd: String { stdinConfig?.cmd ?? commandConfig?.cmd ?? "" }
+    var args: [String] { stdinConfig?.args ?? commandConfig?.args ?? [] }
+    var env: [String: String]? { stdinConfig?.env ?? commandConfig?.env }
+    var requiredPath: [String]? { stdinConfig?.requiredPath ?? commandConfig?.requiredPath }
 }
 
 // MARK: - 便利 init（兼容旧调用方式，仅供测试使用）

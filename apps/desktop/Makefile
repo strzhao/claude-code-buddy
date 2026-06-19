@@ -1,7 +1,28 @@
-.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle
+.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle build-qr-gen
 
-build:
+# build 先构建 qr-gen universal binary（放回 Marketplace/plugins/qr/），
+# 再 swift build —— SPM .copy("Marketplace") 会把含二进制的目录拷进 bundle 资源。
+# 时序关键：build-qr-gen 必须先于 swift build，否则 bundle 里 qr-gen 缺失。
+build: build-qr-gen
 	swift build
+
+# qr-gen universal binary：CoreImage 二维码生成器（command mode 插件可执行文件）。
+# arm64 + x86_64 双架构 + lipo 合并，保证 Intel/Apple Silicon 均可执行。
+# 输出路径：Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen（被 .gitignore 排除，不入库）
+# 引用知识库：2026-05-26-spm-copy-executable-script-chmod-755
+QR_GEN_SRC := Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen.swift
+QR_GEN_OUT := Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen
+
+build-qr-gen:
+	@echo "▶ 构建 qr-gen universal binary (arm64 + x86_64)"
+	@build_dir=$$(mktemp -d); \
+	swiftc -target arm64-apple-macosx14 -O -o $$build_dir/qr-gen-arm64 $(QR_GEN_SRC) -framework AppKit -framework CoreImage; \
+	swiftc -target x86_64-apple-macosx14 -O -o $$build_dir/qr-gen-x86_64 $(QR_GEN_SRC) -framework AppKit -framework CoreImage; \
+	lipo -create -output $(QR_GEN_OUT) $$build_dir/qr-gen-arm64 $$build_dir/qr-gen-x86_64; \
+	chmod 755 $(QR_GEN_OUT); \
+	rm -rf $$build_dir
+	@echo "✓ qr-gen → $(QR_GEN_OUT)"
+
 
 # 走 dev-bundle.sh 包出 .app 再 open，避免裸 binary 触发 AppKit bundleProxy nil 异常
 run: build

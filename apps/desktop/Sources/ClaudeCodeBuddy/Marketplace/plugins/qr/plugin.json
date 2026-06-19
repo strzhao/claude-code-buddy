@@ -1,0 +1,12 @@
+{
+  "name": "qr",
+  "version": "0.1.0",
+  "description": "二维码生成器：输入文本/URL 生成可扫码 PNG，点击复制到剪贴板",
+  "keywords": ["qr", "qrcode", "二维码", "码"],
+  "mode": "command",
+  "cmd": "./qr-gen",
+  "args": [],
+  "env": null,
+  "timeout": 10,
+  "requiredPath": null
+}

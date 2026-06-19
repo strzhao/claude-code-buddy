@@ -1,0 +1,41 @@
+.autopilot/knowledge/patterns/2026-06-19-launcher-command-mode-bypass-provider-check.md
+  dec0f53e30e4dd7e 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6972c8b8ecdf957202cba4709461dc87d4f8ff09",
+  "prompts": {
+    "dec0f53e30e4dd7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "66e13683-ce31-44cf-9e7a-8ddee9e8858b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 17,
+      "total_deletions": 0,
+      "accepted_lines": 706,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/TrustStoreCommandModeTests.swift": {
+          "accepted_lines": 145
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestCommandModeTests.swift": {
+          "accepted_lines": 205
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginDispatcherCommandModeTests.swift": {
+          "accepted_lines": 149
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/StdinExecutorImageOutputTests.swift": {
+          "accepted_lines": 190
+        },
+        ".autopilot/knowledge/patterns/2026-06-19-launcher-command-mode-bypass-provider-check.md": {
+          "additions": 17,
+          "accepted_lines": 17
+        }
+      }
+    }
+  }
+}

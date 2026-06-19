@@ -1,0 +1,42 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  dec0f53e30e4dd7e 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "3d7f367b5c310b8856fbb98f4d4795a86c8ac872",
+  "prompts": {
+    "dec0f53e30e4dd7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "66e13683-ce31-44cf-9e7a-8ddee9e8858b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 690,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/StdinExecutorImageOutputTests.swift": {
+          "accepted_lines": 190
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/TrustStoreCommandModeTests.swift": {
+          "accepted_lines": 145
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginDispatcherCommandModeTests.swift": {
+          "accepted_lines": 149
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestCommandModeTests.swift": {
+          "accepted_lines": 205
+        }
+      }
+    }
+  }
+}

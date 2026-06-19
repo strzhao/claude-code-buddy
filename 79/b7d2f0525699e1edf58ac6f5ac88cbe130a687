@@ -1,0 +1,46 @@
+homebrew/Casks/claude-code-buddy.rb
+  ec55893ed8e76d8d 2
+apps/desktop/CLAUDE.md
+  ec55893ed8e76d8d 187-203
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  ec55893ed8e76d8d 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "79b7d2f0525699e1edf58ac6f5ac88cbe130a687",
+  "prompts": {
+    "ec55893ed8e76d8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0667ed3c-e8e8-41d6-8952-78900f41a8c3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 19,
+      "total_deletions": 2,
+      "accepted_lines": 41,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/launcher/builtin/calculator/mathevaluator.swift": {
+          "accepted_lines": 22
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 17,
+          "accepted_lines": 17
+        }
+      }
+    }
+  }
+}

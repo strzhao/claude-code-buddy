@@ -56,7 +56,13 @@ class SessionManager {
         try? Data("{}".utf8).write(to: URL(fileURLWithPath: Self.colorFilePath))
 
         // Initialize query handler
-        queryHandler = QueryHandler(sessionManager: self, scene: scene, eventStore: eventStore)
+        // registry（默认 nil，在 @MainActor handle 内 resolve 为 .shared）/ pasteboard（默认 .general）
+        // 用默认值；测试侧通过自定义 init 注入。不在 nonisolated start() 里引用 @MainActor 的 .shared。
+        queryHandler = QueryHandler(
+            sessionManager: self,
+            scene: scene,
+            eventStore: eventStore
+        )
 
         server.onMessage = { [weak self] message in
             self?.handle(message: message)
@@ -66,7 +72,8 @@ class SessionManager {
             guard let self = self, let handler = self.queryHandler else { return }
             // handle() 标注 @MainActor（hotkey 命令调用 KeyboardShortcuts 库 API），通过 Task 派主线程（qa-reviewer B-1）
             Task { @MainActor in
-                let responseData = handler.handle(query: query)
+                // handle 为 async：launcher_debug_candidates/perform 调 registry.actions(for:)（async）
+                let responseData = await handler.handle(query: query)
                 // 写回 socket queue 而非主线程（qa-reviewer B-2：避免主线程同步写循环卡 UI）
                 self.server.sendResponseAsync(data: responseData, to: clientFD)
             }

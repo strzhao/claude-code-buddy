@@ -8,25 +8,44 @@ import KeyboardShortcuts
 /// 注：handle() 标注 @MainActor —— hotkey_set/show/clear 命令调用 KeyboardShortcuts
 /// 库 API（标注 @MainActor），编译期保证主线程。调用方 SessionManager.onQuery 通过
 /// Task { @MainActor } 调用；测试类（QueryHandlerTests/LauncherHotkeyConfigAcceptanceTests）标注 @MainActor。
+///
+/// handle() 为 async：launcher_debug_candidates / launcher_debug_perform 调
+/// BuiltinPluginRegistry.actions(for:)（async）；async 函数即使同 actor 也必须 await。
 final class QueryHandler {
     private let sessionManager: SessionManager
     private let scene: any SceneControlling
     private let eventStore: EventStore
+    /// Launcher debug 子命令：内置插件注册表（直驱，不经 LauncherManager）。
+    /// 可选：生产 nil → 在 @MainActor handler 内 resolve 为 .shared（避免 nonisolated 默认参数
+    /// / nonisolated start() 引用 @MainActor 的 .shared，Swift 6 错误）；测试注入 mock。
+    private let registry: BuiltinPluginRegistry?
+    /// Launcher debug perform：读 perform 后剪贴板内容（默认 .general，测试注入具名 pasteboard）。
+    private let pasteboard: NSPasteboard
 
-    init(sessionManager: SessionManager, scene: any SceneControlling, eventStore: EventStore) {
+    init(
+        sessionManager: SessionManager,
+        scene: any SceneControlling,
+        eventStore: EventStore,
+        registry: BuiltinPluginRegistry? = nil,
+        pasteboard: NSPasteboard = .general
+    ) {
         self.sessionManager = sessionManager
         self.scene = scene
         self.eventStore = eventStore
+        self.registry = registry
+        self.pasteboard = pasteboard
     }
 
     // MARK: - Public
 
     /// Process a query and return the JSON response data.
     ///
+    /// async：launcher_debug_candidates / launcher_debug_perform 调 registry.actions(for:)（async）。
+    ///
     /// @MainActor：hotkey 命令调用 KeyboardShortcuts 库 API（@MainActor），编译期保证主线程
     /// （qa-reviewer B-1 加固：原 MainActor.assumeIsolated 是运行时隐式契约，改为编译期保证）。
     @MainActor
-    func handle(query: [String: Any]) -> Data {
+    func handle(query: [String: Any]) async -> Data {
         guard let action = query["action"] as? String else {
             return errorResponse(message: "missing 'action' field")
         }
@@ -48,6 +67,12 @@ final class QueryHandler {
             return handleHotkeySet(query: query)
         case "hotkey_clear":
             return handleHotkeyClear()
+        case "launcher_debug_candidates":
+            return await handleLauncherDebugCandidates(query: query)
+        case "launcher_debug_perform":
+            return await handleLauncherDebugPerform(query: query)
+        case "launcher_debug_registry":
+            return handleLauncherDebugRegistry()
         default:
             return errorResponse(message: "unknown action: \(action)")
         }
@@ -253,6 +278,84 @@ final class QueryHandler {
             return false
         }
         return shortcut == defaultShortcut
+    }
+
+    // MARK: - Launcher Debug（CLI 驱动候选生成，不经键盘自动化）
+
+    /// Resolve registry：测试注入优先（非 nil），否则用 .shared。
+    /// @MainActor：合法引用 @MainActor 隔离的 BuiltinPluginRegistry.shared（避免 nonisolated
+    /// 默认参数 / SessionManager.start() nonisolated 引用 .shared 的 Swift 6 错误）。
+    @MainActor
+    private func resolvedRegistry() -> BuiltinPluginRegistry {
+        registry ?? BuiltinPluginRegistry.shared
+    }
+
+    /// launcher_debug_candidates → registry.actions(for: q) → {query, count, candidates[]}
+    /// 契约：请求字段 query:String（非空）；响应候选字段 pluginId/title/subtitle/score。
+    @MainActor
+    private func handleLauncherDebugCandidates(query: [String: Any]) async -> Data {
+        guard let q = query["query"] as? String, !q.isEmpty else {
+            return errorResponse(message: "missing 'query'")
+        }
+        let acts = await resolvedRegistry().actions(for: q)
+        let candidates: [[String: Any]] = acts.map {
+            [
+                "pluginId": $0.pluginId,
+                "title": $0.title,
+                "subtitle": $0.subtitle ?? "",
+                "score": $0.score,
+            ]
+        }
+        return okResponse(data: [
+            "query": q,
+            "count": acts.count,
+            "candidates": candidates,
+        ])
+    }
+
+    /// launcher_debug_perform → registry.actions(for: q)[index].perform() → 读 pasteboard →
+    /// {pluginId, performed:true, copied?}（copied 仅当 perform 后 pasteboard 非空）。
+    /// 契约：请求字段 query:String（非空）+ index:Int（默认 0）。
+    @MainActor
+    private func handleLauncherDebugPerform(query: [String: Any]) async -> Data {
+        guard let q = query["query"] as? String, !q.isEmpty else {
+            return errorResponse(message: "missing 'query'")
+        }
+        let index = query["index"] as? Int ?? 0
+        let acts = await resolvedRegistry().actions(for: q)
+        guard acts.indices.contains(index) else {
+            return errorResponse(message: "no candidate at index \(index)")
+        }
+        let action = acts[index]
+        do {
+            try action.perform()
+        } catch {
+            return errorResponse(message: "perform failed: \(error)")
+        }
+        let copied = pasteboard.string(forType: .string)
+        var data: [String: Any] = [
+            "pluginId": action.pluginId,
+            "performed": true,
+        ]
+        if let copied {
+            data["copied"] = copied
+        }
+        return okResponse(data: data)
+    }
+
+    /// launcher_debug_registry → registry.plugins（priority 降序）→ {plugins[{id,priority,sectionTitle}]}
+    @MainActor
+    private func handleLauncherDebugRegistry() -> Data {
+        let plugins: [[String: Any]] = resolvedRegistry().plugins
+            .sorted { $0.priority > $1.priority }
+            .map {
+                [
+                    "id": $0.id,
+                    "priority": $0.priority,
+                    "sectionTitle": $0.sectionTitle,
+                ]
+            }
+        return okResponse(data: ["plugins": plugins])
     }
 
     // MARK: - Response Helpers

@@ -73,8 +73,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// D1：hotkey_show 必须返回 {status:"ok", data:{combo, isDefault}}。
     /// 默认状态下（无自定义）combo 应为 Ctrl+Space 且 isDefault == true。
-    func test_D1_hotkeyShow_returnsOkWithComboAndIsDefault() {
-        let data = handler.handle(query: ["action": "hotkey_show"])
+    func test_D1_hotkeyShow_returnsOkWithComboAndIsDefault() async {
+        let data = await handler.handle(query: ["action": "hotkey_show"])
         let json = parseResponse(data)
 
         XCTAssertEqual(json["status"] as? String, "ok",
@@ -90,8 +90,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     }
 
     /// D1 + 默认 combo 断言：hotkey_show 在默认状态下 isDefault == true 且 combo 含 "Space"（或本地化等价 "空格"）。
-    func test_D1_hotkeyShow_defaultState_isDefaultTrue() {
-        let data = handler.handle(query: ["action": "hotkey_show"])
+    func test_D1_hotkeyShow_defaultState_isDefaultTrue() async {
+        let data = await handler.handle(query: ["action": "hotkey_show"])
         let json = parseResponse(data)
         let payload = json["data"] as? [String: Any] ?? [:]
 
@@ -107,8 +107,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// hotkey_set 合法参数（key + modifiers ∈ {command,shift,control,option}）
     /// 必须返回 {status:"ok", data:{combo, isDefault:false}}。
-    func test_contract2_hotkeySet_validParams_returnsOkNotDefault() {
-        let data = handler.handle(query: [
+    func test_contract2_hotkeySet_validParams_returnsOkNotDefault() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command", "shift"],
@@ -128,8 +128,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// E2：modifiers 含非法字符串（如 "foobar"）必须返回 {status:"error"}。
     /// 不允许静默忽略非法元素或 fallback 到默认。
-    func test_E2_hotkeySet_invalidModifier_rejected() {
-        let data = handler.handle(query: [
+    func test_E2_hotkeySet_invalidModifier_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "space",
             "modifiers": ["foobar"],
@@ -143,8 +143,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     }
 
     /// E2：modifiers 含部分合法 + 部分非法（如 ["control", "BANANA"]）必须整体被拒。
-    func test_E2_hotkeySet_partialInvalidModifier_rejected() {
-        let data = handler.handle(query: [
+    func test_E2_hotkeySet_partialInvalidModifier_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["control", "BANANA"],
@@ -157,8 +157,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// E2：modifiers 含 option（合法集 {command,shift,control,option} 边界成员）应接受。
     /// 反例验证：边界成员 "option" 不应被误拒。
-    func test_E2_hotkeySet_optionModifier_accepted() {
-        let data = handler.handle(query: [
+    func test_E2_hotkeySet_optionModifier_accepted() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["option"],
@@ -172,8 +172,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     // MARK: - E2: 空 key 被拒
 
     /// E2：key 缺失（无 key 字段）必须返回 {status:"error"}。
-    func test_E2_hotkeySet_missingKey_rejected() {
-        let data = handler.handle(query: [
+    func test_E2_hotkeySet_missingKey_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "modifiers": ["control"],
         ])
@@ -184,8 +184,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     }
 
     /// E2：key 为空字符串必须返回 {status:"error"}。
-    func test_E2_hotkeySet_emptyKey_rejected() {
-        let data = handler.handle(query: [
+    func test_E2_hotkeySet_emptyKey_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "",
             "modifiers": ["control"],
@@ -199,8 +199,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     // MARK: - 契约 2: hotkey_set 参数类型契约
 
     /// hotkey_set 的 key 必须是 String 类型。传 Int 应被拒（不静默转换）。
-    func test_contract2_hotkeySet_nonStringKey_rejected() {
-        let data = handler.handle(query: [
+    func test_contract2_hotkeySet_nonStringKey_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": 123,
             "modifiers": ["control"],
@@ -212,8 +212,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     }
 
     /// hotkey_set 的 modifiers 必须是 [String]。传单个 String 应被拒。
-    func test_contract2_hotkeySet_nonArrayModifiers_rejected() {
-        let data = handler.handle(query: [
+    func test_contract2_hotkeySet_nonArrayModifiers_rejected() async {
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": "control",
@@ -234,9 +234,9 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     ///   [初始] default (isDefault=true)
     ///   → [set 自定义] isDefault=false
     ///   → [clear] isDefault=true（回 default，非空 combo）
-    func test_contract2_hotkeyClear_resetsToDefault_notClear() {
+    func test_contract2_hotkeyClear_resetsToDefault_notClear() async {
         // Step 1: 先 set 一个自定义热键，确保不是默认态
-        let setResp = handler.handle(query: [
+        let setResp = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command", "shift"],
@@ -248,7 +248,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
                        "状态转移 [set 自定义]: isDefault 必须为 false")
 
         // Step 2: clear → 回 default
-        let clearResp = handler.handle(query: ["action": "hotkey_clear"])
+        let clearResp = await handler.handle(query: ["action": "hotkey_clear"])
         let clearJson = parseResponse(clearResp)
 
         XCTAssertEqual(clearJson["status"] as? String, "ok",
@@ -269,8 +269,8 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// 未知 action 必须返回 error（QueryHandler 既有 default 分支）。
     /// 确保新增 hotkey_* case 没破坏既有 unknown action 契约。
-    func test_contract2_unknownAction_returnsError() {
-        let data = handler.handle(query: ["action": "totally_unknown_hotkey_thing"])
+    func test_contract2_unknownAction_returnsError() async {
+        let data = await handler.handle(query: ["action": "totally_unknown_hotkey_thing"])
         let json = parseResponse(data)
 
         XCTAssertEqual(json["status"] as? String, "error",
@@ -285,12 +285,12 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     ///
     /// 注：库 reset 后会持久化 default shortcut 编码到 UserDefaults（非 nil），
     /// 故本测试通过「set 前后的 UserDefaults 值不同」证明持久化写入，而非「从 nil 变非 nil」。
-    func test_G2_hotkeySet_persistsToUserDefaults() {
+    func test_G2_hotkeySet_persistsToUserDefaults() async {
         // Given: 记录 set 前的 UserDefaults 值（reset 后库写入 default 编码，非 nil）
         let beforeSet = UserDefaults.standard.object(forKey: hotkeyDefaultsKey) as? String
 
         // When: set 自定义热键
-        let data = handler.handle(query: [
+        let data = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command"],
@@ -308,9 +308,9 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// G2 补充：hotkey_clear 后 UserDefaults 偏好清除（回 default = 库内部无自定义值）。
     /// 这是持久化的对称断言（set 写入 → clear 清除）。
-    func test_G2_hotkeyClear_clearsUserDefaultsCustomization() {
+    func test_G2_hotkeyClear_clearsUserDefaultsCustomization() async {
         // 先 set 写入 UserDefaults
-        _ = handler.handle(query: [
+        _ = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command"],
@@ -319,7 +319,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
                         "G2 precondition: set 后 UserDefaults 应有值")
 
         // clear 应回 default（库 reset 清除自定义，UserDefaults 回到无自定义值状态）
-        _ = handler.handle(query: ["action": "hotkey_clear"])
+        _ = await handler.handle(query: ["action": "hotkey_clear"])
 
         // reset 后 getShortcut 应返回 default（库逻辑），UserDefaults 自定义值应被清除
         // 注：库 reset 后 UserDefaults 可能是 nil 或 default 序列化值，关键是 getShortcut 返回 default
@@ -333,15 +333,15 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// D1 + G2：set 自定义后立即 show，combo 必须反映新值且 isDefault == false。
     /// 验证 set → show 状态转移的即时一致性（非仅终态断言）。
-    func test_D1G2_setThenShow_reflectsNewValueImmediately() {
+    func test_D1G2_setThenShow_reflectsNewValueImmediately() async {
         // [初始 show] 默认态
-        let show0 = parseResponse(handler.handle(query: ["action": "hotkey_show"]))
+        let show0 = parseResponse(await handler.handle(query: ["action": "hotkey_show"]))
         let payload0 = show0["data"] as? [String: Any] ?? [:]
         XCTAssertEqual(payload0["isDefault"] as? Bool, true,
                        "状态转移 [初始 show]: isDefault 必须为 true")
 
         // [set 自定义]
-        let setResp = handler.handle(query: [
+        let setResp = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command", "shift"],
@@ -349,7 +349,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
         XCTAssertEqual(parseResponse(setResp)["status"] as? String, "ok")
 
         // [show 后] 必须反映新值
-        let show1 = parseResponse(handler.handle(query: ["action": "hotkey_show"]))
+        let show1 = parseResponse(await handler.handle(query: ["action": "hotkey_show"]))
         let payload1 = show1["data"] as? [String: Any] ?? [:]
         XCTAssertEqual(payload1["isDefault"] as? Bool, false,
                        "状态转移 [set 后 show]: isDefault 必须为 false（反映自定义）")
@@ -369,7 +369,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     ///   [迁移前] UserDefaults 有坏值 + 标志未置
     ///   → [迁移] 清理坏值 + 置标志
     ///   → [幂等] 第二次迁移不再清理（标志已置）
-    func test_F2_migration_clearsIncompatibleLegacyValue() {
+    func test_F2_migration_clearsIncompatibleLegacyValue() async {
         let migrationFlag = "launcher.hotkeyMigrationV1"
 
         // 清理上次测试残留
@@ -400,7 +400,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
 
     /// F2 幂等性：迁移标志已置时，再次调用不应清理（即使有值）。
     /// 防止每次启动都清理用户自定义。
-    func test_F2_migration_isIdempotent_whenFlagAlreadySet() {
+    func test_F2_migration_isIdempotent_whenFlagAlreadySet() async {
         let migrationFlag = "launcher.hotkeyMigrationV1"
 
         UserDefaults.standard.removeObject(forKey: migrationFlag)
@@ -435,13 +435,13 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
     /// 状态转移序列：
     ///   [set ⌘P] → getShortcut 返回 ⌘P
     ///   [reset] → getShortcut 返回 default Ctrl+Space
-    func test_A3_getShortcut_reflectsSetShortcut_singleSourceOfTruth() {
+    func test_A3_getShortcut_reflectsSetShortcut_singleSourceOfTruth() async {
         // [初始] default
         let initial = KeyboardShortcuts.getShortcut(for: LauncherHotkey.toggle)
         XCTAssertNotNil(initial, "A3 初始: getShortcut 应返回 default（非 nil）")
 
         // [set ⌘P]
-        _ = handler.handle(query: [
+        _ = await handler.handle(query: [
             "action": "hotkey_set",
             "key": "p",
             "modifiers": ["command"],
@@ -454,7 +454,7 @@ final class LauncherHotkeyConfigAcceptanceTests: XCTestCase {
                       "A3 [set 后]: getShortcut.modifiers 必须反映 .command")
 
         // [reset] 回 default
-        _ = handler.handle(query: ["action": "hotkey_clear"])
+        _ = await handler.handle(query: ["action": "hotkey_clear"])
         let afterClear = KeyboardShortcuts.getShortcut(for: LauncherHotkey.toggle)
         XCTAssertEqual(afterClear?.key, .space,
                        "A3 [clear 后]: getShortcut.key 必须回 default .space")

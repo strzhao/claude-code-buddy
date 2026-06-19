@@ -243,6 +243,8 @@ private struct CLIOptions {
     // Launcher hotkey (task 2026-06-15)
     var hotkeyKey: String = ""
     var hotkeyModifiers: String = ""
+    // Launcher debug perform: 候选索引（默认 0）
+    var launcherDebugIndex: Int = 0
     // Generic boolean long-form flags (task 007)
     var flags: [String] = []
 }
@@ -302,6 +304,9 @@ private func printHelp() {
       buddy launcher hotkey show                查看当前启动器热键（含 isDefault）
       buddy launcher hotkey set --key K --modifiers CSV   设置热键（如 --key space --modifiers control）
       buddy launcher hotkey clear               重置为默认热键 (Ctrl+Space)
+      buddy launcher debug candidates <query>   生成内置插件候选（JSON，功能调试用）
+      buddy launcher debug perform <query> [--index N]   执行第 N 个候选并读剪贴板（默认 N=0）
+      buddy launcher debug registry             列出已注册内置插件（priority 降序，JSON）
 
     Hotkey 参数：
       --key <key>           热键主键（如 space, a, f1, return；字母 a-z / 数字 0-9）
@@ -369,6 +374,9 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--modifiers":
             i += 1
             if i < args.count { opts.hotkeyModifiers = args[i] }
+        case "--index":
+            i += 1
+            if i < args.count, let n = Int(args[i]) { opts.launcherDebugIndex = n }
         case let f where f.hasPrefix("--") && !f.contains("="):
             // 通用布尔型长 flag（task 007）：--json / --strict 等，不消费下一个 arg
             opts.flags.append(f)
@@ -955,8 +963,31 @@ private func main() {
                 fputs("Usage: buddy launcher hotkey <set|show|clear> ...\n", stderr)
                 exit(2)
             }
+        case "debug":
+            // positionalArgs[0] = op(candidates/perform/registry)，[1] = query（candidates/perform 需要）
+            switch opts.positionalArgs.first {
+            case "candidates":
+                let q = opts.positionalArgs.dropFirst().first ?? ""
+                guard !q.isEmpty else {
+                    fputs("Usage: buddy launcher debug candidates <query>\n", stderr)
+                    exit(2)
+                }
+                cmdLauncherDebugCandidates(q)
+            case "perform":
+                let q = opts.positionalArgs.dropFirst().first ?? ""
+                guard !q.isEmpty else {
+                    fputs("Usage: buddy launcher debug perform <query> [--index N]\n", stderr)
+                    exit(2)
+                }
+                cmdLauncherDebugPerform(q, index: opts.launcherDebugIndex)
+            case "registry":
+                cmdLauncherDebugRegistry()
+            default:
+                fputs("Usage: buddy launcher debug <candidates|perform|registry> ...\n", stderr)
+                exit(2)
+            }
         default:
-            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|hotkey> ...\n", stderr)
+            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|hotkey|debug> ...\n", stderr)
             exit(2)
         }
     case "help", "--help", "-h", "":
@@ -1276,6 +1307,62 @@ private func cmdLauncherHotkeyClear() {
     let query: [String: Any] = ["action": "hotkey_clear"]
     do {
         let data = try sendQuery(query)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+// MARK: - Launcher Debug (功能调试：CLI 驱动候选生成，不经键盘自动化)
+// 通过 socket 让 app 进程调 BuiltinPluginRegistry（直驱，不经 LauncherManager）。
+// 契约：
+//   请求 action ∈ {launcher_debug_candidates, launcher_debug_perform, launcher_debug_registry}
+//     - candidates/perform 请求字段：query:String（非空）；perform 另含 index:Int（默认 0）
+//   响应：
+//     - candidates → {status:"ok", data:{query, count, candidates[{pluginId,title,subtitle,score}]}}
+//     - perform    → {status:"ok", data:{pluginId, performed:true, copied?}}（copied 仅当 perform 后 pasteboard 非空）
+//     - registry   → {status:"ok", data:{plugins[{id,priority,sectionTitle}]}}（priority 降序）
+
+private func cmdLauncherDebugCandidates(_ query: String) {
+    let queryDict: [String: Any] = [
+        "action": "launcher_debug_candidates",
+        "query": query,
+    ]
+    do {
+        let data = try sendQuery(queryDict)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdLauncherDebugPerform(_ query: String, index: Int) {
+    let queryDict: [String: Any] = [
+        "action": "launcher_debug_perform",
+        "query": query,
+        "index": index,
+    ]
+    do {
+        let data = try sendQuery(queryDict)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+private func cmdLauncherDebugRegistry() {
+    let queryDict: [String: Any] = ["action": "launcher_debug_registry"]
+    do {
+        let data = try sendQuery(queryDict)
         if let str = String(data: data, encoding: .utf8) {
             print(str)
         }

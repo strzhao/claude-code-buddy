@@ -205,6 +205,27 @@ buddy launcher debug registry                      # 列出已注册内置插件
 
 首次执行插件弹 NSAlert 确认。`trustKey = SHA256(cmd + args + sha256(executable bytes))`，任一改动（含二进制内容）使旧信任失效，强制重新弹框。trust 记录：`~/.buddy/launcher-trust.json`（0644）。
 
+**mode 前缀隔离**：trustKey 带 mode 前缀（`stdin:` / `command:` / `prompt:`），即使 cmd/args/exe 完全相同，不同 mode 的 trustKey 也不同，防止 stdin 已信任的 plugin 被冒充成 command mode 跳过 TOFU。
+
+### 三种插件 mode + 通用图片通道
+
+`PluginModeConfig` 三个 case，对应三种执行模型：
+
+- **stdin**：子进程 stdout 经 toolExecutor 回灌 LLM（agent loop），适合「LLM 调用工具」语义。
+- **prompt**：bypass agent loop，直接调 PromptExecutor（LLM 单轮），结果映射为 `.text` + render-only `.action` 按钮。
+- **command**（新增）：零 LLM、bypass agent loop，子进程直接产出。`LauncherManager.submit` switch 加 `.command` 分支提前 return，不构造 LauncherAgent、不发 LLM 请求。适合确定性子进程产物（二维码、截图等）。
+
+**通用图片通道**（stdin + command 共享）：`StdinExecutor` 注入环境变量 `BUDDY_OUTPUT_IMAGE=/tmp/buddy-plugin-<uuid>.png`，子进程写 PNG，框架读文件成 `Data` 填 `PluginResult.image`。stdout 保持纯文本不被污染。
+
+- 读前校验 `resolvedPath == outputImagePath`（防 symlink，/tmp 防御）
+- `count > pluginMaxImageBytes`（5MiB）→ image = nil（丢弃，不报错）
+- finally 删临时文件（防累积，多次触发不无限增长）
+- 文件不存在/读失败 → image = nil（降级）
+
+UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片（白底保证扫码对比度），点击 → `CopyService.copyImage`（clearContents + setData .png）+ ✓ 反馈（1.2s 复位）。无图片无 stdout 时显示占位「未生成图片」。
+
+**qr 插件（command mode 首个用例）**：CoreImage `CIFilter.qrCodeGenerator` 生成 PNG，universal binary（arm64 + x86_64 + lipo）随插件分发。Makefile `build-qr-gen` 目标在 `swift build` 前编译二进制，保证 SPM `.copy("Marketplace")` 拷到含二进制的目录。
+
 ### 故障排查
 
 - **快捷键被占用/失效** → `buddy launcher hotkey show` 查看当前热键 + 是否默认，或打开设置面板「热键」tab 用 RecorderCocoa 改键；`buddy launcher hotkey clear` 重置为默认 (Ctrl+Space)

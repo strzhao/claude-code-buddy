@@ -311,17 +311,12 @@ final class LauncherManager: ObservableObject {
             stage = .error
             return Self.errorStream(.networkFailure(error))
         }
-        guard !config.activeProvider.isEmpty,
-              let providerConfig = config.providers[config.activeProvider] else {
-            isSubmitting = false
-            stage = .error
-            return Self.errorStream(.providerNotConfigured)
-        }
-        guard let store = secretStore else {
-            isSubmitting = false
-            stage = .error
-            return Self.errorStream(.secretStoreUnavailable)
-        }
+        // provider 可选：command mode（零 LLM）不需 provider；directChat/stdin/prompt 需要。
+        // command 短路在 detached 内独立处理（用户无 LLM provider 也能用 qr 等命令插件）。
+        let providerConfig = config.activeProvider.isEmpty
+            ? nil
+            : config.providers[config.activeProvider]
+        let store = secretStore
         let factoryOverride = providerFactoryOverride
         let routerOverride = routerFactoryOverride
 
@@ -335,6 +330,73 @@ final class LauncherManager: ObservableObject {
         return AsyncStream { continuation in
             // Task.detached 离开 MainActor，避免阻塞 UI 线程（保留 task 003 结构）
             let task = Task.detached {
+                // command mode 短路（零 LLM，不需 provider）：QR 等确定性命令插件在用户无 LLM provider 时也应可用。
+                // 静态 narrowCandidates 判断唯一/strong 命中 + command mode → 直接执行，bypass provider/router/agent loop。
+                let scored = LauncherRouter.narrowCandidatesScored(
+                    query: query,
+                    plugins: (try? PluginManager.shared.list()) ?? []
+                )
+                let topManifest = scored.first?.manifest
+                let topIsCommand: Bool = {
+                    guard case .command = topManifest?.modeConfig else { return false }
+                    return true
+                }()
+                let isShortCircuit = !scored.isEmpty && (
+                    scored.count == 1 || (scored.first?.score ?? 0) >= LauncherConstants.routerSkipScore
+                )
+                if isShortCircuit && topIsCommand, let manifest = topManifest,
+                   let dir = try? PluginManager.shared.pluginDir(for: manifest) {
+                    await MainActor.run {
+                        LauncherManager.shared.lastRouteCandidates = scored.map(\.manifest)
+                        LauncherManager.shared.lastRouteSelectedIndex = 0
+                        LauncherManager.shared.lastRoutePluginName = manifest.name
+                        LauncherManager.shared.stage = .calling
+                    }
+                    let executablePath = dir.appending(path: manifest.cmd)
+                    let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
+                    guard trusted else {
+                        continuation.yield(.error(.pluginNotTrusted(manifest.name)))
+                        continuation.finish()
+                        await MainActor.run {
+                            LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.isSubmitting = false
+                        }
+                        return
+                    }
+                    let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
+                    let pluginInput = PluginInput(query: strippedQuery, sessionId: UUID().uuidString, cwd: NSHomeDirectory())
+                    await MainActor.run { LauncherManager.shared.stage = .streaming }
+                    do {
+                        let result = try await PluginDispatcher(stdinExecutor: .shared).execute(manifest, pluginDir: dir, input: pluginInput)
+                        if !result.stdout.isEmpty { continuation.yield(.text(result.stdout)) }
+                        if let imageData = result.image { continuation.yield(.image(imageData)) }
+                        if result.exitCode != 0 && result.stdout.isEmpty && result.image == nil {
+                            continuation.yield(.text(result.stderr.isEmpty ? "未生成图片" : result.stderr))
+                        }
+                        continuation.yield(.done(reason: "end_turn"))
+                    } catch let err as LauncherError {
+                        continuation.yield(.error(err))
+                    } catch {
+                        continuation.yield(.error(.networkFailure(error)))
+                    }
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    continuation.finish()
+                    return
+                }
+
+                // 非 command 短路：需 provider（directChat/aiSelect/stdin/prompt）
+                guard let providerConfig = providerConfig, let store = store else {
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .error
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    continuation.yield(.error(.providerNotConfigured))
+                    continuation.finish()
+                    return
+                }
                 let provider: LauncherProvider
                 do {
                     provider = try (factoryOverride ?? ProviderFactory.create)(providerConfig, store)
@@ -492,6 +554,40 @@ final class LauncherManager: ObservableObject {
                             return result.stdout
                         }
                         // 继续走下面 LauncherAgent.run
+
+                    case .command:
+                        // command mode bypass agent loop（零 LLM）：直接调 StdinExecutor，结果映射为
+                        // AgentEvent.text（stdout 非空时）+ .image（图片通道）+ .done。
+                        // 仿 prompt mode 结构（:496-532），但走 stdinExecutor 路径。
+                        let dispatcher = PluginDispatcher(stdinExecutor: .shared)
+                        // strip 命中 keyword 前缀（如 "qr https://..." → "https://..."）
+                        let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
+                        let pluginInput = PluginInput(
+                            query: strippedQuery,
+                            sessionId: UUID().uuidString,
+                            cwd: NSHomeDirectory()
+                        )
+                        await MainActor.run { LauncherManager.shared.stage = .streaming }
+                        do {
+                            let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
+                            if !result.stdout.isEmpty {
+                                continuation.yield(.text(result.stdout))
+                            }
+                            if let imageData = result.image {
+                                continuation.yield(.image(imageData))
+                            }
+                            continuation.yield(.done(reason: "end_turn"))
+                        } catch let err as LauncherError {
+                            continuation.yield(.error(err))
+                        } catch {
+                            continuation.yield(.error(.networkFailure(error)))
+                        }
+                        await MainActor.run {
+                            LauncherManager.shared.stage = .idle
+                            LauncherManager.shared.isSubmitting = false
+                        }
+                        continuation.finish()
+                        return // command mode 提前 return，跳过 LauncherAgent.run
 
                     case .prompt:
                         // prompt mode bypass agent loop：直接调 PromptExecutor，结果映射为 AgentEvent.text

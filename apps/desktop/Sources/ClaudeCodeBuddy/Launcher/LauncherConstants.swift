@@ -36,6 +36,8 @@ enum LauncherConstants {
     static let pluginMaxTimeoutSec: Int = 120
     static let pluginMaxStdoutBytes: Int = 1024 * 1024         // 1 MiB
     static let pluginMaxStderrBytes: Int = 100 * 1024           // 100 KiB
+    /// 图片输出通道（BUDDY_OUTPUT_IMAGE）最大字节数，超限丢弃为 nil（降级不报错）
+    static let pluginMaxImageBytes: Int = 5 * 1024 * 1024      // 5 MiB
     static let pluginSigkillGraceSec: Int = 5                   // SIGTERM 后等待秒数
     static let pluginRequiredPathMaxCount: Int = 10
     /// PATH 注入前缀（覆盖在 ProcessInfo.processInfo.environment["PATH"] 之前）

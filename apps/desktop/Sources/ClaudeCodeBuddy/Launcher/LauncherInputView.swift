@@ -6,6 +6,10 @@ struct LauncherInputView: View {
     @State private var outputBuffer: String = ""            // 流式累积 markdown 原文
     @State private var actions: [LauncherActionButton] = []  // 模型声明的 render-only 按钮（底部工具条）
     @State private var errorOutput: AttributedString?       // 仅用于 .error 路径
+    @State private var resultImage: NSImage?                // 图片通道：渲染用（PNG → NSImage）
+    @State private var resultImageData: Data?               // 原始 PNG 字节（场景3.P2：点击复制保持字节一致，不经 NSImage 重编码）
+    @State private var copied: Bool = false                 // 图片点击复制反馈（✓，1.2s 复位）
+    @State private var copiedResetTask: Task<Void, Never>?  // 复位 copied 的 Task（取消旧的重置）
     @State private var visible: Bool = false                // 入场动画状态（C6 契约）
     @FocusState private var focused: Bool
 
@@ -14,9 +18,9 @@ struct LauncherInputView: View {
         manager.stage != .idle && manager.stage != .error
     }
 
-    /// 是否有可见输出（正文非空 or 有错误输出）
+    /// 是否有可见输出（正文非空 or 有错误输出 or 有图片）
     private var hasOutput: Bool {
-        !outputBuffer.isEmpty || errorOutput != nil
+        !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil
     }
 
     /// 命中的 plugin 名字（chip 水印显示用）
@@ -110,14 +114,31 @@ struct LauncherInputView: View {
                             .padding(.vertical, 12)
                     } else {
                         // 正常路径：正文走干净 markdown 连续渲染（按钮收在底部工具条）
-                        Text(MarkdownRenderer.render(outputBuffer))
-                            .font(LauncherTheme.outputBody)
-                            .foregroundStyle(LauncherTheme.ink)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, LauncherConstants.inputPaddingH)
-                            .padding(.vertical, 12)
+                        // 图片通道（T6）：command/stdin mode 子进程产 PNG → 居中白底卡片展示，点击复制
+                        VStack(spacing: 12) {
+                            if let img = resultImage {
+                                resultImageCard(image: img)
+                            }
+                            if !outputBuffer.isEmpty {
+                                Text(MarkdownRenderer.render(outputBuffer))
+                                    .font(LauncherTheme.outputBody)
+                                    .foregroundStyle(LauncherTheme.ink)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        // 无图片且无文本时显示占位（降级，场景4.P2 错误占位 / 空输出）
+                        .overlay {
+                            if resultImage == nil && outputBuffer.isEmpty {
+                                Text("未生成图片")
+                                    .font(LauncherTheme.outputBody)
+                                    .foregroundStyle(LauncherTheme.smoke)
+                                    .padding(.vertical, 12)
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: LauncherConstants.outputMaxHeight, alignment: .topLeading)
@@ -182,6 +203,9 @@ struct LauncherInputView: View {
             outputBuffer = ""
             actions = []
             errorOutput = nil
+            resultImage = nil
+            resultImageData = nil
+            copied = false
         }
         // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
         // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/segments
@@ -191,6 +215,9 @@ struct LauncherInputView: View {
                 outputBuffer = ""
                 actions = []
                 errorOutput = nil
+                resultImage = nil
+                resultImageData = nil
+                copied = false
                 focused = true
             }
         }
@@ -239,6 +266,61 @@ struct LauncherInputView: View {
         return .handled
     }
 
+    // MARK: - 图片展示卡片（T6）
+
+    /// 居中白底 200pt 卡片（白底保证扫码对比度），点击 → CopyService.copyImage（PNG）+ ✓ 反馈（1.2s 复位）。
+    /// 场景3.P1/P3：点击图片写 PNG 到剪贴板 + AX 可感知反馈。
+    private func resultImageCard(image: NSImage) -> some View {
+        Image(nsImage: image)
+            .interpolation(.none)   // 像素艺术风格，二维码清晰
+            .resizable()
+            .scaledToFit()
+            .frame(width: 200, height: 200)
+            .padding(12)
+            .background(
+                // 白底卡片：保证二维码扫码对比度（深色码点 + 白底）
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white)
+            )
+            .overlay {
+                // ✓ 复制反馈（copied=true 时短暂显示）
+                if copied {
+                    Text("✓")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(LauncherTheme.selectionTint)
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity)   // 居中
+            .contentShape(Rectangle())
+            .onTapGesture {
+                copyResultImage()
+            }
+            .accessibilityElement()
+            .accessibilityLabel(copied ? "已复制图片" : "二维码，点击复制")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default) {
+                copyResultImage()
+            }
+    }
+
+    /// 点击图片 → CopyService.copyImage(PNG data) + copied=true（1.2s 复位）。
+    /// 场景3.P2：剪贴板 PNG 与原始字节一致。
+    private func copyResultImage() {
+        // 场景3.P2：用 AgentEvent.image 的原始 PNG 字节，不经 NSImage tiff→PNG 重编码，
+        // 保证剪贴板字节 == BUDDY_OUTPUT_IMAGE（md5 一致）。resultImage 仅用于渲染。
+        guard let png = resultImageData else { return }
+        CopyService.shared.copyImage(png)
+        // 取消旧的重置 Task，重新计时（连续点击不提前复位）
+        copiedResetTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) { copied = true }
+        copiedResetTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)  // 1.2s
+            if Task.isCancelled { return }
+            withAnimation(.easeInOut(duration: 0.15)) { copied = false }
+        }
+    }
+
     private func submit() async {
         // task 011 C5 契约：内置管线优先 — 有选中的 instant action → 执行并结束，不触发 AI
         if manager.performSelectedInstantAction() {
@@ -252,6 +334,8 @@ struct LauncherInputView: View {
             outputBuffer = ""
             actions = []
             errorOutput = nil
+            resultImage = nil
+            copied = false
         }
 
         // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约，原有外部 CLI 分支）
@@ -287,6 +371,12 @@ struct LauncherInputView: View {
             case .action(let button):
                 await MainActor.run {
                     actions.append(button)   // render-only：收进底部工具条，不执行
+                }
+            case .image(let data):
+                await MainActor.run {
+                    resultImageData = data               // 保留原始 PNG 字节（场景3.P2 点击复制字节一致）
+                    resultImage = NSImage(data: data)   // 图片通道：PNG → NSImage（渲染用）
+                    copied = false
                 }
             case .done:
                 await MainActor.run {

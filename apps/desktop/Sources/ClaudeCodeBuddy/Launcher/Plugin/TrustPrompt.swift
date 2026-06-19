@@ -4,7 +4,7 @@ import AppKit
 
 enum TrustPrompt {
     /// 弹 NSAlert 询问用户是否信任此 plugin，**必须在 @MainActor**（NSAlert 需主线程）。
-    /// mode-aware：stdin 显示命令/路径，prompt 显示 systemPrompt 摘要 + 模型。
+    /// mode-aware：stdin/command 显示命令/路径，prompt 显示 systemPrompt 摘要 + 模型。
     @MainActor
     static func askUser(plugin: PluginManifest, executablePath: URL) async -> Bool {
         let alert = NSAlert()
@@ -16,6 +16,19 @@ enum TrustPrompt {
             \(plugin.description)
 
             模式: stdin (subprocess)
+            命令: \(cfg.cmd) \(argsStr)
+            路径: \(executablePath.path)
+
+            是否允许此插件执行？
+            """
+        case .command(let cfg):
+            // command mode：零 LLM、bypass agent loop，仍需 TOFU。
+            // 文案复用 stdin 的命令/路径展示（用户需看到要执行的子进程）
+            let argsStr = cfg.args.joined(separator: " ")
+            alert.informativeText = """
+            \(plugin.description)
+
+            模式: command (direct subprocess，不经 AI)
             命令: \(cfg.cmd) \(argsStr)
             路径: \(executablePath.path)
 

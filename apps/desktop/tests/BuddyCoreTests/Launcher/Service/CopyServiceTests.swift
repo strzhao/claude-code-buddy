@@ -57,6 +57,36 @@ final class CopyServiceTests: XCTestCase {
         XCTAssertEqual(pb.changeCount, changeCountBefore, "8.P4: changeCount must not increase without manual copy")
     }
 
+    // MARK: - copyImage（图片输出通道，T6）
+
+    /// copyImage 写 PNG 到剪贴板（场景3.P1：含 public.png 类型 AND data 非空）
+    func test_copyImage_writes_png_to_pasteboard() {
+        let pb = makePasteboard()
+        let svc = CopyService(pasteboard: pb)
+        // 1x1 透明 PNG
+        let png = Data([
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a  // PNG signature
+        ])
+        svc.copyImage(png)
+
+        let written = pb.data(forType: .png)
+        XCTAssertNotNil(written, "剪贴板必须含 public.png 类型数据")
+        XCTAssertEqual(written, png, "剪贴板 PNG 数据必须与输入一致（场景3.P2 字节比对）")
+    }
+
+    /// copyImage clearContents + setData（覆盖先前字符串内容）
+    func test_copyImage_clears_previous_content() {
+        let pb = makePasteboard()
+        let svc = CopyService(pasteboard: pb)
+        svc.copy("text before")  // 先写字符串
+
+        let png = Data([0x89, 0x50, 0x4e, 0x47])
+        svc.copyImage(png)
+
+        XCTAssertNil(pb.string(forType: .string), "copyImage 必须 clearContents 清掉先前的字符串")
+        XCTAssertEqual(pb.data(forType: .png), png, "copyImage 后剪贴板应只有 PNG")
+    }
+
     // MARK: - Scenario 9
 
     func test_scenario9_P2_copy_button_writes_correct_text() {

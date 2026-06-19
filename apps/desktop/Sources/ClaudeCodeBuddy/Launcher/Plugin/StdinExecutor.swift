@@ -28,6 +28,17 @@ class StdinExecutor {
         if let pluginEnv = plugin.env {
             for (key, value) in pluginEnv { env[key] = value }
         }
+
+        // 通用图片通道（T3）：注入 BUDDY_OUTPUT_IMAGE，子进程写 PNG，框架读文件成 Data。
+        // 用局部常量 outputImagePath 贯穿 env 注入与退出后读文件（UUID 一致性，禁重算）。
+        // stdin + command mode 共享此能力（非 command 专属）。
+        // 引用知识库：设计文档 §2 通用图片通道。
+        let outputImagePath = "/tmp/buddy-plugin-\(UUID().uuidString).png"
+        env["BUDDY_OUTPUT_IMAGE"] = outputImagePath
+        // finally 删临时文件（覆盖所有 return/throw 路径，场景9 资源清理）
+        defer {
+            try? FileManager.default.removeItem(atPath: outputImagePath)
+        }
         process.environment = env
 
         // 4. Pipe
@@ -143,13 +154,50 @@ class StdinExecutor {
             )
         }
 
+        // 读图片通道（T3）：exit 0 后读 BUDDY_OUTPUT_IMAGE → Data → PluginResult.image。
+        // 任何失败（文件不存在/读失败/路径被篡改/超限）→ image = nil（降级，不报错）。
+        let imageData = readImageOutputSafely(at: outputImagePath)
+
         return PluginResult(
             stdout: stdoutStr,
             stderr: stderrStr,
             exitCode: process.terminationStatus,
             durationMs: durationMs,
-            stdoutTruncated: stdoutTruncated
+            stdoutTruncated: stdoutTruncated,
+            image: imageData
         )
+    }
+
+    /// 安全读取图片输出（T3 通用图片通道）。
+    ///
+    /// 契约（state.md ## 契约规约 边界值）：
+    /// - 读前校验 `resolvedPath == expectedPath`（防 symlink，/tmp 防御）
+    /// - `count > pluginMaxImageBytes` → 返回 nil（丢弃，UI 不渲染）
+    /// - 文件不存在/读失败 → 返回 nil
+    ///
+    /// 不抛错：图片是可选产物，缺失走降级（占位文本「未生成图片」）。
+    private func readImageOutputSafely(at expectedPath: String) -> Data? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: expectedPath) else { return nil }
+        // 防 symlink：resolvedPath 必须等于注入的 outputImagePath（outputImagePath 本身是绝对规范路径）
+        guard let resolved = try? (URL(fileURLWithPath: expectedPath)
+            .resolvingSymlinksInPath().path) as String?,
+              resolved == expectedPath else {
+            // 路径被 symlink 篡改 → 丢弃（不读不信任的内容）
+            return nil
+        }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else { return nil }
+        guard data.count <= LauncherConstants.pluginMaxImageBytes else {
+            // 超限丢弃（边界值反例：image.count > 5MB → image = nil）
+            return nil
+        }
+        // PNG 完整性校验（场景6.P2）：末尾必须含 IEND chunk（49 45 4E 44 AE 42 60 82）。
+        // 子进程崩溃/中断会写出不完整 PNG（缺 IEND）→ 丢弃，不渲染损坏图片。
+        let pngIENDSuffix = Data([0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82])
+        guard data.count >= pngIENDSuffix.count, data.suffix(pngIENDSuffix.count) == pngIENDSuffix else {
+            return nil
+        }
+        return data
     }
 
     /// 构造扩展 PATH：pluginPathPrefixes 在前 + 当前 PATH 在后

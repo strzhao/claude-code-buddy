@@ -6,6 +6,7 @@ enum AgentEvent: Equatable {
     case toolCall(name: String, input: [String: AnyCodable])
     case toolResult(name: String, output: String, isError: Bool)
     case action(LauncherActionButton)                       // render-only 按钮声明（prompt mode meta tool）
+    case image(Data)                                        // 图片输出通道（command/stdin mode 子进程产 PNG）
     case done(reason: String)                              // "end_turn" / "max_tokens" / "max_iterations"
     case error(LauncherError)
 
@@ -20,6 +21,8 @@ enum AgentEvent: Equatable {
         case (.toolResult(let n1, let o1, let e1), .toolResult(let n2, let o2, let e2)):
             return n1 == n2 && o1 == o2 && e1 == e2
         case (.action(let a), .action(let b)):
+            return a == b
+        case (.image(let a), .image(let b)):
             return a == b
         case (.done(let a), .done(let b)):
             return a == b

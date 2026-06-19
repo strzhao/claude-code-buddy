@@ -1,7 +1,8 @@
 # Knowledge Index
 
-## Decisions (13)
+## Decisions (14)
 
+- [2026-06-19] 新增 command mode + 通用图片通道：零 LLM bypass agent loop，子进程产 PNG 经 BUDDY_OUTPUT_IMAGE 回传（stdin+command 共享；5+1 处穷尽 switch 同步改；trustKey mode 前缀隔离）| tags: launcher, command-mode, image-channel, agent-loop-bypass, plugin-mode, tofu, stdin-executor, plugin-result, agent-event, png, buddy-output-image | → decisions/2026-06-19-command-mode-image-channel-bypass-agent-loop.md
 - [2026-05-30] launcher 内置插件：直接动作管线（绕过 LLM）+ BuiltinPlugin 协议 + 跨 plugin priority 仲裁 | tags: launcher, builtin-plugin, architecture, direct-action, llm-bypass, in-process, plugin-protocol, registry, priority-arbitration, app-launcher, raycast, alfred, extensibility, nsworkspace | → decisions/2026-05-30-launcher-builtin-plugin-direct-action-pipeline.md
 - [2026-05-25] 跨技术栈 monorepo 用 pnpm workspace + apps/* + packages/* 拓扑 | tags: monorepo, pnpm-workspace, swift, nextjs, cli, architecture | → decisions/2026-05-25-monorepo-pnpm-workspace-apps-packages.md
 - [2026-04-27] isTransitioningOut 恢复策略采用时间戳超时而非 action 存在性检查 | tags: state-machine, transition, timeout, spritekit | → decisions/2026-04-27-istransitioningout-timestamp-timeout.md
@@ -16,8 +17,10 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (91)
+## Patterns (93)
 
+- [2026-06-19] command mode（零 LLM）必须 bypass submit 顶层 provider 检查，否则无 LLM 用户无法用确定性命令插件（静态 narrowCandidatesScored 短路 + provider 创建延迟到非 command 路径；QA 真机暴露，单测都注入 mock provider 绕过）| tags: launcher, command-mode, provider-check, zero-llm, short-circuit, submit-flow, agent-loop-bypass, qa-finding, real-device-verification, narrow-candidates | → patterns/2026-06-19-launcher-command-mode-bypass-provider-check.md
+- [2026-06-19] CoreImage CIFilter.qrCodeGenerator + swiftc/lipo universal binary 作为 marketplace 插件可执行文件（默认 module ~23px 需放大 ≥480px；裸 swiftc 双架构 + lipo，build: 依赖 build-qr-gen 时序先于 SPM .copy）| tags: coreimage, qr-code, cifilter, universal-binary, lipo, swiftc, command-mode, marketplace-plugin, png, appkit, nsbitmapimagerep, buddy-output-image | → patterns/2026-06-19-coreimage-qr-universal-binary-marketplace-plugin.md
 - [2026-06-19] launcher debug CLI = Registry 直驱无侵入功能测试入口（buddy launcher debug candidates/perform/registry，镜像 hotkey IPC，不经 LauncherManager 避 debounce 噪声，解决 osascript 抢屏幕问题）| tags: launcher, cli, debug, functional-testing, registry-direct, queryhandler, buddy-cli, socket, ipc, builtin-plugin, calculator, candidates, perform, json, deterministic, non-destructive, qa, automation | → patterns/2026-06-19-launcher-debug-cli-registry-direct-functional-test.md
 - [2026-06-19] Swift 6：@MainActor 隔离的 `.shared` 不能作 nonisolated 默认参数 / 在 nonisolated init·start() 引用（默认参数表达式 nonisolated 求值）；解法 optional+nil 默认 + @MainActor 方法内 resolve | tags: swift, swift-6, concurrency, mainactor, actor-isolation, static-shared, default-parameter, nonisolated, singleton, compile-error, future-swift-version, queryhandler, sessionmanager, resolvedregistry, sendable | → patterns/2026-06-19-swift-mainactor-shared-default-param-nonisolated.md
 - [2026-06-19] launcher 计算器用纯 Swift 递归下降求值器而非 NSExpression（char 白名单拒字母/函数从结构防注入 + 纯函数可测；`^` 右结合；TOFU 安全模型下的选型）| tags: launcher, calculator, math-evaluator, recursive-descent, parser, nsexpression, javascriptcore, security, char-whitelist, injection-prevention, pure-function, testability, tofu, builtin-plugin, swift, operator-precedence, right-associative | → patterns/2026-06-19-launcher-calculator-handwritten-parser-over-nsexpression.md

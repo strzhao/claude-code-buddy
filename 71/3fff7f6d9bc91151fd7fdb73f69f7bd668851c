@@ -1,0 +1,45 @@
+.autopilot/knowledge/index.md
+  ec55893ed8e76d8d 19,21-22
+.autopilot/knowledge/patterns/2026-06-19-launcher-calculator-handwritten-parser-over-nsexpression.md
+  ec55893ed8e76d8d 1-31
+.autopilot/knowledge/patterns/2026-06-19-launcher-e2e-keyboard-automation-destructive-use-cli.md
+  ec55893ed8e76d8d 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "713fff7f6d9bc91151fd7fdb73f69f7bd668851c",
+  "prompts": {
+    "ec55893ed8e76d8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0667ed3c-e8e8-41d6-8952-78900f41a8c3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 64,
+      "total_deletions": 1,
+      "accepted_lines": 86,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-19-launcher-calculator-handwritten-parser-over-nsexpression.md": {
+          "additions": 31,
+          "accepted_lines": 31
+        },
+        ".autopilot/knowledge/patterns/2026-06-19-launcher-e2e-keyboard-automation-destructive-use-cli.md": {
+          "additions": 30,
+          "accepted_lines": 30
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "apps/desktop/sources/claudecodebuddy/launcher/builtin/calculator/mathevaluator.swift": {
+          "accepted_lines": 22
+        }
+      }
+    }
+  }
+}

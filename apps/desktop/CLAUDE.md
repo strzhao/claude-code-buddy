@@ -184,6 +184,23 @@ buddy launcher inspect <name>                      # JSON 详情
 buddy launcher remove <name>                       # 卸载 + 清 trust
 ```
 
+### 调试（功能调试，不经键盘自动化）
+
+```bash
+buddy launcher debug candidates <query>            # 生成内置插件候选（JSON）
+buddy launcher debug perform <query> [--index N]   # 执行第 N 个候选并读剪贴板（默认 N=0）
+buddy launcher debug registry                      # 列出已注册内置插件（priority 降序，JSON）
+```
+
+**用途**：功能调试 / 无侵入测试。CLI 直接驱动候选生成，**不经键盘自动化**（避免 osascript 抢屏幕的问题）。
+
+**实现**：CLI 通过 socket 让 app 进程调 `BuiltinPluginRegistry`（**直驱，不经 LauncherManager**），由 `QueryHandler.handle`（async）处理三个 `launcher_debug_*` action。
+
+**响应契约**：
+- `candidates` → `{status:"ok", data:{query, count, candidates:[{pluginId, title, subtitle, score}]}}`
+- `perform` → `{status:"ok", data:{pluginId, performed:true, copied?}}`（`copied` 仅当 perform 后 pasteboard 非空才返回）
+- `registry` → `{status:"ok", data:{plugins:[{id, priority, sectionTitle}]}}`（priority 降序）
+
 ### TOFU 安全模型
 
 首次执行插件弹 NSAlert 确认。`trustKey = SHA256(cmd + args + sha256(executable bytes))`，任一改动（含二进制内容）使旧信任失效，强制重新弹框。trust 记录：`~/.buddy/launcher-trust.json`（0644）。

@@ -1,0 +1,90 @@
+apps/desktop/tests/BuddyCoreTests/Launcher/MathEvaluatorAcceptanceTests.swift
+  ec55893ed8e76d8d 1-401
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/MathEvaluator.swift
+  ec55893ed8e76d8d 1-318
+homebrew/Casks/claude-code-buddy.rb
+  ec55893ed8e76d8d 2
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift
+  ec55893ed8e76d8d 1-79
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift
+  ec55893ed8e76d8d 21-22,72-73
+apps/desktop/CLAUDE.md
+  ec55893ed8e76d8d 48-50,97-103
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  ec55893ed8e76d8d 14
+apps/desktop/tests/BuddyCoreTests/Launcher/CalculatorPluginAcceptanceTests.swift
+  ec55893ed8e76d8d 1-439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "1c1889afc002f2c3ea73a38bcf21d122d07c5189",
+  "prompts": {
+    "ec55893ed8e76d8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0667ed3c-e8e8-41d6-8952-78900f41a8c3",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1422,
+      "total_deletions": 276,
+      "accepted_lines": 1275,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/buddycoretests/launcher/zzscratchmathsmoketests.swift": {
+          "deletions": 118
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/MathEvaluatorAcceptanceTests.swift": {
+          "additions": 405,
+          "deletions": 4,
+          "accepted_lines": 401
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift": {
+          "additions": 85,
+          "deletions": 6,
+          "accepted_lines": 79
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CalculatorPluginAcceptanceTests.swift": {
+          "additions": 447,
+          "deletions": 8,
+          "accepted_lines": 439
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/MathEvaluator.swift": {
+          "additions": 329,
+          "deletions": 11,
+          "accepted_lines": 318
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 10,
+          "accepted_lines": 10
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/ZZScratchMathSmokeTests.swift": {
+          "additions": 118,
+          "deletions": 118
+        },
+        "apps/desktop/sources/claudecodebuddy/launcher/builtin/calculator/mathevaluator.swift": {
+          "additions": 22,
+          "deletions": 7,
+          "accepted_lines": 22
+        }
+      }
+    }
+  }
+}

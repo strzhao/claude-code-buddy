@@ -1,0 +1,26 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ca8d11d0b7784e51ddd59fc49d0715391c444f9b",
+  "prompts": {
+    "c93fd22e26d8959e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4484ca0-8308-4961-86bc-36ee2aaed02d",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "local-config.json": {
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

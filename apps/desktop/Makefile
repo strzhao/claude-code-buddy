@@ -1,10 +1,21 @@
-.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle build-qr-gen
+.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle build-qr-gen fix-plugin-perms
 
 # build 先构建 qr-gen universal binary（放回 Marketplace/plugins/qr/），
-# 再 swift build —— SPM .copy("Marketplace") 会把含二进制的目录拷进 bundle 资源。
-# 时序关键：build-qr-gen 必须先于 swift build，否则 bundle 里 qr-gen 缺失。
-build: build-qr-gen
+# 再 fix-plugin-perms（确保 shell 脚本可执行位，git 可能不保留），
+# 再 swift build —— SPM .copy("Marketplace") 会把含二进制+脚本的目录拷进 bundle 资源。
+# 时序关键：build-qr-gen / fix-plugin-perms 必须先于 swift build，否则 bundle 里产物缺失或权限错。
+build: build-qr-gen fix-plugin-perms
 	swift build
+
+# 修正 Marketplace 插件目录下 shell 脚本的可执行位（git 不保留权限位，CI/clone 后需重建）。
+# 当前覆盖：qzh-exec（qzh 插件，bash 脚本，command mode 可执行入口）。
+# 与 build-qr-gen 同属「打包前资源准备」阶段，参考 qr 插件知识库 2026-05-26-spm-copy-executable-script-chmod-755。
+PLUGIN_SCRIPTS := Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec
+
+fix-plugin-perms:
+	@echo "▶ 修正 Marketplace 插件脚本可执行位"
+	@chmod 755 $(PLUGIN_SCRIPTS)
+	@echo "✓ $(PLUGIN_SCRIPTS) → 755"
 
 # qr-gen universal binary：CoreImage 二维码生成器（command mode 插件可执行文件）。
 # arm64 + x86_64 双架构 + lipo 合并，保证 Intel/Apple Silicon 均可执行。

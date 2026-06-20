@@ -1,0 +1,12 @@
+{
+  "name": "qzh",
+  "version": "0.1.0",
+  "description": "QzhddrSrv 监控服务控制：查询运行状态、一键关闭/打开（可逆，重启自愈）",
+  "keywords": ["qzh", "qzhddr", "监控"],
+  "mode": "command",
+  "cmd": "./qzh-exec",
+  "args": [],
+  "env": null,
+  "timeout": 15,
+  "requiredPath": ["jq"]
+}

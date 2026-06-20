@@ -370,7 +370,8 @@ final class LauncherManager: ObservableObject {
                         let result = try await PluginDispatcher(stdinExecutor: .shared).execute(manifest, pluginDir: dir, input: pluginInput)
                         if !result.stdout.isEmpty { continuation.yield(.text(result.stdout)) }
                         if let imageData = result.image { continuation.yield(.image(imageData)) }
-                        if result.exitCode != 0 && result.stdout.isEmpty && result.image == nil {
+                        if let candidates = result.candidates { continuation.yield(.candidates(candidates)) }
+                        if result.exitCode != 0 && result.stdout.isEmpty && result.image == nil && result.candidates == nil {
                             continuation.yield(.text(result.stderr.isEmpty ? "未生成图片" : result.stderr))
                         }
                         continuation.yield(.done(reason: "end_turn"))
@@ -576,6 +577,9 @@ final class LauncherManager: ObservableObject {
                             if let imageData = result.image {
                                 continuation.yield(.image(imageData))
                             }
+                            if let candidates = result.candidates {
+                                continuation.yield(.candidates(candidates))
+                            }
                             continuation.yield(.done(reason: "end_turn"))
                         } catch let err as LauncherError {
                             continuation.yield(.error(err))
@@ -774,6 +778,102 @@ final class LauncherManager: ObservableObject {
                         LauncherManager.shared.stage = .idle
                         // lastRoutePluginName 保留到下次 submit/hide
                     }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// 选中回调重入（C5）：用户从候选列表选中某项后，以 `LauncherCandidate.selection` 为 PluginInput.selection
+    /// 再次调用同一 **command mode** 插件，bypass LLM（零 provider/router/agent loop）。
+    ///
+    /// 契约（state.md ## 契约规约 C5）：
+    ///   - 签名：`submitWithCandidate(_ manifest: PluginManifest, selection: String, query: String)`
+    ///   - 执行权留插件：launcher 仅把 selection 透传给插件，**绝不**执行候选携带命令（C2 安全红线）
+    ///   - 结果映射：同静态 command 短路（.text/.image/.candidates/.done），不含 stop/start 专属逻辑
+    ///
+    /// TOFU 不变（C6）：command trustKey = "command:" + SHA256(cmd+args+exeBytes)，不含 stdin/selection，
+    /// 同二进制同 args ⇒ 回调 trustKey 不变，不重复弹框（TrustStore.checkAndPrompt 命中已信任记录直接 true）。
+    ///
+    /// 注：仅支持 command mode 回调（stdin/prompt 回调留待后续，见设计文档「不做」清单）。
+    func submitWithCandidate(
+        _ manifest: PluginManifest,
+        selection: String,
+        query: String
+    ) -> AsyncStream<AgentEvent> {
+        // command mode 才支持候选回调（stdin/prompt 走 LLM loop，语义不同）
+        guard case .command = manifest.modeConfig else {
+            return Self.errorStream(.pluginCrash(-1, "submitWithCandidate 仅支持 command mode 插件"))
+        }
+
+        // 直接进入 calling 阶段（跳过 narrowing/routing），记录 plugin 名
+        lastRoutePluginName = manifest.name
+        stage = .calling
+
+        return AsyncStream { continuation in
+            let task = Task.detached {
+                // 解析插件目录（detached 内独立查，不依赖 submit 的窄结果）
+                let dir: URL
+                do {
+                    dir = try PluginManager.shared.pluginDir(for: manifest)
+                } catch {
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .error
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    continuation.yield(.error(error is LauncherError
+                        ? (error as! LauncherError)
+                        : .networkFailure(error)))
+                    continuation.finish()
+                    return
+                }
+                let executablePath = dir.appending(path: manifest.cmd)
+                // C6：trustKey 不含 selection，同二进制同 args ⇒ 已信任则不弹框
+                let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
+                guard trusted else {
+                    continuation.yield(.error(.pluginNotTrusted(manifest.name)))
+                    continuation.finish()
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    return
+                }
+                // C4：selection 填入 PluginInput.selection，插件据此路由
+                let pluginInput = PluginInput(
+                    query: query,
+                    sessionId: UUID().uuidString,
+                    cwd: NSHomeDirectory(),
+                    selection: selection
+                )
+                await MainActor.run { LauncherManager.shared.stage = .streaming }
+                let dispatcher = PluginDispatcher(stdinExecutor: .shared)
+                do {
+                    let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
+                    if !result.stdout.isEmpty {
+                        continuation.yield(.text(result.stdout))
+                    }
+                    if let imageData = result.image {
+                        continuation.yield(.image(imageData))
+                    }
+                    if let candidates = result.candidates {
+                        continuation.yield(.candidates(candidates))
+                    }
+                    // exitCode != 0 且无任何产物 → stderr 作为用户可见文本（对称静态短路）
+                    if result.exitCode != 0 && result.stdout.isEmpty
+                        && result.image == nil && result.candidates == nil {
+                        continuation.yield(.text(result.stderr.isEmpty ? "执行失败" : result.stderr))
+                    }
+                    continuation.yield(.done(reason: "end_turn"))
+                } catch let err as LauncherError {
+                    continuation.yield(.error(err))
+                } catch {
+                    continuation.yield(.error(.networkFailure(error)))
+                }
+                await MainActor.run {
+                    LauncherManager.shared.stage = .idle
+                    LauncherManager.shared.isSubmitting = false
                 }
                 continuation.finish()
             }

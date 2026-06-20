@@ -11,6 +11,13 @@ struct LauncherInputView: View {
     @State private var copied: Bool = false                 // 图片点击复制反馈（✓，1.2s 复位）
     @State private var copiedResetTask: Task<Void, Never>?  // 复位 copied 的 Task（取消旧的重置）
     @State private var visible: Bool = false                // 入场动画状态（C6 契约）
+    /// 候选输出通道（C1）：command/stdin mode 子进程产的候选列表，用户选中触发 submitWithCandidate 回调（C5）。
+    @State private var pluginCandidates: [LauncherCandidate] = []
+    /// 候选列表选中索引（↑↓ 导航 + Enter 选中，复用 lastRouteSelectedIndex 风格的本地态）。
+    @State private var pluginCandidateIndex: Int = -1
+    /// 回调重入时保留的原始 query + manifest（C5：选中候选后用同 query 重入同插件）。
+    @State private var callbackQuery: String = ""
+    @State private var callbackManifest: PluginManifest?
     @FocusState private var focused: Bool
 
     /// 派生自 manager.stage（不再维护独立 @State isRunning）
@@ -18,9 +25,9 @@ struct LauncherInputView: View {
         manager.stage != .idle && manager.stage != .error
     }
 
-    /// 是否有可见输出（正文非空 or 有错误输出 or 有图片）
+    /// 是否有可见输出（正文非空 or 有错误输出 or 有图片 or 有插件候选）
     private var hasOutput: Bool {
-        !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil
+        !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil || !pluginCandidates.isEmpty
     }
 
     /// 命中的 plugin 名字（chip 水印显示用）
@@ -75,6 +82,22 @@ struct LauncherInputView: View {
                 LauncherInstantCandidateView(
                     actions: manager.instantActions,
                     selectedIndex: manager.instantSelectedIndex
+                )
+            }
+
+            // 插件候选输出通道（C1）：command/stdin 插件返回的候选列表（如 qzh 的 stop/start）。
+            // 用户 ↑↓ 选中 + Enter / 点击 → submitWithCandidate 回调（C5，执行权留插件）。
+            if !pluginCandidates.isEmpty {
+                LauncherPluginCandidateView(
+                    candidates: pluginCandidates,
+                    selectedIndex: pluginCandidateIndex,
+                    onSelect: { candidate in
+                        // 点击候选：定位其索引后触发 submit（submit 内检测候选选中走回调）
+                        if let idx = pluginCandidates.firstIndex(where: { $0.id == candidate.id }) {
+                            pluginCandidateIndex = idx
+                            Task { await submit() }
+                        }
+                    }
                 )
             }
 
@@ -158,9 +181,10 @@ struct LauncherInputView: View {
                 // 外部 plugin 候选行已删除，永远不占高度
                 candidateCount: 0,
                 hasSelected: false,
-                outputHeight: hasOutput ? LauncherConstants.outputMaxHeight : 0,
+                outputHeight: (hasOutput && pluginCandidates.isEmpty) ? LauncherConstants.outputMaxHeight : 0,
                 hasFooter: manager.stage == .error,
-                instantCount: showInstantCandidates ? manager.instantActions.count : 0
+                instantCount: showInstantCandidates ? manager.instantActions.count : 0,
+                pluginCandidateCount: pluginCandidates.count
             ),
             alignment: .top
         )
@@ -206,6 +230,10 @@ struct LauncherInputView: View {
             resultImage = nil
             resultImageData = nil
             copied = false
+            pluginCandidates = []
+            pluginCandidateIndex = -1
+            callbackQuery = ""
+            callbackManifest = nil
         }
         // 二次召唤（panel orderOut 后再 makeKeyAndOrderFront）时 view 实例复用，
         // onAppear 不重触发；监听 isVisible false→true 清空上次的 query/output/segments
@@ -218,6 +246,10 @@ struct LauncherInputView: View {
                 resultImage = nil
                 resultImageData = nil
                 copied = false
+                pluginCandidates = []
+                pluginCandidateIndex = -1
+                callbackQuery = ""
+                callbackManifest = nil
                 focused = true
             }
         }
@@ -240,8 +272,14 @@ struct LauncherInputView: View {
 
     // MARK: - 候选导航（箭头 / emacs Ctrl-N·P 共用）
 
-    /// 向上移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    /// 向上移动选中：插件候选优先，其次 instant，最后 AI 路由候选（循环）
     private func navigateUp() -> KeyPress.Result {
+        // C1 候选列表优先（command 插件返回的候选，如 qzh stop/start）
+        if !pluginCandidates.isEmpty {
+            let count = pluginCandidates.count
+            pluginCandidateIndex = (pluginCandidateIndex <= 0) ? count - 1 : pluginCandidateIndex - 1
+            return .handled
+        }
         if !manager.instantActions.isEmpty {
             manager.moveInstantSelection(up: true)
             return .handled
@@ -253,8 +291,13 @@ struct LauncherInputView: View {
         return .handled
     }
 
-    /// 向下移动选中：instant 候选优先，否则 AI 路由候选（循环）
+    /// 向下移动选中：插件候选优先，其次 instant，最后 AI 路由候选（循环）
     private func navigateDown() -> KeyPress.Result {
+        if !pluginCandidates.isEmpty {
+            let count = pluginCandidates.count
+            pluginCandidateIndex = (pluginCandidateIndex >= count - 1) ? 0 : pluginCandidateIndex + 1
+            return .handled
+        }
         if !manager.instantActions.isEmpty {
             manager.moveInstantSelection(up: false)
             return .handled
@@ -328,6 +371,27 @@ struct LauncherInputView: View {
             return
         }
 
+        // C5 候选回调重入：若上一轮 command 插件返回了候选列表且用户选中某项 →
+        // 用 submitWithCandidate 重入同插件（带 selection），bypass LLM 执行选中动作（如 stop/start）。
+        if !pluginCandidates.isEmpty,
+           pluginCandidateIndex >= 0, pluginCandidateIndex < pluginCandidates.count,
+           let manifest = manager.lastRouteCandidates.first(where: { $0.name == manager.lastRoutePluginName }) {
+            let sel = pluginCandidates[pluginCandidateIndex].selection
+            let q = callbackQuery
+            // 回调前清空候选列表 + 产物，进入新的结果展示
+            await MainActor.run {
+                outputBuffer = ""
+                actions = []
+                errorOutput = nil
+                resultImage = nil
+                resultImageData = nil
+                copied = false
+            }
+            let stream = manager.submitWithCandidate(manifest, selection: sel, query: q)
+            await consume(stream)
+            return
+        }
+
         // 落回现有 AI 流（清空 instantActions，进入 AI 候选时序）
         await MainActor.run {
             manager.clearInstantActions()
@@ -351,7 +415,16 @@ struct LauncherInputView: View {
         } else {
             stream = manager.submit(q)
         }
+        // 记录原始 query + manifest（候选回调 C5 用：同 query 重入同插件）
+        await MainActor.run {
+            callbackQuery = q
+            callbackManifest = candidates.isEmpty ? nil : candidates[selectedIdx >= 0 ? selectedIdx : 0]
+        }
+        await consume(stream)
+    }
 
+    /// 消费 AgentEvent 流并更新 UI state（submit / submitWithCandidate 共用）。
+    private func consume(_ stream: AsyncStream<AgentEvent>) async {
         for await event in stream {
             switch event {
             case .text(let s):
@@ -378,6 +451,11 @@ struct LauncherInputView: View {
                     resultImage = NSImage(data: data)   // 图片通道：PNG → NSImage（渲染用）
                     copied = false
                 }
+            case .candidates(let items):
+                await MainActor.run {
+                    pluginCandidates = items            // 候选输出通道：收集候选列表（C1）
+                    pluginCandidateIndex = items.isEmpty ? -1 : 0  // 默认选中首个（↑↓ + Enter）
+                }
             case .done:
                 await MainActor.run {
                     query = ""
@@ -402,15 +480,18 @@ extension LauncherInputView {
         hasSelected: Bool,
         outputHeight: CGFloat,
         hasFooter: Bool = false,
-        instantCount: Int = 0
+        instantCount: Int = 0,
+        pluginCandidateCount: Int = 0
     ) -> CGFloat {
         let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
         let inputH = LauncherConstants.inputHeight   // 64
+        // 插件候选列表（C1）单独计高：与 output 互斥展示（候选选中后进入 output 态）
+        let pluginCandidateExtra: CGFloat = CGFloat(min(pluginCandidateCount, 5)) * 44
         if outputHeight > 0 {
-            return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + footerExtra
+            return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + pluginCandidateExtra + footerExtra
         }
-        // 时序互斥：instantCount 非零时用 instantCount，否则用 candidateCount
-        let effectiveCount = max(instantCount, candidateCount)
+        // 时序互斥：pluginCandidateCount / instantCount / candidateCount 取最大
+        let effectiveCount = max(max(pluginCandidateCount, instantCount), candidateCount)
         if effectiveCount > 0 {
             return inputH + CGFloat(min(effectiveCount, 5)) * 44 + footerExtra
         }

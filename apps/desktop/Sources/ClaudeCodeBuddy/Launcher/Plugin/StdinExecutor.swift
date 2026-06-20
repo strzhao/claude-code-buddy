@@ -35,9 +35,15 @@ class StdinExecutor {
         // 引用知识库：设计文档 §2 通用图片通道。
         let outputImagePath = "/tmp/buddy-plugin-\(UUID().uuidString).png"
         env["BUDDY_OUTPUT_IMAGE"] = outputImagePath
+        // 通用候选通道（C1）：注入 BUDDY_OUTPUT_CANDIDATES，子进程写候选 JSON 数组，框架读文件解码。
+        // 完全对称 image 通道（同 UUID 生命周期、defer 删、readXxxOutputSafely 安全校验、降级 nil）。
+        // stdin + command 共享；候选可选，损坏/超限/symlink/缺失 → nil（非 error）。
+        let outputCandidatesPath = "/tmp/buddy-plugin-\(UUID().uuidString).json"
+        env["BUDDY_OUTPUT_CANDIDATES"] = outputCandidatesPath
         // finally 删临时文件（覆盖所有 return/throw 路径，场景9 资源清理）
         defer {
             try? FileManager.default.removeItem(atPath: outputImagePath)
+            try? FileManager.default.removeItem(atPath: outputCandidatesPath)
         }
         process.environment = env
 
@@ -157,6 +163,9 @@ class StdinExecutor {
         // 读图片通道（T3）：exit 0 后读 BUDDY_OUTPUT_IMAGE → Data → PluginResult.image。
         // 任何失败（文件不存在/读失败/路径被篡改/超限）→ image = nil（降级，不报错）。
         let imageData = readImageOutputSafely(at: outputImagePath)
+        // 读候选通道（C1）：exit 0 后读 BUDDY_OUTPUT_CANDIDATES → [LauncherCandidate] → PluginResult.candidates。
+        // 完全对称 image 通道；失败降级 nil（候选可选，非 error）。
+        let candidatesData = readCandidatesOutputSafely(at: outputCandidatesPath)
 
         return PluginResult(
             stdout: stdoutStr,
@@ -164,7 +173,8 @@ class StdinExecutor {
             exitCode: process.terminationStatus,
             durationMs: durationMs,
             stdoutTruncated: stdoutTruncated,
-            image: imageData
+            image: imageData,
+            candidates: candidatesData
         )
     }
 
@@ -198,6 +208,34 @@ class StdinExecutor {
             return nil
         }
         return data
+    }
+
+    /// 安全读取候选输出（C1 通用候选通道，完全对称 image 通道）。
+    ///
+    /// 契约（state.md ## 契约规约 C1 边界值）：
+    /// - 读前校验 `resolvedPath == expectedPath`（防 symlink，/tmp 防御，与 image 通道同）
+    /// - `count > pluginMaxCandidatesBytes`（64 KiB）→ 返回 nil（丢弃，UI 不渲染候选）
+    /// - JSON 解码 `[LauncherCandidate]` 失败（损坏/非数组/字段缺失）→ 返回 nil
+    /// - 文件不存在/读失败 → 返回 nil
+    ///
+    /// 不抛错：候选是可选产物，缺失走降级（不渲染候选列表，stdout 仍展示）。
+    private func readCandidatesOutputSafely(at expectedPath: String) -> [LauncherCandidate]? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: expectedPath) else { return nil }
+        // 防 symlink：resolvedPath 必须等于注入的 outputCandidatesPath（绝对规范路径）
+        guard let resolved = try? (URL(fileURLWithPath: expectedPath)
+            .resolvingSymlinksInPath().path) as String?,
+              resolved == expectedPath else {
+            return nil
+        }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else { return nil }
+        guard data.count <= LauncherConstants.pluginMaxCandidatesBytes else {
+            // 超限丢弃（边界值反例：count > 64KiB → nil）
+            return nil
+        }
+        // JSON 完整性校验（对称 image 的 IEND 尾部校验）：解码失败 → nil（损坏候选不渲染）。
+        // 字段缺失（如缺 selection）会抛 decodingError → 降级 nil（C2 所有字段必需）。
+        return try? JSONDecoder().decode([LauncherCandidate].self, from: data)
     }
 
     /// 构造扩展 PATH：pluginPathPrefixes 在前 + 当前 PATH 在后

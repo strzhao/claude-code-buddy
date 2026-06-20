@@ -1,0 +1,52 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift
+  31a2c8c9fea586e1 484-485
+local-config.json
+  c93fd22e26d8959e 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "73eb079f32361a56ea66fa7e49325edfe75fb364",
+  "prompts": {
+    "31a2c8c9fea586e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b8a3169-bda3-4eff-ba05-db4aa67ad562",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec": {
+          "additions": 1
+        }
+      }
+    },
+    "c93fd22e26d8959e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4484ca0-8308-4961-86bc-36ee2aaed02d",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "local-config.json": {
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+apps/desktop/CLAUDE.md
+  c93fd22e26d8959e 229-252
+homebrew/Casks/claude-code-buddy.rb
+  c93fd22e26d8959e 2
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  c93fd22e26d8959e 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "558f99843ea56d0d235b680ce370ca3e1909a5cb",
+  "prompts": {
+    "c93fd22e26d8959e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4484ca0-8308-4961-86bc-36ee2aaed02d",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 27,
+      "total_deletions": 2,
+      "accepted_lines": 31,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "local-config.json": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 24,
+          "accepted_lines": 24
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/CandidatesChannelAcceptanceTests.swift": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/QzhPluginAcceptanceTests.swift": {
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

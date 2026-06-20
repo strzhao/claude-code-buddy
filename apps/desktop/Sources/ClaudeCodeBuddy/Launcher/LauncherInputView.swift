@@ -481,6 +481,8 @@ struct LauncherInputView: View {
             let q = callbackQuery
             // 回调前清空候选列表 + 产物，进入新的结果展示
             await MainActor.run {
+                pluginCandidates = []
+                pluginCandidateIndex = -1
                 outputBuffer = ""
                 actions = []
                 errorOutput = nil

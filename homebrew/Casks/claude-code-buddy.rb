@@ -7,7 +7,7 @@ cask "claude-code-buddy" do
   desc "Pixel cat on your Dock that reflects Claude Code's working state"
   homepage "https://github.com/strzhao/claude-code-buddy"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "ClaudeCodeBuddy.app"
 

@@ -17,8 +17,9 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (93)
+## Patterns (94)
 
+- [2026-06-21] SPM 依赖库组件因 Bundle.module 找不到资源 bundle 崩溃：用自定义实现替换（RecorderCocoa → HotkeyRecorderView，纯 AppKit + 库 public API，避开 Bundle.module 路径查找）| tags: spm, bundle, resource, crash, keyboardshortcuts, recordercocoa, bundle-module, codesign, custom-replacement, hotkey, settings | → patterns/2026-06-21-spm-bundle-module-crash-custom-replacement.md
 - [2026-06-19] command mode（零 LLM）必须 bypass submit 顶层 provider 检查，否则无 LLM 用户无法用确定性命令插件（静态 narrowCandidatesScored 短路 + provider 创建延迟到非 command 路径；QA 真机暴露，单测都注入 mock provider 绕过）| tags: launcher, command-mode, provider-check, zero-llm, short-circuit, submit-flow, agent-loop-bypass, qa-finding, real-device-verification, narrow-candidates | → patterns/2026-06-19-launcher-command-mode-bypass-provider-check.md
 - [2026-06-19] CoreImage CIFilter.qrCodeGenerator + swiftc/lipo universal binary 作为 marketplace 插件可执行文件（默认 module ~23px 需放大 ≥480px；裸 swiftc 双架构 + lipo，build: 依赖 build-qr-gen 时序先于 SPM .copy）| tags: coreimage, qr-code, cifilter, universal-binary, lipo, swiftc, command-mode, marketplace-plugin, png, appkit, nsbitmapimagerep, buddy-output-image | → patterns/2026-06-19-coreimage-qr-universal-binary-marketplace-plugin.md
 - [2026-06-19] launcher debug CLI = Registry 直驱无侵入功能测试入口（buddy launcher debug candidates/perform/registry，镜像 hotkey IPC，不经 LauncherManager 避 debounce 噪声，解决 osascript 抢屏幕问题）| tags: launcher, cli, debug, functional-testing, registry-direct, queryhandler, buddy-cli, socket, ipc, builtin-plugin, calculator, candidates, perform, json, deterministic, non-destructive, qa, automation | → patterns/2026-06-19-launcher-debug-cli-registry-direct-functional-test.md

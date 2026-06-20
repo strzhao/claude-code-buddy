@@ -26,10 +26,15 @@ chmod +x "$DEV_BUNDLE_DIR/Contents/MacOS/$APP_NAME"
 cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
    "$DEV_BUNDLE_DIR/Contents/Info.plist"
 
-# Copy SPM resource bundle if it exists
+# Copy SPM resource bundles if they exist
 RESOURCE_BUNDLE="$PROJECT_DIR/.build/debug/ClaudeCodeBuddy_BuddyCore.bundle"
 if [ -d "$RESOURCE_BUNDLE" ]; then
     cp -R "$RESOURCE_BUNDLE" "$DEV_BUNDLE_DIR/Contents/Resources/"
+fi
+
+KEYBOARD_SHORTCUTS_BUNDLE="$PROJECT_DIR/.build/debug/KeyboardShortcuts_KeyboardShortcuts.bundle"
+if [ -d "$KEYBOARD_SHORTCUTS_BUNDLE" ]; then
+    cp -R "$KEYBOARD_SHORTCUTS_BUNDLE" "$DEV_BUNDLE_DIR/Contents/Resources/"
 fi
 
 # Copy app icon if it exists

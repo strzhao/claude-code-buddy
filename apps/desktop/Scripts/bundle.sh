@@ -40,8 +40,10 @@ cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
 cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/AppIcon.icns" \
    "$BUNDLE_DIR/Contents/Resources/AppIcon.icns"
 
-# Copy SPM resource bundle (contains Assets/Sprites/ textures)
+# Copy SPM resource bundles (contains Assets/Sprites/ textures and KeyboardShortcuts localizations)
 cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_BuddyCore.bundle" \
+      "$BUNDLE_DIR/Contents/Resources/"
+cp -R "$PROJECT_DIR/.build/release/KeyboardShortcuts_KeyboardShortcuts.bundle" \
       "$BUNDLE_DIR/Contents/Resources/"
 
 # Copy buddy CLI tool

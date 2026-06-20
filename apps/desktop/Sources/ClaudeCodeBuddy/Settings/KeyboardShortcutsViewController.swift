@@ -14,7 +14,7 @@ final class KeyboardShortcutsViewController: NSViewController {
 
     private let titleLabel = NSTextField(labelWithString: "启动器热键")
     private let subtitleLabel = NSTextField(labelWithString: "按下你想要的组合键来设置启动器全局热键")
-    private let recorder: KeyboardShortcuts.RecorderCocoa
+    private let recorder: HotkeyRecorderView
     private let comboLabel = NSTextField(labelWithString: "")
     private let defaultHintLabel = NSTextField(labelWithString: "")
     private let resetButton = NSButton(title: "重置默认 (Ctrl+Space)", target: nil, action: #selector(resetToDefault))
@@ -22,8 +22,8 @@ final class KeyboardShortcutsViewController: NSViewController {
     private var shortcutObserver: NSObjectProtocol?
 
     init() {
-        // RecorderCocoa 的 onChange 闭包在 weak self 之外派发，避免 init 顺序问题
-        self.recorder = KeyboardShortcuts.RecorderCocoa(for: LauncherHotkey.toggle, onChange: nil)
+        // 使用自定义 HotkeyRecorderView 替代 RecorderCocoa，避免后者 Bundle.module 崩溃
+        self.recorder = HotkeyRecorderView(for: LauncherHotkey.toggle)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -87,7 +87,6 @@ final class KeyboardShortcutsViewController: NSViewController {
 
         // Recorder（大尺寸：宽 280pt、高 44pt）
         recorder.translatesAutoresizingMaskIntoConstraints = false
-        recorder.font = .systemFont(ofSize: 17, weight: .medium)
         container.addSubview(recorder)
 
         // combo 大字回显

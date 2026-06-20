@@ -1,0 +1,33 @@
+.github/workflows/release.yml
+  34edff473706ea29 10-22,25,35-37,39-40,43-44,47,75-79,96-97,104-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "3dbbb65ffba1faa21b91f3e82d8ef479257d3bdc",
+  "prompts": {
+    "34edff473706ea29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57a7036b-9781-4485-a750-74084a1e1e55",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 40,
+      "total_deletions": 66,
+      "accepted_lines": 220,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".github/workflows/release.yml": {
+          "additions": 40,
+          "deletions": 66,
+          "accepted_lines": 40
+        },
+        ".claude/skills/release-tag-automation/SKILL.md": {
+          "accepted_lines": 180
+        }
+      }
+    }
+  }
+}

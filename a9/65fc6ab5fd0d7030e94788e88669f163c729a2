@@ -1,0 +1,44 @@
+.autopilot/knowledge/decisions/2026-06-20-command-mode-candidates-channel-submit-callback.md
+  c93fd22e26d8959e 1-17
+.autopilot/knowledge/patterns/2026-06-20-launcher-instant-command-candidate-mutual-exclusion.md
+  c93fd22e26d8959e 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "a965fc6ab5fd0d7030e94788e88669f163c729a2",
+  "prompts": {
+    "c93fd22e26d8959e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4484ca0-8308-4961-86bc-36ee2aaed02d",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 31,
+      "total_deletions": 0,
+      "accepted_lines": 36,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "local-config.json": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/CandidatesChannelAcceptanceTests.swift": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/QzhPluginAcceptanceTests.swift": {
+          "accepted_lines": 2
+        },
+        ".autopilot/knowledge/decisions/2026-06-20-command-mode-candidates-channel-submit-callback.md": {
+          "additions": 17,
+          "accepted_lines": 17
+        },
+        ".autopilot/knowledge/patterns/2026-06-20-launcher-instant-command-candidate-mutual-exclusion.md": {
+          "additions": 14,
+          "accepted_lines": 14
+        }
+      }
+    }
+  }
+}

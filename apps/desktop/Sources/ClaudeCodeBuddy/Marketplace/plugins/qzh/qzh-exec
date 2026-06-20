@@ -27,11 +27,9 @@ INPUT=$(cat)
 QUERY=$(echo "$INPUT" | jq -r '.query // ""' 2>/dev/null)
 SELECTION=$(echo "$INPUT" | jq -r '.selection // empty' 2>/dev/null)
 
-if [ -z "$QUERY" ] && [ -z "$SELECTION" ]; then
-    # query 和 selection 都空 → 降级（场景7.P2：空输入 clean exit）
-    echo "无查询内容"
-    exit 0
-fi
+# 注：command route 输入 "qzh" 经 launcher stripKeywordPrefix 剥关键词后 query 为空，
+# 这属正常首次查询（selection 空 → 走下方状态查询 + 写候选）。qzh 是无参状态/控制插件，
+# 不依赖 query 内容，故不设"空 query"守卫（守卫会误杀关键词-only 的正常首查）。
 
 # MARK: - 2. 常量（launchd labels + plist 路径）
 
@@ -73,9 +71,9 @@ emit_candidates() {
     if [ -z "$out" ]; then
         return  # 框架未注入环境变量 → 不写（降级，只展示 stdout 状态文本）
     fi
-    # 候选 JSON：stop（关闭）+ start（打开）。selection 仅标识，禁含命令。
+    # 候选 JSON：status（查看）+ stop（关闭）+ start（打开）。selection 仅标识，禁含命令。
     printf '%s' \
-'[{"id":"stop","title":"关闭监控","subtitle":"停止 service + update（可逆，重启自愈）","selection":"stop"},{"id":"start","title":"打开监控","subtitle":"恢复 service + update","selection":"start"}]' \
+'[{"id":"status","title":"查看状态","subtitle":"刷新监控服务运行状态","selection":"status"},{"id":"stop","title":"关闭监控","subtitle":"停止 service + update（可逆，重启自愈）","selection":"stop"},{"id":"start","title":"打开监控","subtitle":"恢复 service + update","selection":"start"}]' \
         > "$out"
 }
 
@@ -105,6 +103,26 @@ if [ -z "$SELECTION" ]; then
     emit_candidates
     exit 0
 
+elif [ "$SELECTION" = "status" ]; then
+    # ========== 查看状态：重新 pgrep 刷新当前运行状态 ==========
+    SVC_STATUS=$(status_text "$SERVICE_PROC")
+    if check_alive "qzhddrupdate" || check_alive "QzhddrUpdate"; then
+        UPD_STATUS="运行中"
+    else
+        UPD_STATUS="已停止"
+    fi
+
+    echo "QzhddrSrv 监控状态："
+    echo "  主服务 ($SERVICE_PROC): $SVC_STATUS"
+    echo "  更新服务: $UPD_STATUS"
+    if [ "$SVC_STATUS" = "运行中" ]; then
+        echo "提示：选中「关闭监控」可临时停止（重启自动恢复）"
+    else
+        echo "提示：选中「打开监控」可恢复运行"
+    fi
+    # 不写候选（status 是查询终点，选中后只展示状态文本）
+    exit 0
+
 elif [ "$SELECTION" = "stop" ]; then
     # ========== 关闭：bootout service + update ==========
     # sudo 免密依赖 /etc/sudoers.d/qzhddr-launcher（setup.sh 一次性配置）
@@ -130,14 +148,18 @@ elif [ "$SELECTION" = "stop" ]; then
         exit 1
     fi
 
-    # 场景2.P3：成功后状态刷新
-    sleep 0.5  # 给 launchd 一点时间执行 bootout
-    AFTER=$(status_text "$SERVICE_PROC")
+    # 场景2.P3：成功后状态刷新。bootout 后 launchd 发 SIGTERM，QzhddrSrv 实测约 5s 退出；轮询确认。
+    AFTER="运行中"
+    for _ in 1 2 3 4 5 6 7; do
+        sleep 1
+        AFTER=$(status_text "$SERVICE_PROC")
+        [ "$AFTER" = "已停止" ] && break
+    done
     if [ "$AFTER" = "已停止" ]; then
         echo "已关闭监控（service + update 已 bootout）"
         echo "可逆：重启电脑自动恢复，或选中「打开监控」立即恢复"
     else
-        echo "已发送关闭指令，但进程仍 ${AFTER}（KeepAlive 可能在重启中）"
+        echo "已发送关闭指令，进程仍在退出中（launchd 将 SIGKILL，稍后自动停止）"
     fi
     exit 0
 
@@ -164,18 +186,22 @@ elif [ "$SELECTION" = "start" ]; then
         exit 1
     fi
 
-    # bootstrap 后 launchd 按 RunAtLoad 立即拉起，短暂等待
-    sleep 1
-    AFTER=$(status_text "$SERVICE_PROC")
+    # bootstrap 后 launchd 按 RunAtLoad 拉起进程，轮询确认（实测启动需数秒）
+    AFTER="已停止"
+    for _ in 1 2 3 4 5; do
+        sleep 1
+        AFTER=$(status_text "$SERVICE_PROC")
+        [ "$AFTER" = "运行中" ] && break
+    done
     if [ "$AFTER" = "运行中" ]; then
         echo "已打开监控（service + update 已 bootstrap，RunAtLoad 已拉起）"
     else
-        echo "已发送打开指令，进程当前 ${AFTER}（RunAtLoad 可能需要数秒）"
+        echo "已发送打开指令，进程当前 ${AFTER}（RunAtLoad 可能需要更多时间）"
     fi
     exit 0
 
 else
     # 未知 selection（C2 安全：不执行任何未知动作）
-    echo "未知操作：${SELECTION}（仅支持 stop/start）" >&2
+    echo "未知操作：${SELECTION}（仅支持 status/stop/start）" >&2
     exit 1
 fi

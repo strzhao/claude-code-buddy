@@ -42,12 +42,12 @@ cat > "$SUDOERS_TMP" <<'SUDOERS_EOF'
 # 安全：不放行通配 / 任意 label / 任意参数。查询（launchctl print / pgrep）不需 sudo。
 
 # 关闭：bootout service + update
-%admin ALL=(root) NOPASSWD: launchctl bootout system/com.cyberserval.qzhddr.service
-%admin ALL=(root) NOPASSWD: launchctl bootout system/com.cyberserval.qzhddr.update
+%admin ALL=(root) NOPASSWD: /bin/launchctl bootout system/com.cyberserval.qzhddr.service
+%admin ALL=(root) NOPASSWD: /bin/launchctl bootout system/com.cyberserval.qzhddr.update
 
 # 打开：bootstrap service + update（plist 路径精确匹配）
-%admin ALL=(root) NOPASSWD: launchctl bootstrap system /Library/LaunchDaemons/com.cyberserval.qzhddr.service.plist
-%admin ALL=(root) NOPASSWD: launchctl bootstrap system /Library/LaunchDaemons/com.cyberserval.qzhddr.update.plist
+%admin ALL=(root) NOPASSWD: /bin/launchctl bootstrap system /Library/LaunchDaemons/com.cyberserval.qzhddr.service.plist
+%admin ALL=(root) NOPASSWD: /bin/launchctl bootstrap system /Library/LaunchDaemons/com.cyberserval.qzhddr.update.plist
 SUDOERS_EOF
 
 # visudo 语法校验（写入前校验，避免损坏 sudoers 导致系统锁死）

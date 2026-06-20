@@ -239,10 +239,14 @@ final class QzhPluginAcceptanceTests: XCTestCase {
             "[契约 §4] qzh-exec 必须读 stdin（jq 解析 .selection/.query），不能硬编码路由"
         )
 
-        // stop/start 路由分支必须存在（selection == "stop" / "start"）
+        // stop/start 路由分支必须存在（selection == "stop" / "start" / "status"）
         XCTAssertTrue(
             content.contains("stop") && content.contains("start"),
             "[契约 §4] qzh-exec 必须有 stop/start selection 路由分支"
+        )
+        XCTAssertTrue(
+            content.contains("status"),
+            "[契约 §4] qzh-exec 必须有 status selection 路由分支（查看状态子命令）"
         )
     }
 
@@ -277,9 +281,43 @@ final class QzhPluginAcceptanceTests: XCTestCase {
                       "[C2][场景1.P1] 候选 JSON 必须含 selection 'stop'")
         XCTAssertTrue(content.contains("\"start\"") || content.contains("'start'"),
                       "[C2][场景1.P1] 候选 JSON 必须含 selection 'start'")
+        XCTAssertTrue(content.contains("\"status\"") || content.contains("'status'"),
+                      "[C2] 候选 JSON 必须含 selection 'status'（查看状态子命令）")
 
         // VISUAL_RESIDUE: 状态文本「运行中」/「已停止」/组件明细的精确组装留 QA 真机判定
         // （det-machine 只断言路由结构，pgrep 真实存活需真机）
+    }
+
+    /// status 分支必须存在 + 含 pgrep 刷新（非缓存回显）+ 不含 emit_candidates（status 是查询终点，不写候选）
+    /// 契约引用：设计文档 §status 分支行为——复用首次查询的状态检查逻辑，重新 pgrep，不写候选
+    func test_statusSelection_routeExists_repgsWithoutCandidates() throws {
+        let testFile = URL(fileURLWithPath: #file)
+        let repoRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let execURL = repoRoot
+            .appendingPathComponent("Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec")
+        guard FileManager.default.fileExists(atPath: execURL.path) else {
+            XCTFail("[契约 §4] qzh-exec 必须存在才能校验 status 分支")
+            return
+        }
+        let content = try String(contentsOf: execURL, encoding: .utf8)
+
+        // status selection 路由分支必须存在
+        XCTAssertTrue(
+            content.contains("SELECTION\" = \"status\""),
+            "[契约 §4] qzh-exec 必须有 elif [ \"$SELECTION\" = \"status\" ] 路由分支"
+        )
+
+        // "未知操作" 消息必须包含 status（防蓝队加分支但忘更新帮助文本）
+        XCTAssertTrue(
+            content.contains("status/stop/start") || content.contains("status, stop, start"),
+            "[契约 §4] qzh-exec 未知操作消息必须包含 status（与 stop/start 并列）"
+        )
+
+        // VISUAL_RESIDUE: status 分支不写候选 → 断言 status 块不含 emit_candidates 调用（精确行留 QA 真机）
     }
 
     // MARK: - [契约 §4] qzh-exec 用 sudo 调 launchctl（免密依赖 sudoers）

@@ -250,6 +250,34 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 - sudo 免密：`setup.sh` 一次性写 `/etc/sudoers.d/qzhddr-launcher`，`%admin ALL=(root) NOPASSWD: launchctl bootout/bootstrap ...` 精确匹配（非绝对路径 `launchctl` 放行，无通配 / 无任意 label / 无任意参数），写入前 `visudo -c` 语法校验
 - 可逆：bootout 只卸载不删 plist，bootstrap 可重新拉起
 
+### command 路由候选分区（方案 B，2026-06-20）
+
+**背景**：qzh command 插件落地后发现路由冲突——输入 `qzh` 时内置 instant 候选（AppLauncher 匹配 Qzhddr.app）与 router 命中的外部 command 插件（qzh）**互斥且 instant 抢占**，command 插件既不显示为候选行，Enter 又被 instant 优先执行（打开 app），用户主动安装的 command 插件**完全不可达**。
+
+**方案 B 分区渲染**：恢复 command 路由候选为候选行，与 instant 候选**分区同时展示**，command 区在上、Enter 优先。改动聚焦展示层 + Enter 选择 + 导航，**不动** submit 管线核心 / StdinExecutor / 候选输出通道 / TOFU。
+
+**数据层**（`LauncherManager`）：
+- `@Published commandRouteCandidates: [PluginManifest]` —— typing 阶段填充的 command-mode 子集（`updateQuery` 由 `narrowed.filter{ if case .command = $0.modeConfig }` 算出）
+- `@Published commandRouteSelectedIndex: Int` —— 默认 0（command 优先选中），空时 -1
+- `@Published activeCandidateZone: CandidateZone` —— 导航活动区枚举 {.pluginCandidates, .commandRoute, .instant, .aiRoute}，决定 ↑↓ 跨区语义与 Enter 派发
+- 测试 seam：`pluginsOverride: [PluginManifest]?`（注入 plugins 源，I1）/ `stdinExecutorOverride: StdinExecutor?`（submitCommandDirect spy，I6）
+- 复位点：空 query / show / hide / clearInstantActions / command 执行开始（stage→calling）清空
+
+**command 短路执行入口**（`submitCommandDirect(_:query:) -> AsyncStream<AgentEvent>`，C11）：镜像 `submit()` 内 `.command` case + 顶层 command 短路的执行段——`guard case .command` → prologue（清 commandRouteCandidates + stage=.calling）→ detached: trust checkAndPrompt → `PluginDispatcher(stdinExecutor: stdinExecutorOverride ?? .shared).execute` → yield `.text`/`.image`/`.candidates`/`.done` → stage streaming→idle。**零 provider / 零 LLM**（与 `submitWithPlugin` 区别：后者强制 provider + LLM agent loop）。对称 `submitWithCandidate`（command 回调入口）。
+
+**渲染层**（`LauncherInputView`）：
+- `showCommandRouteCandidates` 计算属性（stage ∈ {idle,narrowing,routing} && !hasOutput && commandRouteCandidates 非空）
+- 分区顺序（自上而下）：command 路由区（`LauncherCandidateView`，恢复死代码 + 加 `onSelect` 回调）→ instant 区 → pluginCandidates 输出通道区
+- 两区同时渲染（commandRoute + instant 并存）
+
+**导航**（C5 四态矩阵）：↑↓ 按 `activeCandidateZone` 派发。pluginCandidates 通道非空（post-exec）→ 仅区内环形隔离；commandRoute + instant 并存 → 区内环形 + 边界跨区（commandRoute 末↓→instant 首，instant 首↑→commandRoute 末）；仅单区 → 区内环形（C10 回归）。
+
+**Enter 优先级**（C4）：`submit()` 按 `activeCandidateZone` 派发——.commandRoute → `submitCommandDirect` return；.instant → `performSelectedInstantAction`；空 → pluginCandidates 通道回调 → AI 路由。默认 activeCandidateZone=.commandRoute（command 优先）。
+
+**面板高度**（`panelHeight` C6 四态公式，取代既有 max 互斥）：output 态 / 候选并存态（commandRouteExtra + instantExtra **叠加**）/ 仅单区态（C10 回归）/ 空态。
+
+
+
 ### 故障排查
 
 - **快捷键被占用/失效** → `buddy launcher hotkey show` 查看当前热键 + 是否默认，或打开设置面板「热键」tab 用 RecorderCocoa 改键；`buddy launcher hotkey clear` 重置为默认 (Ctrl+Space)

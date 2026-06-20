@@ -90,13 +90,13 @@ assert_eq "exit code = 1" "$EXIT3" "1"
 assert_contains "stderr 含未知操作" "$OUTPUT" "未知操作"
 assert_contains "stderr 含仅支持 stop/start" "$OUTPUT" "stop/start"
 
-# ========== 测试 4：空输入 → 降级 + exit 0 ==========
-echo "测试 4：空输入（query + selection 都空）→ 降级 + exit 0"
+# ========== 测试 4：空输入（command route 剥关键词后）→ 查状态 + exit 0 ==========
+echo "测试 4：空输入（query + selection 都空，如 command route 输入 qzh 剥后）→ 查状态 + exit 0"
 OUTPUT=$(echo '{"query":"","sessionId":"s1","cwd":"/tmp"}' \
     | bash "$QZH_EXEC" 2>&1)
 EXIT4=$?
 assert_eq "exit code = 0" "$EXIT4" "0"
-assert_contains "stdout 含无查询内容" "$OUTPUT" "无查询内容"
+assert_contains "stdout 含状态文本" "$OUTPUT" "QzhddrSrv 监控状态"
 
 # ========== 测试 5：jq 不可用 → 降级（requiredPath 守护前置，此处仅验脚本鲁棒）==========
 # 注：requiredPath:["jq"] 在 StdinExecutor 层拦截，qzh-exec 假设 jq 可用。跳过。

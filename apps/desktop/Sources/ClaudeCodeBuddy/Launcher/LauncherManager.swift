@@ -1,6 +1,15 @@
 import AppKit
 import Combine
 
+/// 候选导航活动区（方案 B 分区渲染，C2/C5）。
+/// 决定 ↑↓ 跨区语义与 Enter 派发目标（submit 按 activeCandidateZone 分流）。
+enum CandidateZone: Equatable {
+    case pluginCandidates   // post-exec 候选输出通道区（隔离其他三区）
+    case commandRoute       // command 路由候选区（typing 阶段填充，用户安装的 command 插件）
+    case instant            // 内置即时候选区（AppLauncher/Calculator/SystemCommand 等）
+    case aiRoute            // AI 路由候选兜底（lastRouteCandidates）
+}
+
 @MainActor
 final class LauncherManager: ObservableObject {
     static let shared = LauncherManager()
@@ -57,6 +66,16 @@ final class LauncherManager: ObservableObject {
     /// 启动失败错误（呈现中文文案，修复 SUGGESTION-2）
     @Published private(set) var lastInstantError: LauncherError?
 
+    // MARK: - command 路由候选状态（方案 B 分区渲染，C1/C2/C5）
+
+    /// command 路由候选列表（typing 阶段填充的 command-mode 子集，C1）。
+    /// 与 submit 期填充的 lastRouteCandidates 解耦，避免污染路由决策。
+    @Published private(set) var commandRouteCandidates: [PluginManifest] = []
+    /// command 路由候选选中索引（哨兵 -1；非空时默认 0，C2 command 优先）。
+    @Published private(set) var commandRouteSelectedIndex: Int = -1
+    /// 当前导航活动区（C2/C5）：决定 ↑↓ 跨区语义与 Enter 派发目标。
+    @Published private(set) var activeCandidateZone: CandidateZone = .instant
+
     /// debounce Task（连续输入时 cancel 旧 Task）
     private var debounceTask: Task<Void, Never>?
 
@@ -64,6 +83,12 @@ final class LauncherManager: ObservableObject {
     var registryOverride: BuiltinPluginRegistry?
     /// 测试注入点（SUGGESTION-1）：覆盖 debounce 毫秒数（测试置 0 跳过等待）
     var instantDebounceMsOverride: Int?
+    /// 测试注入点（I1）：覆盖 updateQuery 读取的 plugins 源（优先于 PluginManager.shared.list()）。
+    /// 单测可注入 qzh manifest 构造「command + app 双命中」，不依赖真装插件/真 /Applications。
+    var pluginsOverride: [PluginManifest]?
+    /// 测试注入点（I6）：覆盖 submitCommandDirect 使用的 StdinExecutor（默认 .shared）。
+    /// 红队 spy dispatch 调用次数，禁真起进程（C11 spy seam）。
+    var stdinExecutorOverride: StdinExecutor?
 
     /// Combine 订阅持有（activePluginName 自动同步）
     private var syncCancellables = Set<AnyCancellable>()
@@ -176,6 +201,10 @@ final class LauncherManager: ObservableObject {
         instantActions = []
         instantSelectedIndex = -1
         lastInstantError = nil
+        // 清空 command 路由候选状态（C1 复位点）
+        commandRouteCandidates = []
+        commandRouteSelectedIndex = -1
+        activeCandidateZone = .instant
         debounceTask?.cancel()
         debounceTask = nil
         // 重置 panel 尺寸到初始小高度，避免上次执行后的大尺寸导致 centerOnScreen y 算偏高
@@ -197,6 +226,10 @@ final class LauncherManager: ObservableObject {
         instantActions = []
         instantSelectedIndex = -1
         lastInstantError = nil
+        // 清空 command 路由候选状态（C1 复位点）
+        commandRouteCandidates = []
+        commandRouteSelectedIndex = -1
+        activeCandidateZone = .instant
         debounceTask?.cancel()
         debounceTask = nil
         launcherWindow.orderOut(nil)
@@ -218,6 +251,7 @@ final class LauncherManager: ObservableObject {
 
     /// C7 契约：非空 query → debounce 后更新 instantActions；空 query → 立即清空。
     /// 连续输入时 cancel 旧 debounceTask，只有最后一次落地。
+    /// 方案 B（C1/C2）：同时填 command 路由候选（command-mode 子集），command 优先选中。
     func updateQuery(_ query: String) {
         debounceTask?.cancel()
         guard !query.isEmpty else {
@@ -225,12 +259,24 @@ final class LauncherManager: ObservableObject {
             instantSelectedIndex = -1
             // 清空输入 → chip 立即消失
             lastRoutePluginName = nil
+            // 清空 command 路由候选状态（C1 复位点）
+            commandRouteCandidates = []
+            commandRouteSelectedIndex = -1
+            activeCandidateZone = .instant
             return
         }
         // 同步 narrow：让 chip 在用户输入命中 keyword 瞬间就显示（不等 submit）
-        let plugins = (try? PluginManager.shared.list()) ?? []
+        // I1 seam：pluginsOverride 优先于 PluginManager.shared.list()
+        let plugins = pluginsOverride ?? ((try? PluginManager.shared.list()) ?? [])
         let narrowed = LauncherRouter.narrowCandidates(query: query, plugins: plugins)
         lastRoutePluginName = narrowed.first?.name
+
+        // C1/C9：command 路由候选 = narrowed 的 command-mode 子集
+        commandRouteCandidates = narrowed.filter { manifest in
+            if case .command = manifest.modeConfig { return true }
+            return false
+        }
+        commandRouteSelectedIndex = commandRouteCandidates.isEmpty ? -1 : 0
 
         let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
         let registry = registryOverride ?? BuiltinPluginRegistry.shared
@@ -243,7 +289,13 @@ final class LauncherManager: ObservableObject {
             let acts = await registry.actions(for: query)
             guard !Task.isCancelled else { return }
             self.instantActions = acts
+            // C2/I5：不再用 -1 钉死 instantSelectedIndex。
+            // command 区非空时 command 优先选中（activeCandidateZone=.commandRoute），
+            // instant 区可见但不预选（instantSelectedIndex 仍按候选存在性置 0，
+            // 由 activeCandidateZone 决定 Enter 实际派发目标，避免跨区 off-by-one）。
             self.instantSelectedIndex = acts.isEmpty ? -1 : 0
+            // C2：默认活动区 = command 优先（非空）否则 instant
+            self.activeCandidateZone = self.commandRouteCandidates.isEmpty ? .instant : .commandRoute
         }
     }
 
@@ -256,6 +308,31 @@ final class LauncherManager: ObservableObject {
         } else {
             instantSelectedIndex = instantSelectedIndex >= count - 1 ? 0 : instantSelectedIndex + 1
         }
+    }
+
+    // MARK: - command 路由候选导航（C5 四态矩阵）
+
+    /// command 路由候选区内环形导航（C5：单区内环形，跨区由 LauncherInputView 边界处理）。
+    func moveCommandRouteSelection(up: Bool) {
+        guard !commandRouteCandidates.isEmpty else { return }
+        let count = commandRouteCandidates.count
+        if up {
+            commandRouteSelectedIndex = commandRouteSelectedIndex <= 0 ? count - 1 : commandRouteSelectedIndex - 1
+        } else {
+            commandRouteSelectedIndex = commandRouteSelectedIndex >= count - 1 ? 0 : commandRouteSelectedIndex + 1
+        }
+    }
+
+    /// 键盘覆盖 command 路由候选索引（C5）：clamp 到 [0, count-1]，空 list no-op。
+    func setCommandRouteSelectedIndex(_ index: Int) {
+        guard !commandRouteCandidates.isEmpty else { return }
+        let clamped = max(0, min(commandRouteCandidates.count - 1, index))
+        commandRouteSelectedIndex = clamped
+    }
+
+    /// 切换当前导航活动区（C2/C5）：LauncherInputView 跨区边界处理时调用。
+    func setActiveCandidateZone(_ zone: CandidateZone) {
+        activeCandidateZone = zone
     }
 
     /// C5 契约：若有选中的即时 action，执行并返回 true（已消费，不走 AI）；否则返回 false。
@@ -279,11 +356,15 @@ final class LauncherManager: ObservableObject {
     }
 
     /// 清空即时候选（submit 落回 AI 流前调用，C5 契约）
+    /// 方案 B（C1 复位点）：同时清 command 路由候选状态。
     func clearInstantActions() {
         debounceTask?.cancel()
         debounceTask = nil
         instantActions = []
         instantSelectedIndex = -1
+        commandRouteCandidates = []
+        commandRouteSelectedIndex = -1
+        activeCandidateZone = .instant
     }
 
     /// 键盘覆盖候选索引（C4 契约）：@MainActor + 空 list no-op + clamp
@@ -822,9 +903,7 @@ final class LauncherManager: ObservableObject {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
                     }
-                    continuation.yield(.error(error is LauncherError
-                        ? (error as! LauncherError)
-                        : .networkFailure(error)))
+                    continuation.yield(.error((error as? LauncherError) ?? .networkFailure(error)))
                     continuation.finish()
                     return
                 }
@@ -849,6 +928,105 @@ final class LauncherManager: ObservableObject {
                 )
                 await MainActor.run { LauncherManager.shared.stage = .streaming }
                 let dispatcher = PluginDispatcher(stdinExecutor: .shared)
+                do {
+                    let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
+                    if !result.stdout.isEmpty {
+                        continuation.yield(.text(result.stdout))
+                    }
+                    if let imageData = result.image {
+                        continuation.yield(.image(imageData))
+                    }
+                    if let candidates = result.candidates {
+                        continuation.yield(.candidates(candidates))
+                    }
+                    // exitCode != 0 且无任何产物 → stderr 作为用户可见文本（对称静态短路）
+                    if result.exitCode != 0 && result.stdout.isEmpty
+                        && result.image == nil && result.candidates == nil {
+                        continuation.yield(.text(result.stderr.isEmpty ? "执行失败" : result.stderr))
+                    }
+                    continuation.yield(.done(reason: "end_turn"))
+                } catch let err as LauncherError {
+                    continuation.yield(.error(err))
+                } catch {
+                    continuation.yield(.error(.networkFailure(error)))
+                }
+                await MainActor.run {
+                    LauncherManager.shared.stage = .idle
+                    LauncherManager.shared.isSubmitting = false
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// command 短路直接执行入口（方案 B §1.5，C11）。
+    ///
+    /// 镜像 `submit()` 内 `.command` case（L559-594）+ 顶层 command 短路（L347-388）的执行段：
+    /// `guard case .command`（非 command → errorStream(.pluginCrash)）→ prologue（清 commandRouteCandidates/
+    /// commandRouteSelectedIndex=-1 + stage=.calling + lastRoutePluginName）→ detached: trust checkAndPrompt
+    /// → `PluginDispatcher(stdinExecutor: stdinExecutorOverride ?? .shared).execute` →
+    /// yield `.text`/`.image`/`.candidates`/`.done` → stage streaming→idle。
+    ///
+    /// **零 provider / 零 LLM**（与 submitWithPlugin 区别：后者强制 provider + LLM agent loop，见 B1）。
+    /// 对称 submitWithCandidate（command 回调入口）。
+    ///
+    /// 用途：用户在 command 路由候选区按 Enter / 点行（C4）→ 经此入口触发 command 短路执行，
+    /// 子进程经 BUDDY_OUTPUT_CANDIDATES 回吐子候选 → pluginCandidates 通道。
+    func submitCommandDirect(_ manifest: PluginManifest, query: String) -> AsyncStream<AgentEvent> {
+        // C11：guard case .command（非 command → errorStream）
+        guard case .command = manifest.modeConfig else {
+            return Self.errorStream(.pluginCrash(-1, "submitCommandDirect 仅支持 command mode 插件"))
+        }
+
+        // prologue（MainActor 同步段，B2：清 commandRouteCandidates 避免子候选回吐后双重渲染/计高）
+        commandRouteCandidates = []
+        commandRouteSelectedIndex = -1
+        lastRoutePluginName = manifest.name
+        // C5 回调查找：填 lastRouteCandidates，让"选中子候选（如关闭监控）"时 submit() 能按 name 找到 manifest。
+        // 镜像 submit() command 短路 L350 的赋值；不填则回调路径 manifest=nil → 落 AI 流 → 执行失败。
+        lastRouteCandidates = [manifest]
+        stage = .calling
+        // 在 MainActor 上捕获 spy seam，避免 detached 跨 actor 访问
+        let executorOverride = stdinExecutorOverride
+
+        return AsyncStream { continuation in
+            let task = Task.detached {
+                // 解析插件目录（detached 内独立查）
+                let dir: URL
+                do {
+                    dir = try PluginManager.shared.pluginDir(for: manifest)
+                } catch {
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .error
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    continuation.yield(.error((error as? LauncherError) ?? .networkFailure(error)))
+                    continuation.finish()
+                    return
+                }
+                let executablePath = dir.appending(path: manifest.cmd)
+                // TOFU 不变（C8）：command trustKey = "command:" + SHA256(cmd+args+exeBytes)
+                let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
+                guard trusted else {
+                    continuation.yield(.error(.pluginNotTrusted(manifest.name)))
+                    continuation.finish()
+                    await MainActor.run {
+                        LauncherManager.shared.stage = .idle
+                        LauncherManager.shared.isSubmitting = false
+                    }
+                    return
+                }
+                // strip 命中 keyword 前缀（如 "qr https://..." → "https://..."）
+                let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
+                let pluginInput = PluginInput(
+                    query: strippedQuery,
+                    sessionId: UUID().uuidString,
+                    cwd: NSHomeDirectory()
+                )
+                await MainActor.run { LauncherManager.shared.stage = .streaming }
+                // C11/I6 spy seam：stdinExecutorOverride 优先于 .shared
+                let dispatcher = PluginDispatcher(stdinExecutor: executorOverride ?? .shared)
                 do {
                     let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
                     if !result.stdout.isEmpty {

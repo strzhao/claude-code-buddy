@@ -2,9 +2,14 @@ import SwiftUI
 
 /// 路由候选列表视图（V2 视觉升级：sage 半透明选中态 + SF Symbol 指示符 + 左侧 Capsule 竖条）
 /// 仅在 candidates 非空时显示（设计规约）
+///
+/// 方案 B（C7）：恢复为 command 路由区渲染器，新增 onSelect 回调（点击触发 submit）。
+/// 参数类型 [PluginManifest] 不变；不改 instant/pluginCandidates 渲染器。
 struct LauncherCandidateView: View {
     let candidates: [PluginManifest]
     let selectedIndex: Int
+    /// C7：点击某行 → 触发选中回调（command 路由区点击 submit）
+    var onSelect: ((PluginManifest) -> Void)?
 
     var body: some View {
         if !candidates.isEmpty {
@@ -15,9 +20,21 @@ struct LauncherCandidateView: View {
 
                 ForEach(Array(candidates.enumerated()), id: \.offset) { index, candidate in
                     candidateRow(candidate: candidate, index: index)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onSelect?(candidate)
+                        }
+                        .accessibilityElement()
+                        .accessibilityLabel(rowLabel(candidate))
+                        .accessibilityAddTraits(.isButton)
                 }
             }
         }
+    }
+
+    /// AX label（C7：command 候选行可达）
+    private func rowLabel(_ c: PluginManifest) -> String {
+        [c.name, c.description].joined(separator: " ")
     }
 
     @ViewBuilder

@@ -1,0 +1,58 @@
+apps/desktop/Scripts/bundle.sh
+  f998c792525fd5e8 43,46
+apps/desktop/Scripts/dev-bundle.sh
+  f998c792525fd5e8 29,35-37
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift
+  f998c792525fd5e8 17,25-26
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  f998c792525fd5e8 18,22
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift
+  f998c792525fd5e8 1-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "3db15c76e2a8aefeb72bb5e84a755b58173fb1c6",
+  "prompts": {
+    "f998c792525fd5e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "33874f82-81ea-46e3-ba83-6fda151647c6",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 245,
+      "total_deletions": 9,
+      "accepted_lines": 244,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Scripts/dev-bundle.sh": {
+          "additions": 6,
+          "deletions": 1,
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "additions": 231,
+          "deletions": 1,
+          "accepted_lines": 230
+        },
+        "apps/desktop/Scripts/bundle.sh": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 3,
+          "deletions": 4,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,81 @@
+apps/desktop/.autopilot/knowledge/patterns.md
+  036784b1a6f40625 1-47
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPrompt.swift
+  036784b1a6f40625 3,5-9,11-12,14-18,20,74-84
+apps/desktop/Makefile
+  036784b1a6f40625 66-69,72
+apps/desktop/.autopilot/knowledge/index.md
+  036784b1a6f40625 1-10
+apps/desktop/.autopilot/knowledge/decisions.md
+  036784b1a6f40625 1-26
+apps/desktop/tests/BuddyCoreTests/Launcher/TrustStoreTests.swift
+  036784b1a6f40625 4-20,232-283
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  036784b1a6f40625 14
+apps/desktop/CLAUDE.md
+  036784b1a6f40625 41,293
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustStore.swift
+  036784b1a6f40625 18,20-21,23,89-91,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "efd3c2652523be40f965ddfc9b630aec77cef50c",
+  "prompts": {
+    "036784b1a6f40625": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "230eb31d-ec52-49f2-99b7-1b97cafe54c6",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 197,
+      "total_deletions": 14,
+      "accepted_lines": 197,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Makefile": {
+          "additions": 5,
+          "deletions": 5,
+          "accepted_lines": 5
+        },
+        "apps/desktop/.autopilot/knowledge/patterns.md": {
+          "additions": 47,
+          "accepted_lines": 47
+        },
+        "apps/desktop/.autopilot/knowledge/decisions.md": {
+          "additions": 26,
+          "accepted_lines": 26
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustStore.swift": {
+          "additions": 8,
+          "deletions": 3,
+          "accepted_lines": 8
+        },
+        "apps/desktop/.autopilot/knowledge/index.md": {
+          "additions": 10,
+          "accepted_lines": 10
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/TrustStoreTests.swift": {
+          "additions": 69,
+          "accepted_lines": 69
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPrompt.swift": {
+          "additions": 29,
+          "deletions": 5,
+          "accepted_lines": 29
+        }
+      }
+    }
+  }
+}

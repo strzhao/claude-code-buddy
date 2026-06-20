@@ -226,6 +226,30 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 
 **qr 插件（command mode 首个用例）**：CoreImage `CIFilter.qrCodeGenerator` 生成 PNG，universal binary（arm64 + x86_64 + lipo）随插件分发。Makefile `build-qr-gen` 目标在 `swift build` 前编译二进制，保证 SPM `.copy("Marketplace")` 拷到含二进制的目录。
 
+### 通用候选输出通道 + 选中回调重入
+
+**候选输出通道**（command mode，对称 `BUDDY_OUTPUT_IMAGE`）：`StdinExecutor` 注入环境变量 `BUDDY_OUTPUT_CANDIDATES=/tmp/buddy-plugin-<uuid>.json`，子进程写候选 JSON 数组 `[{id, title, subtitle?, selection}]`，框架 `readCandidatesOutputSafely` 安全读取解码为 `[LauncherCandidate]` → `PluginResult.candidates` → `AgentEvent.candidates`。stdout 保持纯文本不被污染。
+
+- 读前校验 `resolvedPath == outputCandidatesPath`（防 symlink，/tmp 防御）
+- `count > pluginMaxCandidatesBytes`（64 KiB）→ candidates = nil（丢弃，不报错）
+- JSON 解码失败 / 字段缺失 → candidates = nil（降级，候选可选）
+- finally 删临时文件（防累积）
+
+**选中回调重入**（`LauncherManager.submitWithCandidate(_:selection:query:)`）：用户从候选列表选中某项后，以 `LauncherCandidate.selection` 填入 `PluginInput.selection` 重入同插件（bypass LLM，执行选中动作如 stop/start）。
+
+- 仅 command mode 支持（stdin/prompt 调用报错返回 `.pluginCrash`）
+- command trustKey 不含 selection 字段 —— 回调不重复弹 TOFU 框（首次查询已 trust 则选中回调直接放行）
+- 执行权始终留在插件：launcher 只透传 selection，不做任何动作解释
+
+**候选 UI**（`LauncherPluginCandidateView`）：渲染 `AgentEvent.candidates` 收集的 `[LauncherCandidate]`，每行 title + subtitle，↑↓ 导航 + Enter / 点击触发 `submitWithCandidate` 回调。沿用 Raycast 视觉语言（对称 image 通道的白底卡片风格）。
+
+**qzh 插件**（首个候选通道使用者，`Marketplace/plugins/qzh/`）：command mode，查询 QzhddrSrv 监控软件状态 + [关闭监控 / 打开监控] 候选点选。
+
+- 首次查询（`PluginInput.selection` 空）：`pgrep` + `launchctl print` 查 service/update 双进程状态 → 写候选 JSON 到 `$BUDDY_OUTPUT_CANDIDATES`
+- 选中「关闭」/「打开」：`launchctl bootout` / `bootstrap` system 级 LaunchDaemon（`com.cyberserval.qzhddr.service` + `.update`）
+- sudo 免密：`setup.sh` 一次性写 `/etc/sudoers.d/qzhddr-launcher`，`%admin ALL=(root) NOPASSWD: launchctl bootout/bootstrap ...` 精确匹配（非绝对路径 `launchctl` 放行，无通配 / 无任意 label / 无任意参数），写入前 `visudo -c` 语法校验
+- 可逆：bootout 只卸载不删 plist，bootstrap 可重新拉起
+
 ### 故障排查
 
 - **快捷键被占用/失效** → `buddy launcher hotkey show` 查看当前热键 + 是否默认，或打开设置面板「热键」tab 用 RecorderCocoa 改键；`buddy launcher hotkey clear` 重置为默认 (Ctrl+Space)

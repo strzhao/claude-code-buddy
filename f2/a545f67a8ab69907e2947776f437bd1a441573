@@ -1,0 +1,41 @@
+homebrew/Casks/claude-code-buddy.rb
+  34edff473706ea29 2
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  34edff473706ea29 5-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "f2a545f67a8ab69907e2947776f437bd1a441573",
+  "prompts": {
+    "34edff473706ea29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57a7036b-9781-4485-a750-74084a1e1e55",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 207,
+      "total_deletions": 28,
+      "accepted_lines": 207,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".claude/skills/release-tag-automation/SKILL.md": {
+          "additions": 180,
+          "accepted_lines": 180
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 26,
+          "deletions": 27,
+          "accepted_lines": 26
+        }
+      }
+    }
+  }
+}

@@ -13,13 +13,9 @@ jobs:
   #   GitHub Actions 已停用 macos-13 runner（2025 年中起无分配），
   #   x86_64 只能通过 macos-14 上 --arch x86_64 交叉编译。
   #
-  # 旧版 crash 根因（v0.31.0/v0.31.1）与交叉编译无关：
-  #   KeyboardShortcuts 的 Bundle.module 期望 bundle 在 .app/ 根目录
-  #   （Bundle.main.bundleURL / "KeyboardShortcuts_KeyboardShortcuts.bundle"），
-  #   但旧 assembly 把 bundle 放在了 Contents/Resources/，导致 mainPath 回退到
-  #   硬编码 CI buildPath，在用户机器上 double-miss → fatalError。
-  #   修复：bundle 放在 .app/ 根目录，匹配 SPM resource_bundle_accessor 的
-  #   mainPath 解析逻辑。两 arch bundle 内容完全相同（仅含 .strings 本地化文件）。
+  # 为什么 bundle 放在 Contents/Resources/ 而非 .app/ 根目录：
+  #   codesign 拒绝 .app/ 根目录有非标准内容（"unsealed contents present
+  #   in the bundle root"），SPM resource bundle 必须放在标准位置。
   # ──────────────────────────────────────────────────────────────────────────
   release:
     name: Build + Release (universal)
@@ -72,11 +68,10 @@ jobs:
           # Copy app icon
           cp Sources/ClaudeCodeBuddy/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-          # Copy SPM resource bundles 到 .app/ 根目录
-          # （Bundle.module 期望 Bundle.main.bundleURL / "XXX.bundle"）
+          # Copy SPM resource bundles 到 Contents/Resources/
           # 两 arch bundle 内容完全相同（仅本地化 .strings），用 arm64 的即可
-          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/"
-          cp -R .build/arm64-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle "$APP/"
+          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/Contents/Resources/"
+          cp -R .build/arm64-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle "$APP/Contents/Resources/"
 
           # Update version in Info.plist
           TAG="${GITHUB_REF_NAME#v}"
@@ -93,8 +88,8 @@ jobs:
             "$APP/Contents/MacOS/buddy" \
             "$APP/Contents/Info.plist" \
             "$APP/Contents/Resources/AppIcon.icns" \
-            "$APP/ClaudeCodeBuddy_BuddyCore.bundle" \
-            "$APP/KeyboardShortcuts_KeyboardShortcuts.bundle"; do
+            "$APP/Contents/Resources/ClaudeCodeBuddy_BuddyCore.bundle" \
+            "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"; do
             if [ ! -e "$f" ]; then
               echo "MISSING: $f"
               exit 1

@@ -2,32 +2,31 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>ClaudeCodeBuddy</string>
-    <key>CFBundleDisplayName</key>
-    <string>Claude Code Buddy</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.claudebuddy.ClaudeCodeBuddy</string>
-    <key>CFBundleVersion</key>
-    <string>2.0</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.34.0</string>
-    <key>CFBundleExecutable</key>
-    <string>ClaudeCodeBuddy</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <!-- LSUIElement=true: app runs as a background agent without Dock icon -->
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>点击猫咪时需要控制 Ghostty 以切换到对应的终端标签页。</string>
+	<key>CFBundleDisplayName</key>
+	<string>Claude Code Buddy</string>
+	<key>CFBundleExecutable</key>
+	<string>ClaudeCodeBuddy</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.claudebuddy.ClaudeCodeBuddy</string>
+	<key>CFBundleName</key>
+	<string>ClaudeCodeBuddy</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.35.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>0.35.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>点击猫咪时需要控制 Ghostty 以切换到对应的终端标签页。</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>

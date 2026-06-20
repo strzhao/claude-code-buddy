@@ -1,0 +1,30 @@
+.claude/skills/release-tag-automation/SKILL.md
+  34edff473706ea29 176-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e0948c70719f0fdb70b7e9e392a41b998d133650",
+  "prompts": {
+    "34edff473706ea29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57a7036b-9781-4485-a750-74084a1e1e55",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 2,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".claude/skills/release-tag-automation/SKILL.md": {
+          "additions": 3,
+          "deletions": 2,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}

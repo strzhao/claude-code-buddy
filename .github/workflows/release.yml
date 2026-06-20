@@ -7,56 +7,22 @@ on:
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
-  # build-arch: 每个 arch 在对应 native runner 上 build（避免 cross-compile）。
-  # 根因：arm64 runner 上 --arch x86_64 交叉编译的 x86_64 slice 在 Intel Mac 上
-  # KeyboardShortcuts 库 Bundle.module fatalError 崩溃（v0.31.0/v0.31.1）。
-  # 修复：arm64 用 macos-14 native、x86_64 用 macos-13 native，lipo 合并 universal。
-  # ──────────────────────────────────────────────────────────────────────────
-  build-arch:
-    name: Build ${{ matrix.arch }} (native)
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-14    # Apple Silicon → arm64 native
-            arch: arm64
-          - runner: macos-13    # Intel → x86_64 native
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Show Swift version
-        run: swift --version
-        working-directory: apps/desktop
-
-      - name: Build ClaudeCodeBuddy (${{ matrix.arch }})
-        run: swift build -c release --arch ${{ matrix.arch }}
-        working-directory: apps/desktop
-
-      - name: Build CLI (${{ matrix.arch }})
-        run: swift build -c release --arch ${{ matrix.arch }} --target buddy-cli
-        working-directory: apps/desktop
-
-      - name: Upload build artifacts (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ matrix.arch }}
-          path: |
-            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/ClaudeCodeBuddy
-            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/buddy-cli
-            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle
-            apps/desktop/.build/${{ matrix.arch }}-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle
-          retention-days: 1
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # release: 下载两 arch 产物 → lipo 合并 universal binary → assemble .app → 发布
+  # release: 单 macos-14 runner 上交叉编译 arm64 + x86_64，lipo 合并 universal。
+  #
+  # 为什么不用 macos-13 native x86_64：
+  #   GitHub Actions 已停用 macos-13 runner（2025 年中起无分配），
+  #   x86_64 只能通过 macos-14 上 --arch x86_64 交叉编译。
+  #
+  # 旧版 crash 根因（v0.31.0/v0.31.1）与交叉编译无关：
+  #   KeyboardShortcuts 的 Bundle.module 期望 bundle 在 .app/ 根目录
+  #   （Bundle.main.bundleURL / "KeyboardShortcuts_KeyboardShortcuts.bundle"），
+  #   但旧 assembly 把 bundle 放在了 Contents/Resources/，导致 mainPath 回退到
+  #   硬编码 CI buildPath，在用户机器上 double-miss → fatalError。
+  #   修复：bundle 放在 .app/ 根目录，匹配 SPM resource_bundle_accessor 的
+  #   mainPath 解析逻辑。两 arch bundle 内容完全相同（仅含 .strings 本地化文件）。
   # ──────────────────────────────────────────────────────────────────────────
   release:
-    name: Assemble + Release
-    needs: build-arch
+    name: Build + Release (universal)
     runs-on: macos-14
 
     permissions:
@@ -66,19 +32,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download all arch artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Layout build dirs (还原 .build/<arch>/release 结构)
-        run: |
-          mkdir -p .build/arm64-apple-macosx/release .build/x86_64-apple-macosx/release
-          cp -R artifacts/build-arm64/* .build/arm64-apple-macosx/release/
-          cp -R artifacts/build-x86_64/* .build/x86_64-apple-macosx/release/
+      - name: Show Swift version
+        run: swift --version
         working-directory: apps/desktop
 
-      - name: Create universal binaries (lipo 合并两 native arch，零 cross-compile)
+      - name: Build arm64 (native)
+        run: swift build -c release --arch arm64
+        working-directory: apps/desktop
+
+      - name: Build x86_64 (cross-compile)
+        run: swift build -c release --arch x86_64
+        working-directory: apps/desktop
+
+      - name: Create universal binaries (lipo 合并两 arch)
         run: |
           lipo -create -output ClaudeCodeBuddy \
             .build/arm64-apple-macosx/release/ClaudeCodeBuddy \
@@ -106,12 +72,11 @@ jobs:
           # Copy app icon
           cp Sources/ClaudeCodeBuddy/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-          # Copy SPM resource bundles (Bundle.module needs both at .app root)
-          # - ClaudeCodeBuddy_BuddyCore.bundle: buddy 自己的资源
-          # - KeyboardShortcuts_KeyboardShortcuts.bundle: KeyboardShortcuts 库的本地化（key name，
-          #   Shortcut.description/keyToCharacter 需要；缺失会 EXC_BAD_INSTRUCTION 崩 v0.31.0）
-          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/Contents/Resources/"
-          cp -R .build/arm64-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle "$APP/Contents/Resources/"
+          # Copy SPM resource bundles 到 .app/ 根目录
+          # （Bundle.module 期望 Bundle.main.bundleURL / "XXX.bundle"）
+          # 两 arch bundle 内容完全相同（仅本地化 .strings），用 arm64 的即可
+          cp -R .build/arm64-apple-macosx/release/ClaudeCodeBuddy_BuddyCore.bundle "$APP/"
+          cp -R .build/arm64-apple-macosx/release/KeyboardShortcuts_KeyboardShortcuts.bundle "$APP/"
 
           # Update version in Info.plist
           TAG="${GITHUB_REF_NAME#v}"
@@ -128,14 +93,23 @@ jobs:
             "$APP/Contents/MacOS/buddy" \
             "$APP/Contents/Info.plist" \
             "$APP/Contents/Resources/AppIcon.icns" \
-            "$APP/Contents/Resources/ClaudeCodeBuddy_BuddyCore.bundle" \
-            "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"; do
+            "$APP/ClaudeCodeBuddy_BuddyCore.bundle" \
+            "$APP/KeyboardShortcuts_KeyboardShortcuts.bundle"; do
             if [ ! -e "$f" ]; then
               echo "MISSING: $f"
               exit 1
             fi
             echo "  OK: $f"
           done
+
+          # Quick smoke: verify universal binary has both archs
+          echo "Verifying universal binary..."
+          ARCHS=$(lipo -info "$APP/Contents/MacOS/ClaudeCodeBuddy" 2>/dev/null || true)
+          echo "  $ARCHS"
+          if ! echo "$ARCHS" | grep -q "arm64.*x86_64\|x86_64.*arm64"; then
+            echo "ERROR: not a universal binary"
+            exit 1
+          fi
           echo "Bundle integrity check passed."
         working-directory: apps/desktop
 

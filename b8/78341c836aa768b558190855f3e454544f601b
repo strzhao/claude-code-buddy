@@ -1,0 +1,166 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/StdinExecutor.swift
+  c93fd22e26d8959e 38-42,46,166-168,176-177,213-240
+apps/desktop/tests/acceptance/test-qzh-exec-routing.acceptance.sh
+  c93fd22e26d8959e 1-289
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherPluginCandidateView.swift
+  c93fd22e26d8959e 1-67
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift
+  c93fd22e26d8959e 41-43
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginInput.swift
+  c93fd22e26d8959e 7-19
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec
+  c93fd22e26d8959e 1-181
+apps/desktop/tests/BuddyCoreTests/Launcher/QzhPluginAcceptanceTests.swift
+  c93fd22e26d8959e 1-176,179-317
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/plugin.json
+  c93fd22e26d8959e 1-12
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/AgentEvent.swift
+  c93fd22e26d8959e 10,28-30
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/README.md
+  c93fd22e26d8959e 1-88
+apps/desktop/tests/BuddyCoreTests/Launcher/CandidateChannelTests.swift
+  c93fd22e26d8959e 1-266
+apps/desktop/tests/BuddyCoreTests/Launcher/CandidatesChannelAcceptanceTests.swift
+  c93fd22e26d8959e 1-467,469-470,472-549
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  c93fd22e26d8959e 373-374,580-582,788-883
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift
+  c93fd22e26d8959e 14-20,28,30,88-103,184,186-187,233-236,249-252,275,277-282,294,296-300,374-394,418-424,426-427,454-458,483-484,488-489,491,493-494
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginResult.swift
+  c93fd22e26d8959e 15-18,27-28,37
+apps/desktop/tests/BuddyCoreTests/Launcher/CandidateCallbackTests.swift
+  c93fd22e26d8959e 1-206
+apps/desktop/Makefile
+  c93fd22e26d8959e 1,4-7,10-18
+apps/desktop/tests/acceptance/test-qzh-exec-routing.sh
+  c93fd22e26d8959e 1-109
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/setup.sh
+  c93fd22e26d8959e 1-73
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/LauncherCandidate.swift
+  c93fd22e26d8959e 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "b878341c836aa768b558190855f3e454544f601b",
+  "prompts": {
+    "c93fd22e26d8959e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4484ca0-8308-4961-86bc-36ee2aaed02d",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2538,
+      "total_deletions": 102,
+      "accepted_lines": 2495,
+      "overriden_lines": 4,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginInput.swift": {
+          "additions": 14,
+          "deletions": 1,
+          "accepted_lines": 14
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift": {
+          "additions": 137,
+          "deletions": 56,
+          "accepted_lines": 132
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/QzhPluginAcceptanceTests.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/CandidatesChannelAcceptanceTests.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec": {
+          "additions": 208,
+          "deletions": 27,
+          "accepted_lines": 181
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/LauncherCandidate.swift": {
+          "additions": 22,
+          "accepted_lines": 22
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/QzhPluginAcceptanceTests.swift": {
+          "additions": 317,
+          "accepted_lines": 315,
+          "overriden_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CandidatesChannelAcceptanceTests.swift": {
+          "additions": 550,
+          "deletions": 1,
+          "accepted_lines": 547,
+          "overriden_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/README.md": {
+          "additions": 88,
+          "accepted_lines": 88
+        },
+        "apps/desktop/tests/acceptance/test-qzh-exec-routing.sh": {
+          "additions": 110,
+          "deletions": 1,
+          "accepted_lines": 109
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginResult.swift": {
+          "additions": 7,
+          "deletions": 1,
+          "accepted_lines": 7
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/setup.sh": {
+          "additions": 77,
+          "deletions": 4,
+          "accepted_lines": 73
+        },
+        "apps/desktop/Makefile": {
+          "additions": 15,
+          "deletions": 4,
+          "accepted_lines": 15
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CandidateChannelTests.swift": {
+          "additions": 266,
+          "accepted_lines": 266
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/StdinExecutor.swift": {
+          "additions": 39,
+          "deletions": 1,
+          "accepted_lines": 39
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherPluginCandidateView.swift": {
+          "additions": 68,
+          "deletions": 1,
+          "accepted_lines": 67
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CandidateCallbackTests.swift": {
+          "additions": 206,
+          "accepted_lines": 206
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/plugin.json": {
+          "additions": 12,
+          "accepted_lines": 12
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 101,
+          "deletions": 1,
+          "accepted_lines": 101
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/AgentEvent.swift": {
+          "additions": 5,
+          "accepted_lines": 5
+        },
+        "apps/desktop/tests/acceptance/test-qzh-exec-routing.acceptance.sh": {
+          "additions": 289,
+          "accepted_lines": 289
+        }
+      }
+    }
+  }
+}

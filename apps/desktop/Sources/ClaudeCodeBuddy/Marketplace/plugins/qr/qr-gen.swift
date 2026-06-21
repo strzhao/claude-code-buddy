@@ -29,7 +29,7 @@ let input: PluginInput
 do {
     input = try JSONDecoder().decode(PluginInput.self, from: inputData)
 } catch {
-    FileHandle.standardError.write("qr-gen: 无法解析 stdin JSON: \(error)\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: 无法解析 stdin JSON: \(error)\n".utf8))
     exit(1)
 }
 
@@ -37,7 +37,7 @@ let query = input.query.trimmingCharacters(in: .whitespacesAndNewlines)
 
 // query 校验：空 → exit 1（契约边界：query="" → exit 1，不写 BUDDY_OUTPUT_IMAGE）
 guard !query.isEmpty else {
-    FileHandle.standardError.write("qr-gen: 查询为空，无法生成二维码\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: 查询为空，无法生成二维码\n".utf8))
     exit(1)
 }
 
@@ -58,7 +58,7 @@ let qrImage = generateQR(message: queryData, correctionLevel: "M")
 
 guard let outputImage = qrImage else {
     // 超 H 级容量仍失败 → 非零 exit（不写截断的码，场景5.P1）
-    FileHandle.standardError.write("qr-gen: 输入超过二维码容量（纠错级 H 仍失败）\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: 输入超过二维码容量（纠错级 H 仍失败）\n".utf8))
     exit(2)
 }
 
@@ -70,7 +70,7 @@ let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scale, y
 
 let context = CIContext()
 guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else {
-    FileHandle.standardError.write("qr-gen: createCGImage 失败\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: createCGImage 失败\n".utf8))
     exit(3)
 }
 
@@ -78,7 +78,7 @@ guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent)
 
 let rep = NSBitmapImageRep(cgImage: cgImage)
 guard let pngData = rep.representation(using: .png, properties: [:]) else {
-    FileHandle.standardError.write("qr-gen: PNG 编码失败\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: PNG 编码失败\n".utf8))
     exit(4)
 }
 
@@ -86,14 +86,14 @@ guard let pngData = rep.representation(using: .png, properties: [:]) else {
 
 let outputPath = ProcessInfo.processInfo.environment["BUDDY_OUTPUT_IMAGE"]
 guard let path = outputPath, !path.isEmpty else {
-    FileHandle.standardError.write("qr-gen: 环境变量 BUDDY_OUTPUT_IMAGE 未设置\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: 环境变量 BUDDY_OUTPUT_IMAGE 未设置\n".utf8))
     exit(5)
 }
 
 do {
     try pngData.write(to: URL(fileURLWithPath: path))
 } catch {
-    FileHandle.standardError.write("qr-gen: 写 \(path) 失败: \(error)\n".data(using: .utf8)!)
+    FileHandle.standardError.write(Data("qr-gen: 写 \(path) 失败: \(error)\n".utf8))
     exit(6)
 }
 

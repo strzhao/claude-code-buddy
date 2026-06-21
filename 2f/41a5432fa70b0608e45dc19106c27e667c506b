@@ -1,0 +1,37 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift
+  f998c792525fd5e8 2,162-164,170,172,182-242
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  f998c792525fd5e8 76-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "2f41a5432fa70b0608e45dc19106c27e667c506b",
+  "prompts": {
+    "f998c792525fd5e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "33874f82-81ea-46e3-ba83-6fda151647c6",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 73,
+      "total_deletions": 5,
+      "accepted_lines": 72,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 69,
+          "deletions": 4,
+          "accepted_lines": 69
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 4,
+          "deletions": 1,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}

@@ -16,7 +16,6 @@ func clickLog(_ msg: String) {
 
 class MouseTracker {
 
-    private var globalMonitor: Any?
     private var localMonitor: Any?
     private weak var window: BuddyWindow?
     private weak var scene: BuddyScene?
@@ -26,6 +25,8 @@ class MouseTracker {
     var onDragStart: ((String, CGPoint) -> Void)?
     var onDragUpdate: ((CGPoint) -> Void)?
     var onDragEnd: (() -> Void)?
+    var onMouseEntered: (() -> Void)?
+    var onMouseExited: (() -> Void)?
 
     private var hoveredSessionId: String?
     private var leaveTimer: Timer?
@@ -45,12 +46,6 @@ class MouseTracker {
     }
 
     func start() {
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
-            DispatchQueue.main.async {
-                self?.handleMouseMoved(event)
-            }
-        }
-
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
             self?.handleLocalEvent(event)
             return event
@@ -61,10 +56,6 @@ class MouseTracker {
     }
 
     func stop() {
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
-        }
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
@@ -80,7 +71,10 @@ class MouseTracker {
 
     // MARK: - Mouse Handling
 
-    private func handleMouseMoved(_ event: NSEvent) {
+    /// 由 BuddySKView 的 NSTrackingArea mouseMoved 回调驱动（非全局监听）。
+    /// 使用 event.locationInWindow 替代 NSEvent.mouseLocation，
+    /// 省去 screen→window 坐标转换。
+    func handleMouseMoved(_ event: NSEvent) {
         guard !isDragging else { return }
         guard let window = window, let scene = scene else { return }
 
@@ -89,11 +83,8 @@ class MouseTracker {
             return
         }
 
-        let screenPoint = NSEvent.mouseLocation
-        let windowPoint = window.convertPoint(fromScreen: screenPoint)
-
         guard let view = window.contentView as? SKView else { return }
-        let viewPoint = view.convert(windowPoint, from: nil)
+        let viewPoint = view.convert(event.locationInWindow, from: nil)
         let scenePoint = scene.convertPoint(fromView: viewPoint)
 
         let hitSessionId = scene.catAtPoint(scenePoint)

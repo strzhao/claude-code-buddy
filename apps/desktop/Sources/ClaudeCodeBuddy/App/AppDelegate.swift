@@ -25,6 +25,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var dockPollTimer: Timer?
     private var cachedActivityBounds: ClosedRange<CGFloat>?
     private var currentWindowHeight: CGFloat = 80
+    private var isMouseInside = false
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
     private lazy var popoverController = SessionPopoverController()
@@ -92,8 +93,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let win = BuddyWindow(contentRect: windowFrame)
         window = win
 
-        let skView = SKView(frame: NSRect(origin: .zero, size: windowFrame.size))
+        let skView = BuddySKView(frame: NSRect(origin: .zero, size: windowFrame.size))
         skView.allowsTransparency = true
+        skView.preferredFramesPerSecond = 30
+        skView.isPaused = true
         win.contentView = skView
 
         let buddyScene = BuddyScene(size: windowFrame.size)
@@ -156,6 +159,28 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.scene?.endDrag()
             }
             mouseTracker = tracker
+
+            // 将 BuddySKView 的 NSTrackingArea 回调连接到 MouseTracker
+            skView.onMouseMoved = { [weak tracker] event in
+                tracker?.handleMouseMoved(event)
+            }
+            skView.onMouseEntered = { [weak tracker] in
+                tracker?.onMouseEntered?()
+            }
+            skView.onMouseExited = { [weak tracker] in
+                tracker?.onMouseExited?()
+            }
+
+            // P0 CPU 优化：鼠标进入/离开窗口时控制 SKView 暂停状态
+            tracker.onMouseEntered = { [weak self, weak skView] in
+                self?.isMouseInside = true
+                skView?.isPaused = false
+            }
+            tracker.onMouseExited = { [weak self, weak skView] in
+                self?.isMouseInside = false
+                let hasCats = (self?.scene?.activeCatCount ?? 0) > 0
+                skView?.isPaused = !hasCats
+            }
         }
 
         // Re-position when Dock or display changes
@@ -263,6 +288,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let manager = SessionManager(scene: scene)
         manager.onSessionCountChanged = { [weak self] count in
             self?.updateSessionCount(count)
+            // P0 CPU 优化：无猫且鼠标不在窗口内时暂停 SKView 渲染
+            if let skView = self?.window?.contentView as? SKView {
+                let isMouseInside = self?.isMouseInside ?? false
+                skView.isPaused = (count == 0 && !isMouseInside)
+            }
         }
         manager.onSessionsChanged = { [weak self] sessions in
             self?.scene?.updateSessionsCache(sessions)

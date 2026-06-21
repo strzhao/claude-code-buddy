@@ -1,0 +1,63 @@
+.autopilot/knowledge/index.md
+  7e6c18b05dbcc14e 20,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "8ada491f8d5fe0d7060c1b6f16e9623400faba38",
+  "prompts": {
+    "5a7ae1e407de7dfa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93e8737b-91a1-42f1-abe2-ebe76939b31d",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 170,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "accepted_lines": 25
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "accepted_lines": 13
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "accepted_lines": 51
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginCardItem.swift": {
+          "accepted_lines": 17
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "accepted_lines": 60
+        }
+      }
+    },
+    "7e6c18b05dbcc14e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb9ac401-c55c-4d21-b23f-6d4f0fda7281",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 1,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

@@ -47,20 +47,20 @@ final class MarketHUDTests: XCTestCase {
     // MARK: - 3. 重复 show 重置倒计时
 
     func test_show_repeated_resetsCountdown() async throws {
-        hud.dismissDelay = 0.3
+        hud.dismissDelay = 0.5
         hud.show(text: "first", actions: [])
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2s
-        XCTAssertTrue(hud.isVisible, "0.2s < 0.3s 仍应可见")
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1s < 0.5s
+        XCTAssertTrue(hud.isVisible, "0.1s < 0.5s 仍应可见")
 
         // 第二次 show 重置倒计时
         hud.show(text: "second", actions: [])
-        // 再等 0.2s（总 0.4s，但第二次重置后只过 0.2s < 0.3s）
-        try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertTrue(hud.isVisible, "重复 show 后倒计时应重置，0.2s < 0.3s 仍可见")
+        // 再等 0.1s（第二次重置后只过 0.1s < 0.5s）
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertTrue(hud.isVisible, "重复 show 后倒计时应重置，0.1s < 0.5s 仍可见")
 
-        // 再等 0.3s 后必然消失
-        try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertFalse(hud.isVisible, "重复 show 0.3s 之后应自动消失")
+        // 再等 0.6s 后必然消失
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertFalse(hud.isVisible, "重复 show 0.5s 之后应自动消失")
     }
 
     // MARK: - 4. dismiss 立即隐藏

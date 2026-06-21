@@ -131,12 +131,15 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
 
         XCTAssertEqual(manifest.schemaVersion, 1)
         XCTAssertEqual(manifest.name, "buddy-official")
-        // translate 已折进默认流（Buddy 万能输入框内建能力），不再作为 bundled 插件
-        XCTAssertEqual(manifest.plugins.count, 1)
+        // translate 已折进默认流（Buddy 万能输入框内建能力），不再作为 bundled 插件；qr 插件已加入 seed
+        XCTAssertEqual(manifest.plugins.count, 2)
 
         let hello = manifest.plugins.first { $0.name == "hello" }
         XCTAssertNotNil(hello)
         XCTAssertEqual(hello?.source, .localSubdir(path: "./plugins/hello"))
+        let qr = manifest.plugins.first { $0.name == "qr" }
+        XCTAssertNotNil(qr, "qr 插件必须存在于 seed marketplace.json")
+        XCTAssertEqual(qr?.source, .localSubdir(path: "./plugins/qr"))
     }
 
     // MARK: - AT07 schemaVersion 缺失抛错

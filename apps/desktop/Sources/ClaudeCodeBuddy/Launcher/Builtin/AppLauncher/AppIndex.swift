@@ -133,8 +133,8 @@ enum AppIndexScanner {
         // 对所有含 CJK 的原始名（文件名 + bundle 别名 + 本地化名）生成拼音别名
         var seenPinyin = Set<String>()
         for raw in [name] + rawAliases {
-            for py in pinyinAliases(for: raw) {
-                if seenPinyin.insert(py).inserted { aliases.append(py) }
+            for py in pinyinAliases(for: raw) where seenPinyin.insert(py).inserted {
+                aliases.append(py)
             }
         }
         result.append(AppEntry(url: url, name: name, aliases: aliases))

@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import KeyboardShortcuts
 
 /// 热键设置 tab（Alfred 风格大 Recorder）。
@@ -158,16 +159,17 @@ final class KeyboardShortcutsViewController: NSViewController {
 
     // MARK: - Display Refresh
 
-    /// 刷新 combo 回显 + default hint。MainActor：Shortcut.description 标注 @MainActor。
+    /// 刷新 combo 回显 + default hint。
+    /// 不使用 shortcut.description（会触发 KeyboardShortcuts 库的 Bundle.module → crash），
+    /// 改用 Carbon API 自建显示字符串。
     @MainActor
     private func refreshComboDisplay() {
         let shortcut = KeyboardShortcuts.getShortcut(for: LauncherHotkey.toggle)
         let combo: String
         if let shortcut {
-            combo = shortcut.description
+            combo = Self.displayString(for: shortcut)
         } else if let defaultShortcut = LauncherHotkey.toggle.defaultShortcut {
-            // 理论上 getShortcut 不会返回 nil（库 reset 后回 default），兜底显示 default
-            combo = defaultShortcut.description
+            combo = Self.displayString(for: defaultShortcut)
         } else {
             combo = "(未设置)"
         }
@@ -175,6 +177,69 @@ final class KeyboardShortcutsViewController: NSViewController {
 
         let isDefault = isShortcutDefault(shortcut)
         defaultHintLabel.stringValue = isDefault ? "当前为默认热键" : "已自定义"
+    }
+
+    // MARK: - Safe Shortcut Display (avoids Bundle.module crash)
+
+    /// 修饰键 → 符号字符串（⌘⌥⌃⇧）
+    private static func modifierDisplayString(_ flags: NSEvent.ModifierFlags) -> String {
+        var result = ""
+        if flags.contains(.control) { result += "⌃" }
+        if flags.contains(.option) { result += "⌥" }
+        if flags.contains(.shift) { result += "⇧" }
+        if flags.contains(.command) { result += "⌘" }
+        return result
+    }
+
+    /// Carbon key code → 显示字符
+    private static func keyCodeToDisplayChar(_ keyCode: Int) -> String {
+        switch keyCode {
+        case kVK_Space:          return "␣"
+        case kVK_Return:         return "↩"
+        case kVK_Delete:         return "⌫"
+        case kVK_ForwardDelete:  return "⌦"
+        case kVK_Escape:         return "⎋"
+        case kVK_Tab:            return "⇥"
+        case kVK_Home:           return "↖"
+        case kVK_End:            return "↘"
+        case kVK_PageUp:         return "⇞"
+        case kVK_PageDown:       return "⇟"
+        case kVK_UpArrow:        return "↑"
+        case kVK_DownArrow:      return "↓"
+        case kVK_LeftArrow:      return "←"
+        case kVK_RightArrow:     return "→"
+        case kVK_Help:           return "?⃝"
+        case kVK_F1:  return "F1";  case kVK_F2:  return "F2"
+        case kVK_F3:  return "F3";  case kVK_F4:  return "F4"
+        case kVK_F5:  return "F5";  case kVK_F6:  return "F6"
+        case kVK_F7:  return "F7";  case kVK_F8:  return "F8"
+        case kVK_F9:  return "F9";  case kVK_F10: return "F10"
+        case kVK_F11: return "F11"; case kVK_F12: return "F12"
+        case kVK_F13: return "F13"; case kVK_F14: return "F14"
+        case kVK_F15: return "F15"; case kVK_F16: return "F16"
+        case kVK_F17: return "F17"; case kVK_F18: return "F18"
+        case kVK_F19: return "F19"; case kVK_F20: return "F20"
+        default: break
+        }
+        guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let layoutDataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return "�"
+        }
+        let layoutData = unsafeBitCast(layoutDataPointer, to: CFData.self)
+        let keyLayout = unsafeBitCast(CFDataGetBytePtr(layoutData), to: UnsafePointer<UCKeyboardLayout>.self)
+        var deadKeyState: UInt32 = 0
+        var length = 0
+        var characters = [UniChar](repeating: 0, count: 4)
+        let error = UCKeyTranslate(keyLayout, UInt16(keyCode), UInt16(kUCKeyActionDisplay),
+            0, UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState, 4, &length, &characters)
+        guard error == noErr, length > 0 else { return "�" }
+        return String(utf16CodeUnits: characters, count: length).capitalized
+    }
+
+    /// 自定义快捷键显示字符串，**不访问** Shortcut.description（避免 Bundle.module 崩溃）
+    static func displayString(for shortcut: KeyboardShortcuts.Shortcut) -> String {
+        modifierDisplayString(shortcut.modifiers) + keyCodeToDisplayChar(shortcut.carbonKeyCode)
     }
 
     private func isShortcutDefault(_ shortcut: KeyboardShortcuts.Shortcut?) -> Bool {

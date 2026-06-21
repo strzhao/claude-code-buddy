@@ -73,6 +73,9 @@ final class QueryHandler {
             return await handleLauncherDebugPerform(query: query)
         case "launcher_debug_registry":
             return handleLauncherDebugRegistry()
+        case "open_settings":
+            NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
+            return okResponse(data: ["opened": "settings"])
         default:
             return errorResponse(message: "unknown action: \(action)")
         }

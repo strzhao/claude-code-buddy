@@ -1,0 +1,57 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen.swift
+  3490833bd45cab9d 32,40,61,73,81,89,96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "99bda3a1087ced55e371be66dcef3469747e2b63",
+  "prompts": {
+    "3490833bd45cab9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d3296293-60ae-4a3d-8f84-8ed138c97fd4",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 7,
+      "accepted_lines": 7,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen.swift": {
+          "additions": 7,
+          "deletions": 7,
+          "accepted_lines": 7
+        }
+      }
+    },
+    "5a7ae1e407de7dfa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93e8737b-91a1-42f1-abe2-ebe76939b31d",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 132,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "accepted_lines": 60
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "accepted_lines": 51
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginCardItem.swift": {
+          "accepted_lines": 17
+        }
+      }
+    }
+  }
+}

@@ -106,6 +106,26 @@ final class AppMatcherTests: XCTestCase {
         XCTAssertGreaterThan(score, 0, "中文子序列应匹配")
     }
 
+    // MARK: - 拼音别名匹配（CJK name → pinyin alias）
+
+    func test_pinyin_alias_fullPinyin() {
+        // 别名已含拼音 "weixin"，应匹配用户输入 "weixin"
+        let score = AppMatcher.score(query: "weixin", name: "weixin")
+        XCTAssertGreaterThan(score, 0, "拼音别名 weixin 应前缀匹配")
+    }
+
+    func test_pinyin_alias_initials() {
+        // 别名已含首字母 "wx"，应匹配用户输入 "wx"
+        let score = AppMatcher.score(query: "wx", name: "wx")
+        XCTAssertGreaterThan(score, 0, "拼音首字母 wx 应前缀匹配")
+    }
+
+    func test_pinyin_alias_partialPinyin() {
+        // 别名已含拼音 "weixin"，用户输入部分拼音 "wei"
+        let score = AppMatcher.score(query: "wei", name: "weixin")
+        XCTAssertGreaterThan(score, 0, "拼音部分前缀 wei 应匹配 weixin")
+    }
+
     // MARK: - 分数层级关系
 
     func test_prefixScore_isAtLeast1000() {

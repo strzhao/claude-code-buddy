@@ -84,6 +84,41 @@ final class AppIndexTests: XCTestCase {
         XCTAssertEqual(names, names.sorted(), "同分时应按 name 字典序")
     }
 
+    /// 拼音别名：中文名 app 可通过拼音搜到（微信→weixin/wx/wexin）。wexin 虽是拼写错误，
+    /// 但作为 weixin 的子序列仍然可命中（容错）。
+    func test_search_matchesViaPinyinAliases_chineseAppName() {
+        let idx = makeIndex(entries: [
+            AppEntry(url: URL(fileURLWithPath: "/Applications/微信.app"),
+                     name: "微信", aliases: ["WeChat", "tencent", "xinWeChat", "weixin", "wx"])
+        ])
+        // 全拼
+        XCTAssertEqual(idx.search("weixin", limit: 10).first?.name, "微信",
+                       "微信 应能通过拼音别名 weixin 搜到")
+        // 首字母缩写
+        XCTAssertEqual(idx.search("wx", limit: 10).first?.name, "微信",
+                       "微信 应能通过拼音首字母 wx 搜到")
+        // 拼写错误但仍是子序列（wexin 是 weixin 的子序列）
+        XCTAssertEqual(idx.search("wexin", limit: 10).first?.name, "微信",
+                       "微信 应能通过 wexin（weixin 子序列）容错搜到")
+        // 中文仍可搜到
+        XCTAssertEqual(idx.search("微信", limit: 10).first?.name, "微信")
+    }
+
+    /// WeChat.app 场景：文件名英文无 CJK，别名含中文名（来自本地化资源）→ 拼音搜应命中
+    func test_search_matchesViaPinyin_fromLocalizedChineseName() {
+        // 模拟 WeChat.app：显示名 "WeChat"，别名含本地化中文名 "微信" + 拼音
+        let idx = makeIndex(entries: [
+            AppEntry(url: URL(fileURLWithPath: "/Applications/WeChat.app"),
+                     name: "WeChat", aliases: ["WeChat", "tencent", "xinWeChat", "微信", "weixin", "wx"])
+        ])
+        XCTAssertEqual(idx.search("weixin", limit: 10).first?.name, "WeChat",
+                       "WeChat.app 应能通过中文名拼音 weixin 搜到")
+        XCTAssertEqual(idx.search("wx", limit: 10).first?.name, "WeChat",
+                       "WeChat.app 应能通过拼音首字母 wx 搜到")
+        XCTAssertEqual(idx.search("wexin", limit: 10).first?.name, "WeChat",
+                       "WeChat.app 应能通过 wexin（weixin 子序列）容错搜到")
+    }
+
     func test_search_limit_truncates() {
         let entries = (1...20).map { i in
             AppEntry(

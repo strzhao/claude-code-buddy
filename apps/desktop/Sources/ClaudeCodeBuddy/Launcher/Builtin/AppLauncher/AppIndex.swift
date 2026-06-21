@@ -127,8 +127,16 @@ enum AppIndexScanner {
         seen.insert(path)
         // 显示名 = 文件名去 .app（中文 app 即中文名，用户可辨识）
         let name = url.deletingPathExtension().lastPathComponent
-        // 匹配别名 = 读 Info.plist 的英文名 + bundle id 成分（解决中文名 app 搜英文名搜不到）
-        let aliases = bundleAliases(for: url)
+        // 匹配别名 = Info.plist 英文名 + bundle id 成分 + 本地化中文名 + 拼音别名
+        let rawAliases = bundleAliases(for: url) + localizedChineseNames(for: url)
+        var aliases = rawAliases
+        // 对所有含 CJK 的原始名（文件名 + bundle 别名 + 本地化名）生成拼音别名
+        var seenPinyin = Set<String>()
+        for raw in [name] + rawAliases {
+            for py in pinyinAliases(for: raw) {
+                if seenPinyin.insert(py).inserted { aliases.append(py) }
+            }
+        }
         result.append(AppEntry(url: url, name: name, aliases: aliases))
     }
 
@@ -151,5 +159,43 @@ enum AppIndexScanner {
             }
         }
         return aliases
+    }
+
+    /// 从 zh-Hans.lproj/InfoPlist.strings 等本地化资源读取中文名（如 WeChat.app → "微信"）。
+    /// 解决 app 文件名和 Info.plist 为英文但系统本地化资源含中文名的情况。
+    private static func localizedChineseNames(for url: URL) -> [String] {
+        for lproj in ["zh-Hans", "zh-Hant", "zh-HK", "zh-TW"] {
+            let stringsURL = url.appendingPathComponent("Contents/Resources/\(lproj).lproj/InfoPlist.strings")
+            guard let dict = NSDictionary(contentsOf: stringsURL) else { continue }
+            var result: [String] = []
+            for key in ["CFBundleDisplayName", "CFBundleName"] {
+                if let v = dict[key] as? String, !v.isEmpty { result.append(v) }
+            }
+            if !result.isEmpty { return result }
+        }
+        return []
+    }
+
+    /// 为含 CJK 字符的 app 显示名生成拼音别名（如 "微信" → ["weixin", "wx"]）。
+    /// 使用系统 CFStringTransform 转 Latin + 去声调，无 CJK 时返回空。
+    private static func pinyinAliases(for name: String) -> [String] {
+        let mutable = NSMutableString(string: name)
+        // 转 Latin（拼音带声调，如 "wēi xìn"）
+        CFStringTransform(mutable, nil, kCFStringTransformToLatin, false)
+        // 去声调（→ "wei xin"）
+        CFStringTransform(mutable, nil, kCFStringTransformStripCombiningMarks, false)
+        let pinyin = (mutable as String).lowercased()
+
+        // 无 CJK 字符则跳过（转换后与原名相同）
+        guard pinyin != name.lowercased() else { return [] }
+
+        var result: [String] = []
+        // 无空格全拼：weixin
+        let noSpaces = pinyin.replacingOccurrences(of: " ", with: "")
+        if !noSpaces.isEmpty { result.append(noSpaces) }
+        // 首字母缩写：wx
+        let initials = pinyin.split(separator: " ").compactMap(\.first).map(String.init).joined()
+        if !initials.isEmpty, initials != noSpaces { result.append(initials) }
+        return result
     }
 }

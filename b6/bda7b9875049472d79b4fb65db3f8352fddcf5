@@ -1,0 +1,33 @@
+.autopilot/knowledge/patterns/2026-06-21-spritekit-cpu-optimization-fps-pause-trackingarea.md
+  7e6c18b05dbcc14e 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "b6bda7b9875049472d79b4fb65db3f8352fddcf5",
+  "prompts": {
+    "7e6c18b05dbcc14e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb9ac401-c55c-4d21-b23f-6d4f0fda7281",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 71,
+      "total_deletions": 0,
+      "accepted_lines": 71,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-21-spritekit-cpu-optimization-fps-pause-trackingarea.md": {
+          "additions": 70,
+          "accepted_lines": 70
+        },
+        "local-config.json": {
+          "additions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

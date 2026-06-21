@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import KeyboardShortcuts
 
 /// 自定义快捷键录制器，不依赖 KeyboardShortcuts 库的 RecorderCocoa（避免 Bundle.module 崩溃）。
@@ -194,12 +195,105 @@ final class HotkeyRecorderView: NSView {
 
     // MARK: - Display
 
+    /// 自定义快捷键显示字符串，**不访问** KeyboardShortcuts.Shortcut.description（避免触发
+    /// `keyToCharacter()` → `presentableDescription` → `"space_key".localized` → `Bundle.module` 崩溃）。
+    private func displayString(for shortcut: KeyboardShortcuts.Shortcut) -> String {
+        let modifierSymbols = modifierDisplayString(shortcut.modifiers)
+        let keyChar = keyCodeToDisplayChar(shortcut.carbonKeyCode)
+        return modifierSymbols + keyChar
+    }
+
+    /// 修饰键 → 符号字符串（⌘⌥⌃⇧）
+    private func modifierDisplayString(_ flags: NSEvent.ModifierFlags) -> String {
+        var result = ""
+        if flags.contains(.control) { result += "⌃" }
+        if flags.contains(.option) { result += "⌥" }
+        if flags.contains(.shift) { result += "⇧" }
+        if flags.contains(.command) { result += "⌘" }
+        return result
+    }
+
+    /// Carbon key code → 显示字符（直接调 Carbon API，不走 KeyboardShortcuts 库的 keyToCharacter）
+    private func keyCodeToDisplayChar(_ keyCode: Int) -> String {
+        // 特殊键映射（不依赖库的 SpecialKey.presentableDescription / .localized）
+        switch keyCode {
+        case kVK_Space:          return "␣"
+        case kVK_Return:         return "↩"
+        case kVK_Delete:         return "⌫"
+        case kVK_ForwardDelete:  return "⌦"
+        case kVK_Escape:         return "⎋"
+        case kVK_Tab:            return "⇥"
+        case kVK_Home:           return "↖"
+        case kVK_End:            return "↘"
+        case kVK_PageUp:         return "⇞"
+        case kVK_PageDown:       return "⇟"
+        case kVK_UpArrow:        return "↑"
+        case kVK_DownArrow:      return "↓"
+        case kVK_LeftArrow:      return "←"
+        case kVK_RightArrow:     return "→"
+        case kVK_Help:           return "?⃝"
+        case kVK_F1:  return "F1";  case kVK_F2:  return "F2"
+        case kVK_F3:  return "F3";  case kVK_F4:  return "F4"
+        case kVK_F5:  return "F5";  case kVK_F6:  return "F6"
+        case kVK_F7:  return "F7";  case kVK_F8:  return "F8"
+        case kVK_F9:  return "F9";  case kVK_F10: return "F10"
+        case kVK_F11: return "F11"; case kVK_F12: return "F12"
+        case kVK_F13: return "F13"; case kVK_F14: return "F14"
+        case kVK_F15: return "F15"; case kVK_F16: return "F16"
+        case kVK_F17: return "F17"; case kVK_F18: return "F18"
+        case kVK_F19: return "F19"; case kVK_F20: return "F20"
+        case kVK_ANSI_Keypad0:   return "0⃣"; case kVK_ANSI_Keypad1:  return "1⃣"
+        case kVK_ANSI_Keypad2:   return "2⃣"; case kVK_ANSI_Keypad3:  return "3⃣"
+        case kVK_ANSI_Keypad4:   return "4⃣"; case kVK_ANSI_Keypad5:  return "5⃣"
+        case kVK_ANSI_Keypad6:   return "6⃣"; case kVK_ANSI_Keypad7:  return "7⃣"
+        case kVK_ANSI_Keypad8:   return "8⃣"; case kVK_ANSI_Keypad9:  return "9⃣"
+        case kVK_ANSI_KeypadClear:    return "☒⃣"
+        case kVK_ANSI_KeypadDecimal:  return ".⃣"
+        case kVK_ANSI_KeypadDivide:   return "/⃣"
+        case kVK_ANSI_KeypadEnter:    return "↩⃣"
+        case kVK_ANSI_KeypadEquals:   return "=⃣"
+        case kVK_ANSI_KeypadMinus:    return "-⃣"
+        case kVK_ANSI_KeypadMultiply: return "*⃣"
+        case kVK_ANSI_KeypadPlus:     return "+⃣"
+        default: break
+        }
+
+        // 通用键：使用 UCKeyTranslate（Carbon API，不走 KeyboardShortcuts 库内路径）
+        guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let layoutDataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return "�"
+        }
+        let layoutData = unsafeBitCast(layoutDataPointer, to: CFData.self)
+        let keyLayout = unsafeBitCast(CFDataGetBytePtr(layoutData), to: UnsafePointer<UCKeyboardLayout>.self)
+        var deadKeyState: UInt32 = 0
+        let maxLength = 4
+        var length = 0
+        var characters = [UniChar](repeating: 0, count: maxLength)
+
+        let error = UCKeyTranslate(
+            keyLayout,
+            UInt16(keyCode),
+            UInt16(kUCKeyActionDisplay),
+            0,
+            UInt32(LMGetKbdType()),
+            OptionBits(kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState,
+            maxLength,
+            &length,
+            &characters
+        )
+
+        guard error == noErr, length > 0 else { return "�" }
+        let string = String(utf16CodeUnits: characters, count: length)
+        return string.capitalized
+    }
+
     private func refreshDisplay() {
         let shortcut = KeyboardShortcuts.getShortcut(for: name)
         switch state {
         case .idle:
             if let shortcut {
-                label.stringValue = shortcut.description
+                label.stringValue = displayString(for: shortcut)
                 clearButton.isHidden = false
             } else {
                 label.stringValue = "点击录制快捷键"

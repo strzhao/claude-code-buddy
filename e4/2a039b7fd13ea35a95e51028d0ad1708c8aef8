@@ -1,0 +1,159 @@
+apps/desktop/tests/BuddyCoreTests/Launcher/AppMatcherTests.swift
+  3490833bd45cab9d 109-128
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift
+  3490833bd45cab9d 130-139,163-200
+apps/desktop/tests/BuddyCoreTests/Launcher/AppIndexTests.swift
+  3490833bd45cab9d 87-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e42a039b7fd13ea35a95e51028d0ad1708c8aef8",
+  "prompts": {
+    "3490833bd45cab9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d3296293-60ae-4a3d-8f84-8ed138c97fd4",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 440,
+      "total_deletions": 2661,
+      "accepted_lines": 438,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift": {
+          "additions": 50,
+          "deletions": 4,
+          "accepted_lines": 48
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AppSettingsViewController.swift": {
+          "deletions": 210
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SidebarDiagnostic.swift": {
+          "deletions": 27
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/AppSettingsAcceptanceTests.swift": {
+          "deletions": 283
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginCardItem.swift": {
+          "additions": 24,
+          "deletions": 109,
+          "accepted_lines": 24
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 64,
+          "deletions": 63,
+          "accepted_lines": 64
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "deletions": 504
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 112,
+          "deletions": 139,
+          "accepted_lines": 112
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "additions": 13,
+          "deletions": 18,
+          "accepted_lines": 13
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "additions": 53,
+          "deletions": 315,
+          "accepted_lines": 53
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SkinGallerySimplifiedAcceptanceTests.swift": {
+          "deletions": 191
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/AppIndexTests.swift": {
+          "additions": 35,
+          "accepted_lines": 35
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/AppMatcherTests.swift": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "additions": 69,
+          "deletions": 11,
+          "accepted_lines": 69
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "deletions": 504
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AppSettingsAcceptanceTests.swift": {
+          "deletions": 283
+        }
+      }
+    },
+    "5a7ae1e407de7dfa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93e8737b-91a1-42f1-abe2-ebe76939b31d",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3298,
+      "total_deletions": 945,
+      "accepted_lines": 18,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 147,
+          "deletions": 120,
+          "accepted_lines": 9
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "additions": 526
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 94,
+          "deletions": 95
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "additions": 550,
+          "deletions": 283,
+          "accepted_lines": 7
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginCardItem.swift": {
+          "additions": 110,
+          "deletions": 25,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SidebarDiagnostic.swift": {
+          "additions": 27
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "additions": 12,
+          "deletions": 70
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AppSettingsAcceptanceTests.swift": {
+          "additions": 287
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AppSettingsViewController.swift": {
+          "additions": 372,
+          "deletions": 162
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/AppSettingsAcceptanceTests.swift": {
+          "additions": 308,
+          "deletions": 25
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SkinGallerySimplifiedAcceptanceTests.swift": {
+          "additions": 191
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "additions": 652,
+          "deletions": 148
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "additions": 22,
+          "deletions": 17
+        }
+      }
+    }
+  }
+}

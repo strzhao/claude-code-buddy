@@ -89,6 +89,9 @@ final class LauncherManager: ObservableObject {
     /// 测试注入点（I6）：覆盖 submitCommandDirect 使用的 StdinExecutor（默认 .shared）。
     /// 红队 spy dispatch 调用次数，禁真起进程（C11 spy seam）。
     var stdinExecutorOverride: StdinExecutor?
+    /// 测试注入点：覆盖 submitCommandDirect / submitWithCandidate 使用的 PluginManager（默认 .shared）。
+    /// 单测可注入指向 tmpDir 的 PluginManager，不依赖 ~/.buddy/launcher-plugins 目录存在。
+    var pluginManagerOverride: PluginManager?
 
     /// Combine 订阅持有（activePluginName 自动同步）
     private var syncCancellables = Set<AnyCancellable>()
@@ -896,8 +899,10 @@ final class LauncherManager: ObservableObject {
             let task = Task.detached {
                 // 解析插件目录（detached 内独立查，不依赖 submit 的窄结果）
                 let dir: URL
+                // 测试缝：pluginManagerOverride 优先，不依赖 ~/.buddy/launcher-plugins
+                let pm = await MainActor.run { LauncherManager.shared.pluginManagerOverride ?? PluginManager.shared }
                 do {
-                    dir = try PluginManager.shared.pluginDir(for: manifest)
+                    dir = try pm.pluginDir(for: manifest)
                 } catch {
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
@@ -992,10 +997,11 @@ final class LauncherManager: ObservableObject {
 
         return AsyncStream { continuation in
             let task = Task.detached {
-                // 解析插件目录（detached 内独立查）
+                // 解析插件目录（测试缝：pluginManagerOverride 优先）
+                let pm = await MainActor.run { LauncherManager.shared.pluginManagerOverride ?? PluginManager.shared }
                 let dir: URL
                 do {
-                    dir = try PluginManager.shared.pluginDir(for: manifest)
+                    dir = try pm.pluginDir(for: manifest)
                 } catch {
                     await MainActor.run {
                         LauncherManager.shared.stage = .error

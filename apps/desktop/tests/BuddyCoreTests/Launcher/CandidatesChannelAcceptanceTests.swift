@@ -453,6 +453,7 @@ final class CandidatesChannelAcceptanceTests: XCTestCase {
     // Mutation kill：若蓝队方法名拼错（如 submitCandidate/withCandidate）或参数顺序错，编译失败
     // CONTRACT_AMBIGUOUS: 设计文档未给第一个参数标签（_ manifest），用最贴近 prompt mode submit(_:query:) 的对称命名
 
+    @MainActor
     func test_C5_submitWithCandidate_methodExists_andAcceptsSelection() async throws {
         // 构造一个 command 插件 + 一个极简 LauncherManager（仿 PluginDispatcherCommandModeTests 注入 executor）
         let pluginDir = try makePlugin(
@@ -463,9 +464,16 @@ final class CandidatesChannelAcceptanceTests: XCTestCase {
         )
         let manifest = try loadManifest(from: pluginDir, dirName: "callback-target")
 
-        // LauncherManager 构造方式：参考现有 LauncherManagerAcceptanceTests（若需 provider 则 command mode bypass 不依赖）
-        // 此处仅验「方法存在 + 能调 + 返回 AgentEvent 流」，不验 provider 注入细节
+        // 预审批插件（避免 TrustStore 在 submitWithCandidate 中弹 NSAlert 挂死测试）
+        let exePath = pluginDir.appendingPathComponent("run.sh")
+        try TrustStore.shared.approve(manifest, executablePath: exePath)
+
+        // 注入 PluginManager 指向测试 tmpDir（父目录），避免依赖 ~/.buddy/launcher-plugins
+        let testPluginManager = PluginManager(rootDir: pluginDir.deletingLastPathComponent())
         let manager = LauncherManager.shared
+        manager.pluginManagerOverride = testPluginManager
+        manager.resetSubmittingStateForTesting()
+        defer { manager.pluginManagerOverride = nil }
 
         // 场景3.P1 real-process: selection=start → 回调执行（yield 文本事件）
         let stream = await manager.submitWithCandidate(manifest, selection: "start", query: "qzh")

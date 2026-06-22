@@ -1,0 +1,193 @@
+apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelAcceptanceTests.swift
+  7744a4590a2dc4ce 1-825
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigViewController.swift
+  7744a4590a2dc4ce 1-529
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigViewModel.swift
+  7744a4590a2dc4ce 1-448
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift
+  7744a4590a2dc4ce 1-54
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSplitViewController.swift
+  7744a4590a2dc4ce 1-165
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift
+  7744a4590a2dc4ce 1-178
+apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelTests.swift
+  7744a4590a2dc4ce 1-544
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigValidationError.swift
+  7744a4590a2dc4ce 1-37
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift
+  7744a4590a2dc4ce 1-417
+.autopilot/knowledge/index.md
+  760430292b74d866 117-118
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutViewController.swift
+  7744a4590a2dc4ce 1-124
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSidebarViewController.swift
+  7744a4590a2dc4ce 1-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6a8e9d94b050212f5fbd6dd5ef05619d66f32caa",
+  "prompts": {
+    "760430292b74d866": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3a61472-5f99-4d7c-8894-08546aaa7aa1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1455,
+      "total_deletions": 30,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePlugin.acceptance.test.swift": {
+          "additions": 714
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelAcceptanceTests.swift.disabled": {
+          "additions": 6,
+          "deletions": 30
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryService.acceptance.test.swift": {
+          "additions": 733
+        }
+      }
+    },
+    "7744a4590a2dc4ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41b32100-454a-44d1-ac18-0ebbdbc1a0ed",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 6133,
+      "total_deletions": 4443,
+      "accepted_lines": 4557,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/PluginGalleryViewControllerTests.swift": {
+          "additions": 24,
+          "deletions": 9,
+          "accepted_lines": 24
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "additions": 417,
+          "accepted_lines": 417
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsWindowController.swift": {
+          "additions": 64,
+          "deletions": 125,
+          "accepted_lines": 39
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryService.acceptance.test.swift": {
+          "deletions": 733
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelAcceptanceTests.swift": {
+          "additions": 855,
+          "deletions": 30,
+          "accepted_lines": 825
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/AIConfigViewModelAcceptanceTests.swift": {
+          "additions": 855,
+          "deletions": 30,
+          "accepted_lines": 825
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelTests.swift": {
+          "additions": 554,
+          "deletions": 10,
+          "accepted_lines": 544
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift": {
+          "additions": 6,
+          "deletions": 6,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSplitViewController.swift": {
+          "additions": 231,
+          "deletions": 66,
+          "accepted_lines": 165
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/settingssplitviewcontroller.swift": {
+          "deletions": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigViewController.swift": {
+          "additions": 573,
+          "deletions": 44,
+          "accepted_lines": 529
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift": {
+          "additions": 54,
+          "accepted_lines": 54
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSidebarViewController.swift": {
+          "additions": 208,
+          "deletions": 26,
+          "accepted_lines": 182
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/AIConfigViewModelAcceptanceTests.swift.disabled": {
+          "additions": 878,
+          "deletions": 854
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift.disabled": {
+          "additions": 415,
+          "deletions": 415
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/PluginGalleryViewControllerAcceptanceTests.swift": {
+          "deletions": 421
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigValidationError.swift": {
+          "additions": 37,
+          "accepted_lines": 37
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePlugin.acceptance.test.swift": {
+          "deletions": 714
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinGalleryViewController.swift": {
+          "additions": 7,
+          "deletions": 60,
+          "accepted_lines": 7
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutViewController.swift": {
+          "additions": 124,
+          "accepted_lines": 124
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/aiconfig/aiconfigviewmodel.swift": {
+          "additions": 152,
+          "deletions": 21,
+          "accepted_lines": 152
+        },
+        "apps/desktop/tests/buddycoretests/settings/aiconfigviewmodelacceptancetests.swift.disabled": {
+          "deletions": 824
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AIConfig/AIConfigViewModel.swift": {
+          "additions": 494,
+          "deletions": 46,
+          "accepted_lines": 448
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift": {
+          "additions": 178,
+          "accepted_lines": 178
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}

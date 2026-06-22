@@ -1,0 +1,38 @@
+.autopilot/knowledge/patterns/2026-06-23-nspasteboard-clipboard-history-monitoring-builtin-plugin.md
+  760430292b74d866 1-66
+.autopilot/knowledge/patterns/2026-06-23-autopilot-red-team-false-report-verify-ls.md
+  760430292b74d866 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "a19f662e2132a04535a9470e5e952a1f7b52dbef",
+  "prompts": {
+    "760430292b74d866": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3a61472-5f99-4d7c-8894-08546aaa7aa1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 99,
+      "total_deletions": 0,
+      "accepted_lines": 100,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-23-nspasteboard-clipboard-history-monitoring-builtin-plugin.md": {
+          "additions": 66,
+          "accepted_lines": 66
+        },
+        ".autopilot/knowledge/patterns/2026-06-23-autopilot-red-team-false-report-verify-ls.md": {
+          "additions": 33,
+          "accepted_lines": 33
+        },
+        "local-config.json": {
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

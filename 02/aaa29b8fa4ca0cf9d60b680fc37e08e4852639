@@ -1,0 +1,47 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  760430292b74d866 18,22
+homebrew/Casks/claude-code-buddy.rb
+  760430292b74d866 2
+apps/desktop/CLAUDE.md
+  760430292b74d866 51-54,108-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "02aaa29b8fa4ca0cf9d60b680fc37e08e4852639",
+  "prompts": {
+    "760430292b74d866": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3a61472-5f99-4d7c-8894-08546aaa7aa1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 19,
+      "total_deletions": 3,
+      "accepted_lines": 19,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 15,
+          "accepted_lines": 15
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "local-config.json": {
+          "additions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

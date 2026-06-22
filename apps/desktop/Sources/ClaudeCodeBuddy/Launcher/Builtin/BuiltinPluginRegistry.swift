@@ -18,8 +18,14 @@ final class BuiltinPluginRegistry {
     var limitOverride: Int?
 
     init(plugins: [any BuiltinPlugin]? = nil) {
-        // 顺序：priority 高 / 解释器型在前（CalculatorPlugin=200 > SystemCommandPlugin=100 > AppLauncherPlugin=0）
-        self.plugins = plugins ?? [SystemCommandPlugin.shared, CalculatorPlugin.shared, AppLauncherPlugin.shared]
+        // 顺序：priority 高 / 解释器型在前
+        // CalculatorPlugin=200 > PastePlugin=150 > SystemCommandPlugin=100 > AppLauncherPlugin=0
+        self.plugins = plugins ?? [
+            SystemCommandPlugin.shared,
+            CalculatorPlugin.shared,
+            PastePlugin.shared,
+            AppLauncherPlugin.shared,
+        ]
     }
 
     // MARK: - 聚合仲裁（C10）
@@ -70,6 +76,11 @@ final class BuiltinPluginRegistry {
     /// 清空所有插件（用于测试）
     func reset(to plugins: [any BuiltinPlugin]? = nil) {
         // 顺序与 init 保持一致（priority 高 / 解释器型在前）
-        self.plugins = plugins ?? [SystemCommandPlugin.shared, CalculatorPlugin.shared, AppLauncherPlugin.shared]
+        self.plugins = plugins ?? [
+            SystemCommandPlugin.shared,
+            CalculatorPlugin.shared,
+            PastePlugin.shared,
+            AppLauncherPlugin.shared,
+        ]
     }
 }

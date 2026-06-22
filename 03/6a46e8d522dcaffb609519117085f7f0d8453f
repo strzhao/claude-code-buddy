@@ -1,0 +1,97 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryItem.swift
+  760430292b74d866 1-40
+apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePluginTests.swift
+  760430292b74d866 1-37,39-457
+apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePlugin.acceptance.test.swift
+  760430292b74d866 1-548
+.autopilot/requirements/20260622-新增-paste-剪贴板历史插件/brainstorm.md
+  760430292b74d866 1-173
+apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryServiceTests.swift
+  760430292b74d866 1-474,508-531
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryService.swift
+  760430292b74d866 1-434
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Service/CopyService.swift
+  760430292b74d866 28-46
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift
+  760430292b74d866 1-190
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  760430292b74d866 188-190
+apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryService.acceptance.test.swift
+  760430292b74d866 1-554
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift
+  760430292b74d866 21-28,79-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "036a46e8d522dcaffb609519117085f7f0d8453f",
+  "prompts": {
+    "760430292b74d866": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3a61472-5f99-4d7c-8894-08546aaa7aa1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2957,
+      "total_deletions": 30,
+      "accepted_lines": 2929,
+      "overriden_lines": 1,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryServiceTests.swift": {
+          "additions": 508,
+          "deletions": 10,
+          "accepted_lines": 498
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryItem.swift": {
+          "additions": 44,
+          "deletions": 4,
+          "accepted_lines": 40
+        },
+        ".autopilot/requirements/20260622-新增-paste-剪贴板历史插件/brainstorm.md": {
+          "additions": 173,
+          "accepted_lines": 173
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePlugin.acceptance.test.swift": {
+          "additions": 548,
+          "accepted_lines": 548
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/PastePluginTests.swift": {
+          "additions": 458,
+          "deletions": 1,
+          "accepted_lines": 456,
+          "overriden_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Service/CopyService.swift": {
+          "additions": 19,
+          "accepted_lines": 19
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift": {
+          "additions": 198,
+          "deletions": 8,
+          "accepted_lines": 190
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift": {
+          "additions": 14,
+          "deletions": 3,
+          "accepted_lines": 14
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/Builtin/Paste/ClipboardHistoryService.acceptance.test.swift": {
+          "additions": 554,
+          "accepted_lines": 554
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryService.swift": {
+          "additions": 436,
+          "deletions": 2,
+          "accepted_lines": 434
+        }
+      }
+    }
+  }
+}

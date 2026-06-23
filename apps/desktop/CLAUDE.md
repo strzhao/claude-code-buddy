@@ -286,6 +286,29 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 - **plugin 安装失败 exit 1** → 检查网络 / `git clone` 60s 超时
 - **plugin manifest 无效 exit 2** → 查看 `plugin.json` 是否符合 PluginManifest schema（cmd 不含 `..` 或绝对路径）
 
+## 设置窗口子系统（task 013，2026-06-23）
+
+macOS 原生系统设置风格：`NSSplitViewController` 左 sidebar 分类导航 + 右 detail 容器 containment 切换。正经产品感优先（参考 macOSSettings.app 布局），替换旧 `NSSegmentedControl` 三 tab。
+
+**目录结构**（`Sources/ClaudeCodeBuddy/Settings/`）：
+- `SettingsSection.swift` — 分类枚举（skins/plugins/hotkey/general/about），`CaseIterable` 单一数据源。**加分类 = 加一个 case**，窗口/splitVC/sidebar 初始化禁按分类数量 switch/if 硬编码（SC-12 旁证）
+- `SettingsSidebarViewController.swift` — `NSTableView` 数据驱动；`didAdd rowView` 设 AX id（契约 7：AXRow 层设 id，cellView 的 id 在 row 层读不到）
+- `SettingsSplitViewController.swift` — detail 容器 containment 切换 child VC；detail AX 锚点设在 child root view（容器 view 被 child 遮蔽）
+- `SettingsWindowController.swift` — 标准 `NSWindow`（不再是 `NSPanel`）+ `SettingsWindow` 子类 sendEvent 兜底
+- `GeneralSettingsViewController.swift` — 音效/标签开关（从 SkinGallery 迁入）+ `SMAppService` 开机自启
+- `AboutSettingsViewController.swift` — 版本/反馈/开源
+- `SkinGalleryViewController.swift` / `KeyboardShortcutsViewController.swift` / `PluginGalleryViewController.swift` — 作为 detail child VC 复用
+
+**LSUIElement key window 兜底（R1 教训，2026-06-23）**：
+
+LSUIElement accessory policy 下标准 `NSWindow` 可能不成为 key window，致 `NSTableView` 鼠标选中失效（与 `patterns/2026-04-19` LSUIElement 窗口交互同根因）。`SettingsWindow.sendEvent` 拦截 `leftMouseDown` 双兜底：
+- `forwardSidebarClick`：`hitTest` 上溯到 `NSTableView` 后手动 `selectRowIndexes`（→ `tableViewSelectionDidChange` → detail 切换）
+- `forwardDetailClick`：`NSCollectionView isSelectable=false`（SkinGallery）系统不选中，走 responder chain 找 `SettingsTabClickReceiver.handleClickAt` 手动命中（复用旧 SettingsPanel 机制）
+
+`AppDelegate.showSettings` 顺序：先 `NSApp.activate()`（macOS 14+ 新 API，旧 `activate(ignoringOtherApps:)` 对 accessory policy 可能 no-op）→ `showWindow` → `makeKeyAndOrderFront`。历史 `SettingsPanel` 作安全网保留不删。
+
+**AX 契约**（红队 SC-01..16 守护）：sidebar row id `settings.sidebar.{section}`、detail id `settings.detail`、窗口 title `设置`。蓝队单测 8 + 红队验收 26。
+
 ## 开发
 
 ```bash

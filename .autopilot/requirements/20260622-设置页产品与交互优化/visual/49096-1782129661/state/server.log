@@ -1,0 +1,6 @@
+{"type":"server-started","port":56734,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:56734","screen_dir":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/content","state_dir":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/state"}
+{"type":"screen-added","file":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/content/current-state.html"}
+{"type":"screen-added","file":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/content/proposals.html"}
+{"type":"screen-added","file":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/content/proposal-a-detail.html"}
+{"type":"screen-added","file":"/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/.autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/content/done.html"}
+{"type":"server-stopped","reason":"idle timeout"}

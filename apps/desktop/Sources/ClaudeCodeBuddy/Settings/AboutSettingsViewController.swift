@@ -1,6 +1,9 @@
 import AppKit
 
-/// 「关于」设置分类：版本号 + 反馈链接 + 开源地址。
+/// 「关于」设置分类：App 图标 + 名称 + 版本号 + 反馈链接 + 开源地址。
+///
+/// 重构（A4）：补 appIconView 显示 AppIcon（修复一直空位），间距栅格化替代 60/8/24/12 混乱常量，
+/// 字体层级 → SettingsTheme token。
 final class AboutSettingsViewController: NSViewController {
 
     private let appIconView = NSImageView()
@@ -16,12 +19,23 @@ final class AboutSettingsViewController: NSViewController {
     }
 
     private func setupLayout(in container: NSView) {
-        appNameLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        // App 图标（补全，A4 修复空位）
+        appIconView.imageScaling = .scaleProportionallyUpOrDown
+        appIconView.image = Self.appIcon
+        appIconView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(appIconView)
+
+        // App 名称（title token）
+        appNameLabel.font = SettingsTheme.titleFont()
+        appNameLabel.textColor = SettingsTheme.titleColor()
+        appNameLabel.alignment = .center
         appNameLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(appNameLabel)
 
-        versionLabel.font = .systemFont(ofSize: 13)
-        versionLabel.textColor = .secondaryLabelColor
+        // 版本号（rowSubtitle token）
+        versionLabel.font = SettingsTheme.rowSubtitleFont()
+        versionLabel.textColor = SettingsTheme.rowSubtitleColor()
+        versionLabel.alignment = .center
         versionLabel.stringValue = "版本 \(Self.appVersion)"
         versionLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(versionLabel)
@@ -37,18 +51,47 @@ final class AboutSettingsViewController: NSViewController {
         container.addSubview(repoButton)
 
         NSLayoutConstraint.activate([
-            appNameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 60),
+            // 图标：顶部 groupTopInset + 8，居中，96x96
+            appIconView.topAnchor.constraint(equalTo: container.topAnchor,
+                                             constant: SettingsTheme.groupTopInset + 8),
+            appIconView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            appIconView.widthAnchor.constraint(equalToConstant: 96),
+            appIconView.heightAnchor.constraint(equalToConstant: 96),
+
+            // 名称：图标下方 SettingsTheme.rowSpacing * 2
+            appNameLabel.topAnchor.constraint(equalTo: appIconView.bottomAnchor,
+                                              constant: SettingsTheme.rowSpacing * 2),
             appNameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            appNameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+                                                  constant: SettingsTheme.contentPadding),
+            appNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+                                                   constant: -SettingsTheme.contentPadding),
 
-            versionLabel.topAnchor.constraint(equalTo: appNameLabel.bottomAnchor, constant: 8),
+            // 版本：名称下方 rowSpacing
+            versionLabel.topAnchor.constraint(equalTo: appNameLabel.bottomAnchor,
+                                              constant: SettingsTheme.rowSpacing),
             versionLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            versionLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+                                                  constant: SettingsTheme.contentPadding),
+            versionLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+                                                   constant: -SettingsTheme.contentPadding),
 
-            feedbackButton.topAnchor.constraint(equalTo: versionLabel.bottomAnchor, constant: 24),
+            // 反馈按钮：版本下方 groupSpacing + 4
+            feedbackButton.topAnchor.constraint(equalTo: versionLabel.bottomAnchor,
+                                                constant: SettingsTheme.groupSpacing + 4),
             feedbackButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            repoButton.topAnchor.constraint(equalTo: feedbackButton.bottomAnchor, constant: 12),
+            // 开源按钮：反馈按钮下方 rowSpacing
+            repoButton.topAnchor.constraint(equalTo: feedbackButton.bottomAnchor,
+                                            constant: SettingsTheme.rowSpacing),
             repoButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
         ])
+    }
+
+    /// App 图标（从 Asset Catalog / Bundle 取）。
+    private static var appIcon: NSImage? {
+        NSImage(named: "AppIcon")
+            ?? NSApplication.shared.applicationIconImage
     }
 
     private static var appVersion: String {
@@ -59,13 +102,13 @@ final class AboutSettingsViewController: NSViewController {
     }
 
     @objc private func openFeedback() {
-        if let url = URL(string: "https://github.com/stringzhao/claude-code-buddy/issues") {
+        if let url = URL(string: "https://github.com/strzhao/claude-code-buddy/issues") {
             NSWorkspace.shared.open(url)
         }
     }
 
     @objc private func openRepo() {
-        if let url = URL(string: "https://github.com/stringzhao/claude-code-buddy") {
+        if let url = URL(string: "https://github.com/strzhao/claude-code-buddy") {
             NSWorkspace.shared.open(url)
         }
     }

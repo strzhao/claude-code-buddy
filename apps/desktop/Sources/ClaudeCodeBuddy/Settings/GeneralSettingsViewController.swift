@@ -7,14 +7,26 @@ import ServiceManagement
 ///   - 音效：`SoundManager.shared.isEnabled`（内部 key `soundEnabled`）
 ///   - 标签：`alwaysShowLabel`
 /// 属 UI 位置迁移非逻辑回归（契约 5，SC-14 验证）。
+///
+/// 布局重构（A4）：删旧手算坐标 → SettingsGroupView + SettingsToggleRow 垂直堆叠，
+/// 分两组「通用」(音效/标签) +「系统」(开机自启)，每 toggle 加副标题说明。
 final class GeneralSettingsViewController: NSViewController {
 
-    private let soundSwitch = NSSwitch()
-    private let soundLabel = NSTextField(labelWithString: "音效")
-    private let alwaysShowLabelSwitch = NSSwitch()
-    private let alwaysShowLabelLabel = NSTextField(labelWithString: "总是显示会话标签")
-    private let launchAtLoginSwitch = NSSwitch()
-    private let launchAtLoginLabel = NSTextField(labelWithString: "登录时自动启动")
+    private let soundRow = SettingsToggleRow(
+        title: "音效",
+        subtitle: "开启猫咪状态切换与交互音效",
+        isOn: SoundManager.shared.isEnabled
+    )
+    private let alwaysShowLabelRow = SettingsToggleRow(
+        title: "总是显示会话标签",
+        subtitle: "为每个会话猫咪永久显示名字标签，方便区分",
+        isOn: UserDefaults.standard.bool(forKey: "alwaysShowLabel")
+    )
+    private let launchAtLoginRow = SettingsToggleRow(
+        title: "登录时自动启动",
+        subtitle: "开机后自动运行 Claude Code Buddy",
+        isOn: LaunchAtLogin.isEnabled
+    )
 
     override func loadView() {
         // 固定初始 frame + 默认 autoresize（防 fittingSize 缩 0，patterns/2026-06-16）
@@ -24,72 +36,61 @@ final class GeneralSettingsViewController: NSViewController {
     }
 
     private func setupLayout(in container: NSView) {
-        setupToggleRow(container: container,
-                       label: soundLabel,
-                       labelText: "音效",
-                       switchControl: soundSwitch,
-                       action: #selector(soundToggleChanged),
-                       initialState: SoundManager.shared.isEnabled,
-                       yOffset: -60)
+        // 绑定 toggle 回调（SC-SET-11 持久化）
+        soundRow.onToggle = { isOn in
+            SoundManager.shared.isEnabled = isOn
+        }
+        alwaysShowLabelRow.onToggle = { isOn in
+            UserDefaults.standard.set(isOn, forKey: "alwaysShowLabel")
+        }
+        launchAtLoginRow.onToggle = { isOn in
+            LaunchAtLogin.isEnabled = isOn
+        }
 
-        setupToggleRow(container: container,
-                       label: alwaysShowLabelLabel,
-                       labelText: "总是显示会话标签",
-                       switchControl: alwaysShowLabelSwitch,
-                       action: #selector(alwaysShowLabelToggleChanged),
-                       initialState: UserDefaults.standard.bool(forKey: "alwaysShowLabel"),
-                       yOffset: -100)
+        // 分组标题：通用
+        let generalLabel = SettingsGroupLabel(title: "通用")
+        generalLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(generalLabel)
 
-        setupToggleRow(container: container,
-                       label: launchAtLoginLabel,
-                       labelText: "登录时自动启动",
-                       switchControl: launchAtLoginSwitch,
-                       action: #selector(launchAtLoginToggleChanged),
-                       initialState: LaunchAtLogin.isEnabled,
-                       yOffset: -140)
-    }
+        // 分组卡片：通用（音效 + 标签）
+        let generalGroup = SettingsGroupView()
+        generalGroup.translatesAutoresizingMaskIntoConstraints = false
+        generalGroup.addRow(soundRow)
+        generalGroup.addRow(alwaysShowLabelRow)
+        container.addSubview(generalGroup)
 
-    /// 通用 toggle 行布局（label 左 + switch 右）。
-    private func setupToggleRow(container: NSView,
-                                label: NSTextField,
-                                labelText: String,
-                                switchControl: NSSwitch,
-                                action: Selector,
-                                initialState: Bool,
-                                yOffset: CGFloat) {
-        label.stringValue = labelText
-        label.font = .systemFont(ofSize: 13)
-        label.textColor = .labelColor
-        label.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(label)
+        // 分组标题：系统
+        let systemLabel = SettingsGroupLabel(title: "系统")
+        systemLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(systemLabel)
 
-        switchControl.target = self
-        switchControl.action = action
-        switchControl.state = initialState ? .on : .off
-        switchControl.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(switchControl)
+        // 分组卡片：系统（开机自启）
+        let systemGroup = SettingsGroupView()
+        systemGroup.translatesAutoresizingMaskIntoConstraints = false
+        systemGroup.addRow(launchAtLoginRow)
+        container.addSubview(systemGroup)
 
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 32),
-            label.topAnchor.constraint(equalTo: container.topAnchor, constant: 60 - yOffset),
+            // 通用标题
+            generalLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: SettingsTheme.groupTopInset),
+            generalLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            generalLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            switchControl.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -32),
-            switchControl.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            // 通用卡片
+            generalGroup.topAnchor.constraint(equalTo: generalLabel.bottomAnchor, constant: 6),
+            generalGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            generalGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // 系统标题
+            systemLabel.topAnchor.constraint(equalTo: generalGroup.bottomAnchor, constant: SettingsTheme.groupSpacing),
+            systemLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            systemLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // 系统卡片
+            systemGroup.topAnchor.constraint(equalTo: systemLabel.bottomAnchor, constant: 6),
+            systemGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            systemGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
         ])
-    }
-
-    // MARK: - Actions（UserDefaults key 不变，契约 5 / SC-14）
-
-    @objc private func soundToggleChanged(_ sender: NSSwitch) {
-        SoundManager.shared.isEnabled = sender.state == .on
-    }
-
-    @objc private func alwaysShowLabelToggleChanged(_ sender: NSSwitch) {
-        UserDefaults.standard.set(sender.state == .on, forKey: "alwaysShowLabel")
-    }
-
-    @objc private func launchAtLoginToggleChanged(_ sender: NSSwitch) {
-        LaunchAtLogin.isEnabled = sender.state == .on
     }
 }
 

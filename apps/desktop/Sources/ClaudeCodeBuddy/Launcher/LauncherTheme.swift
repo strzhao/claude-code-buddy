@@ -38,19 +38,12 @@ enum LauncherTheme {
             : NSColor(red: 0x8f / 255, green: 0x8f / 255, blue: 0x8d / 255, alpha: 1.0)
     })
 
-    /// 主品牌色（sage） light #3a7d68 / dark #52a688
-    static let primary = Color(nsColor: NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(red: 0x52 / 255, green: 0xa6 / 255, blue: 0x88 / 255, alpha: 1.0)
-            : NSColor(red: 0x3a / 255, green: 0x7d / 255, blue: 0x68 / 255, alpha: 1.0)
-    })
+    /// 主品牌色（sage） light #3a7d68 / dark #52a688。
+    /// A2 同源：引用 BuddyPalette.sage 单一定义点（与 SettingsTheme.accent 共享，SC-SET-10）。
+    static let primary = Color(nsColor: BuddyPalette.sage)
 
-    /// 主品牌色 hover 态 light #52a688 / dark #6bbf9f
-    static let primaryHover = Color(nsColor: NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(red: 0x6b / 255, green: 0xbf / 255, blue: 0x9f / 255, alpha: 1.0)
-            : NSColor(red: 0x52 / 255, green: 0xa6 / 255, blue: 0x88 / 255, alpha: 1.0)
-    })
+    /// 主品牌色 hover 态 light #52a688 / dark #6bbf9f（A2 同源）。
+    static let primaryHover = Color(nsColor: BuddyPalette.sageHover)
 
     /// 像素边框颜色 light #1a1a18 / dark #edece7
     static let borderPixel = Color(nsColor: NSColor(name: nil) { appearance in

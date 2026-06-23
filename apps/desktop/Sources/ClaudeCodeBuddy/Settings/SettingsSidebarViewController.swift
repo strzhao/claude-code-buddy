@@ -128,11 +128,11 @@ final class SettingsSidebarCellView: NSTableCellView {
     private func setupSubviews() {
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.symbolConfiguration = .init(pointSize: 15, weight: .regular)
-        iconView.contentTintColor = .secondaryLabelColor
+        iconView.contentTintColor = SettingsTheme.rowSubtitleColor()
         addSubview(iconView)
 
-        titleLabel.font = .systemFont(ofSize: 13)
-        titleLabel.textColor = .labelColor
+        titleLabel.font = SettingsTheme.rowTitleFont()
+        titleLabel.textColor = SettingsTheme.rowTitleColor()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(titleLabel)
         self.textField = titleLabel

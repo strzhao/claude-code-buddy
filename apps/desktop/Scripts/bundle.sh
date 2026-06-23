@@ -40,6 +40,16 @@ cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Info.plist" \
 cp "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/AppIcon.icns" \
    "$BUNDLE_DIR/Contents/Resources/AppIcon.icns"
 
+# Compile Asset Catalog → Assets.car（app 级 AccentColor = sage）
+# 让 NSSwitch 开态等所有 controlAccentColor 控件统一品牌绿（与 SettingsTheme.accent / BuddyPalette.sage 同值）
+echo "==> Compiling Asset Catalog (AccentColor = sage)..."
+mkdir -p "$PROJECT_DIR/.build/assetcatalog"
+xcrun actool --compile "$PROJECT_DIR/.build/assetcatalog" \
+  --platform macosx --minimum-deployment-target 11.0 \
+  "$PROJECT_DIR/Sources/ClaudeCodeBuddy/Resources/Assets.xcassets" 2>&1 | grep -v "^$" || true
+cp "$PROJECT_DIR/.build/assetcatalog/Assets.car" \
+   "$BUNDLE_DIR/Contents/Resources/Assets.car"
+
 # Copy SPM resource bundles (contains Assets/Sprites/ textures and KeyboardShortcuts localizations)
 cp -R "$PROJECT_DIR/.build/release/ClaudeCodeBuddy_BuddyCore.bundle" \
       "$BUNDLE_DIR/Contents/Resources/"

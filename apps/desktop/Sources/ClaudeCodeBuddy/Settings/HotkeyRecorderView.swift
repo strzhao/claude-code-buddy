@@ -27,6 +27,7 @@ final class HotkeyRecorderView: NSView {
     private var state: State = .idle {
         didSet {
             updateAppearance()
+            refreshDisplay()
         }
     }
 
@@ -66,20 +67,20 @@ final class HotkeyRecorderView: NSView {
         layer?.borderWidth = 2
 
         // 标签：显示当前快捷键
-        label.font = .systemFont(ofSize: 17, weight: .medium)
+        label.font = SettingsTheme.titleFont()
         label.alignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         label.isBezeled = false
         label.isEditable = false
         label.drawsBackground = false
         label.backgroundColor = .clear
-        label.textColor = .labelColor
+        label.textColor = SettingsTheme.rowTitleColor()
         addSubview(label)
 
         // 清除按钮
         clearButton.bezelStyle = .inline
         clearButton.isBordered = false
-        clearButton.font = .systemFont(ofSize: 13, weight: .bold)
+        clearButton.font = SettingsTheme.badgeFont()
         clearButton.target = self
         clearButton.action = #selector(clearShortcut)
         clearButton.toolTip = "清除快捷键"
@@ -101,7 +102,7 @@ final class HotkeyRecorderView: NSView {
 
         updateAppearance()
 
-        // 点击进入/退出录制状态
+        // 整个录制区域可点击进入录制态（覆盖 label + 空白区，不 toggle 无竞态）
         let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(handleClick))
         addGestureRecognizer(clickGesture)
 
@@ -122,6 +123,11 @@ final class HotkeyRecorderView: NSView {
     // MARK: - Responder Chain
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateAppearance()
+    }
 
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
@@ -161,9 +167,18 @@ final class HotkeyRecorderView: NSView {
             return
         }
 
+        // 拒绝系统级保留组合键
+        if Self.isSystemReserved(shortcut) {
+            label.stringValue = "系统保留，请换一组"
+            label.textColor = SettingsTheme.warningColor
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.refreshDisplay()
+            }
+            return
+        }
+
         KeyboardShortcuts.setShortcut(shortcut, for: name)
         onChange?(shortcut)
-        refreshDisplay()
         state = .idle
         window?.makeFirstResponder(nil)
     }
@@ -179,12 +194,8 @@ final class HotkeyRecorderView: NSView {
     // MARK: - Actions
 
     @objc private func handleClick() {
-        if state == .idle {
-            window?.makeFirstResponder(self)
-        } else {
-            state = .idle
-            window?.makeFirstResponder(nil)
-        }
+        guard state == .idle else { return }
+        window?.makeFirstResponder(self)
     }
 
     @objc private func clearShortcut() {
@@ -198,13 +209,11 @@ final class HotkeyRecorderView: NSView {
     /// 自定义快捷键显示字符串，**不访问** KeyboardShortcuts.Shortcut.description（避免触发
     /// `keyToCharacter()` → `presentableDescription` → `"space_key".localized` → `Bundle.module` 崩溃）。
     private func displayString(for shortcut: KeyboardShortcuts.Shortcut) -> String {
-        let modifierSymbols = modifierDisplayString(shortcut.modifiers)
-        let keyChar = keyCodeToDisplayChar(shortcut.carbonKeyCode)
-        return modifierSymbols + keyChar
+        Self.modifierDisplayString(shortcut.modifiers) + Self.keyCodeToDisplayChar(shortcut.carbonKeyCode)
     }
 
     /// 修饰键 → 符号字符串（⌘⌥⌃⇧）
-    private func modifierDisplayString(_ flags: NSEvent.ModifierFlags) -> String {
+    static func modifierDisplayString(_ flags: NSEvent.ModifierFlags) -> String {
         var result = ""
         if flags.contains(.control) { result += "⌃" }
         if flags.contains(.option) { result += "⌥" }
@@ -214,7 +223,7 @@ final class HotkeyRecorderView: NSView {
     }
 
     /// Carbon key code → 显示字符（直接调 Carbon API，不走 KeyboardShortcuts 库的 keyToCharacter）
-    private func keyCodeToDisplayChar(_ keyCode: Int) -> String {
+    static func keyCodeToDisplayChar(_ keyCode: Int) -> String {
         // 特殊键映射（不依赖库的 SpecialKey.presentableDescription / .localized）
         switch keyCode {
         case kVK_Space:          return "␣"
@@ -324,16 +333,36 @@ final class HotkeyRecorderView: NSView {
     private func updateAppearance() {
         switch state {
         case .idle:
-            layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-            layer?.borderColor = NSColor.separatorColor.cgColor
-            label.textColor = KeyboardShortcuts.getShortcut(for: name) != nil
-                ? .labelColor
-                : .secondaryLabelColor
+            if KeyboardShortcuts.getShortcut(for: name) != nil {
+                layer?.backgroundColor = SettingsTheme.accent.withAlphaComponent(0.12).cgColor
+                layer?.borderColor = SettingsTheme.accent.withAlphaComponent(0.25).cgColor
+                label.textColor = SettingsTheme.rowTitleColor()
+            } else {
+                layer?.backgroundColor = SettingsTheme.accent.withAlphaComponent(0.06).cgColor
+                layer?.borderColor = SettingsTheme.accent.withAlphaComponent(0.15).cgColor
+                label.textColor = SettingsTheme.rowSubtitleColor()
+            }
         case .recording:
-            layer?.backgroundColor = NSColor.controlBackgroundColor.blended(withFraction: 0.3, of: .systemBlue)?.cgColor
-                ?? NSColor.controlBackgroundColor.cgColor
-            layer?.borderColor = NSColor.systemBlue.cgColor
-            label.textColor = .labelColor
+            layer?.backgroundColor = SettingsTheme.accent.withAlphaComponent(0.25).cgColor
+            layer?.borderColor = SettingsTheme.accent.cgColor
+            label.textColor = SettingsTheme.rowTitleColor()
         }
+    }
+
+    // MARK: - Static Helpers
+
+    /// 判断是否为系统级保留组合键（被 macOS / 常用 App 抢占，录制无意义）。
+    static func isSystemReserved(_ shortcut: KeyboardShortcuts.Shortcut) -> Bool {
+        let modifiers = shortcut.modifiers
+        let key = shortcut.carbonKeyCode
+
+        // Cmd+Space → Spotlight
+        if modifiers == .command && key == kVK_Space { return true }
+        // Cmd+Tab → App Switcher
+        if modifiers == .command && key == kVK_Tab { return true }
+        // Cmd+Shift+Tab → App Switcher reverse
+        if modifiers == [.command, .shift] && key == kVK_Tab { return true }
+
+        return false
     }
 }

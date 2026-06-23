@@ -49,8 +49,9 @@ class SkinCardItem: NSCollectionViewItem {
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 170, height: 224))
         container.wantsLayer = true
-        container.layer?.cornerRadius = 10
-        container.layer?.borderColor = NSColor.controlAccentColor.cgColor
+        container.layer?.cornerRadius = SettingsTheme.cardCornerRadius
+        // 边框用 sage 品牌色（A4：controlAccentColor → SettingsTheme.accent 三处之一）
+        container.layer?.borderColor = SettingsTheme.accent.cgColor
 
         // Preview image (120x120, pixel art nearest filtering)
         previewImageView.imageScaling = .scaleProportionallyUpOrDown
@@ -60,26 +61,27 @@ class SkinCardItem: NSCollectionViewItem {
         previewImageView.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(previewImageView)
 
-        // Name label
-        nameLabel.font = .boldSystemFont(ofSize: 13)
+        // Name label（rowTitle token）
+        nameLabel.font = SettingsTheme.rowTitleFont()
+        nameLabel.textColor = SettingsTheme.rowTitleColor()
         nameLabel.alignment = .center
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.maximumNumberOfLines = 1
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(nameLabel)
 
-        // Author label
-        authorLabel.font = .systemFont(ofSize: 11)
-        authorLabel.textColor = .secondaryLabelColor
+        // Author label（footnote token）
+        authorLabel.font = SettingsTheme.footnoteFont()
+        authorLabel.textColor = SettingsTheme.footnoteColor()
         authorLabel.alignment = .center
         authorLabel.lineBreakMode = .byTruncatingTail
         authorLabel.maximumNumberOfLines = 1
         authorLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(authorLabel)
 
-        // Variant badge (e.g., "12 colors") — shown for non-selected cards with variants
-        variantBadge.font = .systemFont(ofSize: 10)
-        variantBadge.textColor = .tertiaryLabelColor
+        // Variant badge (e.g., "12 colors") — shown for non-selected cards with variants（badge token）
+        variantBadge.font = SettingsTheme.badgeFont()
+        variantBadge.textColor = SettingsTheme.badgeColor()
         variantBadge.alignment = .center
         variantBadge.isBezeled = false
         variantBadge.isEditable = false
@@ -96,10 +98,10 @@ class SkinCardItem: NSCollectionViewItem {
         variantControl.isHidden = true
         container.addSubview(variantControl)
 
-        // Checkmark badge
+        // Checkmark badge（A4：controlAccentColor → SettingsTheme.accent 三处之二）
         checkmarkBadge.font = .boldSystemFont(ofSize: 16)
         checkmarkBadge.textColor = .white
-        checkmarkBadge.backgroundColor = .controlAccentColor
+        checkmarkBadge.backgroundColor = SettingsTheme.accent
         checkmarkBadge.drawsBackground = true
         checkmarkBadge.alignment = .center
         checkmarkBadge.isBezeled = false
@@ -249,9 +251,10 @@ class SkinCardItem: NSCollectionViewItem {
 
     private func updateSelectionAppearance() {
         view.layer?.borderWidth = isSelectedSkin ? 2.5 : 0
+        // 选中态背景填充（A4：controlAccentColor → SettingsTheme.accent 三处之三，withAlphaComponent(0.08)）
         view.layer?.backgroundColor = isSelectedSkin
-            ? NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
-            : NSColor.controlBackgroundColor.cgColor
+            ? SettingsTheme.accent.withAlphaComponent(0.08).cgColor
+            : SettingsTheme.cardBackgroundColor.cgColor
         checkmarkBadge.isHidden = !isSelectedSkin
     }
 

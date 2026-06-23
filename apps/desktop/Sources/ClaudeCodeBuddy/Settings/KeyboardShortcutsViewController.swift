@@ -2,28 +2,30 @@ import AppKit
 import Carbon.HIToolbox
 import KeyboardShortcuts
 
-/// 热键设置 tab（Alfred 风格大 Recorder）。
+/// 热键设置 tab。
 ///
-/// 布局：标题「启动器热键」+ 大尺寸 RecorderCocoa + 当前 combo 大字回显 +「重置默认」按钮 + 冲突提示。
-/// 遵循 SettingsTabClickReceiver 协议（虽然热键 tab 无点击转发需求，但保持一致性）。
+/// 布局：标题「启动器热键」+ 副标题说明 + 绿色录制器卡片 +「重置默认」按钮 + 冲突提示。
+/// 录制器 idle 态直接显示当前热键，点击进入录制态显示「按下组合键...」，输入完成后回显热键。
 ///
 /// 数据流：
-///   - RecorderCocoa 录制 → 库 setShortcut → UserDefaults + 即时重注册 Carbon 热键
+///   - HotkeyRecorderView 录制 → 库 setShortcut → UserDefaults + 即时重注册 Carbon 热键
 ///   - 重置按钮 → KeyboardShortcuts.reset(.toggle)（回 default，非 setShortcut(nil)）
-///   - combo 回显 → 观察 NotificationCenter.shortcutByNameDidChange → getShortcut
 final class KeyboardShortcutsViewController: NSViewController {
 
     private let titleLabel = NSTextField(labelWithString: "启动器热键")
     private let subtitleLabel = NSTextField(labelWithString: "按下你想要的组合键来设置启动器全局热键")
     private let recorder: HotkeyRecorderView
-    private let comboLabel = NSTextField(labelWithString: "")
-    private let defaultHintLabel = NSTextField(labelWithString: "")
-    private let resetButton = NSButton(title: "重置默认 (Ctrl+Space)", target: nil, action: #selector(resetToDefault))
+    private lazy var resetButton: NSButton = {
+        let btn = NSButton(title: "", target: nil, action: #selector(resetToDefault))
+        btn.bezelStyle = .rounded
+        btn.controlSize = .regular
+        btn.target = self
+        return btn
+    }()
     private let conflictLabel = NSTextField(labelWithString: "")
     private var shortcutObserver: NSObjectProtocol?
 
     init() {
-        // 使用自定义 HotkeyRecorderView 替代 RecorderCocoa，避免后者 Bundle.module 崩溃
         self.recorder = HotkeyRecorderView(for: LauncherHotkey.toggle)
         super.init(nibName: nil, bundle: nil)
     }
@@ -42,214 +44,108 @@ final class KeyboardShortcutsViewController: NSViewController {
     // MARK: - Lifecycle
 
     override func loadView() {
-        // 固定初始 frame（对齐 SkinGalleryViewController 580x480）+ 默认 autoresize 填 panel。
-        // 不设 translatesAutoresizingMaskIntoConstraints=false —— 否则 contentView 无尺寸约束会缩到
-        // 子视图 fittingSize，导致热键 tab 显示区域过小、内容展示不全。
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 480))
         view = container
         setupLayout(in: container)
-        refreshComboDisplay()
+        refreshDisplay()
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // 观察 shortcut 变化（CLI/其他路径改键时同步回显）
-        // 注：KeyboardShortcuts.shortcutByNameDidChange 是库 internal，用字符串字面量构造
         let notifName = Notification.Name("KeyboardShortcuts_shortcutByNameDidChange")
         shortcutObserver = NotificationCenter.default.addObserver(
             forName: notifName,
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self else { return }
-            // 仅当变化的是 launcher-toggle 时刷新
-            if let name = notification.userInfo?["name"] as? KeyboardShortcuts.Name,
-               name == LauncherHotkey.toggle {
-                // queue:.main 保证主线程，assumeIsolated 安全
-                MainActor.assumeIsolated { self.refreshComboDisplay() }
-            }
+            guard let self,
+                  let name = notification.userInfo?["name"] as? KeyboardShortcuts.Name,
+                  name == LauncherHotkey.toggle else { return }
+            MainActor.assumeIsolated { self.refreshDisplay() }
         }
     }
 
     // MARK: - Layout
 
     private func setupLayout(in container: NSView) {
-        // 标题样式
-        titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
-        titleLabel.textColor = .labelColor
+        titleLabel.font = SettingsTheme.titleFont()
+        titleLabel.textColor = SettingsTheme.titleColor()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(titleLabel)
 
-        // 副标题
-        subtitleLabel.font = .systemFont(ofSize: 13)
-        subtitleLabel.textColor = .secondaryLabelColor
+        subtitleLabel.font = SettingsTheme.rowSubtitleFont()
+        subtitleLabel.textColor = SettingsTheme.rowSubtitleColor()
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(subtitleLabel)
 
-        // Recorder（大尺寸：宽 280pt、高 44pt）
         recorder.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(recorder)
 
-        // combo 大字回显
-        comboLabel.font = .systemFont(ofSize: 28, weight: .bold)
-        comboLabel.textColor = .labelColor
-        comboLabel.alignment = .center
-        comboLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(comboLabel)
-
-        // default hint（显示是否为默认值）
-        defaultHintLabel.font = .systemFont(ofSize: 12)
-        defaultHintLabel.textColor = .tertiaryLabelColor
-        defaultHintLabel.alignment = .center
-        defaultHintLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(defaultHintLabel)
-
-        // 重置按钮
         resetButton.translatesAutoresizingMaskIntoConstraints = false
-        resetButton.bezelStyle = .rounded
-        resetButton.controlSize = .regular
-        resetButton.target = self
         container.addSubview(resetButton)
 
-        // 冲突提示（库 Recorder 自带 alert，此处仅静态提示文字）
-        conflictLabel.font = .systemFont(ofSize: 11)
-        conflictLabel.textColor = .systemRed
+        conflictLabel.font = SettingsTheme.footnoteFont()
+        conflictLabel.textColor = SettingsTheme.warningColor
         conflictLabel.alignment = .center
-        conflictLabel.stringValue = "若热键不响应，可能被其他应用占用（如部分第三方输入法），请改键"
-        conflictLabel.cell?.truncatesLastVisibleLine = false
-        conflictLabel.cell?.wraps = true
+        conflictLabel.stringValue = "当前未设置热键，启动器将无法通过快捷键唤起"
+        conflictLabel.isHidden = true
         conflictLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(conflictLabel)
 
         NSLayoutConstraint.activate([
-            // 标题
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 40),
-            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 40),
+            titleLabel.topAnchor.constraint(equalTo: container.topAnchor,
+                                            constant: SettingsTheme.groupTopInset + 20),
+            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+                                                constant: SettingsTheme.contentPadding),
 
-            // 副标题
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            subtitleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 40),
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor,
+                                               constant: SettingsTheme.rowSpacing),
+            subtitleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+                                                   constant: SettingsTheme.contentPadding),
 
-            // Recorder（居中）
-            recorder.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 30),
+            recorder.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor,
+                                          constant: SettingsTheme.groupSpacing),
             recorder.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             recorder.widthAnchor.constraint(equalToConstant: 280),
             recorder.heightAnchor.constraint(equalToConstant: 44),
 
-            // combo 回显
-            comboLabel.topAnchor.constraint(equalTo: recorder.bottomAnchor, constant: 24),
-            comboLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 40),
-            comboLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -40),
-
-            // default hint
-            defaultHintLabel.topAnchor.constraint(equalTo: comboLabel.bottomAnchor, constant: 6),
-            defaultHintLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 40),
-            defaultHintLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -40),
-
-            // 重置按钮
-            resetButton.topAnchor.constraint(equalTo: defaultHintLabel.bottomAnchor, constant: 20),
+            resetButton.topAnchor.constraint(equalTo: recorder.bottomAnchor,
+                                             constant: SettingsTheme.groupSpacing),
             resetButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            // 冲突提示
-            conflictLabel.topAnchor.constraint(equalTo: resetButton.bottomAnchor, constant: 24),
-            conflictLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 40),
-            conflictLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -40),
+            conflictLabel.topAnchor.constraint(equalTo: resetButton.bottomAnchor,
+                                               constant: SettingsTheme.groupSpacing),
+            conflictLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+                                                   constant: SettingsTheme.contentPadding),
+            conflictLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor,
+                                                    constant: -SettingsTheme.contentPadding),
         ])
     }
 
     // MARK: - Display Refresh
 
-    /// 刷新 combo 回显 + default hint。
-    /// 不使用 shortcut.description（会触发 KeyboardShortcuts 库的 Bundle.module → crash），
-    /// 改用 Carbon API 自建显示字符串。
     @MainActor
-    private func refreshComboDisplay() {
+    private func refreshDisplay() {
         let shortcut = KeyboardShortcuts.getShortcut(for: LauncherHotkey.toggle)
-        let combo: String
-        if let shortcut {
-            combo = Self.displayString(for: shortcut)
-        } else if let defaultShortcut = LauncherHotkey.toggle.defaultShortcut {
-            combo = Self.displayString(for: defaultShortcut)
+
+        // 重置按钮：动态构造默认值文案
+        if let defaultShortcut = LauncherHotkey.toggle.defaultShortcut {
+            let defaultCombo = Self.displayString(for: defaultShortcut)
+            resetButton.title = "重置默认 (\(defaultCombo))"
         } else {
-            combo = "(未设置)"
+            resetButton.title = "重置默认"
         }
-        comboLabel.stringValue = combo
 
-        let isDefault = isShortcutDefault(shortcut)
-        defaultHintLabel.stringValue = isDefault ? "当前为默认热键" : "已自定义"
+        // 冲突提示：仅当未设置（nil）时显示
+        conflictLabel.isHidden = (shortcut != nil)
     }
 
-    // MARK: - Safe Shortcut Display (avoids Bundle.module crash)
+    // MARK: - Safe Shortcut Display (delegates to HotkeyRecorderView)
 
-    /// 修饰键 → 符号字符串（⌘⌥⌃⇧）
-    private static func modifierDisplayString(_ flags: NSEvent.ModifierFlags) -> String {
-        var result = ""
-        if flags.contains(.control) { result += "⌃" }
-        if flags.contains(.option) { result += "⌥" }
-        if flags.contains(.shift) { result += "⇧" }
-        if flags.contains(.command) { result += "⌘" }
-        return result
-    }
-
-    /// Carbon key code → 显示字符
-    private static func keyCodeToDisplayChar(_ keyCode: Int) -> String {
-        switch keyCode {
-        case kVK_Space:          return "␣"
-        case kVK_Return:         return "↩"
-        case kVK_Delete:         return "⌫"
-        case kVK_ForwardDelete:  return "⌦"
-        case kVK_Escape:         return "⎋"
-        case kVK_Tab:            return "⇥"
-        case kVK_Home:           return "↖"
-        case kVK_End:            return "↘"
-        case kVK_PageUp:         return "⇞"
-        case kVK_PageDown:       return "⇟"
-        case kVK_UpArrow:        return "↑"
-        case kVK_DownArrow:      return "↓"
-        case kVK_LeftArrow:      return "←"
-        case kVK_RightArrow:     return "→"
-        case kVK_Help:           return "?⃝"
-        case kVK_F1:  return "F1"
-        case kVK_F2:  return "F2"
-        case kVK_F3:  return "F3"
-        case kVK_F4:  return "F4"
-        case kVK_F5:  return "F5"
-        case kVK_F6:  return "F6"
-        case kVK_F7:  return "F7"
-        case kVK_F8:  return "F8"
-        case kVK_F9:  return "F9"
-        case kVK_F10: return "F10"
-        case kVK_F11: return "F11"
-        case kVK_F12: return "F12"
-        case kVK_F13: return "F13"
-        case kVK_F14: return "F14"
-        case kVK_F15: return "F15"
-        case kVK_F16: return "F16"
-        case kVK_F17: return "F17"
-        case kVK_F18: return "F18"
-        case kVK_F19: return "F19"
-        case kVK_F20: return "F20"
-        default: break
-        }
-        guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
-              let layoutDataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
-            return "�"
-        }
-        let layoutData = unsafeBitCast(layoutDataPointer, to: CFData.self)
-        let keyLayout = unsafeBitCast(CFDataGetBytePtr(layoutData), to: UnsafePointer<UCKeyboardLayout>.self)
-        var deadKeyState: UInt32 = 0
-        var length = 0
-        var characters = [UniChar](repeating: 0, count: 4)
-        let error = UCKeyTranslate(keyLayout, UInt16(keyCode), UInt16(kUCKeyActionDisplay),
-                                   0, UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit),
-                                   &deadKeyState, 4, &length, &characters)
-        guard error == noErr, length > 0 else { return "�" }
-        return String(utf16CodeUnits: characters, count: length).capitalized
-    }
-
-    /// 自定义快捷键显示字符串，**不访问** Shortcut.description（避免 Bundle.module 崩溃）
+    /// 自定义快捷键显示字符串，**不访问** Shortcut.description（避免 Bundle.module 崩溃）。
     static func displayString(for shortcut: KeyboardShortcuts.Shortcut) -> String {
-        modifierDisplayString(shortcut.modifiers) + keyCodeToDisplayChar(shortcut.carbonKeyCode)
+        HotkeyRecorderView.modifierDisplayString(shortcut.modifiers)
+            + HotkeyRecorderView.keyCodeToDisplayChar(shortcut.carbonKeyCode)
     }
 
     private func isShortcutDefault(_ shortcut: KeyboardShortcuts.Shortcut?) -> Bool {
@@ -262,17 +158,15 @@ final class KeyboardShortcutsViewController: NSViewController {
     // MARK: - Actions
 
     /// 重置默认：调用 KeyboardShortcuts.reset(.toggle)（回 default，非 setShortcut(nil) 后者清除）。
-    /// 库 reset 内部调 setShortcut(defaultShortcut, for: name) → 即时重注册 Carbon 热键。
     @objc @MainActor
     private func resetToDefault() {
         KeyboardShortcuts.reset(LauncherHotkey.toggle)
-        refreshComboDisplay()
+        refreshDisplay()
     }
 }
 
 // MARK: - SettingsTabClickReceiver
 
-/// 热键 tab 无 collectionView 点击转发需求，但保持协议一致性（空实现）。
 extension KeyboardShortcutsViewController: SettingsTabClickReceiver {
     func handleClickAt(windowPoint: NSPoint) {
         // no-op：热键 tab 无点击转发

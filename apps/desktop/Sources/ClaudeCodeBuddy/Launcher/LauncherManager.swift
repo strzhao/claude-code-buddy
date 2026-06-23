@@ -185,6 +185,9 @@ final class LauncherManager: ObservableObject {
 
         // task 011：触发 AppIndex 首次后台扫描（fire-and-forget，不阻塞 UI）
         AppIndex.shared.refreshIfStale(ttl: 0)
+
+        // 剪贴板历史：常驻 Timer 监听（幂等，不阻塞 UI）
+        ClipboardHistoryService.shared.startMonitoring()
     }
 
     func show() {

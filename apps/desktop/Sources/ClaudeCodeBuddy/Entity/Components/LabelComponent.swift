@@ -220,9 +220,9 @@ class LabelComponent {
         overlay.addChild(label)
 
         let fadeOut = SKAction.fadeAlpha(to: CatConstants.PersistentBadge.minAlpha,
-                                        duration: CatConstants.PersistentBadge.pulseDuration)
+                                         duration: CatConstants.PersistentBadge.pulseDuration)
         let fadeIn = SKAction.fadeAlpha(to: 1.0,
-                                       duration: CatConstants.PersistentBadge.pulseDuration)
+                                        duration: CatConstants.PersistentBadge.pulseDuration)
         overlay.run(SKAction.repeatForever(SKAction.sequence([fadeOut, fadeIn])))
 
         spriteNode.addChild(overlay)

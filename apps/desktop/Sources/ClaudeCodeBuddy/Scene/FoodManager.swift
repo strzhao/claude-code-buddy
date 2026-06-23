@@ -106,18 +106,18 @@ class FoodManager {
         let delay = Double(nearestDist / maxDistance) * 0.3
         print("[TRACE] notifyIdleCats: food=\(food.node.name ?? "?") foodX=\(foodX) nearest=\(nearestCat.sessionId) dist=\(nearestDist) among \(eligibleCats.count) eligible")
         nearestCat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
-                guard let self = self else { return }
-                guard food.claim(by: arrivingCat.sessionId) else {
-                    // Food already claimed — play disappointed reaction instead of snapping to idle
-                    arrivingCat.playDisappointedReaction()
-                    return
-                }
-                arrivingCat.startEating(food) {
-                    food.eat { [weak self] in
-                        self?.removeFood(food)
-                    }
+            guard let self = self else { return }
+            guard food.claim(by: arrivingCat.sessionId) else {
+                // Food already claimed — play disappointed reaction instead of snapping to idle
+                arrivingCat.playDisappointedReaction()
+                return
+            }
+            arrivingCat.startEating(food) {
+                food.eat { [weak self] in
+                    self?.removeFood(food)
                 }
             }
+        }
     }
 
     // MARK: - Release Food

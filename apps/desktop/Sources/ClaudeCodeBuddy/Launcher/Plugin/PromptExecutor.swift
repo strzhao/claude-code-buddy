@@ -18,7 +18,7 @@ final class PromptExecutor {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return PluginResult(stdout: "（请输入内容）", stderr: "",
-                exitCode: 0, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 0, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         }
         let model = config.model ?? activeProviderModel
         let messages = [AgentMessage(role: "user", content: [.text(query)])]
@@ -68,14 +68,14 @@ final class PromptExecutor {
                 )
             }
             return PluginResult(stdout: text, stderr: "", exitCode: 0,
-                durationMs: durationMs, stdoutTruncated: false, actions: actions)
+                                durationMs: durationMs, stdoutTruncated: false, actions: actions)
         } catch is CancellationError {
             return PluginResult(stdout: "", stderr: "执行超时（\(timeoutSec)s）",
-                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         } catch {
             timeoutTask.cancel()
             return PluginResult(stdout: "", stderr: "执行失败: \(error.localizedDescription)",
-                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         }
     }
 
@@ -88,7 +88,7 @@ final class PromptExecutor {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return PluginResult(stdout: "（请输入内容）", stderr: "",
-                exitCode: 0, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 0, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         }
         let model = cfg.model ?? activeProviderModel
         let messages = [AgentMessage(role: "user", content: [.text(query)])]
@@ -143,16 +143,16 @@ final class PromptExecutor {
             }
 
             return PluginResult(stdout: text, stderr: "", exitCode: 0,
-                durationMs: durationMs, stdoutTruncated: false, actions: actions)
+                                durationMs: durationMs, stdoutTruncated: false, actions: actions)
         } catch is CancellationError {
             // CancellationError 分支：timeout 已 fire，不调 timeoutTask.cancel()
             return PluginResult(stdout: "", stderr: "执行超时（\(timeoutSec)s）",
-                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         } catch {
             // 普通 error 分支：显式 cancel timeoutTask 防泄漏
             timeoutTask.cancel()
             return PluginResult(stdout: "", stderr: "执行失败: \(error.localizedDescription)",
-                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
+                                exitCode: 1, durationMs: Int(Date().timeIntervalSince(started) * 1000), stdoutTruncated: false)
         }
     }
 }

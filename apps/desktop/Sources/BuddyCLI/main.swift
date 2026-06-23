@@ -1088,9 +1088,9 @@ private func cliDeriveSecretsKey() throws -> SymmetricKey {
     let svc = IOServiceGetMatchingService(port, IOServiceMatching("IOPlatformExpertDevice"))
     defer { IOObjectRelease(svc) }
     guard let cf = IORegistryEntryCreateCFProperty(
-            svc, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0
-          )?.takeRetainedValue(),
-          let uuid = cf as? String else {
+        svc, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0
+    )?.takeRetainedValue(),
+    let uuid = cf as? String else {
         throw NSError(domain: "buddy.cli", code: 1, userInfo: [NSLocalizedDescriptionKey: "IOPlatformUUID unavailable"])
     }
     let salt = "claude-code-buddy.launcher.v1"
@@ -2106,7 +2106,7 @@ private func buildCLIInspection() -> CLIMarketplaceInspection {
             guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir),
                   isDir.boolValue,
                   FileManager.default.fileExists(atPath: entry.appending(path: "plugin.json").path)
-                  else { continue }
+            else { continue }
             let enabled = !FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
             sideloaded.append(.init(name: name, enabled: enabled))
         }

@@ -140,7 +140,7 @@ struct LauncherInputView: View {
                 Text("\(query.count) / \(LauncherConstants.maxQueryLength)")
                     .font(LauncherTheme.footerMono)
                     .foregroundStyle(query.count >= LauncherConstants.maxQueryLength
-                        ? Color.red : LauncherTheme.smoke)
+                                        ? Color.red : LauncherTheme.smoke)
                     .padding(.horizontal, LauncherConstants.inputPaddingH)
                     .padding(.bottom, 4)
             }

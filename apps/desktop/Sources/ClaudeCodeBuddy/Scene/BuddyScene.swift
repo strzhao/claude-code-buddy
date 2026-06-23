@@ -656,7 +656,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
         // Food hits ground
         if (maskA == PhysicsCategory.food && maskB == PhysicsCategory.ground) ||
-           (maskA == PhysicsCategory.ground && maskB == PhysicsCategory.food) {
+            (maskA == PhysicsCategory.ground && maskB == PhysicsCategory.food) {
             let foodNode = maskA == PhysicsCategory.food ? contact.bodyA.node : contact.bodyB.node
             if let foodNode = foodNode as? SKSpriteNode,
                let food = foodManager.food(for: foodNode) {

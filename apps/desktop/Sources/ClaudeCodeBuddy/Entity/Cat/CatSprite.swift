@@ -339,10 +339,10 @@ class CatSprite {
 
         // Scale overshoot animation on containerNode
         let overshoot = SKAction.scale(to: targetScale * CatConstants.LevelUp.scaleOvershoot,
-                                        duration: CatConstants.LevelUp.scaleOvershootDuration)
+                                       duration: CatConstants.LevelUp.scaleOvershootDuration)
         overshoot.timingMode = .easeOut
         let settle = SKAction.scale(to: targetScale,
-                                     duration: CatConstants.LevelUp.scaleSettleDuration)
+                                    duration: CatConstants.LevelUp.scaleSettleDuration)
         settle.timingMode = .easeInEaseOut
         containerNode.run(SKAction.sequence([overshoot, settle]), withKey: CatConstants.LevelUp.actionKey)
     }
@@ -515,9 +515,9 @@ class CatSprite {
             self.node.zRotation = 0
             self.applyFacingDirection()
 
-#if DEBUG
+            #if DEBUG
             print("[STATE] switchState \(self.sessionId): entering state, containerNode.x=\(self.containerNode.position.x)")
-#endif
+            #endif
             self.stateMachine.enter(targetStateCapture)
 
             if let pending = self.pendingStateAfterTransition {

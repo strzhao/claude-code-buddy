@@ -63,7 +63,7 @@ final class EncryptedFileSecretStore: SecretStore {
             kCFAllocatorDefault,
             0
         )?.takeRetainedValue(),
-              let uuid = cfValue as? String else {
+        let uuid = cfValue as? String else {
             throw LauncherError.secretStoreUnavailable
         }
         return uuid

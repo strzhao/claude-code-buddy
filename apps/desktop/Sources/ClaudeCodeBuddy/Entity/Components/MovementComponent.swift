@@ -159,10 +159,10 @@ class MovementComponent {
             }
             // Squash-and-settle on stop
             let squash = SKAction.scaleY(to: CatConstants.Movement.walkStopSquashScaleY,
-                                          duration: CatConstants.Movement.walkStopSquashDuration)
+                                         duration: CatConstants.Movement.walkStopSquashDuration)
             squash.timingMode = .easeOut
             let recover = SKAction.scaleY(to: 1.0,
-                                           duration: CatConstants.Movement.walkStopRecoverDuration)
+                                          duration: CatConstants.Movement.walkStopRecoverDuration)
             recover.timingMode = .easeIn
             node.run(SKAction.sequence([squash, recover]), withKey: "walkSettle")
         }
@@ -490,10 +490,10 @@ class MovementComponent {
         let onPath: [(cat: CatSprite, x: CGFloat)]
         if goingRight {
             onPath = obstacles.filter { $0.x >= myX && $0.x < edgeX }
-                              .sorted { $0.x < $1.x }
+                .sorted { $0.x < $1.x }
         } else {
             onPath = obstacles.filter { $0.x <= myX && $0.x > edgeX }
-                              .sorted { $0.x > $1.x }
+                .sorted { $0.x > $1.x }
         }
 
         guard !onPath.isEmpty else {

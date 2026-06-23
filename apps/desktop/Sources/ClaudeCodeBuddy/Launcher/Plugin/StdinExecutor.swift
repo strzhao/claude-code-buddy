@@ -191,7 +191,7 @@ class StdinExecutor {
         guard fm.fileExists(atPath: expectedPath) else { return nil }
         // 防 symlink：resolvedPath 必须等于注入的 outputImagePath（outputImagePath 本身是绝对规范路径）
         guard let resolved = try? (URL(fileURLWithPath: expectedPath)
-            .resolvingSymlinksInPath().path) as String?,
+                                    .resolvingSymlinksInPath().path) as String?,
               resolved == expectedPath else {
             // 路径被 symlink 篡改 → 丢弃（不读不信任的内容）
             return nil
@@ -224,7 +224,7 @@ class StdinExecutor {
         guard fm.fileExists(atPath: expectedPath) else { return nil }
         // 防 symlink：resolvedPath 必须等于注入的 outputCandidatesPath（绝对规范路径）
         guard let resolved = try? (URL(fileURLWithPath: expectedPath)
-            .resolvingSymlinksInPath().path) as String?,
+                                    .resolvingSymlinksInPath().path) as String?,
               resolved == expectedPath else {
             return nil
         }

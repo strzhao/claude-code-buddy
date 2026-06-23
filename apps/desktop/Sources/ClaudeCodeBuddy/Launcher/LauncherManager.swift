@@ -638,7 +638,7 @@ final class LauncherManager: ObservableObject {
                             )
                             return result.stdout
                         }
-                        // 继续走下面 LauncherAgent.run
+                    // 继续走下面 LauncherAgent.run
 
                     case .command:
                         // command mode bypass agent loop（零 LLM）：直接调 StdinExecutor，结果映射为
@@ -749,7 +749,7 @@ final class LauncherManager: ObservableObject {
                 // agent.run 完成但未收到 .done（正常流结束）
                 await MainActor.run {
                     if LauncherManager.shared.stage == .streaming ||
-                       LauncherManager.shared.stage == .calling {
+                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
                         // lastRoutePluginName 保留到下次 submit/hide
                     }
@@ -858,7 +858,7 @@ final class LauncherManager: ObservableObject {
                 }
                 await MainActor.run {
                     if LauncherManager.shared.stage == .streaming ||
-                       LauncherManager.shared.stage == .calling {
+                        LauncherManager.shared.stage == .calling {
                         LauncherManager.shared.stage = .idle
                         // lastRoutePluginName 保留到下次 submit/hide
                     }

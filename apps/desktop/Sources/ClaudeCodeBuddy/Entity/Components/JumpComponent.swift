@@ -387,7 +387,7 @@ class JumpComponent {
             let crouch = SKAction.scaleY(to: CatConstants.PhysicsJump.crouchScaleY, duration: crouchDuration)
             crouch.timingMode = .easeIn
             let stretch = SKAction.scaleY(to: CatConstants.PhysicsJump.launchStretchScaleY,
-                                           duration: CatConstants.PhysicsJump.launchStretchDuration)
+                                          duration: CatConstants.PhysicsJump.launchStretchDuration)
             stretch.timingMode = .easeOut
             actions.append(crouch)
             actions.append(stretch)

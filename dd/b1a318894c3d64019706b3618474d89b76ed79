@@ -1,0 +1,42 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift
+  8bd84fbfa4f9e2d4 11-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ddb1a318894c3d64019706b3618474d89b76ed79",
+  "prompts": {
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 69,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        }
+      }
+    }
+  }
+}

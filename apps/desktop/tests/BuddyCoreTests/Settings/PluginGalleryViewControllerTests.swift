@@ -226,24 +226,39 @@ final class PluginGalleryViewControllerTests: XCTestCase {
     }
 }
 
-// MARK: - SettingsWindowController tab persistence
-
+// MARK: - 契约演进说明（T6）
+//
+// 历史版本（task 005）：SettingsWindowController 用 segmentedControl 三 tab，
+// 枚举 `SettingsWindowController.Tab`（skins/plugins/hotkey），持久化 key
+// `BuddyStoreSelectedTab`。
+//
+// 2026-06-23 sidebar 重构（state.md）：窗口改 NSSplitViewController + sidebar，
+// 5 分类（皮肤/插件/热键/通用/关于），枚举迁移到 `SettingsSection`（单一数据源），
+// 持久化 key 改 `SettingsSelectedCategory`，默认 .skins。
+// 旧 Tab 枚举 + BuddyStoreSelectedTab key 废弃（不迁移，读不到→默认 skins）。
+//
+// 本测试类从"Tab 枚举 rawValue + 旧 key 名"断言演进为
+// "SettingsSection.allCases + 新 key 名"断言。
+// PluginGalleryViewController 内部逻辑测试（上方 T1-T9）保留零改动。
 final class SettingsWindowControllerTabPersistenceTests: XCTestCase {
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: SettingsWindowController.selectedTabDefaultsKey)
+        UserDefaults.standard.removeObject(
+            forKey: SettingsWindowController.selectedCategoryDefaultsKey)
         super.tearDown()
     }
 
-    func test_tabEnum_rawValues() {
-        XCTAssertEqual(SettingsWindowController.Tab.skins.rawValue, "skins")
-        XCTAssertEqual(SettingsWindowController.Tab.plugins.rawValue, "plugins")
-        XCTAssertEqual(SettingsWindowController.Tab(rawValue: "plugins"), .plugins)
-        XCTAssertEqual(SettingsWindowController.Tab(rawValue: "skins"), .skins)
-        XCTAssertNil(SettingsWindowController.Tab(rawValue: "nope"))
+    func test_sectionEnum_rawValues() {
+        XCTAssertEqual(SettingsSection.skins.rawValue, "skins")
+        XCTAssertEqual(SettingsSection.plugins.rawValue, "plugins")
+        XCTAssertEqual(SettingsSection(rawValue: "plugins"), .plugins)
+        XCTAssertEqual(SettingsSection(rawValue: "skins"), .skins)
+        XCTAssertNil(SettingsSection(rawValue: "nope"))
     }
 
     func test_defaultsKey_isExpected() {
-        XCTAssertEqual(SettingsWindowController.selectedTabDefaultsKey, "BuddyStoreSelectedTab")
+        XCTAssertEqual(SettingsWindowController.selectedCategoryDefaultsKey,
+                       "SettingsSelectedCategory")
     }
 }
+

@@ -241,8 +241,8 @@ final class KeyboardShortcutsViewController: NSViewController {
         var length = 0
         var characters = [UniChar](repeating: 0, count: 4)
         let error = UCKeyTranslate(keyLayout, UInt16(keyCode), UInt16(kUCKeyActionDisplay),
-            0, UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit),
-            &deadKeyState, 4, &length, &characters)
+                                   0, UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit),
+                                   &deadKeyState, 4, &length, &characters)
         guard error == noErr, length > 0 else { return "�" }
         return String(utf16CodeUnits: characters, count: length).capitalized
     }

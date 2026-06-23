@@ -2,121 +2,118 @@ import AppKit
 
 // MARK: - SettingsWindowController
 //
-// 重命名 "Buddy Store"。顶部 NSSegmentedControl 切 [皮肤/插件]。
-// 持久化选中 tab 到 UserDefaults（key: `BuddyStoreSelectedTab`）。
-// contentVC 按 tab 切换（同时只有 1 个 VC 持有 NSCollectionView + 数据）。
+// macOS 原生系统设置风格：标准 NSWindow + NSSplitViewController
+// 左 sidebar（皮肤/插件/热键/通用/关于）+ 右 detail 容器。
+//
+// 窗口契约（契约 1）：
+//   - 标准 NSWindow（非 NSPanel），canBecomeKey==true（NSWindow 默认即 true）
+//   - styleMask `[.titled, .closable, .minimizable, .resizable]`（无 .fullSizeContentView）
+//   - level != .floating
+//   - 初始 760×540，minSize 600×420，title "设置"
+//
+// R1 安全网（暂不删除）：SettingsPanel + sendEvent + SettingsTabClickReceiver
+// 保留作降级；本次窗口改用标准 NSWindow，待 QA SC-08 验证 LSUIElement 下点击
+// 首次即生效后，后续清理 sendEvent 机制。蓝队本次不删这些文件。
 final class SettingsWindowController: NSWindowController {
 
-    enum Tab: String {
-        case skins
-        case plugins
-        case hotkey
+    /// 持久化 key（契约 4）：值 = `SettingsSection.rawValue`，默认 .skins。
+    /// 旧 key `BuddyStoreSelectedTab` 废弃（不迁移，读不到→默认 skins）。
+    static let selectedCategoryDefaultsKey = "SettingsSelectedCategory"
+
+    private(set) var splitViewController: SettingsSplitViewController!
+
+    override init(window: NSWindow?) {
+        super.init(window: window)
     }
 
-    static let selectedTabDefaultsKey = "BuddyStoreSelectedTab"
-
-    private let segmentedControl = NSSegmentedControl()
-    private var skinGallery: SkinGalleryViewController?
-    private var pluginGallery: PluginGalleryViewController?
-    private var hotkeyVC: KeyboardShortcutsViewController?
-    private weak var settingsPanel: SettingsPanel?
-
     convenience init() {
-        let panel = SettingsPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 540),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+        let window = SettingsWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 540),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: true
         )
-        panel.title = "Buddy Store"
-        panel.isReleasedWhenClosed = false
-        panel.level = .floating
-        self.init(window: panel)
-        self.settingsPanel = panel
+        window.title = "设置"
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 600, height: 420)
+        // 标准 NSWindow，level 保持默认（.normal），不用 .floating（契约 1）
+        // canBecomeKey 标准 NSWindow 默认即 true，无需子类（契约 1）
 
-        setupSegmentedControl()
+        let splitVC = SettingsSplitViewController()
+        window.contentViewController = splitVC
 
-        let savedTab = UserDefaults.standard.string(forKey: Self.selectedTabDefaultsKey)
-            .flatMap(Tab.init(rawValue:)) ?? .skins
-        segmentedControl.selectedSegment = segmentIndex(for: savedTab)
-        switchTo(tab: savedTab)
+        // NSSplitViewController 作 contentViewController 后会按 fittingSize 调整 window frame，
+        // 需显式 setFrame 锁回契约要求的初始尺寸（760×540，契约 1）。
+        window.setFrame(NSRect(x: 0, y: 0, width: 760, height: 540), display: false)
+
+        self.init(window: window)
+        self.splitViewController = splitVC
     }
 
-    // MARK: - Segmented control
-
-    private func setupSegmentedControl() {
-        segmentedControl.segmentStyle = .texturedRounded
-        segmentedControl.segmentCount = 3
-        segmentedControl.setLabel("皮肤", forSegment: 0)
-        segmentedControl.setLabel("插件", forSegment: 1)
-        segmentedControl.setLabel("热键", forSegment: 2)
-        segmentedControl.target = self
-        segmentedControl.action = #selector(segmentChanged)
-        segmentedControl.translatesAutoresizingMaskIntoConstraints = false
-
-        // 嵌入 titlebar accessory（macOS 11+ 原生支持）。
-        let accessoryVC = NSTitlebarAccessoryViewController()
-        let accessoryContainer = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
-        accessoryContainer.addSubview(segmentedControl)
-        NSLayoutConstraint.activate([
-            segmentedControl.centerXAnchor.constraint(equalTo: accessoryContainer.centerXAnchor),
-            segmentedControl.centerYAnchor.constraint(equalTo: accessoryContainer.centerYAnchor),
-        ])
-        accessoryVC.view = accessoryContainer
-        accessoryVC.layoutAttribute = .top
-        settingsPanel?.addTitlebarAccessoryViewController(accessoryVC)
-    }
-
-    /// Tab → segmentedControl segment index 映射。
-    private func segmentIndex(for tab: Tab) -> Int {
-        switch tab {
-        case .skins: return 0
-        case .plugins: return 1
-        case .hotkey: return 2
-        }
-    }
-
-    /// segmentedControl segment index → Tab 映射。
-    private func tab(forSegment index: Int) -> Tab {
-        switch index {
-        case 0: return .skins
-        case 1: return .plugins
-        case 2: return .hotkey
-        default: return .skins
-        }
-    }
-
-    @objc private func segmentChanged() {
-        let tab = tab(forSegment: segmentedControl.selectedSegment)
-        UserDefaults.standard.set(tab.rawValue, forKey: Self.selectedTabDefaultsKey)
-        switchTo(tab: tab)
-    }
-
-    private func switchTo(tab: Tab) {
-        let vc: NSViewController & SettingsTabClickReceiver
-        switch tab {
-        case .skins:
-            let gallery = skinGallery ?? SkinGalleryViewController()
-            skinGallery = gallery
-            vc = gallery
-        case .plugins:
-            let gallery = pluginGallery ?? PluginGalleryViewController()
-            pluginGallery = gallery
-            vc = gallery
-        case .hotkey:
-            let hotkey = hotkeyVC ?? KeyboardShortcutsViewController()
-            hotkeyVC = hotkey
-            vc = hotkey
-        }
-        settingsPanel?.contentViewController = vc
-        settingsPanel?.activeTab = vc
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 
-// MARK: - SettingsPanel
+// MARK: - SettingsWindow（R1：LSUIElement key window 兜底）
 //
-// 拦截 leftMouseUp 转发到 activeTab.handleClickAt。
-// LSUIElement apps 拿不到稳定的 key window，绕开 NSCollectionView 内建选中逻辑。
+// LSUIElement accessory app 下标准 NSWindow 可能不成为 key window，
+// 致 NSTableView 鼠标选中失效（与 patterns/2026-04-19 同根因）。
+// sendEvent 拦截 leftMouseDown，hitTest 上溯到 sidebar NSTableView 后
+// 手动 selectRowIndexes 兜底选中（→ tableViewSelectionDidChange → detail 切换）。
+final class SettingsWindow: NSWindow {
+
+    override func sendEvent(_ event: NSEvent) {
+        super.sendEvent(event)
+        guard event.type == .leftMouseDown else { return }
+        forwardSidebarClick(event)
+        forwardDetailClick(event)
+    }
+
+    /// LSUIElement 下窗口可能非 key：NSTableView（sidebar）selection 兜底（patterns/2026-04-19 适配）。
+    private func forwardSidebarClick(_ event: NSEvent) {
+        let location = event.locationInWindow
+        guard let hitView = contentView?.hitTest(location) else { return }
+        var current: NSView? = hitView
+        while let v = current, !(v is NSTableView) {
+            current = v.superview
+        }
+        guard let tableView = current as? NSTableView else { return }
+        let point = tableView.convert(location, from: nil)
+        let row = tableView.row(at: point)
+        guard row >= 0, row < tableView.numberOfRows else { return }
+        guard tableView.selectedRow != row else { return }
+        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+    }
+
+    /// NSCollectionView isSelectable=false（SkinGallery），系统不选中；上溯 responder chain
+    /// 找 SettingsTabClickReceiver（SkinGallery.handleClickAt）手动命中（复用旧 SettingsPanel 机制）。
+    private func forwardDetailClick(_ event: NSEvent) {
+        let location = event.locationInWindow
+        guard let hitView = contentView?.hitTest(location) else { return }
+        var responder: NSResponder? = hitView
+        while let r = responder {
+            if let receiver = r as? SettingsTabClickReceiver {
+                receiver.handleClickAt(windowPoint: location)
+                return
+            }
+            responder = r.nextResponder
+        }
+    }
+}
+
+// MARK: - SettingsPanel（R1 安全网，保留不删）
+//
+// 历史：LSUIElement app 拿不到稳定 key window，致 NSCollectionView.didSelectItemsAt 失效。
+// 旧解法：SettingsPanel.sendEvent 拦截 leftMouseUp → activeTab.handleClickAt。
+//
+// 本次窗口改用标准 NSWindow（非 NSPanel），canBecomeKey 默认 true，
+// 理论让 isKeyWindow=true，选择机制自动恢复。
+// 待 QA SC-08 真机验证「首次点击即生效」通过后，后续 PR 清理 sendEvent；
+// 若 SC-08 失败则 sendEvent 持续承担转发。
+//
+// 本文件保留 class 作降级安全网，新窗口不再引用它。
 final class SettingsPanel: NSPanel {
     weak var activeTab: SettingsTabClickReceiver?
 

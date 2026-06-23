@@ -1,0 +1,40 @@
+<h2>当前「设置页」现状（我的理解）</h2>
+<p><b>触发链路</b>：菜单栏像素猫咪 → 点击弹 popover（会话面板） → 齿轮按钮 → <code>SettingsWindowController</code>（600×540 浮动 NSPanel，顶部 segmentedControl 切 tab）</p>
+
+<div class="mockup">
+  <div class="mockup-header">设置窗口 · 当前只有 3 个 tab</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:6px;border-bottom:1px solid #555;padding-bottom:10px;margin-bottom:14px">
+      <span style="padding:4px 14px;background:#3b82f6;color:#fff;border-radius:5px">皮肤</span>
+      <span style="padding:4px 14px;color:#999">插件</span>
+      <span style="padding:4px 14px;color:#999">热键</span>
+    </div>
+    <p>🖼️ NSCollectionView 皮肤网格（已装 + 远程市场下载）</p>
+    <p style="color:#aaa">附带：🔊 音效开关 · 🏷️ 始终显示标签</p>
+    <p style="color:#aaa;margin-top:10px">插件 tab：插件列表 + 启用/禁用 + 错误恢复</p>
+    <p style="color:#aaa">热键 tab：大号 Recorder + 组合键回显 + 重置默认</p>
+  </div>
+</div>
+
+<div class="split">
+  <div>
+    <h3>✅ UI 里有的</h3>
+    <ul>
+      <li>皮肤选择 / 下载 / 切换</li>
+      <li>插件启用 / 禁用</li>
+      <li>音效、标签开关</li>
+      <li>启动器热键录制</li>
+    </ul>
+  </div>
+  <div>
+    <h3>❌ UI 里没有（只能 <code>buddy launcher config</code> CLI）</h3>
+    <ul>
+      <li>AI <b>provider</b> 选择（anthropic / openai 兼容）</li>
+      <li><b>model</b> 配置</li>
+      <li><b>API key</b> 输入</li>
+      <li>开机自启、关于、版本号、反馈</li>
+    </ul>
+  </div>
+</div>
+
+<p style="margin-top:16px;color:#fbbf24">⚠️ <b>核心矛盾</b>：这个窗口叫「设置」，但实际是「皮肤商店 + 插件管理 + 热键」。真正的 AI 配置反而要敲命令行。普通用户（非开发者）基本配不动 Launcher。</p>

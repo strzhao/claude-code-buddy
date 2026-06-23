@@ -337,12 +337,18 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
+        // LSUIElement apps: 先激活 app 再 makeKey，窗口才稳定成为 key。
+        // R1 根因：旧 NSApp.activate(ignoringOtherApps:) 在 macOS 14+ 对 accessory policy
+        // 可能 no-op，致 AXFocused=false → NSTableView selection 失效。
+        // macOS 14+ 用 NSApp.activate()；且顺序须 activate 先、makeKey 后。
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.center()
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
-        // LSUIElement apps need explicit activation for windows to become key.
-        // .accessory policy allows key windows without showing a Dock icon.
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func handleBuddyStoreShouldOpen() {

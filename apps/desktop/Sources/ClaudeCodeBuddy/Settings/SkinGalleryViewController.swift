@@ -12,14 +12,6 @@ class SkinGalleryViewController: NSViewController {
     private var remoteSkins: [RemoteSkinEntry] = []
     private var downloadingIds = Set<String>()
 
-    // Sound toggle
-    private let soundSwitch = NSSwitch()
-    private let soundLabel = NSTextField(labelWithString: "Sound Effects")
-
-    // Always Show Label toggle
-    private let alwaysShowLabelSwitch = NSSwitch()
-    private let alwaysShowLabelLabel = NSTextField(labelWithString: "Always Show Label")
-
     // Catalog URL — can be overridden for testing
     // guard 兜底避免 force_unwrapping（不同 SwiftLint 版本对字面量 URL 的 `!` 触发不一致）
     var catalogURL: URL = {
@@ -48,8 +40,6 @@ class SkinGalleryViewController: NSViewController {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 480))
 
         setupCollectionView(in: container)
-        setupSoundToggle(in: container)
-        setupAlwaysShowLabelToggle(in: container)
 
         self.view = container
 
@@ -85,47 +75,7 @@ class SkinGalleryViewController: NSViewController {
             scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -56),
-        ])
-    }
-
-    private func setupSoundToggle(in container: NSView) {
-        soundLabel.font = .systemFont(ofSize: 13)
-        soundLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(soundLabel)
-
-        soundSwitch.target = self
-        soundSwitch.action = #selector(soundToggleChanged)
-        soundSwitch.state = SoundManager.shared.isEnabled ? .on : .off
-        soundSwitch.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(soundSwitch)
-
-        NSLayoutConstraint.activate([
-            soundLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            soundLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -32),
-
-            soundSwitch.leadingAnchor.constraint(equalTo: soundLabel.trailingAnchor, constant: 8),
-            soundSwitch.centerYAnchor.constraint(equalTo: soundLabel.centerYAnchor),
-        ])
-    }
-
-    private func setupAlwaysShowLabelToggle(in container: NSView) {
-        alwaysShowLabelLabel.font = .systemFont(ofSize: 13)
-        alwaysShowLabelLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(alwaysShowLabelLabel)
-
-        alwaysShowLabelSwitch.target = self
-        alwaysShowLabelSwitch.action = #selector(alwaysShowLabelToggleChanged)
-        alwaysShowLabelSwitch.state = UserDefaults.standard.bool(forKey: "alwaysShowLabel") ? .on : .off
-        alwaysShowLabelSwitch.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(alwaysShowLabelSwitch)
-
-        NSLayoutConstraint.activate([
-            alwaysShowLabelLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            alwaysShowLabelLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
-
-            alwaysShowLabelSwitch.leadingAnchor.constraint(equalTo: alwaysShowLabelLabel.trailingAnchor, constant: 8),
-            alwaysShowLabelSwitch.centerYAnchor.constraint(equalTo: alwaysShowLabelLabel.centerYAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
     }
 
@@ -201,14 +151,6 @@ class SkinGalleryViewController: NSViewController {
                 downloadSkin(entry: entry, at: indexPath)
             }
         }
-    }
-
-    @objc private func soundToggleChanged(_ sender: NSSwitch) {
-        SoundManager.shared.isEnabled = sender.state == .on
-    }
-
-    @objc private func alwaysShowLabelToggleChanged(_ sender: NSSwitch) {
-        UserDefaults.standard.set(sender.state == .on, forKey: "alwaysShowLabel")
     }
 
     private func downloadSkin(entry: RemoteSkinEntry, at indexPath: IndexPath) {

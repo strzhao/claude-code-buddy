@@ -84,10 +84,19 @@ private extension MarketplaceInspection {
     }
 }
 
-/// 红队验收测试 (task 005): Buddy Store UI — SettingsWindowController + PluginGalleryViewController
+/// 红队验收测试: Buddy Store UI — SettingsWindowController + PluginGalleryViewController
 ///
 /// 覆盖 13 个 AT（与 state.md `## 验证方案` Tier 0 一致）。
 /// 严格基于设计文档契约，不依赖蓝队具体实现细节。
+///
+/// **契约演进（2026-06-23 sidebar 重构）**：
+/// AT01/AT02/AT03/AT04 从 segmentedControl/"Buddy Store" 旧契约演进为
+/// NSSplitViewController sidebar 新契约：
+///   - AT01: title 从 "Buddy Store" 改 "设置"（state.md 方案决策）
+///   - AT02/AT04: contentVC 不再是 SkinGallery/PluginGallery（现在是 SettingsSplitViewController），
+///     改为断言 splitViewController.detailViewController 的 child VC 类型
+///   - AT03: 持久化 key 从 BuddyStoreSelectedTab 改 SettingsSelectedCategory（契约 4）
+/// AT05-AT13（PluginGallery 内部逻辑）零改动。
 @MainActor
 final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
 
@@ -95,8 +104,8 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // 每个 case 用独立 UserDefaults key 隔离（避免互相污染）
-        defaultsKey = "BuddyStoreSelectedTab"
+        // sidebar 重构后持久化 key（契约 4）
+        defaultsKey = SettingsWindowController.selectedCategoryDefaultsKey
         UserDefaults.standard.removeObject(forKey: defaultsKey)
     }
 
@@ -127,68 +136,58 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
         await drainMainActor()
     }
 
-    // MARK: - AT01: SettingsWindowController title == "Buddy Store"
+    // MARK: - AT01: SettingsWindowController title == "设置"（契约演进：旧 "Buddy Store"）
 
-    func test_AT01_settingsWindow_title_isBuddyStore() {
+    func test_AT01_settingsWindow_title_isSettings() {
         let wc = SettingsWindowController()
-        XCTAssertEqual(wc.window?.title, "Buddy Store",
-                       "SettingsWindowController.window.title 必须为 'Buddy Store'")
+        XCTAssertEqual(wc.window?.title, "设置",
+                       "SettingsWindowController.window.title 必须为 '设置'")
     }
 
-    // MARK: - AT02: UserDefaults 为空 → 默认 .skins
+    // MARK: - AT02: UserDefaults 为空 → 默认选中 skins（detail child = SkinGalleryViewController）
 
-    func test_AT02_userDefaultsEmpty_defaultsToSkinsTab() {
+    func test_AT02_userDefaultsEmpty_defaultsToSkinsSection() {
         UserDefaults.standard.removeObject(forKey: defaultsKey)
         let wc = SettingsWindowController()
-        // contentViewController 应为 SkinGalleryViewController
-        XCTAssertTrue(wc.window?.contentViewController is SkinGalleryViewController,
-                      "UserDefaults 为空时，默认 tab 应为 .skins (contentVC = SkinGalleryViewController)")
+        guard let splitVC = wc.splitViewController else {
+            return XCTFail("splitViewController 必须存在")
+        }
+        XCTAssertEqual(splitVC.selectedSection, .skins,
+                       "UserDefaults 为空时，默认选中 skins 分类")
+        XCTAssertTrue(splitVC.detailChildViewController is SkinGalleryViewController,
+                      "默认选中 skins 时，detail child 应为 SkinGalleryViewController")
     }
 
-    // MARK: - AT03: 切到 plugins → UserDefaults 写入 "plugins"
+    // MARK: - AT03: 切到 plugins → UserDefaults 写入 "plugins"（契约 4，新 key）
 
     func test_AT03_switchToPlugins_writesUserDefaults() {
         UserDefaults.standard.removeObject(forKey: defaultsKey)
         let wc = SettingsWindowController()
-        // 通过反射查找 segmentedControl，模拟切换
-        // 直接调用 segmentChanged 的方法：用 NSSegmentedControl 触发
-        // 因为 segmentChanged 是 internal/private，通过设置 UserDefaults 模拟"持久化"路径
-        // 这里实际只能验证设计文档承诺：切到 plugins 后该 key 应为 "plugins"
-        // 蓝队实现 segmentChanged 时必须写 UserDefaults
-        // 我们用一个"切 tab"的代理：调用 NSSegmentedControl click action
-        guard let panel = wc.window else {
-            return XCTFail("Settings window 不存在")
+        guard let splitVC = wc.splitViewController else {
+            return XCTFail("splitViewController 必须存在")
         }
-        // 查找 NSSegmentedControl
-        let segmented = findSegmentedControl(in: panel)
-        guard let seg = segmented else {
-            return XCTFail("未找到 NSSegmentedControl")
-        }
-        seg.selectedSegment = 1
-        // 触发 action
-        if let target = seg.target as? NSObject, let action = seg.action {
-            _ = target.perform(action, with: seg)
-        }
+        // 通过 splitVC testHook 驱动 sidebar 选中 plugins
+        splitVC.testHook_selectSection(.plugins)
+
         let stored = UserDefaults.standard.string(forKey: defaultsKey)
         XCTAssertEqual(stored, "plugins",
-                       "切到 plugins tab 后 UserDefaults['\(defaultsKey ?? "")'] 应为 'plugins'")
+                       "切到 plugins 后 UserDefaults['\(defaultsKey)'] 应为 'plugins'")
+        XCTAssertTrue(splitVC.detailChildViewController is PluginGalleryViewController,
+                      "选中 plugins 后 detail child 应为 PluginGalleryViewController")
     }
 
-    // MARK: - AT04: UserDefaults 预设 "plugins" → init 后 segmented 选中 .plugins
+    // MARK: - AT04: UserDefaults 预设 "plugins" → init 后选中 plugins + detail child 正确
 
-    func test_AT04_userDefaultsPlugins_initSelectsPluginsTab() {
+    func test_AT04_userDefaultsPlugins_initSelectsPluginsSection() {
         UserDefaults.standard.set("plugins", forKey: defaultsKey)
         let wc = SettingsWindowController()
-        guard let panel = wc.window else {
-            return XCTFail("Settings window 不存在")
+        guard let splitVC = wc.splitViewController else {
+            return XCTFail("splitViewController 必须存在")
         }
-        // contentVC 应为 PluginGalleryViewController
-        XCTAssertTrue(panel.contentViewController is PluginGalleryViewController,
-                      "预设 'plugins' 时，init 后 contentVC 应为 PluginGalleryViewController")
-        if let seg = findSegmentedControl(in: panel) {
-            XCTAssertEqual(seg.selectedSegment, 1,
-                           "预设 'plugins' 时，segmentedControl.selectedSegment 应为 1")
-        }
+        XCTAssertEqual(splitVC.selectedSection, .plugins,
+                       "预设 'plugins' 时，init 后选中应为 plugins")
+        XCTAssertTrue(splitVC.detailChildViewController is PluginGalleryViewController,
+                      "预设 'plugins' 时，init 后 detail child 应为 PluginGalleryViewController")
     }
 
     // MARK: - AT05: PluginGalleryViewController loadView 后初始 state == .loading
@@ -393,28 +392,6 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
         }
         for sub in view.subviews {
             if let found = findReseedButton(in: sub) { return found }
-        }
-        return nil
-    }
-
-    /// 递归在 window 中找 NSSegmentedControl。
-    private func findSegmentedControl(in window: NSWindow) -> NSSegmentedControl? {
-        if let content = window.contentView, let seg = findSegmentedControl(in: content) {
-            return seg
-        }
-        // titlebar accessory views
-        for accessory in window.titlebarAccessoryViewControllers {
-            if let seg = findSegmentedControl(in: accessory.view) {
-                return seg
-            }
-        }
-        return nil
-    }
-
-    private func findSegmentedControl(in view: NSView) -> NSSegmentedControl? {
-        if let seg = view as? NSSegmentedControl { return seg }
-        for sub in view.subviews {
-            if let found = findSegmentedControl(in: sub) { return found }
         }
         return nil
     }

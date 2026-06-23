@@ -1,0 +1,329 @@
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsAXContractTests.swift
+  f95d82e8f3b3b7c6 1-277
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift
+  f95d82e8f3b3b7c6 5-7,9,13-14,34,37,45-47,70,84-86,92-98,100-102,114-127,129-131,135-142,155,158,161,174-188,193-195,197,201-203,205,209-211,213,221-222,229-232,237-238,240,244,249-255,259,271
+  8bd84fbfa4f9e2d4 128,132-134
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutSettingsViewController.swift
+  f95d82e8f3b3b7c6 3-6,22-31,35-38,54-63,65-68,70-72,74-77,79-81,84-86,91-94,105,111
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift
+  f95d82e8f3b3b7c6 10-12,15-29,39-48,50-71,74-92
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsThemeTests.swift
+  f95d82e8f3b3b7c6 1-432
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSidebarViewController.swift
+  8bd84fbfa4f9e2d4 131,134-135
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsTheme.swift
+  8bd84fbfa4f9e2d4 59-63,112-114
+  f95d82e8f3b3b7c6 1-58,64-111,115
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Assets.xcassets/Contents.json
+  f95d82e8f3b3b7c6 1-6
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageSwitch.swift
+  8bd84fbfa4f9e2d4 46,59
+  f95d82e8f3b3b7c6 1-45,47-58,60-96
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsToggleRow.swift
+  f95d82e8f3b3b7c6 3,5-9,11-13,15-16,18-21,23-26,28-32,34-38,40-47,49-53,55-65,67-71,73,75-80,83-85
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift
+  f95d82e8f3b3b7c6 347
+  8bd84fbfa4f9e2d4 30,70,77,83,105,127-131,170-179,197-198,212,216,226,336-344,346,348,351-366
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsPageSnapshotTests.swift
+  f95d82e8f3b3b7c6 1-167
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Assets.xcassets/AccentColor.colorset/Contents.json
+  f95d82e8f3b3b7c6 1-38
+apps/desktop/Scripts/bundle.sh
+  f95d82e8f3b3b7c6 43-52
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsGroupLabel.swift
+  8bd84fbfa4f9e2d4 13-14
+  f95d82e8f3b3b7c6 1-12,15-26
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsPersistenceTests.swift
+  f95d82e8f3b3b7c6 1-188
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsGroupView.swift
+  f95d82e8f3b3b7c6 1-75
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift
+  f95d82e8f3b3b7c6 71-72,76-77,87
+  8bd84fbfa4f9e2d4 5,7-8,11,18-24,50,61-64,88,90-91,96-107,112-113,116-121,128,130-134,136,139-140,143,145,147-148,164
+apps/desktop/Sources/App/main.swift
+  f95d82e8f3b3b7c6 6-12
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinCardItem.swift
+  f95d82e8f3b3b7c6 52-54,64-66,73-75,82-84,101,104,254,256-257
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherTheme.swift
+  f95d82e8f3b3b7c6 41-43,45-46
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/BuddyPalette.swift
+  f95d82e8f3b3b7c6 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "15e58e1deb0d0318e7359d4463af3db76a34cd4b",
+  "prompts": {
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1275,
+      "total_deletions": 996,
+      "accepted_lines": 1244,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardWithVariantsUnselected.1.png": {
+          "additions": 45,
+          "deletions": 34,
+          "accepted_lines": 45
+        },
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardInstalledSelected.1.png": {
+          "additions": 79,
+          "deletions": 27,
+          "accepted_lines": 79
+        },
+        "apps/desktop/scripts/bundle.sh": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardWithVariantsSelected.1.png": {
+          "additions": 57,
+          "deletions": 91,
+          "accepted_lines": 57
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 67,
+          "deletions": 183,
+          "accepted_lines": 58
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageSwitch.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/buddycoretests/settingspagesnapshottests.swift": {
+          "deletions": 86
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_aboutSettings_light.light.png": {
+          "additions": 78,
+          "accepted_lines": 78
+        },
+        "apps/desktop/tests/BuddyCoreTests/SettingsThemeTests.swift": {
+          "deletions": 111
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_keyboardShortcuts_dark.dark.png": {
+          "additions": 212,
+          "accepted_lines": 212
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "additions": 4,
+          "deletions": 14,
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_generalSettings_light.light.png": {
+          "additions": 106,
+          "accepted_lines": 106
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSidebarViewController.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_pluginGallery_dark.dark.png": {
+          "additions": 14,
+          "accepted_lines": 14
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "additions": 6,
+          "deletions": 3,
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_aboutSettings_dark.dark.png": {
+          "additions": 78,
+          "accepted_lines": 78
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "additions": 53,
+          "deletions": 24,
+          "accepted_lines": 53
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsTheme.swift": {
+          "additions": 14,
+          "deletions": 21,
+          "accepted_lines": 8
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsGroupLabel.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageToggleView.swift": {
+          "deletions": 90
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_keyboardShortcuts_light.light.png": {
+          "additions": 122,
+          "accepted_lines": 122
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_pluginGallery_light.light.png": {
+          "additions": 12,
+          "accepted_lines": 12
+        },
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardRemoteDownloading.1.png": {
+          "additions": 36,
+          "deletions": 31,
+          "accepted_lines": 36
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_generalSettings_dark.dark.png": {
+          "additions": 162,
+          "accepted_lines": 162
+        },
+        "apps/desktop/tests/BuddyCoreTests/SettingsPageSnapshotTests.swift": {
+          "deletions": 86
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardInstalledUnselected.1.png": {
+          "additions": 19,
+          "deletions": 18,
+          "accepted_lines": 19
+        },
+        "apps/desktop/tests/buddycoretests/settingsthemetests.swift": {
+          "deletions": 111
+        },
+        "apps/desktop/tests/BuddyCoreTests/SnapshotTests/__Snapshots__/SkinCardSnapshotTests/testCardRemoteAvailable.1.png": {
+          "additions": 23,
+          "deletions": 10,
+          "accepted_lines": 23
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "additions": 75,
+          "deletions": 46,
+          "accepted_lines": 59
+        }
+      }
+    },
+    "f95d82e8f3b3b7c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7a148e58-bd87-43f6-b250-7fe9d4660a86",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2265,
+      "total_deletions": 462,
+      "accepted_lines": 1791,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/SettingsPageSnapshotTests.swift": {
+          "additions": 86
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsPersistenceTests.swift": {
+          "additions": 188,
+          "accepted_lines": 188
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsPageSnapshotTests.swift": {
+          "additions": 195,
+          "deletions": 28,
+          "accepted_lines": 167
+        },
+        "apps/desktop/Scripts/bundle.sh": {
+          "additions": 11,
+          "deletions": 1,
+          "accepted_lines": 10
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginCardItem.swift": {
+          "additions": 28,
+          "deletions": 103
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsTheme.swift": {
+          "additions": 122,
+          "accepted_lines": 107
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 103,
+          "deletions": 119,
+          "accepted_lines": 99
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/HotkeyRecorderView.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/BuddyPalette.swift": {
+          "additions": 26,
+          "accepted_lines": 26
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutSettingsViewController.swift": {
+          "additions": 55,
+          "deletions": 12,
+          "accepted_lines": 55
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/KeyboardShortcutsViewController.swift": {
+          "additions": 44,
+          "deletions": 34,
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Assets.xcassets/Contents.json": {
+          "additions": 6,
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsToggleRow.swift": {
+          "additions": 137,
+          "deletions": 50,
+          "accepted_lines": 87
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsAXContractTests.swift": {
+          "additions": 282,
+          "deletions": 5,
+          "accepted_lines": 277
+        },
+        "apps/desktop/tests/BuddyCoreTests/SettingsThemeTests.swift": {
+          "additions": 111
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Assets.xcassets/AccentColor.colorset/Contents.json": {
+          "additions": 38,
+          "accepted_lines": 38
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SkinCardItem.swift": {
+          "additions": 17,
+          "deletions": 14,
+          "accepted_lines": 17
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageSwitch.swift": {
+          "additions": 108,
+          "deletions": 12,
+          "accepted_lines": 94
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift": {
+          "additions": 71,
+          "deletions": 70,
+          "accepted_lines": 70
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageToggleView.swift": {
+          "additions": 90
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsGroupLabel.swift": {
+          "additions": 26,
+          "accepted_lines": 24
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsGroupView.swift": {
+          "additions": 75,
+          "accepted_lines": 75
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherTheme.swift": {
+          "additions": 5,
+          "deletions": 12,
+          "accepted_lines": 5
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsThemeTests.swift": {
+          "additions": 432,
+          "accepted_lines": 432
+        },
+        "apps/desktop/Sources/App/main.swift": {
+          "additions": 7,
+          "accepted_lines": 7
+        }
+      }
+    }
+  }
+}

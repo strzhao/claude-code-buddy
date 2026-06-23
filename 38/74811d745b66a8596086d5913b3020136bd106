@@ -1,0 +1,98 @@
+.autopilot/knowledge/patterns/2026-06-23-lsuielement-standard-nswindow-key-window-sendevent-fallback.md
+  7efe56c750744077 1-12
+.autopilot/knowledge/index.md
+  7efe56c750744077 119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "3874811d745b66a8596086d5913b3020136bd106",
+  "prompts": {
+    "7efe56c750744077": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1d566b65-c301-4559-906b-512eba50d020",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 0,
+      "accepted_lines": 1059,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/keyboardshortcutsviewcontroller.swift": {
+          "accepted_lines": 2
+        },
+        ".autopilot/knowledge/patterns/2026-06-23-lsuielement-standard-nswindow-key-window-sendevent-fallback.md": {
+          "additions": 12,
+          "accepted_lines": 12
+        },
+        ".autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/state/server-stopped": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Config/EncryptedFileSecretStore.swift": {
+          "accepted_lines": 1
+        },
+        ".autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/state/server.log": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "accepted_lines": 3
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SettingsSidebarTests.swift": {
+          "accepted_lines": 95
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Scene/FoodManager.swift": {
+          "accepted_lines": 10
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/settingswindowcontroller.swift": {
+          "accepted_lines": 89
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PromptExecutor.swift": {
+          "accepted_lines": 8
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/StdinExecutor.swift": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift": {
+          "accepted_lines": 1
+        },
+        ".autopilot/requirements/20260622-设置页产品与交互优化/visual/49096-1782129661/state/server.pid": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/app/appdelegate.swift": {
+          "accepted_lines": 9
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/skingalleryviewcontroller.swift": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/LabelComponent.swift": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "accepted_lines": 801
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift": {
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,306 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/plugin.json
+  44ddbc11da2da507 4-5
+apps/desktop/Sources/BuddyCLI/main.swift
+  44ddbc11da2da507 264-267,412-415,1008-1016,1053,1703-1769,1787-1790,1800-1840,2008-2009,2091-2092,2230-2231,2237-2238,2240-2248,2250,2543-2544,2549-2550,2571-2573
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  44ddbc11da2da507 24-29,36-39,46-48,88-89,363-364,367-368,375-376,382-441
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift
+  44ddbc11da2da507 9-10,19-21,25-28,37,40,43,58-59,81-85
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestSummaryTests.swift
+  44ddbc11da2da507 1-147
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift
+  44ddbc11da2da507 7-9,50,60-62,98,183-230,275-276,281
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Marketplace/MarketplaceManager.swift
+  44ddbc11da2da507 22-52,58-80,446,464-465,470-472,493-500,512-520
+apps/desktop/tests/BuddyCoreTests/Settings/PluginGallerySummaryAcceptanceTests.swift
+  44ddbc11da2da507 1-156
+apps/desktop/tests/BuddyCoreTests/BuiltinPluginToggleAcceptanceTests.swift
+  44ddbc11da2da507 1-242
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/hello/plugin.json
+  44ddbc11da2da507 4-6
+apps/desktop/tests/BuddyCoreTests/LauncherRunCLIAcceptanceTests.swift
+  44ddbc11da2da507 1-155
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/System/SystemCommandPlugin.swift
+  44ddbc11da2da507 17-20
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginEnabledStore.swift
+  44ddbc11da2da507 1-52
+apps/web/src/content/plugin-dev-guide.ts
+  44ddbc11da2da507 1-237
+apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginEnabledStoreTests.swift
+  44ddbc11da2da507 1-191
+apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogWriter.swift
+  44ddbc11da2da507 203-204
+apps/desktop/tests/BuddyCoreTests/PluginManifestSummaryAcceptanceTests.swift
+  44ddbc11da2da507 1-154
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPlugin.swift
+  44ddbc11da2da507 16-21,26-34
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift
+  44ddbc11da2da507 25-28
+apps/web/src/app/plugin/docs/page.tsx
+  44ddbc11da2da507 1-446
+apps/web/src/__tests__/plugin-docs.acceptance.test.ts
+  44ddbc11da2da507 1-117
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/plugin.json
+  44ddbc11da2da507 4-5
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppLauncherPlugin.swift
+  44ddbc11da2da507 17-20
+apps/desktop/CLAUDE.md
+  44ddbc11da2da507 197-198,200,203-227,234-235,240,245-248
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift
+  44ddbc11da2da507 22-25
+apps/desktop/tests/BuddyCoreTests/HelloExampleAcceptanceTests.swift
+  44ddbc11da2da507 1-127
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift
+  44ddbc11da2da507 19,22-25,27-28,30-31,44,48-51,61-62,68-70,74-75,117-124,151-155,184-198,200-208,211-218,220-221,235-240,242-246,249,258,267,276,285,287-295,299-303,317-318,323-330,347,350,366-371,373-374
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsToggleRow.swift
+  44ddbc11da2da507 9-10,15,18-23,58-62,64-74,81-86,88,92,94-96,103-107,114-119,127-170,178-197
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/hello/hello.sh
+  44ddbc11da2da507 1-25
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutSettingsViewController.swift
+  44ddbc11da2da507 155,157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "4178c58e0ccf58900a57e0006a80fa0485776ec5",
+  "prompts": {
+    "44ddbc11da2da507": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "336e97a9-74c8-4863-a79d-29d37bf1bd6c",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 4131,
+      "total_deletions": 1065,
+      "accepted_lines": 4235,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/plugin.json": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppLauncherPlugin.swift": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestSummaryTests.swift": {
+          "additions": 147,
+          "accepted_lines": 147
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherWindowSnapshotTests/test_LauncherInputView_withOutput.1.png": {
+          "additions": 161,
+          "deletions": 139,
+          "accepted_lines": 161
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/plugin.json": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_aboutSettings_dark.dark.png": {
+          "additions": 52,
+          "deletions": 70,
+          "accepted_lines": 52
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginEnabledStoreTests.swift": {
+          "additions": 191,
+          "accepted_lines": 191
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_keyboardShortcuts_light.light.png": {
+          "additions": 55,
+          "deletions": 114,
+          "accepted_lines": 55
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 81,
+          "deletions": 3,
+          "accepted_lines": 81
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 160,
+          "deletions": 9,
+          "accepted_lines": 156
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/System/SystemCommandPlugin.swift": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogWriter.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/web/src/__tests__/plugin-docs.acceptance.test.ts": {
+          "additions": 118,
+          "deletions": 1,
+          "accepted_lines": 117
+        },
+        "apps/web/src/app/plugin/docs/page.tsx": {
+          "additions": 500,
+          "deletions": 54,
+          "accepted_lines": 446
+        },
+        "apps/desktop/tests/BuddyCoreTests/LauncherRunCLIAcceptanceTests.swift": {
+          "additions": 155,
+          "accepted_lines": 155
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Marketplace/MarketplaceManager.swift": {
+          "additions": 79,
+          "deletions": 2,
+          "accepted_lines": 79
+        },
+        "apps/desktop/tests/BuddyCoreTests/PluginManifestSummaryAcceptanceTests.swift": {
+          "additions": 161,
+          "deletions": 7,
+          "accepted_lines": 154
+        },
+        "apps/web/src/content/plugin-dev-guide.ts": {
+          "additions": 237,
+          "accepted_lines": 237
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_generalSettings_dark.dark.png": {
+          "additions": 507,
+          "deletions": 154,
+          "accepted_lines": 507
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 124,
+          "deletions": 16,
+          "accepted_lines": 124
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginEnabledStore.swift": {
+          "additions": 52,
+          "accepted_lines": 52
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift": {
+          "additions": 21,
+          "deletions": 2,
+          "accepted_lines": 21
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_generalSettings_light.light.png": {
+          "additions": 125,
+          "deletions": 98,
+          "accepted_lines": 125
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/hello/hello.sh": {
+          "additions": 25,
+          "accepted_lines": 25
+        },
+        "apps/desktop/tests/BuddyCoreTests/HelloExampleAcceptanceTests.swift": {
+          "additions": 127,
+          "accepted_lines": 127
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift": {
+          "additions": 66,
+          "deletions": 11,
+          "accepted_lines": 59
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/hello/plugin.json": {
+          "additions": 3,
+          "deletions": 2,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/PluginGallerySummaryAcceptanceTests.swift": {
+          "additions": 225,
+          "deletions": 69,
+          "accepted_lines": 156
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_aboutSettings_light.light.png": {
+          "additions": 90,
+          "deletions": 69,
+          "accepted_lines": 90
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 35,
+          "deletions": 4,
+          "accepted_lines": 35
+        },
+        "apps/desktop/tests/BuddyCoreTests/BuiltinPluginToggleAcceptanceTests.swift": {
+          "additions": 251,
+          "deletions": 9,
+          "accepted_lines": 242
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "additions": 124,
+          "deletions": 16,
+          "accepted_lines": 381
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SettingsToggleRow.swift": {
+          "additions": 118,
+          "deletions": 6,
+          "accepted_lines": 116
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/AboutSettingsViewController.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/__Snapshots__/SettingsPageSnapshotTests/test_keyboardShortcuts_dark.dark.png": {
+          "additions": 101,
+          "deletions": 204,
+          "accepted_lines": 101
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPlugin.swift": {
+          "additions": 16,
+          "accepted_lines": 16
+        }
+      }
+    },
+    "82b8a61f1f0de74f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f01e6c79-151a-42f5-88c7-06a9f9cb720e",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Tests/BuddyCoreTests/Update/UpdateAcceptanceTests.swift": {
+          "accepted_lines": 4
+        }
+      }
+    },
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 65,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        }
+      }
+    }
+  }
+}

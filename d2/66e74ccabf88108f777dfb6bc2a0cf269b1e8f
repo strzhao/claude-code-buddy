@@ -1,0 +1,93 @@
+.autopilot/requirements/20260624-插件展示与开发文档/brainstorm.md
+  82b8a61f1f0de74f 1-180
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift
+  82b8a61f1f0de74f 80-111,672,674,681,683-685,694-695,718-719,721
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageSwitch.swift
+  82b8a61f1f0de74f 16,92-96
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsPersistenceTests.swift
+  82b8a61f1f0de74f 111-112,114,122-123,126,135,137,152-160,164-169,171,176-178,180,184-185,188,193-200
+.autopilot/requirements/20260624-更新升级功能优化/brainstorm.md
+  82b8a61f1f0de74f 1-110
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift
+  82b8a61f1f0de74f 11-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "d266e74ccabf88108f777dfb6bc2a0cf269b1e8f",
+  "prompts": {
+    "82b8a61f1f0de74f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f01e6c79-151a-42f5-88c7-06a9f9cb720e",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 387,
+      "total_deletions": 43,
+      "accepted_lines": 391,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/SageSwitch.swift": {
+          "additions": 6,
+          "deletions": 1,
+          "accepted_lines": 6
+        },
+        ".autopilot/requirements/20260624-插件展示与开发文档/brainstorm.md": {
+          "additions": 180,
+          "accepted_lines": 180
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsPersistenceTests.swift": {
+          "additions": 44,
+          "deletions": 20,
+          "accepted_lines": 44
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/SettingsSection.swift": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Update/UpdateAcceptanceTests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSidebarAcceptanceTests.swift": {
+          "additions": 43,
+          "deletions": 18,
+          "accepted_lines": 43
+        },
+        ".autopilot/requirements/20260624-更新升级功能优化/brainstorm.md": {
+          "additions": 110,
+          "accepted_lines": 110
+        }
+      }
+    },
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 65,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        },
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        }
+      }
+    }
+  }
+}

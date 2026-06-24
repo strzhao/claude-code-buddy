@@ -18,8 +18,15 @@ import XCTest
 
 final class BuddyLoggerDocsAndSubsystemAcceptanceTests: XCTestCase {
 
-    /// apps/desktop/CLAUDE.md 路径（设计文档指定）。
-    private let claudeMdPath = "/Users/stringzhao/workspace_sync/personal_projects/claude-code-buddy/apps/desktop/CLAUDE.md"
+    /// apps/desktop/CLAUDE.md 路径（基于 #file 推导，CI 可移植；设计文档指定）。
+    private let claudeMdPath: String = {
+        // #file = .../Tests/BuddyCoreTests/Logging/BuddyLoggerDocsAndSubsystemAcceptanceTests.swift
+        // 向上 4 级（Logging → BuddyCoreTests → Tests → desktop）到 apps/desktop/
+        URL(fileURLWithPath: #file)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("CLAUDE.md").path
+    }()
 
     /// 读取 CLAUDE.md 全文（若不存在则测试失败 —— 文档是契约的一部分）。
     private func readCLAUDEMd() throws -> String {

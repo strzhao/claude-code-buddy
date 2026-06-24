@@ -63,7 +63,10 @@ class FoodManager {
             x = CGFloat.random(in: bounds)
         }
         food.node.position = CGPoint(x: x, y: scene.size.height + 24)
-        print("[TRACE] spawnFood: \(food.node.name ?? "?") at x=\(x) targetX=\(targetX ?? -1) activeCount=\(activeFoods.count + 1)")
+        BuddyLogger.shared.debug("spawnFood", subsystem: "state-machine", meta: [
+            "food": food.node.name ?? "?", "x": x, "targetX": targetX ?? -1,
+            "activeCount": activeFoods.count + 1
+        ])
 
         scene.addChild(food.node)
         activeFoods.append(food)
@@ -74,7 +77,10 @@ class FoodManager {
     func foodLanded(_ food: FoodSprite) {
         guard food.state == .falling else { return }
         food.markLanded()
-        print("[TRACE] foodLanded: \(food.node.name ?? "?") at x=\(food.node.position.x) y=\(food.node.position.y)")
+        BuddyLogger.shared.debug("foodLanded", subsystem: "state-machine", meta: [
+            "food": food.node.name ?? "?",
+            "x": food.node.position.x, "y": food.node.position.y
+        ])
         notifyIdleCats(about: food)
     }
 
@@ -104,7 +110,11 @@ class FoodManager {
         guard let (nearestCat, nearestDist) = best else { return }
 
         let delay = Double(nearestDist / maxDistance) * 0.3
-        print("[TRACE] notifyIdleCats: food=\(food.node.name ?? "?") foodX=\(foodX) nearest=\(nearestCat.sessionId) dist=\(nearestDist) among \(eligibleCats.count) eligible")
+        BuddyLogger.shared.debug("notifyIdleCats", subsystem: "state-machine", meta: [
+            "food": food.node.name ?? "?", "foodX": foodX,
+            "nearest": nearestCat.sessionId, "distance": nearestDist,
+            "eligibleCount": eligibleCats.count
+        ])
         nearestCat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
             guard let self = self else { return }
             guard food.claim(by: arrivingCat.sessionId) else {
@@ -146,7 +156,11 @@ class FoodManager {
         guard distance <= maxDistance else { return }
         let delay = Double(distance / maxDistance) * 0.3
 
-        print("[TRACE] notifySingle: cat \(cat.sessionId) catX=\(cat.containerNode.position.x) foodX=\(food.node.position.x) distance=\(distance) catState=\(cat.currentState)")
+        BuddyLogger.shared.debug("notifySingle", subsystem: "state-machine", meta: [
+            "session": cat.sessionId, "catX": cat.containerNode.position.x,
+            "foodX": food.node.position.x, "distance": distance,
+            "catState": "\(cat.currentState)"
+        ])
         cat.walkToFood(food, excitedDelay: delay) { [weak self] arrivingCat, food in
             guard let self = self else { return }
             guard food.claim(by: arrivingCat.sessionId) else {

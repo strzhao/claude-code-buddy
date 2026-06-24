@@ -7,7 +7,7 @@ import IOKit
 
 private let socketPath = "/tmp/claude-buddy.sock"
 private let colorFilePath = "/tmp/claude-buddy-colors.json"
-private let appVersion = "0.5.0"
+private let appVersion = "0.6.0"
 
 // MARK: - Launcher Config Constants (mirror of Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift)
 // ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift
@@ -22,6 +22,22 @@ private let launcherConfigPath = "\(launcherConfigDir)/launcher.json"
 private let launcherPluginsDir = "\(launcherConfigDir)/launcher-plugins"
 private let launcherTrustPath = "\(launcherConfigDir)/launcher-trust.json"
 private let launcherMinAPIKeyLength = 8
+
+// MARK: - Log Path Constants (mirror of Sources/ClaudeCodeBuddy/Logging/LogConfig.swift)
+// ⚠️ SOURCE OF TRUTH: BuddyCore/Logging/LogConfig.swift（契约 C1/C5）
+// ⚠️ Any change here must be reflected in BuddyCore (and vice versa)
+// CLI 不能 import BuddyCore（避免引入 AppKit/SpriteKit），路径常量在此 mirror。
+// 优先级：BUDDY_LOG_DIR env > $HOME/.buddy/logs（与 LogConfig.logsDir 同语义）
+private let logsDir: String = ProcessInfo.processInfo.environment["BUDDY_LOG_DIR"] ?? "\(buddyHomeDir)/.buddy/logs"
+private let currentLogPath: String = "\(logsDir)/buddy.jsonl"
+// ⚠️ MIRROR: 级别字符串集合须与 BuddyCore LogLevel.rawValue 完全一致（契约 C5）
+private let validLogLevels: Set<String> = ["debug", "info", "warn", "error"]
+// ⚠️ MIRROR: 行 schema 字段名须与 BuddyCore LogConfig.field* 同构（契约 C1/C5）
+private let logFieldTimestamp = "ts"
+private let logFieldLevel = "level"
+private let logFieldSubsystem = "subsystem"
+private let logFieldMessage = "msg"
+private let logFieldMeta = "meta"
 
 // MARK: - Message Types
 
@@ -245,6 +261,13 @@ private struct CLIOptions {
     var hotkeyModifiers: String = ""
     // Launcher debug perform: 候选索引（默认 0）
     var launcherDebugIndex: Int = 0
+    // Log 子命令参数
+    var logLevel: String = ""           // --level L
+    var logSubsystem: String = ""       // --subsystem S
+    var logSince: String = ""           // --since D (Nh/Nm/Nd)
+    var logLines: Int = 0               // --lines N (0 = 默认语义由子命令定)
+    var logFollow: Bool = false         // --follow
+    var logIgnoreCase: Bool = false     // -i (grep)
     // Generic boolean long-form flags (task 007)
     var flags: [String] = []
 }
@@ -271,6 +294,11 @@ private func printHelp() {
       food [--id ID] [--x N]                 Drop food near a cat or at position X
       events [--id ID] [--last N]            Show recent event history (JSON)
       health                                System health check (JSON)
+      log path                              Print current log file path
+      log tail [--lines N] [--follow]       Last N lines (default 50), human-readable
+      log show [--level L] [--subsystem S] [--since D] [--lines N] [--json]   Filtered lines
+      log grep <pattern> [--level L] [-i]   Lines matching pattern in msg
+      log clear [--yes]                     Archive current log and start fresh
       help                                  Show this help
 
     Events: \(validEvents.joined(separator: ", "))
@@ -377,6 +405,22 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--index":
             i += 1
             if i < args.count, let n = Int(args[i]) { opts.launcherDebugIndex = n }
+        case "--level":
+            i += 1
+            if i < args.count { opts.logLevel = args[i] }
+        case "--subsystem":
+            i += 1
+            if i < args.count { opts.logSubsystem = args[i] }
+        case "--since":
+            i += 1
+            if i < args.count { opts.logSince = args[i] }
+        case "--lines":
+            i += 1
+            if i < args.count, let n = Int(args[i]) { opts.logLines = n }
+        case "--follow":
+            opts.logFollow = true
+        case "-i":
+            opts.logIgnoreCase = true
         case let f where f.hasPrefix("--") && !f.contains("="):
             // 通用布尔型长 flag（task 007）：--json / --strict 等，不消费下一个 arg
             opts.flags.append(f)
@@ -390,6 +434,8 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
             } else if opts.command == "emit" && opts.subcommand.isEmpty {
                 opts.subcommand = arg
             } else if opts.command == "launcher" && opts.subcommand.isEmpty {
+                opts.subcommand = arg
+            } else if opts.command == "log" && opts.subcommand.isEmpty {
                 opts.subcommand = arg
             } else {
                 opts.positionalArgs.append(arg)
@@ -990,6 +1036,27 @@ private func main() {
             fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|hotkey|debug> ...\n", stderr)
             exit(2)
         }
+    case "log":
+        switch opts.subcommand {
+        case "path":
+            cmdLogPath()
+        case "tail":
+            cmdLogTail(opts)
+        case "show":
+            cmdLogShow(opts)
+        case "grep":
+            let pattern = opts.positionalArgs.first ?? ""
+            guard !pattern.isEmpty else {
+                fputs("Usage: buddy log grep <pattern> [--level L] [-i]\n", stderr)
+                exit(2)
+            }
+            cmdLogGrep(pattern: pattern, opts: opts)
+        case "clear":
+            cmdLogClear(opts)
+        default:
+            fputs("Usage: buddy log <path|tail|show|grep|clear> ...\n", stderr)
+            exit(2)
+        }
     case "help", "--help", "-h", "":
         printHelp()
     default:
@@ -1000,6 +1067,250 @@ private func main() {
 }
 
 main()
+
+// MARK: - Log Command Handlers (Foundation-only，直接读文件)
+// ⚠️ 契约 C4：app 不运行也可用（场景 4）；CLI 为 Foundation-only，不依赖 BuddyCore。
+// 路径常量 mirror 自 LogConfig（上方 logsDir / currentLogPath）。
+
+private func cmdLogPath() {
+    print(currentLogPath)
+}
+
+/// `buddy log tail [--lines N] [--follow]` — 最近 N 行（默认 50），人类可读摘要。
+private func cmdLogTail(_ opts: CLIOptions) {
+    guard FileManager.default.fileExists(atPath: currentLogPath) else {
+        fputs("log file not found: \(currentLogPath)\n", stderr)
+        exit(1)
+    }
+    let lines = opts.logLines > 0 ? opts.logLines : 50
+    let content = readLogTail(maxBytes: 256 * 1024)   // 读最后 ~256KB
+    let allLines = content.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    let recent = Array(allLines.suffix(lines))
+    for line in recent {
+        print(formatLogLine(line))
+    }
+    guard opts.logFollow else { return }
+    // --follow：每 0.5s 增量读
+    var lastSize = (try? FileManager.default.attributesOfItem(atPath: currentLogPath)[.size] as? Int) ?? 0
+    while true {
+        Thread.sleep(forTimeInterval: 0.5)
+        let nowSize = (try? FileManager.default.attributesOfItem(atPath: currentLogPath)[.size] as? Int) ?? lastSize
+        if nowSize > lastSize {
+            if let data = try? FileHandle(forReadingFrom: URL(fileURLWithPath: currentLogPath)) {
+                try? data.seek(toOffset: UInt64(lastSize))
+                let newBytes = (try? data.readToEnd()) ?? Data()
+                try? data.close()
+                if let newStr = String(data: newBytes, encoding: .utf8) {
+                    for line in newStr.split(separator: "\n").map(String.init) where !line.isEmpty {
+                        print(formatLogLine(line))
+                    }
+                }
+            }
+            lastSize = nowSize
+        }
+    }
+}
+
+/// `buddy log show [--lines N] [--level L] [--subsystem S] [--since D] [--json]`
+private func cmdLogShow(_ opts: CLIOptions) {
+    let asJSON = opts.flags.contains("--json")
+    let maxLines = opts.logLines > 0 ? opts.logLines : 0   // 0 = 不限
+    let filtered = filterLogLines(opts: opts, maxLines: maxLines)
+    if asJSON {
+        for line in filtered { print(line.raw) }
+    } else {
+        for line in filtered { print(formatLogLine(line.raw)) }
+    }
+}
+
+/// `buddy log grep <pattern> [--level L] [-i]`
+private func cmdLogGrep(pattern: String, opts: CLIOptions) {
+    let asJSON = opts.flags.contains("--json")
+    let maxLines = 0
+    var filtered = filterLogLines(opts: opts, maxLines: maxLines)
+    // grep 在 msg 子串匹配
+    let needle = opts.logIgnoreCase ? pattern.lowercased() : pattern
+    filtered = filtered.filter { entry in
+        let hay = opts.logIgnoreCase ? entry.msg.lowercased() : entry.msg
+        return hay.contains(needle)
+    }
+    for line in filtered { print(asJSON ? line.raw : formatLogLine(line.raw)) }
+}
+
+/// `buddy log clear [--yes]` — 归档当前文件并新建。
+private func cmdLogClear(_ opts: CLIOptions) {
+    let fm = FileManager.default
+    guard fm.fileExists(atPath: currentLogPath) else {
+        print("no log file to clear")
+        return
+    }
+    let confirmed = opts.flags.contains("--yes") || opts.positionalArgs.contains("--yes")
+    if !confirmed {
+        // 非 TTY（管道）直接执行；TTY 下需 --yes 或交互确认
+        let isTTY = isatty(fileno(stdout)) != 0
+        if isTTY {
+            fputs("Clear log \(currentLogPath)? This archives the current file. Use --yes to skip. [y/N] ", stderr)
+            var response = ""
+            if let line = readLine() { response = line }
+            guard response.lowercased() == "y" || response.lowercased() == "yes" else {
+                fputs("aborted\n", stderr)
+                exit(1)
+            }
+        }
+    }
+    // rename 为归档
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyyMMdd-HHmmss"
+    formatter.timeZone = TimeZone(identifier: "UTC")
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    let archivePath = "\(logsDir)/buddy-\(formatter.string(from: Date())).jsonl"
+    do {
+        try fm.moveItem(atPath: currentLogPath, toPath: archivePath)
+    } catch {
+        fputs("failed to archive log: \(error)\n", stderr)
+        exit(1)
+    }
+    fm.createFile(atPath: currentLogPath, contents: nil, attributes: [.posixPermissions: NSNumber(value: 0o600)])
+    print("cleared: \(currentLogPath) (archived to \(archivePath))")
+}
+
+// MARK: - Log Filtering Helpers
+
+private struct LogEntry {
+    let raw: String
+    let msg: String
+}
+
+/// 逐行解析 JSONL，按级别/子系统/时间过滤，返回匹配条目（含 raw 原始行）。
+private func filterLogLines(opts: CLIOptions, maxLines: Int) -> [LogEntry] {
+    guard let content = try? String(contentsOfFile: currentLogPath, encoding: .utf8) else { return [] }
+    let allLines = content.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    var minOrder = -1
+    if !opts.logLevel.isEmpty {
+        switch opts.logLevel.lowercased() {
+        case "debug": minOrder = 0
+        case "info": minOrder = 1
+        case "warn": minOrder = 2
+        case "error": minOrder = 3
+        default:
+            fputs("invalid level '\(opts.logLevel)'; expected debug|info|warn|error\n", stderr)
+            exit(2)
+        }
+    }
+    let sinceCutoff = parseSinceCutoff(opts.logSince)
+    var result: [LogEntry] = []
+    for line in allLines {
+        guard let data = line.data(using: .utf8),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            continue   // 非法 JSON 行跳过（容错）
+        }
+        // 级别过滤
+        if minOrder >= 0 {
+            let levelStr = (json[logFieldLevel] as? String) ?? ""
+            let order = levelOrder(levelStr)
+            if order < minOrder { continue }
+        }
+        // 子系统过滤（精确匹配）
+        if !opts.logSubsystem.isEmpty {
+            let sub = (json[logFieldSubsystem] as? String) ?? ""
+            if sub != opts.logSubsystem { continue }
+        }
+        // 时间过滤
+        if let cutoff = sinceCutoff {
+            let ts = (json[logFieldTimestamp] as? String) ?? ""
+            if let lineDate = parseISO8601(ts), lineDate < cutoff { continue }
+        }
+        let msg = (json[logFieldMessage] as? String) ?? ""
+        result.append(LogEntry(raw: line, msg: msg))
+    }
+    if maxLines > 0 {
+        result = Array(result.suffix(maxLines))
+    }
+    return result
+}
+
+/// 人类可读摘要格式：`HH:MM:SS.mmm [LEVEL] [subsystem] msg`（meta 以 ` k=v` 追加）。
+private func formatLogLine(_ raw: String) -> String {
+    guard let data = raw.data(using: .utf8),
+          let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+        return raw   // 非法 JSON 原样返回（容错）
+    }
+    let ts = (json[logFieldTimestamp] as? String) ?? ""
+    let time = shortTime(ts)
+    let level = (json[logFieldLevel] as? String) ?? "?"
+    let subsystem = (json[logFieldSubsystem] as? String) ?? "?"
+    let msg = (json[logFieldMessage] as? String) ?? ""
+    var line = "\(time) [\(level.uppercased())] [\(subsystem)] \(msg)"
+    if let meta = json[logFieldMeta] as? [String: Any], !meta.isEmpty {
+        let pairs = meta.map { (k, v) in "\(k)=\(stringifyMetaValue(v))" }.sorted().joined(separator: " ")
+        line += "  " + pairs
+    }
+    return line
+}
+
+/// 读日志文件最后 maxBytes 字节。
+private func readLogTail(maxBytes: Int) -> String {
+    guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: currentLogPath)) else {
+        return ""
+    }
+    defer { try? handle.close() }
+    let total = (try? handle.seekToEnd()) ?? 0
+    let start = total > UInt64(maxBytes) ? total - UInt64(maxBytes) : 0
+    try? handle.seek(toOffset: start)
+    let data = (try? handle.readToEnd()) ?? Data()
+    return String(data: data, encoding: .utf8) ?? ""
+}
+
+/// 级别字符串 → 数字序（mirror BuddyCore LogLevel.order）。
+private func levelOrder(_ level: String) -> Int {
+    switch level {
+    case "debug": return 0
+    case "info": return 1
+    case "warn": return 2
+    case "error": return 3
+    default: return -1
+    }
+}
+
+/// `--since` 解析为截止 Date（接受 Nh/Nm/Nd，如 1h/30m/7d）。
+private func parseSinceCutoff(_ since: String) -> Date? {
+    guard !since.isEmpty else { return nil }
+    let trimmed = since.trimmingCharacters(in: .whitespaces)
+    guard let lastChar = trimmed.last, let amount = Int(trimmed.dropLast()) else { return nil }
+    let now = Date()
+    switch lastChar {
+    case "h": return now.addingTimeInterval(-Double(amount) * 3600)
+    case "m": return now.addingTimeInterval(-Double(amount) * 60)
+    case "d": return now.addingTimeInterval(-Double(amount) * 86400)
+    default: return nil
+    }
+}
+
+/// ISO8601（含毫秒）解析。
+private func parseISO8601(_ str: String) -> Date? {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: str)
+}
+
+/// ISO8601 ts → `HH:MM:SS.mmm`（本地时区，人类可读）。
+private func shortTime(_ ts: String) -> String {
+    guard let date = parseISO8601(ts) else { return ts }
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm:ss.SSS"
+    return formatter.string(from: date)
+}
+
+/// meta 值转人类可读字符串（数字/字符串/嵌套 JSON）。
+private func stringifyMetaValue(_ value: Any) -> String {
+    if let s = value as? String { return s }
+    if let n = value as? NSNumber { return n.stringValue }
+    if let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]),
+       let s = String(data: data, encoding: .utf8) {
+        return s
+    }
+    return "\(value)"
+}
 
 // MARK: - Launcher Config (Inline Implementation)
 // ⚠️ 不依赖 BuddyCore：CLI 不引入 AppKit/SwiftUI/SpriteKit 以保持低启动延迟

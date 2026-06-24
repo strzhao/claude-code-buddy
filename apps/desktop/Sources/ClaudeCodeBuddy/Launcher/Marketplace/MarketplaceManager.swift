@@ -280,7 +280,7 @@ final class MarketplaceManager {
                 do {
                     try await installPlugin(plugin, manifest: remoteManifest, replacing: replacing)
                 } catch {
-                    NSLog("[Marketplace] install during sync failed for \(name): \(error)")
+                    BuddyLogger.shared.error("marketplace install during sync failed", subsystem: "plugin", meta: ["name": name, "error": "\(error)"])
                 }
             }
             // removed: 留旧目录不删
@@ -351,7 +351,7 @@ final class MarketplaceManager {
             do {
                 try migrateOne(oldName: migration.oldName, newName: migration.newName)
             } catch {
-                NSLog("[Marketplace] migrateLegacy \(migration.oldName) → \(migration.newName) failed: \(error)")
+                BuddyLogger.shared.warn("marketplace migrateLegacy failed", subsystem: "plugin", meta: ["oldName": migration.oldName, "newName": migration.newName, "error": "\(error)"])
             }
         }
     }
@@ -502,7 +502,7 @@ final class MarketplaceManager {
 
         // B3：sideloaded conflict 时 skip，不抛错
         if targetExists && !replacing {
-            NSLog("[Marketplace] skip install '\(plugin.name)': existing dir at \(targetDir.path)")
+            BuddyLogger.shared.info("marketplace skip install (existing dir)", subsystem: "plugin", meta: ["name": plugin.name, "dir": targetDir.path])
             appendSyncLog(["status": "skip-conflict", "plugin": plugin.name])
             return
         }

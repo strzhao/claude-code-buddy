@@ -1,17 +1,11 @@
 import AppKit
 import SpriteKit
 
+/// 点击/终端适配调试日志。
+/// 已收编进统一 BuddyLogger（契约 C6 subsystem=app）；历史 `/tmp/claude-buddy-click.log`
+/// 旁路废弃，统一走 `~/.buddy/logs/buddy.jsonl`（受轮转/保留约束）。
 func clickLog(_ msg: String) {
-    let ts = ISO8601DateFormatter().string(from: Date())
-    let line = "[\(ts)] \(msg)\n"
-    let path = "/tmp/claude-buddy-click.log"
-    if let fh = FileHandle(forWritingAtPath: path) {
-        fh.seekToEndOfFile()
-        fh.write(line.data(using: .utf8) ?? Data())
-        fh.closeFile()
-    } else {
-        FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
-    }
+    BuddyLogger.shared.debug(msg, subsystem: "app")
 }
 
 class MouseTracker {

@@ -229,7 +229,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     /// 切换插件启用状态（SettingsToggleRow.onToggle 回调）。
     private func togglePlugin(name: String, enable: Bool) {
         guard let safeName = sanitize(name) else {
-            NSLog("[PluginGallery] toggle: invalid name '\(name)'")
+            BuddyLogger.shared.warn("pluginGallery toggle invalid name", subsystem: "settings", meta: ["name": name])
             return
         }
         Task { @MainActor in
@@ -241,7 +241,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
                 }
                 await refresh()
             } catch {
-                NSLog("[PluginGallery] toggle '\(safeName)' failed: \(error)")
+                BuddyLogger.shared.error("pluginGallery toggle failed", subsystem: "settings", meta: ["name": safeName, "error": "\(error)"])
             }
         }
     }

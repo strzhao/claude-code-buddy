@@ -56,7 +56,7 @@ class SocketServer {
     // MARK: - Private Setup
 
     private func setupServer() {
-        NSLog("[SocketServer] setupServer() called")
+        BuddyLogger.shared.info("socket setupServer", subsystem: "socket")
         // Remove stale socket file so bind doesn't fail after a crash
         unlink(SocketServer.socketPath)
 
@@ -64,7 +64,7 @@ class SocketServer {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {
             let error = BuddyError.socketCreateFailed(reason: String(cString: strerror(errno)))
-            NSLog("[SocketServer] %@", error.description)
+            BuddyLogger.shared.error("socket error", subsystem: "socket", meta: ["error": error.description])
             return
         }
 
@@ -95,7 +95,7 @@ class SocketServer {
                 path: SocketServer.socketPath,
                 reason: String(cString: strerror(errno))
             )
-            NSLog("[SocketServer] %@", error.description)
+            BuddyLogger.shared.error("socket error", subsystem: "socket", meta: ["error": error.description])
             Darwin.close(fd)
             return
         }
@@ -103,13 +103,13 @@ class SocketServer {
         // Listen
         guard listen(fd, 8) == 0 else {
             let error = BuddyError.socketListenFailed(reason: String(cString: strerror(errno)))
-            NSLog("[SocketServer] %@", error.description)
+            BuddyLogger.shared.error("socket error", subsystem: "socket", meta: ["error": error.description])
             Darwin.close(fd)
             return
         }
 
         serverFD = fd
-        NSLog("[SocketServer] Listening on %@", SocketServer.socketPath)
+        BuddyLogger.shared.info("socket listening", subsystem: "socket", meta: ["path": SocketServer.socketPath])
 
         // Accept loop via DispatchSource
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
@@ -138,11 +138,11 @@ class SocketServer {
 
         guard clientFD >= 0 else {
             let error = BuddyError.socketAcceptFailed(reason: String(cString: strerror(errno)))
-            NSLog("[SocketServer] %@", error.description)
+            BuddyLogger.shared.error("socket error", subsystem: "socket", meta: ["error": error.description])
             return
         }
 
-        NSLog("[SocketServer] Accepted client fd=%d", clientFD)
+        BuddyLogger.shared.info("socket accepted client", subsystem: "socket", meta: ["fd": clientFD])
         clientBuffers[clientFD] = Data()
 
         let clientSource = DispatchSource.makeReadSource(fileDescriptor: clientFD, queue: queue)
@@ -164,10 +164,10 @@ class SocketServer {
         let n = read(fd, &buf, buf.count)
 
         if n <= 0 {
-            NSLog("[SocketServer] Client fd=%d EOF/error, n=%d", fd, n)
+            BuddyLogger.shared.debug("socket client EOF/error", subsystem: "socket", meta: ["fd": fd, "n": n])
             // EOF or error — flush remaining buffer then close client
             if let remaining = clientBuffers[fd], !remaining.isEmpty {
-                NSLog("[SocketServer] Flushing buffer (%d bytes) for fd=%d", remaining.count, fd)
+                BuddyLogger.shared.debug("socket flushing buffer", subsystem: "socket", meta: ["bytes": remaining.count, "fd": fd])
                 handleLineWithFD(remaining, clientFD: fd)
             }
             clientSources[fd]?.cancel()
@@ -196,21 +196,21 @@ class SocketServer {
            json["action"] != nil {
             // Route to query handler — pass clientFD if available
             // Note: we don't have the fd here; callers that need response use handleLineWithFD
-            NSLog("[SocketServer] Query received (no clientFD for response)")
+            BuddyLogger.shared.warn("socket query received but no clientFD for response", subsystem: "socket")
             return
         }
 
         // Standard hook message path
         do {
             let msg = try JSONDecoder().decode(HookMessage.self, from: data)
-            NSLog("[SocketServer] Decoded message: event=%@, session=%@", "\(msg.event)", msg.sessionId)
+            BuddyLogger.shared.debug("socket decoded message", subsystem: "socket", meta: ["event": "\(msg.event)", "session": msg.sessionId])
             DispatchQueue.main.async { [weak self] in
                 self?.onMessage?(msg)
             }
         } catch {
             let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
             let buddyError = BuddyError.messageDecodeFailed(raw: raw, underlying: error)
-            NSLog("[SocketServer] %@", buddyError.description)
+            BuddyLogger.shared.error("socket message error", subsystem: "socket", meta: ["error": buddyError.description])
         }
     }
 
@@ -221,7 +221,7 @@ class SocketServer {
         // Check if this is a query message
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            json["action"] != nil {
-            NSLog("[SocketServer] Query received from fd=%d: %@", clientFD, json["action"] as? String ?? "?")
+            BuddyLogger.shared.info("socket query received", subsystem: "socket", meta: ["fd": clientFD, "action": json["action"] as? String ?? "?"])
             onQuery?(json, clientFD)
             return
         }
@@ -229,14 +229,14 @@ class SocketServer {
         // Standard hook message path
         do {
             let msg = try JSONDecoder().decode(HookMessage.self, from: data)
-            NSLog("[SocketServer] Decoded message: event=%@, session=%@", "\(msg.event)", msg.sessionId)
+            BuddyLogger.shared.debug("socket decoded message", subsystem: "socket", meta: ["event": "\(msg.event)", "session": msg.sessionId])
             DispatchQueue.main.async { [weak self] in
                 self?.onMessage?(msg)
             }
         } catch {
             let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
             let buddyError = BuddyError.messageDecodeFailed(raw: raw, underlying: error)
-            NSLog("[SocketServer] %@", buddyError.description)
+            BuddyLogger.shared.error("socket message error", subsystem: "socket", meta: ["error": buddyError.description])
         }
     }
 
@@ -258,12 +258,12 @@ class SocketServer {
                 return Darwin.write(clientFD, base.advanced(by: totalWritten), remaining)
             }
             if written < 0 {
-                NSLog("[SocketServer] Failed to write response to fd=%d: %s", clientFD, String(cString: strerror(errno)))
+                BuddyLogger.shared.error("socket write response failed", subsystem: "socket", meta: ["fd": clientFD, "errno": String(cString: strerror(errno))])
                 return
             }
             totalWritten += written
         }
-        NSLog("[SocketServer] Sent %d bytes response to fd=%d", totalWritten, clientFD)
+        BuddyLogger.shared.debug("socket sent response", subsystem: "socket", meta: ["bytes": totalWritten, "fd": clientFD])
     }
 
     /// 异步发送响应：在 socket queue 上执行同步写循环，避免阻塞调用方线程。

@@ -264,7 +264,11 @@ class JumpComponent {
 
         guard !onPath.isEmpty else { return [] }
 
-        print("[TRACE] buildJumpActions: fromX=\(fromX) toX=\(toX) goingRight=\(goingRight) obstacles=\(obstacles.map { ($0.cat.sessionId, $0.x) }) onPath=\(onPath.map { ($0.cat.sessionId, $0.x) })")
+        BuddyLogger.shared.debug("buildJumpActions", subsystem: "state-machine", meta: [
+            "fromX": fromX, "toX": toX, "goingRight": goingRight,
+            "obstacles": obstacles.map { ["session": $0.cat.sessionId, "x": $0.x] },
+            "onPath": onPath.map { ["session": $0.cat.sessionId, "x": $0.x] }
+        ])
 
         let groundY = containerNode.position.y
         var actions: [SKAction] = []

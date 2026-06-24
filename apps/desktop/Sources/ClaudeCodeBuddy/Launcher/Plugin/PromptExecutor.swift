@@ -52,7 +52,7 @@ final class PromptExecutor {
             let (text, actions) = try await workTask.value
             timeoutTask.cancel()
             let durationMs = Int(Date().timeIntervalSince(started) * 1000)
-            NSLog("[Translate] llm_durationMs=\(durationMs)")
+            BuddyLogger.shared.info("llm completed", subsystem: "launcher-agent", meta: ["durationMs": durationMs])
             // 注：新 plugin 均设 autoCopyToClipboard:false，此分支仅保留向后兼容
             if config.autoCopyToClipboard && !text.isEmpty {
                 pasteboard.clearContents()
@@ -124,7 +124,7 @@ final class PromptExecutor {
             timeoutTask.cancel()
             let durationMs = Int(Date().timeIntervalSince(started) * 1000)
             // P1 仪表：wall-clock 可在 Console.app 观察
-            NSLog("[Translate] llm_durationMs=\(durationMs)")
+            BuddyLogger.shared.info("llm completed", subsystem: "launcher-agent", meta: ["durationMs": durationMs])
 
             // 成功译文非空时，根据 autoCopyToClipboard 决定是否复制到剪贴板
             // 注：新 plugin 均设 autoCopyToClipboard:false，此分支仅保留向后兼容

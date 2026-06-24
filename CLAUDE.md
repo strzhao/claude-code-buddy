@@ -73,6 +73,7 @@ buddy launcher remove <name>            # 卸载
 - **Web 商店**: [apps/web/CLAUDE.md](apps/web/CLAUDE.md) — Next.js 架构、API 端点、认证系统
 - **Skin CLI**: `packages/skin-cli/` — 皮肤包上传工具
 - **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — Ctrl+Space 召唤 + AI 路由 + CLI 插件
+- **日志系统**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#日志系统task-0142026-06-24) — desktop 所有开发日志必须用 `BuddyLogger`（禁 `print`/`NSLog`），`buddy log show/grep/tail` 取阅
 
 ## Agent Harness 设计
 

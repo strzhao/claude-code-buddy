@@ -47,7 +47,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
         center.requestAuthorization(options: [.alert, .sound]) { _, error in
             if let error {
-                NSLog("[NotificationManager] authorization error: %@", error.localizedDescription)
+                BuddyLogger.shared.warn("notification authorization error", subsystem: "app", meta: ["error": error.localizedDescription])
             }
         }
     }

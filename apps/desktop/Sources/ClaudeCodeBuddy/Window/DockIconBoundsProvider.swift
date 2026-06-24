@@ -69,7 +69,7 @@ class DockIconBoundsProvider {
         if let axBounds = queryDockIconBounds() {
             return axBounds
         }
-        NSLog("[Buddy] AX Dock query failed — using heuristic bounds")
+        BuddyLogger.shared.warn("AX Dock query failed — using heuristic bounds", subsystem: "app")
         return estimatedDockIconBounds(screenWidth: screenWidth)
     }
 }

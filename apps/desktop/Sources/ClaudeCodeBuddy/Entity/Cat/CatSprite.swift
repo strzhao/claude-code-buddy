@@ -438,7 +438,10 @@ class CatSprite {
 
         containerNode.physicsBody?.isDynamic = true
         pendingToolDescription = toolDescription
-        print("[TRACE] switchState \(sessionId): \(currentState) -> \(newState), catX=\(containerNode.position.x) catY=\(containerNode.position.y) sessionState=\(newState)")
+        BuddyLogger.shared.debug("switchState", subsystem: "state-machine", meta: [
+            "session": sessionId, "from": "\(currentState)", "to": "\(newState)",
+            "catX": containerNode.position.x, "catY": containerNode.position.y
+        ])
 
         if currentState == newState {
             if newState == .permissionRequest {
@@ -515,9 +518,9 @@ class CatSprite {
             self.node.zRotation = 0
             self.applyFacingDirection()
 
-            #if DEBUG
-            print("[STATE] switchState \(self.sessionId): entering state, containerNode.x=\(self.containerNode.position.x)")
-            #endif
+            BuddyLogger.shared.debug("state entered", subsystem: "state-machine", meta: [
+                "session": self.sessionId, "containerX": self.containerNode.position.x
+            ])
             self.stateMachine.enter(targetStateCapture)
 
             if let pending = self.pendingStateAfterTransition {
@@ -660,7 +663,12 @@ class CatSprite {
     }
 
     func startEating(_ food: FoodSprite, completion: @escaping () -> Void) {
-        print("[TRACE] \(sessionId): startEating food=\(food.node.name ?? "?") foodX=\(food.node.position.x) foodY=\(food.node.position.y) catX=\(containerNode.position.x) catY=\(containerNode.position.y) catState=\(currentState)")
+        BuddyLogger.shared.debug("startEating", subsystem: "state-machine", meta: [
+            "session": sessionId, "food": food.node.name ?? "?",
+            "foodX": food.node.position.x, "foodY": food.node.position.y,
+            "catX": containerNode.position.x, "catY": containerNode.position.y,
+            "catState": "\(currentState)"
+        ])
         pendingToolDescription = nil
         stateMachine.enter(CatEatingState.self)
         currentTargetFood = food
@@ -672,7 +680,10 @@ class CatSprite {
             let eatCycle = SKAction.repeat(animate, count: 2)
             let done = SKAction.run { [weak self] in
                 guard let self = self else { return }
-                print("[TRACE] \(self.sessionId): eating done callback, switching to idle. catX=\(self.containerNode.position.x) catY=\(self.containerNode.position.y)")
+                BuddyLogger.shared.debug("eating done → idle", subsystem: "state-machine", meta: [
+                    "session": self.sessionId,
+                    "catX": self.containerNode.position.x, "catY": self.containerNode.position.y
+                ])
                 self.currentTargetFood = nil
                 // Don't set currentState directly — let switchState handle the transition
                 self.switchState(to: .idle)

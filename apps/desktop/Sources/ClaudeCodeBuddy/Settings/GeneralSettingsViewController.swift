@@ -108,7 +108,7 @@ enum LaunchAtLogin {
                     try SMAppService.mainApp.unregister()
                 }
             } catch {
-                NSLog("[LaunchAtLogin] toggle failed: \(error)")
+                BuddyLogger.shared.warn("launchAtLogin toggle failed", subsystem: "settings", meta: ["error": "\(error)"])
             }
         }
     }

@@ -46,7 +46,7 @@ final class UpdateChecker {
                 }
                 UserDefaults.standard.set(Date(), forKey: Self.cacheKey)
             } catch {
-                NSLog("[UpdateChecker] Check failed: \(error)")
+                BuddyLogger.shared.warn("update check failed", subsystem: "app", meta: ["error": "\(error)"])
             }
         }
     }
@@ -169,12 +169,12 @@ final class UpdateChecker {
                     if process.terminationStatus == 0 {
                         EventBus.shared.upgradeCompleted.send()
                     } else {
-                        NSLog("[UpdateChecker] brew upgrade exited with code \(process.terminationStatus)")
+                        BuddyLogger.shared.warn("brew upgrade exited", subsystem: "app", meta: ["exitCode": process.terminationStatus])
                         self.isUpgrading = false
                     }
                 }
             } catch {
-                NSLog("[UpdateChecker] brew upgrade failed: \(error)")
+                BuddyLogger.shared.error("brew upgrade failed", subsystem: "app", meta: ["error": "\(error)"])
                 DispatchQueue.main.async { [weak self] in
                     self?.isUpgrading = false
                 }

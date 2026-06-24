@@ -197,7 +197,7 @@ final class ClipboardHistoryService {
             try ensureDir(imagesDir)
             try pngData.write(to: URL(fileURLWithPath: imagePath), options: .atomic)
         } catch {
-            NSLog("[ClipboardHistory] image persist failed: \(error)")
+            BuddyLogger.shared.error("clipboard image persist failed", subsystem: "clipboard", meta: ["error": "\(error)"])
             return nil
         }
 
@@ -363,7 +363,7 @@ final class ClipboardHistoryService {
             let data = try encoder.encode(store)
             try data.write(to: historyFile, options: .atomic)
         } catch {
-            NSLog("[ClipboardHistory] save failed: \(error)")
+            BuddyLogger.shared.error("clipboard save failed", subsystem: "clipboard", meta: ["error": "\(error)"])
         }
     }
 
@@ -379,7 +379,7 @@ final class ClipboardHistoryService {
             // schemaVersion 未来演进出口；当前 v1 直接用
             items = store.items
         } catch {
-            NSLog("[ClipboardHistory] load failed: \(error) — starting with empty history")
+            BuddyLogger.shared.warn("clipboard load failed, starting empty", subsystem: "clipboard", meta: ["error": "\(error)"])
             items = []
         }
     }

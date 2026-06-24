@@ -170,7 +170,9 @@ class SessionManager {
             try FileManager.default.moveItem(atPath: tempPath, toPath: Self.colorFilePath)
         } catch {
             let buddyError = BuddyError.colorFileWriteFailed(path: Self.colorFilePath, reason: error.localizedDescription)
-            NSLog("[SessionManager] %@", buddyError.description)
+            BuddyLogger.shared.error("colorFileWriteFailed", subsystem: "session", meta: [
+                "path": Self.colorFilePath, "error": buddyError.description
+            ])
         }
     }
 
@@ -182,6 +184,10 @@ class SessionManager {
         switch message.event {
         case .sessionEnd:
             if let session = sessions[sessionId] {
+                BuddyLogger.shared.info("session ended", subsystem: "session", meta: [
+                    "session_id": sessionId,
+                    "label": session.label,
+                ])
                 eventStore.record(StoredEvent(
                     timestamp: Date(), type: "session_ended", sessionId: sessionId,
                     details: ["label": session.label, "color": "\(session.color)"]
@@ -229,6 +235,11 @@ class SessionManager {
                     toolCallCount: 0
                 )
                 sessions[sessionId] = info
+                BuddyLogger.shared.info("session started", subsystem: "session", meta: [
+                    "session_id": sessionId,
+                    "label": label,
+                    "cwd": message.cwd ?? "",
+                ])
 
                 eventStore.record(StoredEvent(
                     timestamp: Date(), type: "session_started", sessionId: sessionId,
@@ -289,7 +300,9 @@ class SessionManager {
                 let roll = Float.random(in: 0..<1)
                 if roll < FoodManager.toolEndSpawnProbability {
                     let catX = scene.catPosition(for: sessionId)
-                    print("[TRACE] toolEndSpawn: food near \(sessionId) at x=\(catX ?? 0)")
+                    BuddyLogger.shared.debug("toolEndSpawn food", subsystem: "session", meta: [
+                        "session": sessionId, "x": catX ?? 0
+                    ])
                     scene.spawnFood(near: catX)
                 }
             }

@@ -26,14 +26,27 @@ final class LauncherRouter {
     func route(query: String) async throws -> (decision: RouteDecision, candidates: [PluginManifest]) {
         let plugins = pluginsOverride ?? (try? pluginManager.list()) ?? []
         let scored = Self.narrowCandidatesScored(query: query, plugins: plugins)
-        if scored.isEmpty { return (.directChat, []) }
+        if scored.isEmpty {
+            BuddyLogger.shared.debug("router → directChat (no candidates)", subsystem: "launcher", meta: ["query": query])
+            return (.directChat, [])
+        }
         let top = scored[0]
         let isUnique = scored.count == 1
         let isStrong = top.score >= LauncherConstants.routerSkipScore
         if isUnique || isStrong {
+            BuddyLogger.shared.info("router short-circuit", subsystem: "launcher", meta: [
+                "query": query, "plugin": top.manifest.name, "score": top.score,
+                "reason": isUnique ? "unique" : "strong"
+            ])
             return (.withPlugin(top.manifest), scored.map(\.manifest))
         }
+        BuddyLogger.shared.debug("router → aiSelect", subsystem: "launcher", meta: [
+            "query": query, "candidateCount": scored.count, "topScore": top.score
+        ])
         let decision = try await pickWithAI(query: query, from: scored.map(\.manifest))
+        BuddyLogger.shared.info("router aiSelect decision", subsystem: "launcher", meta: [
+            "query": query, "decision": "\(decision)"
+        ])
         return (decision, scored.map(\.manifest))
     }
 

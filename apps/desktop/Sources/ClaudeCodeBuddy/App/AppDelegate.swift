@@ -33,7 +33,17 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        // 配置统一日志系统（契约 C2/C3）。
+        // 级别解析优先级：BUDDY_LOG_LEVEL > #if DEBUG→debug / release→info > isRunningTests→off。
+        // 配置幂等，测试宿主默认 off（resolveMinLevel 返回 nil）。
+        BuddyLogger.shared.configure()
+
         UserDefaults.standard.register(defaults: ["alwaysShowLabel": true])
+
+        BuddyLogger.shared.info("app 启动", subsystem: "app", meta: [
+            "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "build": Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+        ])
 
         setupWindow()
         setupMenuBar()
@@ -415,7 +425,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, error in
             if let error = error {
-                NSLog("[AppDelegate] Restart failed: \(error)")
+                BuddyLogger.shared.error("restart failed", subsystem: "app", meta: ["error": "\(error)"])
             }
         }
         NSApplication.shared.terminate(nil)

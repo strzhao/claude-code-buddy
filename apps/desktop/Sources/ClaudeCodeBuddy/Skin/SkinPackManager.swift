@@ -65,9 +65,9 @@ final class SkinPackManager {
     /// If the ID is not found in `availableSkins`, the call is a no-op.
     /// On success the selection is persisted to `UserDefaults` and `skinChanged` fires.
     func selectSkin(_ skinId: String) {
-        NSLog("[SkinPackManager] selectSkin called: \(skinId)")
+        BuddyLogger.shared.info("selectSkin", subsystem: "skin", meta: ["skinId": skinId])
         guard var skin = availableSkins.first(where: { $0.manifest.id == skinId }) else {
-            NSLog("[SkinPackManager] skin not found in availableSkins!")
+            BuddyLogger.shared.warn("selectSkin skin not found", subsystem: "skin", meta: ["skinId": skinId])
             return
         }
         let storedVariant = UserDefaults.standard.string(forKey: Self.variantKey(for: skinId))

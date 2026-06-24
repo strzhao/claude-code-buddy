@@ -164,7 +164,7 @@ final class LauncherManager: ObservableObject {
             let ok = await LauncherHotkey.probeIfNeeded()
             if !ok {
                 // 探针失败 → 弹 KeyboardShortcuts.Recorder（task 005 增强；MVP 仅打日志）
-                NSLog("[Launcher] hotkey probe failed — user should reconfigure")
+                BuddyLogger.shared.warn("hotkey probe failed — user should reconfigure", subsystem: "launcher")
             }
         }
 
@@ -179,7 +179,7 @@ final class LauncherManager: ObservableObject {
                 try await MarketplaceManager.shared.seedFromBundle()
                 await MarketplaceManager.shared.syncFromRemote()
             } catch {
-                NSLog("[Launcher] marketplace setup failed: \(error)")
+                BuddyLogger.shared.error("marketplace setup failed", subsystem: "launcher", meta: ["error": "\(error)"])
             }
         }
 

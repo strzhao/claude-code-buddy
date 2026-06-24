@@ -25,7 +25,7 @@ final class PluginManager {
             if FileManager.default.fileExists(atPath: disabledMarker.path) { continue }
             let manifestURL = entry.appending(path: "plugin.json")
             guard FileManager.default.fileExists(atPath: manifestURL.path) else {
-                NSLog("[PluginManager] 跳过无 plugin.json 的目录: \(entry.lastPathComponent)")
+                BuddyLogger.shared.warn("skip dir without plugin.json", subsystem: "plugin", meta: ["dir": entry.lastPathComponent])
                 continue
             }
             do {
@@ -34,7 +34,7 @@ final class PluginManager {
                 try manifest.validate(againstDirName: entry.lastPathComponent)
                 manifests.append(manifest)
             } catch {
-                NSLog("[PluginManager] 跳过无效 plugin.json (\(entry.lastPathComponent)): \(error)")
+                BuddyLogger.shared.warn("skip invalid plugin.json", subsystem: "plugin", meta: ["dir": entry.lastPathComponent, "error": "\(error)"])
                 continue
             }
         }

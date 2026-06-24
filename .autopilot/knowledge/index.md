@@ -18,8 +18,9 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (96)
+## Patterns (97)
 
+- [2026-06-24] 点击事件回调不应在 AppDelegate 中重复实现场景逻辑，委托给 scene.simulateClick 防止逻辑分叉 | tags: appkit, click-handler, delegate, scene, simulateClick, onclick, mousetracker, appdelegate, divergence | → patterns/2026-06-24-click-handler-delegate-to-scene-not-duplicate.md
 - [2026-06-24] BuddyLogger 进程级单例测试隔离：setEnv(BUDDY_LOG_LEVEL/DIR) 不触发已初始化单例重配（进程级 static let 只读一次 env + 测试间状态污染），测试须用 configureForTesting/resetForTesting/_syncFlush seam 显式配置；红队信息隔离按契约 C2 写 setEnv 必然全 fail，契约须声明「env 在 configure 时缓存，测试用 seam」 | tags: testing, singleton, test-isolation, configurefortesting, syncflush, resetfortesting, env, bu-log-level, bu-log-dir, red-team, information-isolation, swift, xctest, buddylogger, seam, logwriter, rotation, flaky, contract, c2 | → patterns/2026-06-24-buddylogger-singleton-test-isolation-configurefortesting.md
 - [2026-06-21] SpriteKit CPU 优化三件套：FPS 限制 (preferredFramesPerSecond=30) + 0猫时暂停 (isPaused) + NSTrackingArea 替换全局鼠标监听 (addGlobalMonitorForEvents) | tags: spritekit, cpu, performance, fps, preferredframespersecond, ispaused, nstrackingarea, global-monitor, mouse-events, skview, optimization | → patterns/2026-06-21-spritekit-cpu-optimization-fps-pause-trackingarea.md
 - [2026-06-21] SPM 依赖库组件因 Bundle.module 找不到资源 bundle 崩溃：用自定义实现替换（RecorderCocoa → HotkeyRecorderView，纯 AppKit + 库 public API，避开 Bundle.module 路径查找）| tags: spm, bundle, resource, crash, keyboardshortcuts, recordercocoa, bundle-module, codesign, custom-replacement, hotkey, settings | → patterns/2026-06-21-spm-bundle-module-crash-custom-replacement.md

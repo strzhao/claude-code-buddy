@@ -4,6 +4,9 @@ import Combine
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
 
+    /// 供外部模块访问的弱引用（SystemCatManager 用）。
+    static weak var shared: AppDelegate?
+
     // MARK: - 初始化
 
     /// 在测试环境（xctest 命令行进程，无 NSApplicationMain）下，
@@ -13,6 +16,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     public override init() {
         _ = NSApplication.shared
         super.init()
+        AppDelegate.shared = self
     }
 
     var window: BuddyWindow?
@@ -65,6 +69,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         _ = SoundManager.shared
 
         setupUpdateChecker()
+
+        // Initialize system cat manager (update notification cat)
+        if let buddyScene = self.scene {
+            SystemCatManager.shared.start(in: buddyScene)
+        }
 
         // Initialize notification manager (subscribes to EventBus for push notifications)
         NotificationManager.shared.setup()
@@ -137,26 +146,34 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
             tracker.onClick = { [weak self] sessionId in
                 clickLog("AppDelegate.onClick received for session: \(sessionId)")
-                guard let self = self,
-                      let info = self.sessionManager?.sessionInfo(for: sessionId) else {
-                    clickLog("AppDelegate.onClick BAIL — self or sessionInfo is nil for: \(sessionId)")
+                guard let self = self else {
+                    clickLog("AppDelegate.onClick BAIL — self is nil for: \(sessionId)")
                     return
                 }
-                clickLog("SessionInfo — label: \(info.label), terminalId: \(info.terminalId ?? "NIL"), cwd: \(info.cwd ?? "NIL")")
-                self.scene?.acknowledgePermission(for: sessionId)
-                self.scene?.removePersistentBadge(for: sessionId)
-                var activated = false
-                for adapter in self.terminalAdapters {
-                    clickLog("Trying adapter: \(type(of: adapter))")
-                    if adapter.activateTab(for: info) {
-                        clickLog("Adapter \(type(of: adapter)) returned TRUE")
-                        activated = true
-                        break
-                    }
-                    clickLog("Adapter \(type(of: adapter)) returned FALSE")
+                // 系统猫点击由 simulateClick 内部转发到 SystemCatManager
+                let handled = self.scene?.simulateClick(sessionId: sessionId) ?? false
+                if !handled {
+                    clickLog("simulateClick returned false for session: \(sessionId)")
+                    return
                 }
-                if !activated {
-                    clickLog("No adapter activated tab for session: \(sessionId)")
+                // 非系统猫：simulateClick 内部已处理 ack + removePersistentBadge
+                // 此处只需要处理终端激活
+                if sessionId != SystemCatManager.systemCatSessionId,
+                   let info = self.sessionManager?.sessionInfo(for: sessionId) {
+                    clickLog("SessionInfo — label: \(info.label), terminalId: \(info.terminalId ?? "NIL"), cwd: \(info.cwd ?? "NIL")")
+                    var activated = false
+                    for adapter in self.terminalAdapters {
+                        clickLog("Trying adapter: \(type(of: adapter))")
+                        if adapter.activateTab(for: info) {
+                            clickLog("Adapter \(type(of: adapter)) returned TRUE")
+                            activated = true
+                            break
+                        }
+                        clickLog("Adapter \(type(of: adapter)) returned FALSE")
+                    }
+                    if !activated {
+                        clickLog("No adapter activated tab for session: \(sessionId)")
+                    }
                 }
             }
             tracker.onDragStart = { [weak self] sessionId, point in
@@ -359,6 +376,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.center()
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// 打开设置窗口并切换到「关于」分类（系统猫点击触发）。
+    func openSettingsToAbout() {
+        showSettings()
+        settingsWindowController?.splitViewController.selectSection(.about)
     }
 
     @objc private func handleBuddyStoreShouldOpen() {

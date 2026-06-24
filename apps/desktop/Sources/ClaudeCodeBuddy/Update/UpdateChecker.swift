@@ -1,11 +1,40 @@
 import AppKit
 import Foundation
+import Combine
+
+/// 升级阶段枚举，用于驱动 AboutSettingsViewController 的进度 UI。
+enum UpgradePhase {
+    case idle
+    case checking
+    case downloading
+    case installing
+    case done
+    case failed(Error)
+}
+
+extension UpgradePhase: Equatable {
+    static func == (lhs: UpgradePhase, rhs: UpgradePhase) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle),
+             (.checking, .checking),
+             (.downloading, .downloading),
+             (.installing, .installing),
+             (.done, .done):
+            return true
+        case (.failed(let lhsError), .failed(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        default:
+            return false
+        }
+    }
+}
 
 final class UpdateChecker {
     static let shared = UpdateChecker()
 
     private static let checkInterval: TimeInterval = 24 * 60 * 60
     private static let cacheKey = "lastUpdateCheckTimestamp"
+    private static let dismissedVersionKey = "dismissedUpdateVersion"
     private static let releasesURL = "https://api.github.com/repos/strzhao/claude-code-buddy/releases/latest"
     private static let releasesPageURL = "https://github.com/strzhao/claude-code-buddy/releases"
     private static let startupDelay: TimeInterval = 10.0
@@ -13,6 +42,11 @@ final class UpdateChecker {
     private(set) var isUpgrading = false
     private var pendingUpdate: UpdateAvailableEvent?
     private var checkTimer: Timer?
+    /// 缓存最新 release 信息（供 shouldShowSystemCat 使用，即使已 dismiss 也保留）。
+    private var latestRelease: ReleaseInfo?
+
+    /// 升级进度流（后台线程发布，订阅方通过 receive(on: RunLoop.main) 接收）。
+    let upgradeProgress = PassthroughSubject<UpgradePhase, Never>()
 
     private init() {}
 
@@ -32,6 +66,9 @@ final class UpdateChecker {
             do {
                 let release = try await fetchLatestRelease()
                 let currentVersion = Self.currentVersion()
+
+                // 缓存最新 release 信息（即使已 dismiss 也保留，供 shouldShowSystemCat 使用）
+                latestRelease = release
 
                 if compareVersions(currentVersion, release.version) == .orderedAscending {
                     let event = UpdateAvailableEvent(
@@ -56,19 +93,54 @@ final class UpdateChecker {
         checkForUpdates()
     }
 
+    /// 将当前 pendingUpdate 的 newVersion 写入已忽略列表。
+    func dismissCurrentVersion() {
+        guard let version = pendingUpdate?.newVersion else { return }
+        dismissedUpdateVersion = version
+        BuddyLogger.shared.info("dismissed update version", subsystem: "app", meta: ["version": version])
+    }
+
+    /// 系统猫是否应该显示：有新版本且未被用户忽略。
+    func shouldShowSystemCat() -> Bool {
+        guard let pending = pendingUpdate else {
+            // 有缓存 release 但未创建 pendingUpdate？用 latestRelease 兜底
+            guard let latest = latestRelease,
+                  compareVersions(Self.currentVersion(), latest.version) == .orderedAscending else {
+                return false
+            }
+            return dismissedUpdateVersion != latest.version
+        }
+        return dismissedUpdateVersion != pending.newVersion
+    }
+
     func startUpgrade() {
         guard !isUpgrading else { return }
         isUpgrading = true
+        upgradeProgress.send(.checking)
 
         if let brew = brewPath() {
-            executeBrewUpgrade(brew: brew)
+            executeBrewUpgradeStreaming(brew: brew)
         } else {
             openReleasesPageInBrowser()
             isUpgrading = false
+            upgradeProgress.send(.idle)
         }
     }
 
     var hasPendingUpdate: Bool { pendingUpdate != nil }
+
+    /// 已忽略的更新版本（UserDefaults 持久化）。
+    /// 读：从 UserDefaults 取；写：写入 UserDefaults（nil 时 removeObject）。
+    var dismissedUpdateVersion: String? {
+        get { UserDefaults.standard.string(forKey: Self.dismissedVersionKey) }
+        set {
+            if let version = newValue {
+                UserDefaults.standard.set(version, forKey: Self.dismissedVersionKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.dismissedVersionKey)
+            }
+        }
+    }
 
     // MARK: - Periodic Check
 
@@ -148,43 +220,84 @@ final class UpdateChecker {
             .first { FileManager.default.fileExists(atPath: $0) }
     }
 
-    // MARK: - Upgrade
+    // MARK: - Upgrade (流式进度)
 
-    private func executeBrewUpgrade(brew: String) {
-        Task {
-            do {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: brew)
-                process.arguments = ["upgrade", "claude-code-buddy"]
+    private func executeBrewUpgradeStreaming(brew: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: brew)
+        process.arguments = ["upgrade", "claude-code-buddy"]
 
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
 
-                try process.run()
-                process.waitUntilExit()
+        // 流式读取 stdout/stderr，按关键词匹配阶段
+        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let self = self else { return }
+            if let output = String(data: data, encoding: .utf8) {
+                let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty { return }
+                BuddyLogger.shared.debug("brew output", subsystem: "app", meta: ["line": trimmed])
 
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    if process.terminationStatus == 0 {
-                        EventBus.shared.upgradeCompleted.send()
-                    } else {
-                        BuddyLogger.shared.warn("brew upgrade exited", subsystem: "app", meta: ["exitCode": process.terminationStatus])
-                        self.isUpgrading = false
-                    }
-                }
-            } catch {
-                BuddyLogger.shared.error("brew upgrade failed", subsystem: "app", meta: ["error": "\(error)"])
-                DispatchQueue.main.async { [weak self] in
-                    self?.isUpgrading = false
+                // 阶段匹配
+                if trimmed.contains("==>") || trimmed.contains("Downloading") || trimmed.contains("download") {
+                    self.upgradeProgress.send(.downloading)
+                } else if trimmed.contains("Pouring") || trimmed.contains("Installing") || trimmed.contains("install") {
+                    self.upgradeProgress.send(.installing)
                 }
             }
+        }
+
+        process.terminationHandler = { [weak self] proc in
+            guard let self = self else { return }
+            // 清理 readabilityHandler 避免泄漏
+            pipe.fileHandleForReading.readabilityHandler = nil
+
+            DispatchQueue.main.async {
+                if proc.terminationStatus == 0 {
+                    self.upgradeProgress.send(.done)
+                    EventBus.shared.upgradeCompleted.send()
+                } else {
+                    let error = NSError(
+                        domain: "UpdateChecker",
+                        code: Int(proc.terminationStatus),
+                        userInfo: [NSLocalizedDescriptionKey: "brew upgrade 退出码: \(proc.terminationStatus)"]
+                    )
+                    self.upgradeProgress.send(.failed(error))
+                    BuddyLogger.shared.warn("brew upgrade exited", subsystem: "app", meta: ["exitCode": proc.terminationStatus])
+                    self.isUpgrading = false
+                }
+            }
+        }
+
+        do {
+            try process.run()
+            upgradeProgress.send(.checking)
+        } catch {
+            BuddyLogger.shared.error("brew upgrade failed to start", subsystem: "app", meta: ["error": "\(error)"])
+            upgradeProgress.send(.failed(error))
+            isUpgrading = false
         }
     }
 
     private func openReleasesPageInBrowser() {
         guard let url = URL(string: Self.releasesPageURL) else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - Test Helpers
+
+    /// 测试用：注入 pendingUpdate（模拟 checkForUpdates 检测到新版本）。
+    func setPendingUpdateForTesting(_ event: UpdateAvailableEvent) {
+        pendingUpdate = event
+        latestRelease = ReleaseInfo(tagName: "v\(event.newVersion)", version: event.newVersion, htmlURL: event.htmlURL)
+    }
+
+    /// 测试用：清除 pendingUpdate 和 latestRelease。
+    func clearPendingUpdateForTesting() {
+        pendingUpdate = nil
+        latestRelease = nil
     }
 }
 

@@ -20,6 +20,9 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     private var cats: [String: CatSprite] = [:]
     private let maxCats = CatConstants.Scene.maxCats
 
+    /// 系统猫（更新提示专用），不进入 cats 字典，不被 SessionManager 管理。
+    var systemCat: CatSprite?
+
     private lazy var tooltipNode: TooltipNode = {
         let node = TooltipNode()
         addChild(node)
@@ -242,10 +245,6 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
                 .map { ($0, $0.containerNode.position.x) }
         }
         cat.enterScene(sceneSize: size, activityBounds: activityBounds)
-
-        if updateAvailable != nil {
-            cat.addUpdateBadge()
-        }
     }
 
     func updateCatLabel(sessionId: String, label: String) {
@@ -345,6 +344,21 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Hit Testing
 
     func catAtPoint(_ point: CGPoint) -> String? {
+        // 优先检查系统猫
+        if let sysCat = systemCat {
+            let catPos = sysCat.containerNode.position
+            let baseSize = CatSprite.hitboxSize
+            let rect = CGRect(
+                x: catPos.x - baseSize.width / 2,
+                y: catPos.y - baseSize.height / 2,
+                width: baseSize.width,
+                height: baseSize.height
+            )
+            if rect.contains(point) {
+                return SystemCatManager.systemCatSessionId
+            }
+        }
+
         let baseSize = CatSprite.hitboxSize
         for (sessionId, cat) in cats {
             let catPos = cat.containerNode.position
@@ -761,26 +775,24 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
             + CGFloat(slot) * CatConstants.TaskComplete.slotSpacing
     }
 
-    // MARK: - Update Badge Management
+    // MARK: - System Cat Management
+
+    /// 将系统猫添加到场景中（由 SystemCatManager 调用）。
+    func setSystemCat(_ cat: CatSprite?) {
+        // 先移除旧系统猫
+        if let old = systemCat {
+            old.containerNode.removeFromParent()
+        }
+        systemCat = cat
+        if let cat = cat {
+            addChild(cat.containerNode)
+        }
+    }
+
+    // MARK: - Update Badge Management (已废弃，系统猫替代全猫徽章)
 
     private func showUpdateBadgesOnAllCats() {
-        guard updateAvailable != nil else { return }
-        for cat in cats.values {
-            cat.addUpdateBadge()
-        }
-    }
-
-    private func removeAllUpdateBadges() {
-        for cat in cats.values {
-            cat.removeUpdateBadge()
-        }
-    }
-
-    private func putAllCatsInUpgradeMode() {
-        for cat in cats.values {
-            guard [.idle, .thinking, .toolUse, .permissionRequest].contains(cat.currentState) else { continue }
-            cat.startUpgradeAnimation()
-        }
+        // 空实现：全猫徽章已由系统猫替代
     }
 }
 
@@ -842,15 +854,13 @@ extension BuddyScene: SceneControlling {
     }
 
     func simulateClick(sessionId: String) -> Bool {
-        guard let cat = cats[sessionId] else { return false }
-
-        // Handle update badge click — takes priority
-        if cat.updateBadgeNode != nil {
-            removeAllUpdateBadges()
-            putAllCatsInUpgradeMode()
-            UpdateChecker.shared.startUpgrade()
+        // 系统猫点击：dismiss + 隐藏 + 打开设置关于页
+        if sessionId == SystemCatManager.systemCatSessionId {
+            SystemCatManager.shared.handleClick()
             return true
         }
+
+        guard cats[sessionId] != nil else { return false }
 
         acknowledgePermission(for: sessionId)
         removePersistentBadge(for: sessionId)

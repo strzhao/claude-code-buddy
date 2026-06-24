@@ -105,6 +105,15 @@ final class SettingsSplitViewController: NSSplitViewController {
         }
     }
 
+    // MARK: - Public API
+
+    /// 程序化选中指定分类（sidebar 高亮 + detail 切换，持久化选中状态）。
+    /// 供 AppDelegate.openSettingsToAbout() 等外部调用。
+    func selectSection(_ section: SettingsSection) {
+        sidebar.selectSection(section, animateScroll: true)
+        switchTo(section: section, persist: true)
+    }
+
     // MARK: - Test hooks
 
     /// 当前 detail 容器内的 child VC（测试断言类型用）。

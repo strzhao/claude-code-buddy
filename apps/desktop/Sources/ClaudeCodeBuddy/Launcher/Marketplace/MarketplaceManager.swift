@@ -19,11 +19,65 @@ struct MarketplaceInspection: Codable, Equatable {
         let version: String
         let enabled: Bool        // !contains .disabled
         let source: String       // human-readable
+        /// C6/M1：summary（降级后非空），从插件目录 plugin.json 运行时解析。
+        /// 生产 inspect() 始终显式传值；默认空串仅为 Swift init 便利（不破坏旧测试 mock）。
+        let summary: String
+        /// C6/M1：description（详细，来自 plugin.json；读失败兜底空串）。
+        let description: String
+
+        /// 默认参数：summary/description 默认空串，让旧 mock 调用（仅传 name/version/enabled/source）仍可编译。
+        /// 生产 inspect() 显式传运行时解析的真实值。
+        init(name: String, version: String, enabled: Bool, source: String, summary: String = "", description: String = "") {
+            self.name = name
+            self.version = version
+            self.enabled = enabled
+            self.source = source
+            self.summary = summary
+            self.description = description
+        }
+
+        /// C1 降级 / 向后兼容：无 summary/description 的旧 inspect JSON 仍能 decode（decodeIfPresent 兜底空串）。
+        /// 生产 inspect() 始终填 displaySummary（非空），此处仅容错外部/旧 JSON（红队 AT03）。
+        private enum CodingKeys: String, CodingKey {
+            case name, version, enabled, source, summary, description
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            version = try c.decode(String.self, forKey: .version)
+            enabled = try c.decode(Bool.self, forKey: .enabled)
+            source = try c.decode(String.self, forKey: .source)
+            summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+            description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        }
     }
 
     struct SideloadedInspection: Codable, Equatable {
         let name: String
         let enabled: Bool
+        /// C6/M1：summary（降级后非空）。
+        let summary: String
+        /// C6/M1：description（详细；读失败兜底空串）。
+        let description: String
+
+        init(name: String, enabled: Bool, summary: String = "", description: String = "") {
+            self.name = name
+            self.enabled = enabled
+            self.summary = summary
+            self.description = description
+        }
+
+        /// C1 降级 / 向后兼容：无 summary/description 的旧 inspect JSON 仍能 decode（红队 AT03 同语义）。
+        private enum CodingKeys: String, CodingKey {
+            case name, enabled, summary, description
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            enabled = try c.decode(Bool.self, forKey: .enabled)
+            summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+            description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        }
     }
 }
 
@@ -389,6 +443,7 @@ final class MarketplaceManager {
     }
 
     /// 导出当前 marketplace 状态（含 sideloaded 双视角，B4 修复）。
+    /// C6/M1：plugins + sideloadedPlugins 两分支都逐目录读 plugin.json → PluginManifest → displaySummary（C1 降级）。
     func inspect() throws -> MarketplaceInspection {
         let manifest = (try? readLocalManifest()) ?? MarketplaceManifest(
             schemaVersion: 1,
@@ -406,11 +461,15 @@ final class MarketplaceManager {
             let disabled = FileManager.default.fileExists(
                 atPath: dir.appendingPathComponent(".disabled").path
             )
+            // M1：逐目录读 plugin.json 解析 summary/description（非 marketplace-meta）
+            let (summary, description) = readSummaryAndDescription(from: dir, fallbackName: entry.name)
             return MarketplaceInspection.PluginInspection(
                 name: entry.name,
                 version: entry.version,
                 enabled: !disabled,
-                source: sourceLabel(entry.source)
+                source: sourceLabel(entry.source),
+                summary: summary,
+                description: description
             )
         }
 
@@ -431,7 +490,14 @@ final class MarketplaceManager {
                 let disabled = FileManager.default.fileExists(
                     atPath: entry.appendingPathComponent(".disabled").path
                 )
-                sideloaded.append(.init(name: name, enabled: !disabled))
+                // M1：逐目录读 plugin.json
+                let (summary, description) = readSummaryAndDescription(from: entry, fallbackName: name)
+                sideloaded.append(.init(
+                    name: name,
+                    enabled: !disabled,
+                    summary: summary,
+                    description: description
+                ))
             }
         }
 
@@ -441,6 +507,17 @@ final class MarketplaceManager {
             lastSyncedAt: meta.lastSyncedAt,
             consecutiveSyncFailures: meta.consecutiveSyncFailures
         )
+    }
+
+    /// M1：从插件目录读 plugin.json → PluginManifest → displaySummary（C1 降级）+ description。
+    /// 读失败/无 plugin.json 返回 fallbackName（summary）+ 空串（description），不抛错（容错降级）。
+    private func readSummaryAndDescription(from pluginDir: URL, fallbackName: String) -> (summary: String, description: String) {
+        let manifestURL = pluginDir.appendingPathComponent("plugin.json")
+        guard let data = try? Data(contentsOf: manifestURL),
+              let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data) else {
+            return (fallbackName, "")
+        }
+        return (manifest.displaySummary, manifest.description)
     }
 
     // MARK: - 私有 helper

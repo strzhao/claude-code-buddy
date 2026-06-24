@@ -1,7 +1,8 @@
 {
   "name": "qzh",
   "version": "0.1.0",
-  "description": "QzhddrSrv 监控服务控制：查询运行状态、一键关闭/打开（可逆，重启自愈）",
+  "summary": "监控服务开关：一键查询并启停后台监控服务",
+  "description": "查看后台监控服务的运行状态，需要时一键关闭或重新打开，重启后可自动恢复，适合临时排查问题或释放资源。",
   "keywords": ["qzh", "qzhddr", "监控"],
   "mode": "command",
   "cmd": "./qzh-exec",

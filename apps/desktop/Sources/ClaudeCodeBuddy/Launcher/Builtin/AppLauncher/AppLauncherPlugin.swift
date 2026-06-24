@@ -14,6 +14,10 @@ final class AppLauncherPlugin: BuiltinPlugin {
     let priority: Int = 0
     let sectionTitle = "应用"
 
+    // C2：人话文案（设置页 / debug registry 展示）
+    let summary = "应用启动器：输入名字快速打开本机应用"
+    let description = "扫描系统中的应用，输入应用名（中英文均可，支持别名）即可快速启动，就像系统搜索框一样。"
+
     // MARK: - 依赖（可注入，用于测试）
 
     var index: AppIndex

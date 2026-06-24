@@ -152,9 +152,9 @@ final class AboutSettingsViewController: NSViewController {
                                              constant: SettingsTheme.rowSpacing),
             statusLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             statusLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
-                                                  constant: SettingsTheme.contentPadding),
+                                                 constant: SettingsTheme.contentPadding),
             statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
-                                                   constant: -SettingsTheme.contentPadding),
+                                                  constant: -SettingsTheme.contentPadding),
 
             // 反馈按钮
             feedbackButton.topAnchor.constraint(equalTo: checkUpdateButton.bottomAnchor,

@@ -195,7 +195,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
     func test_AT05_initialState_isLoading() {
         let market = RedMockMarketplaceInspecting()
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         // 不触发 viewDidAppear，state 应保持初始 .loading
         if case .loading = vc.state {
@@ -210,7 +210,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
     func test_AT06_emptyInspect_yieldsEmptyState() async {
         let market = RedMockMarketplaceInspecting(inspectResult: .empty)
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
         if case .empty = vc.state {
@@ -228,7 +228,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
             inspectResult: .withPlugin(name: "translate", version: "0.1.0", enabled: true)
         )
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
         guard case .normal(let entries) = vc.state else {
@@ -245,7 +245,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
             inspectError: LauncherError.pluginInvalid("simulated")
         )
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
         if case .error = vc.state {
@@ -300,7 +300,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
             inspectResult: .withPlugin(name: "translate", enabled: true)
         )
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
 
@@ -324,7 +324,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
             inspectResult: .withPlugin(name: "translate", enabled: false)
         )
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
 
@@ -346,7 +346,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
     func test_AT12_invalidName_doesNotCallDisable() async {
         let market = RedMockMarketplaceInspecting()
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
 
         let button = NSButton(title: "禁用", target: vc, action: #selector(PluginGalleryViewController.toggleButtonClicked(_:)))
@@ -369,7 +369,7 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
             inspectResult: .withSideloaded(name: "weather", enabled: true)
         )
         let plugins = RedMockPluginToggling()
-        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
 

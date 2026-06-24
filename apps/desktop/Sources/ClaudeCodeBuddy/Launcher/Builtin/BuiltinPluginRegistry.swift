@@ -6,6 +6,8 @@
 /// 2. 全局排序键 = (plugin.priority 降序, action.score 降序, action.title 字典序)。
 /// 3. 全局截断到 builtinActionsLimit（默认 8）。
 /// 4. 不硬抑制任何 plugin（多 plugin 命中时高 priority 组在上，互不淹没）。
+///
+/// C3：actions(for:) 跳过 `enabledStore.isEnabled==false` 的插件（不产生候选/不响应）。
 @MainActor
 final class BuiltinPluginRegistry {
 
@@ -14,10 +16,16 @@ final class BuiltinPluginRegistry {
     /// 注册的插件列表（可测试注入）
     private(set) var plugins: [any BuiltinPlugin]
 
+    /// C3：开关持久化（测试可注入）
+    let enabledStore: BuiltinPluginEnabledStore
+
     /// 测试用：可覆盖全局上限
     var limitOverride: Int?
 
-    init(plugins: [any BuiltinPlugin]? = nil) {
+    init(
+        plugins: [any BuiltinPlugin]? = nil,
+        enabledStore: BuiltinPluginEnabledStore = .shared
+    ) {
         // 顺序：priority 高 / 解释器型在前
         // CalculatorPlugin=200 > PastePlugin=150 > SystemCommandPlugin=100 > AppLauncherPlugin=0
         self.plugins = plugins ?? [
@@ -26,11 +34,13 @@ final class BuiltinPluginRegistry {
             PastePlugin.shared,
             AppLauncherPlugin.shared,
         ]
+        self.enabledStore = enabledStore
     }
 
-    // MARK: - 聚合仲裁（C10）
+    // MARK: - 聚合仲裁（C10 + C3 过滤）
 
     /// 聚合并仲裁所有内置插件候选。
+    /// C3：跳过 `enabledStore.isEnabled(id:)==false` 的插件（关闭 = 不产生候选）。
     func actions(for query: String) async -> [LauncherAction] {
         guard !query.isEmpty else { return [] }
 
@@ -45,6 +55,8 @@ final class BuiltinPluginRegistry {
 
         var allActions: [ScoredAction] = []
         for plugin in sortedPlugins {
+            // C3：跳过 disabled 的插件（不产生候选/不响应）
+            guard enabledStore.isEnabled(id: plugin.id) else { continue }
             let acts = await plugin.actions(for: query)
             for action in acts {
                 allActions.append(ScoredAction(action: action, pluginPriority: plugin.priority))
@@ -64,6 +76,13 @@ final class BuiltinPluginRegistry {
 
         let limit = limitOverride ?? LauncherConstants.builtinActionsLimit
         return Array(allActions.prefix(limit).map(\.action))
+    }
+
+    // MARK: - C3 enabled / summary 查询（debug registry / 设置页数据源）
+
+    /// 返回插件是否启用（透传 enabledStore）。
+    func isEnabled(id: String) -> Bool {
+        enabledStore.isEnabled(id: id)
     }
 
     // MARK: - 注册管理

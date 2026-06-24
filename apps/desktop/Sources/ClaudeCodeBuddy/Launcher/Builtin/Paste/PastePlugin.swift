@@ -19,6 +19,10 @@ final class PastePlugin: BuiltinPlugin {
     let priority: Int = 150  // 介于 Calculator(200) 与 SystemCommand(100) 之间——确定性触发词匹配
     let sectionTitle = "剪贴板"
 
+    // C2：人话文案（设置页 / debug registry 展示）
+    let summary = "剪贴板历史：输入「cb」查看并粘贴近期复制内容"
+    let description = "持续记录你复制过的文本、图片、文件和富文本，输入「cb」即可翻找历史并快速粘贴回剪贴板。"
+
     // MARK: - 执行 seam（可注入，用于测试）
 
     private let copyService: CopyService

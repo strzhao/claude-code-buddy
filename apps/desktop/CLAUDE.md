@@ -194,10 +194,36 @@ CLI 通过 socket 让 app 进程调 KeyboardShortcuts 库 API，即时重注册 
 
 ```bash
 buddy launcher add <user>/<repo>                   # git clone --depth 1
-buddy launcher list                                # 已装插件 + trust 状态
-buddy launcher inspect <name>                      # JSON 详情
+buddy launcher list                                # 已装插件 + trust 状态 + summary
+buddy launcher inspect <name>                      # JSON 详情（含 summary/description）
 buddy launcher remove <name>                       # 卸载 + 清 trust
+buddy launcher run <name> --input "xxx" [--json]   # dry-run 直接执行具名插件（不经候选路由）
 ```
+
+**插件开发文档**：web 端 `/plugin/docs`（人类可读 + 「复制给 AI 使用」单按钮复制完整自包含指南）。
+设置页「插件」分区右上角「插件开发文档」按钮 → `NSWorkspace.open` 打开。
+
+### 插件 summary / description 写作规范（契约 C1/C2）
+
+`plugin.json` 加 `summary`（可选，一句话人话摘要）+ 保留 `description`（详细）。
+`BuiltinPlugin` 协议也加 `summary`/`description`。
+
+**降级规则**（SOURCE OF TRUTH: `PluginManifest.displaySummary`）：
+展示用 summary 取值优先级 = `summary` 非空 → summary；否则 `description` 首句（按 `。`/`. `/换行切第一段 trim）；都空 → `name`。
+展示层永远拿到非空 summary。加载层不拒绝无 summary 的插件（向后兼容）。
+CLI mirror `cliDisplaySummary` 同语义（C5 双绑，`cliFirstSentence` 与 `firstSentence` 逐字一致）。
+
+**写作要求**：summary 写给人看，禁黑话（stdin/stdout/协议/内部代号/裸字段名）。
+官方插件（hello/qr/qzh + 4 内置）强制填人话 summary。
+
+### 内置插件开关（契约 C3）
+
+内置插件（calculator/paste/system-command/app-launcher）开关独立于外部插件：
+- 存储：`UserDefaults.standard`，key `buddy.launcher.builtin.<id>.disabled`（Bool，true=关闭）。
+- API：`BuiltinPluginEnabledStore.isEnabled(id:)` / `setEnabled(id:enabled:)`。默认全 enabled。
+- 关闭语义：`BuiltinPluginRegistry.actions(for:)` 跳过 disabled（不产生候选/不响应）。
+- **Paste 关闭语义**：仅阻断候选展示，`ClipboardHistoryService` Timer 仍记录剪贴板（YAGNI，设置页有 tooltip 说明）。
+- 外部插件开关仍走 `.disabled` 文件（`PluginManager.enable/disable`），两套独立。
 
 ### 调试（功能调试，不经键盘自动化）
 
@@ -205,16 +231,21 @@ buddy launcher remove <name>                       # 卸载 + 清 trust
 buddy launcher debug candidates <query>            # 生成内置插件候选（JSON）
 buddy launcher debug perform <query> [--index N]   # 执行第 N 个候选并读剪贴板（默认 N=0）
 buddy launcher debug registry                      # 列出已注册内置插件（priority 降序，JSON）
+buddy launcher run <name> --input "xxx" [--json]   # dry-run 直接执行具名外部插件（含 TOFU）
+buddy log show --subsystem plugin                  # 看插件子系统日志
 ```
 
 **用途**：功能调试 / 无侵入测试。CLI 直接驱动候选生成，**不经键盘自动化**（避免 osascript 抢屏幕的问题）。
 
-**实现**：CLI 通过 socket 让 app 进程调 `BuiltinPluginRegistry`（**直驱，不经 LauncherManager**），由 `QueryHandler.handle`（async）处理三个 `launcher_debug_*` action。
+**实现**：CLI 通过 socket 让 app 进程调 `BuiltinPluginRegistry`（**直驱，不经 LauncherManager**），由 `QueryHandler.handle`（async）处理 `launcher_debug_*` action。
 
 **响应契约**：
 - `candidates` → `{status:"ok", data:{query, count, candidates:[{pluginId, title, subtitle, score}]}}`
 - `perform` → `{status:"ok", data:{pluginId, performed:true, copied?}}`（`copied` 仅当 perform 后 pasteboard 非空才返回）
-- `registry` → `{status:"ok", data:{plugins:[{id, priority, sectionTitle}]}}`（priority 降序）
+- `registry` → `{status:"ok", data:{plugins:[{id, priority, sectionTitle, summary, enabled}]}}`（priority 降序；C2/C3 含 summary + enabled）
+- `run` → `{status:"ok", data:{name, stdout, stderr, exit_code, duration_ms}}`（C4；trust 失败 → `{status:"error", message:"not trusted"}` + CLI exit 非 0）
+
+**run 与 debug perform 区别**：run 是 name→直接 execute（不经候选路由），跑外部子进程插件；debug perform 是 query→candidates→perform N，跑内置 in-process 插件。run 必须经 `TrustStore.checkAndPrompt`（B1，TOFU 不绕过）。
 
 ### TOFU 安全模型
 

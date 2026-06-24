@@ -21,19 +21,31 @@ final class QueryHandler {
     private let registry: BuiltinPluginRegistry?
     /// Launcher debug perform：读 perform 后剪贴板内容（默认 .general，测试注入具名 pasteboard）。
     private let pasteboard: NSPasteboard
+    /// C4 launcher run：外部插件管理器（find manifest + pluginDir）。测试注入 mock。
+    private let pluginManager: PluginManager
+    /// C4 launcher run：trust 存储（TOFU 检查）。测试注入 mock。
+    private let trustStore: TrustStore
+    /// C4 launcher run：插件执行器（stdin/command 直驱）。测试注入 mock。
+    private let pluginDispatcher: PluginDispatcher
 
     init(
         sessionManager: SessionManager,
         scene: any SceneControlling,
         eventStore: EventStore,
         registry: BuiltinPluginRegistry? = nil,
-        pasteboard: NSPasteboard = .general
+        pasteboard: NSPasteboard = .general,
+        pluginManager: PluginManager = .shared,
+        trustStore: TrustStore = .shared,
+        pluginDispatcher: PluginDispatcher = .shared
     ) {
         self.sessionManager = sessionManager
         self.scene = scene
         self.eventStore = eventStore
         self.registry = registry
         self.pasteboard = pasteboard
+        self.pluginManager = pluginManager
+        self.trustStore = trustStore
+        self.pluginDispatcher = pluginDispatcher
     }
 
     // MARK: - Public
@@ -73,6 +85,8 @@ final class QueryHandler {
             return await handleLauncherDebugPerform(query: query)
         case "launcher_debug_registry":
             return handleLauncherDebugRegistry()
+        case "launcher_debug_run_plugin":
+            return await handleLauncherDebugRunPlugin(query: query)
         case "open_settings":
             NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
             return okResponse(data: ["opened": "settings"])
@@ -346,19 +360,83 @@ final class QueryHandler {
         return okResponse(data: data)
     }
 
-    /// launcher_debug_registry → registry.plugins（priority 降序）→ {plugins[{id,priority,sectionTitle}]}
+    /// launcher_debug_registry → registry.plugins（priority 降序）→ {plugins[{id,priority,sectionTitle,summary,enabled}]}
+    /// C2/C3：含 summary（人话）+ enabled（C3 开关状态）。
     @MainActor
     private func handleLauncherDebugRegistry() -> Data {
-        let plugins: [[String: Any]] = resolvedRegistry().plugins
+        let registry = resolvedRegistry()
+        let plugins: [[String: Any]] = registry.plugins
             .sorted { $0.priority > $1.priority }
             .map {
                 [
                     "id": $0.id,
                     "priority": $0.priority,
                     "sectionTitle": $0.sectionTitle,
+                    "summary": $0.summary,
+                    "enabled": registry.isEnabled(id: $0.id),
                 ]
             }
         return okResponse(data: ["plugins": plugins])
+    }
+
+    /// C4 launcher_debug_run_plugin → 按 name 找外部插件 manifest → TrustStore.checkAndPrompt（B1）
+    /// → 信任通过则 PluginDispatcher.execute() 直驱 → 返回 {name,stdout,stderr,exit_code,duration_ms}。
+    /// trust 失败返回 {status:"error", message:"not trusted"}。不经候选路由（name→直接 execute）。
+    @MainActor
+    private func handleLauncherDebugRunPlugin(query: [String: Any]) async -> Data {
+        guard let name = query["name"] as? String, !name.isEmpty else {
+            return errorResponse(message: "missing 'name'")
+        }
+        // 1. 找外部插件 manifest + pluginDir
+        let manifest: PluginManifest
+        let pluginDir: URL
+        do {
+            guard let found = try pluginManager.find(name: name) else {
+                return errorResponse(message: "plugin not found: \(name)")
+            }
+            manifest = found
+            pluginDir = try pluginManager.pluginDir(for: found)
+        } catch {
+            return errorResponse(message: "plugin not found: \(name)")
+        }
+
+        // 2. B1：TOFU trust 检查（必须在 PluginDispatcher.execute 前显式调，与 LauncherManager.submit 一致）
+        // executablePath = pluginDir/cmd（stdin/command）；prompt mode checkAndPrompt 内部按 systemPrompt 处理。
+        let executablePath = pluginDir.appending(path: manifest.cmd)
+        let trusted = await trustStore.checkAndPrompt(manifest, executablePath: executablePath)
+        guard trusted else {
+            BuddyLogger.shared.warn("launcher run rejected: not trusted", subsystem: "plugin", meta: ["name": name])
+            return errorResponse(message: "not trusted")
+        }
+
+        // 3. 直驱执行（不经候选路由）
+        let input = PluginInput(
+            query: (query["input"] as? String) ?? "",
+            sessionId: "launcher-run-\(UUID().uuidString)",
+            cwd: FileManager.default.currentDirectoryPath
+        )
+        let result: PluginResult
+        do {
+            result = try await pluginDispatcher.execute(manifest, pluginDir: pluginDir, input: input)
+        } catch {
+            BuddyLogger.shared.error("launcher run execute failed", subsystem: "plugin", meta: ["name": name, "error": "\(error)"])
+            return errorResponse(message: "execute failed: \(error.localizedDescription)")
+        }
+
+        // 4. 返回结果 JSON
+        let data: [String: Any] = [
+            "name": name,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": Int(result.exitCode),
+            "duration_ms": result.durationMs,
+        ]
+        BuddyLogger.shared.info("launcher run ok", subsystem: "plugin", meta: [
+            "name": name,
+            "exit_code": Int(result.exitCode),
+            "duration_ms": result.durationMs,
+        ])
+        return okResponse(data: data)
     }
 
     // MARK: - Response Helpers

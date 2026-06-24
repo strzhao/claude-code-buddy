@@ -200,8 +200,8 @@ final class LogWriter {
 
         // 删除最旧归档直到满足两个约束：归档数 <= retainMaxArchives 且 总大小 <= retainTotalSizeBytes
         while !sorted.isEmpty &&
-              (sorted.count > LogConfig.retainMaxArchives ||
-               totalSize(sorted) > LogConfig.retainTotalSizeBytes) {
+                (sorted.count > LogConfig.retainMaxArchives ||
+                    totalSize(sorted) > LogConfig.retainTotalSizeBytes) {
             let oldest = sorted.removeFirst()
             try? fm.removeItem(at: oldest)
         }

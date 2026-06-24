@@ -14,6 +14,10 @@ final class SystemCommandPlugin: BuiltinPlugin {
     let priority: Int = 100
     let sectionTitle = "系统"
 
+    // C2：人话文案（设置页 / debug registry 展示）
+    let summary = "系统命令：输入「锁屏」一键锁定屏幕"
+    let description = "提供常用的系统快捷操作。目前支持输入「锁屏」或「lock」立即锁定屏幕，后续会陆续加入更多命令。"
+
     // MARK: - 执行 seam（可注入，用于测试）
 
     var locker: ScreenLocking

@@ -261,6 +261,10 @@ private struct CLIOptions {
     var hotkeyModifiers: String = ""
     // Launcher debug perform: 候选索引（默认 0）
     var launcherDebugIndex: Int = 0
+    // C4 Launcher run: 插件输入（--input "xxx"，默认空串）
+    var launcherRunInput: String = ""
+    // C4 Launcher run: --json 输出（默认 false = 纯 stdout）
+    var launcherRunJSON: Bool = false
     // Log 子命令参数
     var logLevel: String = ""           // --level L
     var logSubsystem: String = ""       // --subsystem S
@@ -405,6 +409,10 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--index":
             i += 1
             if i < args.count, let n = Int(args[i]) { opts.launcherDebugIndex = n }
+        case "--input":
+            // C4 launcher run --input "xxx"
+            i += 1
+            if i < args.count { opts.launcherRunInput = args[i] }
         case "--level":
             i += 1
             if i < args.count { opts.logLevel = args[i] }
@@ -997,6 +1005,15 @@ private func main() {
             cmdLauncherRemove(opts.positionalArgs.first ?? "")
         case "inspect":
             cmdLauncherInspect(opts.positionalArgs.first ?? "")
+        case "run":
+            // C4 dry-run：buddy launcher run <name> --input "xxx" [--json]
+            // 直接执行具名插件（不经候选路由），经 socket 由 app 执行（复用 StdinExecutor/trust/日志）。
+            let name = opts.positionalArgs.first ?? ""
+            cmdLauncherRun(
+                name: name,
+                input: opts.launcherRunInput,
+                json: opts.flags.contains("--json")
+            )
         case "hotkey":
             switch opts.positionalArgs.first {
             case "set":
@@ -1033,7 +1050,7 @@ private func main() {
                 exit(2)
             }
         default:
-            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|hotkey|debug> ...\n", stderr)
+            fputs("Usage: buddy launcher <config|add|install|list|disable|enable|reseed|remove|inspect|run|hotkey|debug> ...\n", stderr)
             exit(2)
         }
     case "log":
@@ -1683,6 +1700,73 @@ private func cmdLauncherDebugRegistry() {
     }
 }
 
+// MARK: - Launcher Run（C4 dry-run：直接执行具名插件，不经候选路由）
+//
+// 契约 C4（SOURCE OF TRUTH: Sources/BuddyCLI/main.swift + QueryHandler）：
+//   命令：buddy launcher run <name> --input "xxx" [--json]
+//   实现：Foundation-only，经 socket query app（action launcher_debug_run_plugin），不 spawn 子进程。
+//   app 侧 QueryHandler 加分支 → 按 name 找外部插件 manifest → TrustStore.checkAndPrompt（B1）
+//     → 信任通过则 PluginDispatcher.execute() 直驱 → 返回 JSON {name,stdout,stderr,exit_code,duration_ms}。
+//   trust 失败返回 {status:"error", message:"not trusted"} + CLI 退出码非 0。
+//   退出码：插件正常退出透传 exit_code（0=成功）；未找到/trust 拒绝/app 错误 → 非 0。
+//   不经候选路由：区别于 debug perform（query→candidates→perform N），run 是 name→直接 execute。
+private func cmdLauncherRun(name: String, input: String, json: Bool) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy launcher run <name> --input \"xxx\" [--json]\n", stderr)
+        exit(2)
+    }
+    let queryDict: [String: Any] = [
+        "action": "launcher_debug_run_plugin",
+        "name": name,
+        "input": input,
+    ]
+    let data: Data
+    do {
+        data = try sendQuery(queryDict)
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+    // 解析 app 返回的 JSON：{status:"ok"|"error", data?:{...}, message?:...}
+    guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let status = obj["status"] as? String else {
+        fputs("invalid response from app\n", stderr)
+        exit(1)
+    }
+    if status != "ok" {
+        let message = obj["message"] as? String ?? "run failed"
+        fputs("\(message)\n", stderr)
+        exit(1)
+    }
+    // 成功：data = {name, stdout, stderr, exit_code, duration_ms}
+    guard let result = obj["data"] as? [String: Any] else {
+        fputs("invalid run result data\n", stderr)
+        exit(1)
+    }
+    let exitCode = (result["exit_code"] as? Int) ?? 0
+    if json {
+        // --json：输出完整结果 JSON
+        if let out = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]),
+           let str = String(data: out, encoding: .utf8) {
+            print(str)
+        }
+    } else {
+        // 默认：输出插件 stdout（场景 9 断言 stdout 非空）
+        let stdout = (result["stdout"] as? String) ?? ""
+        if !stdout.isEmpty {
+            print(stdout)
+        }
+        // stderr 非空时也打到 stderr（便于排查）
+        let stderrStr = (result["stderr"] as? String) ?? ""
+        if !stderrStr.isEmpty {
+            fputs(stderrStr, stderr)
+            if !stderrStr.hasSuffix("\n") { fputs("\n", stderr) }
+        }
+    }
+    // 退出码：插件正常退出透传（0=成功）；崩溃/trust 拒绝已在上面 exit(1)
+    exit(Int32(exitCode))
+}
+
 // MARK: - Launcher Plugin Management (task 006)
 // SOURCE OF TRUTH: BuddyCore/Launcher/Plugin/TrustStore.swift TrustRecord
 // CLI inlined to avoid BuddyCore dependency
@@ -1700,7 +1784,10 @@ private struct CLIPluginManifestCheck: Codable {
     let name: String
     let version: String
     let description: String
-    let keywords: [String]
+    /// C1/C5 mirror：与 BuddyCore PluginManifest.summary 同构（可选，降级）。
+    let summary: String?
+    /// C1/C5：keywords 可选（向后兼容无 keywords 的旧 plugin.json，自动合成 decodeIfPresent 容错）
+    let keywords: [String]?
     let mode: String?              // nil 默认 "stdin"
     // stdin 字段
     let cmd: String?
@@ -1710,6 +1797,47 @@ private struct CLIPluginManifestCheck: Codable {
     let maxIterations: Int?
     let model: String?
     let autoCopyToClipboard: Bool?
+
+    /// C1/C5 降级（SOURCE OF TRUTH: BuddyCore PluginManifest.displaySummary，双绑）。
+    /// 取值优先级：summary 非空 → summary；否则 description 首句（按 。/./换行切第一段 trim）；都空 → name。
+    /// 与 BuddyCore `firstSentence` 同切分语义。
+    var cliDisplaySummary: String {
+        if let s = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
+            return s
+        }
+        let descFirst = cliFirstSentence(of: description)
+        if !descFirst.isEmpty { return descFirst }
+        return name
+    }
+}
+
+/// C5 mirror：与 BuddyCore PluginManifest.firstSentence 同切分语义。
+/// 取字符串首句：按 。/换行/". "切第一段并 trim；句末单独 "." 也算句末。
+private func cliFirstSentence(of text: String) -> String {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return "" }
+    var cutIndex: String.Index?
+    for sep in ["。", "\n", ". "] {
+        if let range = trimmed.range(of: sep) {
+            if let existing = cutIndex {
+                if range.lowerBound < existing { cutIndex = range.lowerBound }
+            } else {
+                cutIndex = range.lowerBound
+            }
+        }
+    }
+    if trimmed.hasSuffix(".") {
+        let suffixIdx = trimmed.index(before: trimmed.endIndex)
+        if let existing = cutIndex {
+            if suffixIdx < existing { cutIndex = suffixIdx }
+        } else {
+            cutIndex = suffixIdx
+        }
+    }
+    if let idx = cutIndex {
+        return String(trimmed[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return trimmed
 }
 
 private func cliLoadTrustFile() -> CLITrustFile {
@@ -1877,7 +2005,8 @@ private func cmdLauncherList() {
         let disabled = FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
         let status = cliTrustStatus(manifest: m, pluginDir: entry)
         let suffix = disabled ? " [禁用]" : ""
-        print("\(m.name)\(suffix) (v\(m.version)) [\(status)] - \(m.description)")
+        // C1/C5：list 展示用 summary（降级后非空）
+        print("\(m.name)\(suffix) (v\(m.version)) [\(status)] - \(m.cliDisplaySummary)")
         listedNames.insert(m.name)
         count += 1
     }
@@ -1959,6 +2088,8 @@ private func cmdLauncherInspect(_ name: String) {
     var out: [String: Any] = [
         "name": m.name,
         "version": m.version,
+        // C1/C5：summary 字段（应用降级规则，永不空）
+        "summary": m.cliDisplaySummary,
         "description": m.description,
         "mode": resolvedMode,
         "trust_status": status,
@@ -2096,12 +2227,27 @@ struct CLIMarketplaceInspection: Codable {
         let version: String
         let enabled: Bool
         let source: String
+        /// C5 mirror：summary（降级后非空），从插件目录的 plugin.json 运行时解析。
+        let summary: String
     }
 
     struct SideloadedPlugin: Codable {
         let name: String
         let enabled: Bool
+        /// C5 mirror：summary（降级后非空）。
+        let summary: String
     }
+}
+
+/// C5 mirror：从插件目录读 plugin.json → CLIPluginManifestCheck → cliDisplaySummary（降级）。
+/// 读失败/无 plugin.json 返回 nil（调用方决定兜底）。
+private func cliSummaryForPluginDir(_ dir: URL) -> String? {
+    let manifestURL = dir.appending(path: "plugin.json")
+    guard let data = try? Data(contentsOf: manifestURL),
+          let m = try? JSONDecoder().decode(CLIPluginManifestCheck.self, from: data) else {
+        return nil
+    }
+    return m.cliDisplaySummary
 }
 
 // MARK: - sanitize helper (task 007 / task 004 follow-up)
@@ -2394,11 +2540,14 @@ private func buildCLIInspection() -> CLIMarketplaceInspection {
         for p in manifest.plugins {
             let dir = pluginsBase.appending(path: p.name)
             let enabled = !FileManager.default.fileExists(atPath: dir.appending(path: ".disabled").path)
+            // C5：读 plugin.json 解析 summary（降级），读失败兜底用 marketplace description 首句或 name
+            let summary = cliSummaryForPluginDir(dir) ?? p.description ?? p.name
             marketPlugins.append(.init(
                 name: p.name,
                 version: p.version,
                 enabled: enabled,
-                source: cliSourceLabel(p.source)
+                source: cliSourceLabel(p.source),
+                summary: summary
             ))
             marketNames.insert(p.name)
         }
@@ -2419,7 +2568,9 @@ private func buildCLIInspection() -> CLIMarketplaceInspection {
                   FileManager.default.fileExists(atPath: entry.appending(path: "plugin.json").path)
             else { continue }
             let enabled = !FileManager.default.fileExists(atPath: entry.appending(path: ".disabled").path)
-            sideloaded.append(.init(name: name, enabled: enabled))
+            // C5：读 plugin.json 解析 summary（降级），读失败兜底用目录名
+            let summary = cliSummaryForPluginDir(entry) ?? name
+            sideloaded.append(.init(name: name, enabled: enabled, summary: summary))
         }
     }
 

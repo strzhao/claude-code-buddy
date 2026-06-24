@@ -83,7 +83,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
         mock.inspectResult = .success(makeInspection(plugins: [
             .init(name: "translate", version: "0.1.0", enabled: true, source: "local-subdir: plugins/translate")
         ]))
-        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling())
+        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         await vc.refresh()
 
@@ -103,7 +103,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
     func test_refresh_withEmpty_setsEmpty() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection())
-        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling())
+        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         await vc.refresh()
         XCTAssertEqual(vc.state, .empty)
@@ -116,7 +116,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
         }
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .failure(BoomError())
-        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling())
+        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         await vc.refresh()
 
@@ -133,7 +133,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
         mock.inspectResult = .success(makeInspection(
             sideloaded: [.init(name: "weather", enabled: true)]
         ))
-        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling())
+        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         await vc.refresh()
 
@@ -215,7 +215,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
     func test_handleReseedButton_callsReseed() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection())
-        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling())
+        let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         vc.handleReseedButton()
 

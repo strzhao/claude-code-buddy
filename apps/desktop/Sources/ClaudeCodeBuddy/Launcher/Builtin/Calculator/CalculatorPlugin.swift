@@ -22,6 +22,10 @@ final class CalculatorPlugin: BuiltinPlugin {
     let priority: Int = 200
     let sectionTitle = "计算"
 
+    // C2：人话文案（设置页 / debug registry 展示）
+    let summary = "计算器：输入算式即时算出结果，回车复制"
+    let description = "在输入框直接敲数学算式（如 1+2*3、(5-3)/2、2^10、7%2），会立刻显示结果，按回车把结果复制到剪贴板。支持加减乘除、括号、百分号和乘方。"
+
     // MARK: - 执行 seam（可注入，用于测试）
 
     private let copyService: CopyService

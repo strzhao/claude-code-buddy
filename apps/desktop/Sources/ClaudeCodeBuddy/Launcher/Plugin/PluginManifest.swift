@@ -4,6 +4,9 @@ struct PluginManifest: Codable, Equatable {
     let name: String
     let version: String
     let description: String
+    /// C1：一句话人话摘要（可选）。展示层经 `displaySummary` 降级，永不拿到空值。
+    /// 加载层不拒绝无 summary 的插件（向后兼容，不破坏用户现有插件）。
+    let summary: String?
     let keywords: [String]
     let timeout: Int?
     let modeConfig: PluginModeConfig
@@ -44,7 +47,7 @@ struct CommandConfig: Codable, Equatable {
 
 extension PluginManifest {
     enum CodingKeys: String, CodingKey {
-        case name, version, description, keywords, timeout, mode
+        case name, version, description, summary, keywords, timeout, mode
         case cmd, args, env, requiredPath
         case systemPrompt, maxIterations, model, autoCopyToClipboard
     }
@@ -54,7 +57,9 @@ extension PluginManifest {
         name = try c.decode(String.self, forKey: .name)
         version = try c.decode(String.self, forKey: .version)
         description = try c.decode(String.self, forKey: .description)
-        keywords = try c.decode([String].self, forKey: .keywords)
+        // C1：summary 可选，缺失返回 nil（向后兼容旧 plugin.json）
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        keywords = try c.decodeIfPresent([String].self, forKey: .keywords) ?? []
         timeout = try c.decodeIfPresent(Int.self, forKey: .timeout)
 
         let mode = try c.decodeIfPresent(String.self, forKey: .mode) ?? "stdin"
@@ -90,6 +95,7 @@ extension PluginManifest {
         try c.encode(name, forKey: .name)
         try c.encode(version, forKey: .version)
         try c.encode(description, forKey: .description)
+        try c.encodeIfPresent(summary, forKey: .summary)
         try c.encode(keywords, forKey: .keywords)
         try c.encodeIfPresent(timeout, forKey: .timeout)
         switch modeConfig {
@@ -174,7 +180,54 @@ extension PluginManifest {
     var effectiveTimeout: Int { timeout ?? LauncherConstants.pluginDefaultTimeoutSec }
 }
 
-// MARK: - Back-compat accessors（task 003/005 完成后逐步淘汰）
+// MARK: - C1 displaySummary 降级（SOURCE OF TRUTH: PluginManifest.displaySummary）
+extension PluginManifest {
+    /// 展示用 summary 取值优先级（C1 契约）：
+    /// 1. `summary` 非空（trim 后）→ 用 summary
+    /// 2. 否则取 `description` 首句（按中文句号 `。` / 英文句号 `.` / 换行切第一段，trim）
+    /// 3. 都空 → 用 `name`
+    /// **展示层永远拿到非空 summary**。CLI mirror `cliDisplaySummary`（main.swift）须与此同语义（C5 双绑）。
+    var displaySummary: String {
+        if let s = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
+            return s
+        }
+        let descFirst = firstSentence(of: description)
+        if !descFirst.isEmpty { return descFirst }
+        return name
+    }
+
+    /// 取字符串首句：按 `。`/`.`/换行切第一段并 trim。
+    /// 与 CLI mirror `cliFirstSentence` 同切分语义（C5）。
+    private func firstSentence(of text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        // 按首次出现的分隔符切第一段
+        var cutIndex: String.Index?
+        for sep in ["。", "\n", ". "] {
+            if let range = trimmed.range(of: sep) {
+                if let existing = cutIndex {
+                    if range.lowerBound < existing { cutIndex = range.lowerBound }
+                } else {
+                    cutIndex = range.lowerBound
+                }
+            }
+        }
+        // 单字符句号 "." 仅在它后跟空格/换行/结尾时算句末（避免切 "3.14" 这类小数）；
+        // 上面已处理 ". "（带空格），这里处理句末单独 "." 的情况
+        if trimmed.hasSuffix(".") {
+            let suffixIdx = trimmed.index(before: trimmed.endIndex)
+            if let existing = cutIndex {
+                if suffixIdx < existing { cutIndex = suffixIdx }
+            } else {
+                cutIndex = suffixIdx
+            }
+        }
+        if let idx = cutIndex {
+            return String(trimmed[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return trimmed
+    }
+}
 
 extension PluginManifest {
     /// 仅 stdin mode 返回非 nil
@@ -219,11 +272,13 @@ extension PluginManifest {
         args: [String] = [],
         env: [String: String]? = nil,
         timeout: Int? = nil,
-        requiredPath: [String]? = nil
+        requiredPath: [String]? = nil,
+        summary: String? = nil
     ) {
         self.name = name
         self.version = version
         self.description = description
+        self.summary = summary
         self.keywords = keywords
         self.timeout = timeout
         self.modeConfig = .stdin(StdinConfig(cmd: cmd, args: args, env: env, requiredPath: requiredPath))

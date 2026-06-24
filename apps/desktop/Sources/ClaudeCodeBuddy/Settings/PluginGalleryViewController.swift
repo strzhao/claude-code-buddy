@@ -16,12 +16,19 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
 
     // MARK: - State
 
+    /// C6 统一视图模型：内置 / 社区 / 侧载三来源统一展示。
     struct PluginEntry: Equatable {
         let name: String
+        /// C6：一句话人话摘要（首屏展示）。
+        let summary: String
+        /// C6：详细说明（详情展开看）。
+        let description: String
         let version: String
-        /// true = `~/.buddy/launcher-plugins/` 下未出现在 marketplace cache 中的目录（手动 add）
-        let isSideloaded: Bool
+        /// C6：来源徽标 "builtin" | "community" | "sideloaded"。
+        let source: String
         let enabled: Bool
+        /// 兼容旧逻辑（侧载判断），保留供测试断言。
+        var isSideloaded: Bool { source == "sideloaded" }
     }
 
     enum State: Equatable {
@@ -34,10 +41,14 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     /// M2：internal private(set) 暴露给测试 target，外部不可写。
     internal private(set) var state: State = .loading
 
-    // MARK: - DI（B3）
+    // MARK: - DI（B3 + C6）
 
     private let marketplace: MarketplaceInspecting
     private let plugins: PluginToggling
+    /// C6：内置插件注册表（提供 builtin 数据源 + enabled 查询）。
+    private let builtinRegistry: BuiltinPluginRegistry
+    /// C6：内置插件开关存储（开关分派 builtin 分支）。
+    private let builtinEnabledStore: BuiltinPluginEnabledStore
 
     // MARK: - UI
 
@@ -47,15 +58,21 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     private let group = SettingsGroupView()
     private let placeholderLabel = NSTextField(labelWithString: "")
     private let reseedButton = NSButton(title: "重新初始化", target: nil, action: nil)
+    /// C6：「插件开发文档」入口按钮（NSWorkspace 打开 web /plugin/docs）。
+    private let docsButton = NSButton(title: "插件开发文档", target: nil, action: nil)
 
     // MARK: - Init
 
     init(
         marketplace: MarketplaceInspecting = MarketplaceManager.shared,
-        plugins: PluginToggling = PluginManager.shared
+        plugins: PluginToggling = PluginManager.shared,
+        builtinRegistry: BuiltinPluginRegistry = .shared,
+        builtinEnabledStore: BuiltinPluginEnabledStore = .shared
     ) {
         self.marketplace = marketplace
         self.plugins = plugins
+        self.builtinRegistry = builtinRegistry
+        self.builtinEnabledStore = builtinEnabledStore
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -97,6 +114,14 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         group.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(group)
 
+        // C6：「插件开发文档」入口按钮（NSWorkspace 打开 web /plugin/docs）
+        docsButton.bezelStyle = .rounded
+        docsButton.controlSize = .small
+        docsButton.target = self
+        docsButton.action = #selector(handleDocsButton)
+        docsButton.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(docsButton)
+
         // placeholder / reseed overlay 在 container（固定居中，不随滚动）
         placeholderLabel.font = SettingsTheme.rowSubtitleFont()
         placeholderLabel.textColor = SettingsTheme.rowSubtitleColor()
@@ -123,7 +148,11 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             // groupLabel
             groupLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: SettingsTheme.groupTopInset),
             groupLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
-            groupLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            groupLabel.trailingAnchor.constraint(lessThanOrEqualTo: docsButton.leadingAnchor, constant: -8),
+
+            // docsButton：右上角（groupLabel 同行右侧）
+            docsButton.centerYAnchor.constraint(equalTo: groupLabel.centerYAnchor),
+            docsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
             // group（分组卡片，内容自适应高度，参照 GeneralSettings 无 bottom 约束）
             group.topAnchor.constraint(equalTo: groupLabel.bottomAnchor, constant: 6),
@@ -152,15 +181,44 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         state = .loading
         renderState()
         do {
-            // inspect() 是 throws（无 await，B2）
+            // C6：内置插件数据源（Registry，priority 降序，含 summary/description/enabled-via-C3）
+            let builtinEntries: [PluginEntry] = builtinRegistry.plugins
+                .sorted { $0.priority > $1.priority }
+                .map { plugin in
+                    PluginEntry(
+                        name: plugin.id,
+                        summary: plugin.summary,
+                        description: plugin.description,
+                        version: "内置",
+                        source: "builtin",
+                        enabled: builtinEnabledStore.isEnabled(id: plugin.id)
+                    )
+                }
+
+            // C6：外部插件数据源（marketplace.inspect，M1 逐目录读 plugin.json）
             let inspection = try marketplace.inspect()
-            let entries: [PluginEntry] = inspection.plugins.map { p in
-                PluginEntry(name: p.name, version: p.version, isSideloaded: false, enabled: p.enabled)
+            let communityEntries: [PluginEntry] = inspection.plugins.map { p in
+                PluginEntry(
+                    name: p.name,
+                    summary: p.summary,
+                    description: p.description,
+                    version: p.version,
+                    source: "community",
+                    enabled: p.enabled
+                )
             }
             let sideloaded: [PluginEntry] = inspection.sideloadedPlugins.map { s in
-                PluginEntry(name: s.name, version: "—", isSideloaded: true, enabled: s.enabled)
+                PluginEntry(
+                    name: s.name,
+                    summary: s.summary,
+                    description: s.description,
+                    version: "—",
+                    source: "sideloaded",
+                    enabled: s.enabled
+                )
             }
-            let all = entries + sideloaded
+            // 统一列表顺序：内置 → 社区 → 侧载
+            let all = builtinEntries + communityEntries + sideloaded
             state = all.isEmpty ? .empty : .normal(plugins: all)
         } catch {
             state = .error(message: error.localizedDescription)
@@ -174,13 +232,21 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         case .normal(let plugins):
             group.clearRows()
             for entry in plugins {
-                let row = SettingsToggleRow(
+                let row = SettingsToggleRow(frame: .zero)
+                // C6：来源徽标中文映射
+                let sourceLabel = sourceBadgeText(entry.source)
+                // C6/M4：Paste 关闭语义 tooltip（仅内置 paste 加说明）
+                let tooltip = pasteTooltip(for: entry)
+                row.configurePlugin(
                     title: entry.name,
-                    subtitle: entry.isSideloaded ? "侧载" : "v\(entry.version)",
-                    isOn: entry.enabled
+                    summary: entry.summary,
+                    description: entry.description,
+                    source: sourceLabel,
+                    isOn: entry.enabled,
+                    tooltip: tooltip
                 )
                 row.onToggle = { [weak self] isOn in
-                    self?.togglePlugin(name: entry.name, enable: isOn)
+                    self?.togglePlugin(name: entry.name, source: entry.source, enable: isOn)
                 }
                 group.addRow(row)
             }
@@ -189,6 +255,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             scrollView.isHidden = false
             placeholderLabel.isHidden = true
             reseedButton.isHidden = true
+            docsButton.isHidden = false
         case .loading:
             group.clearRows()
             groupLabel.isHidden = true
@@ -197,6 +264,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             placeholderLabel.stringValue = "正在加载插件市场..."
             placeholderLabel.isHidden = false
             reseedButton.isHidden = true
+            docsButton.isHidden = true
         case .empty:
             group.clearRows()
             groupLabel.isHidden = true
@@ -205,6 +273,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             placeholderLabel.stringValue = "尚无插件可用"
             placeholderLabel.isHidden = false
             reseedButton.isHidden = true
+            docsButton.isHidden = false
         case .error(let message):
             group.clearRows()
             groupLabel.isHidden = true
@@ -213,7 +282,25 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             placeholderLabel.stringValue = "插件初始化失败：\(message)"
             placeholderLabel.isHidden = false
             reseedButton.isHidden = false
+            docsButton.isHidden = false
         }
+    }
+
+    /// C6：来源徽标中文映射。
+    private func sourceBadgeText(_ source: String) -> String {
+        switch source {
+        case "builtin": return "内置"
+        case "community": return "社区"
+        case "sideloaded": return "侧载"
+        default: return source
+        }
+    }
+
+    /// C6/M4：Paste 关闭语义 tooltip。
+    /// 关闭 Paste 仅阻断候选展示（registry 过滤），后台 ClipboardHistoryService Timer 仍记录剪贴板。
+    private func pasteTooltip(for entry: PluginEntry) -> String? {
+        guard entry.source == "builtin", entry.name == "paste" else { return nil }
+        return "关闭后不再弹出剪贴板候选；后台记录的彻底关闭留待后续版本"
     }
 
     // MARK: - SettingsTabClickReceiver
@@ -227,11 +314,20 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     // MARK: - Actions
 
     /// 切换插件启用状态（SettingsToggleRow.onToggle 回调）。
-    private func togglePlugin(name: String, enable: Bool) {
+    /// C6：开关分派 —— 内置 → C3 EnabledStore；外部 → PluginManager .disabled。
+    private func togglePlugin(name: String, source: String, enable: Bool) {
         guard let safeName = sanitize(name) else {
             BuddyLogger.shared.warn("pluginGallery toggle invalid name", subsystem: "settings", meta: ["name": name])
             return
         }
+        // C6：内置插件走 C3 EnabledStore（UserDefaults），不经 PluginManager（.disabled 文件是外部插件机制）
+        if source == "builtin" {
+            builtinEnabledStore.setEnabled(id: safeName, enabled: enable)
+            BuddyLogger.shared.info("builtin plugin toggled", subsystem: "settings", meta: ["name": safeName, "enabled": enable])
+            Task { @MainActor in await refresh() }
+            return
+        }
+        // 外部插件（community / sideloaded）走 PluginManager .disabled
         Task { @MainActor in
             do {
                 if enable {
@@ -248,9 +344,10 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
 
     /// Test hook（旧 NSButton 路径兼容）：sender.identifier=plugin name, sender.tag=0→disable / 1→enable。
     /// 生产路径改走 SettingsToggleRow.onToggle → togglePlugin；此方法仅供测试验证 sanitize + enable/disable 逻辑链。
+    /// 默认按 community（外部）走 PluginManager，保持旧行为。
     @objc func toggleButtonClicked(_ sender: NSButton) {
         let raw = sender.identifier?.rawValue ?? ""
-        togglePlugin(name: raw, enable: sender.tag == 1)
+        togglePlugin(name: raw, source: "community", enable: sender.tag == 1)
     }
 
     @objc func handleReseedButton() {
@@ -264,6 +361,17 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
                 renderState()
             }
         }
+    }
+
+    /// C6：「插件开发文档」入口按钮 → NSWorkspace 打开 web /plugin/docs。
+    @objc func handleDocsButton() {
+        // 生产文档站地址（与 web app 部署同源）。失败降级到 log，不崩。
+        guard let url = URL(string: "https://buddy.stringzhao.life/plugin/docs") else {
+            BuddyLogger.shared.warn("plugin docs url invalid", subsystem: "settings")
+            return
+        }
+        NSWorkspace.shared.open(url)
+        BuddyLogger.shared.info("opened plugin docs", subsystem: "settings", meta: ["url": url.absoluteString])
     }
 
     // MARK: - Helpers

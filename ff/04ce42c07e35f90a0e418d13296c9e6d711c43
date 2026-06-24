@@ -1,0 +1,57 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  7b4f499c16219d80 18,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ff04ce42c07e35f90a0e418d13296c9e6d711c43",
+  "prompts": {
+    "7b4f499c16219d80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1df78d8b-0618-4d61-b4ce-2471a4031f54",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        }
+      }
+    },
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 65,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        },
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,69 @@
+.autopilot/knowledge/index.md
+  4d906fc6c21cf340 3,5,21,23
+.autopilot/knowledge/decisions/2026-06-24-logging-system-jsonl-cli-foundation-mirror.md
+  4d906fc6c21cf340 1-27
+.autopilot/knowledge/patterns/2026-06-24-buddylogger-singleton-test-isolation-configurefortesting.md
+  4d906fc6c21cf340 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "88da9563fd129e374e48a61e0934097a9c13e5f6",
+  "prompts": {
+    "4d906fc6c21cf340": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "368a503d-f3ab-46a4-9aa2-44a8ce04efe1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 54,
+      "total_deletions": 2,
+      "accepted_lines": 54,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-06-24-buddylogger-singleton-test-isolation-configurefortesting.md": {
+          "additions": 23,
+          "accepted_lines": 23
+        },
+        ".autopilot/knowledge/decisions/2026-06-24-logging-system-jsonl-cli-foundation-mirror.md": {
+          "additions": 27,
+          "accepted_lines": 27
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        }
+      }
+    },
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 65,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        }
+      }
+    }
+  }
+}

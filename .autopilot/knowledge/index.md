@@ -18,7 +18,10 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (97)
+## Patterns (99)
+
+- [2026-06-24] plugin.json summary 双字段 + displaySummary 降级 + CLI·BuddyCore mirror 双绑（C1/C5）：summary 可选 + 降级（summary→description 首句→name）；向后兼容字段一律 decodeIfPresent ?? 默认（keywords required 致 Codable 整体 decode 失败是本次 bug 根因）；CLI·BuddyCore 降级逻辑逐字一致 mirror | tags: plugin, manifest, summary, displaySummary, fallback, mirror, cli, buddycore, decodeifpresent, backward-compat, keywords, contract, c1, c5, codable, launcher | → patterns/2026-06-24-plugin-summary-displaysummary-mirror-cli-buddycore.md
+- [2026-06-24] 红队 helper 默认填字段掩盖向后兼容场景，Tier 1.5 真实边缘输入才捕获：helper 默认填 keywords:[] 致红队 + contract-checker 漏 keywords required bug；Tier 1.5 造无 summary/keywords 的 legacy plugin.json 才暴露 inspect not found；向后兼容契约 helper 必须提供缺字段变体 | tags: autopilot, red-team, testing, helper, backward-compat, tier-1-5, blind-spot, contract-checker, decodeifpresent, keywords, acceptance-test, qa, edge-input | → patterns/2026-06-24-red-team-helper-masked-backward-compat-tier1-5.md
 
 - [2026-06-24] 点击事件回调不应在 AppDelegate 中重复实现场景逻辑，委托给 scene.simulateClick 防止逻辑分叉 | tags: appkit, click-handler, delegate, scene, simulateClick, onclick, mousetracker, appdelegate, divergence | → patterns/2026-06-24-click-handler-delegate-to-scene-not-duplicate.md
 - [2026-06-24] BuddyLogger 进程级单例测试隔离：setEnv(BUDDY_LOG_LEVEL/DIR) 不触发已初始化单例重配（进程级 static let 只读一次 env + 测试间状态污染），测试须用 configureForTesting/resetForTesting/_syncFlush seam 显式配置；红队信息隔离按契约 C2 写 setEnv 必然全 fail，契约须声明「env 在 configure 时缓存，测试用 seam」 | tags: testing, singleton, test-isolation, configurefortesting, syncflush, resetfortesting, env, bu-log-level, bu-log-dir, red-team, information-isolation, swift, xctest, buddylogger, seam, logwriter, rotation, flaky, contract, c2 | → patterns/2026-06-24-buddylogger-singleton-test-isolation-configurefortesting.md

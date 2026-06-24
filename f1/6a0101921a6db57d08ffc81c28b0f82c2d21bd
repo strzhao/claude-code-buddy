@@ -1,0 +1,314 @@
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLogCLIAcceptanceTests.swift
+  4d906fc6c21cf340 1-468
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift
+  4d906fc6c21cf340 232,244
+apps/desktop/Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift
+  4d906fc6c21cf340 441-444,521-523,666-671,683-686
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PromptExecutor.swift
+  4d906fc6c21cf340 55,127
+apps/desktop/Sources/ClaudeCodeBuddy/Logging/BuddyLogger.swift
+  4d906fc6c21cf340 1-109
+apps/desktop/CLAUDE.md
+  4d906fc6c21cf340 327-411
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManager.swift
+  4d906fc6c21cf340 28,37
+apps/desktop/tests/BuddyCoreTests/Logging/LogConfigEnvAndIsolationTests.swift
+  4d906fc6c21cf340 1-82
+apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogWriter.swift
+  4d906fc6c21cf340 1-225
+apps/desktop/Sources/ClaudeCodeBuddy/Scene/FoodManager.swift
+  4d906fc6c21cf340 66-69,80-83,113-117,159-163
+apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogConfig.swift
+  4d906fc6c21cf340 1-99
+apps/desktop/Sources/ClaudeCodeBuddy/Skin/SkinPackManager.swift
+  4d906fc6c21cf340 68,70
+apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift
+  4d906fc6c21cf340 44-48,115-118,280-282,293-297,347-351
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerDocsAndSubsystemAcceptanceTests.swift
+  4d906fc6c21cf340 1-206
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Marketplace/MarketplaceManager.swift
+  4d906fc6c21cf340 283,354,505
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  4d906fc6c21cf340 18,22
+CLAUDE.md
+  4d906fc6c21cf340 76
+apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  4d906fc6c21cf340 36-40,43-46,428
+apps/desktop/Sources/ClaudeCodeBuddy/Notification/NotificationManager.swift
+  4d906fc6c21cf340 50
+apps/desktop/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift
+  4d906fc6c21cf340 516-520
+apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogLevel.swift
+  4d906fc6c21cf340 1-27
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerTests.swift
+  4d906fc6c21cf340 1-136
+apps/desktop/tests/BuddyCoreTests/Logging/LogConfigAndWriterTests.swift
+  4d906fc6c21cf340 1-118
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerAcceptanceTests.swift
+  4d906fc6c21cf340 1-591
+apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift
+  4d906fc6c21cf340 267-271
+apps/desktop/Sources/ClaudeCodeBuddy/Network/SocketServer.swift
+  4d906fc6c21cf340 59,67,98,106,112,141,145,167,170,199,206,213,224,232,239,261,266
+apps/desktop/Sources/ClaudeCodeBuddy/Update/UpdateChecker.swift
+  4d906fc6c21cf340 49,172,177
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryService.swift
+  4d906fc6c21cf340 200,366,382
+apps/desktop/Sources/ClaudeCodeBuddy/Window/DockIconBoundsProvider.swift
+  4d906fc6c21cf340 72
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift
+  4d906fc6c21cf340 29-32,37-40,43-45,47-49
+homebrew/Casks/claude-code-buddy.rb
+  4d906fc6c21cf340 2
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift
+  4d906fc6c21cf340 111
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerLevelContractAcceptanceTests.swift
+  4d906fc6c21cf340 1-116
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  4d906fc6c21cf340 167,182
+apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift
+  4d906fc6c21cf340 173-175,187-190,238-242,303-305
+apps/desktop/Sources/BuddyCLI/main.swift
+  4d906fc6c21cf340 10,26-41,264-270,297-301,408-423,438-439,1039-1059,1071-1314
+apps/desktop/tests/BuddyCoreTests/Logging/BuddyLogCLIUnitTests.swift
+  4d906fc6c21cf340 1-234
+apps/desktop/Sources/ClaudeCodeBuddy/Window/MouseTracker.swift
+  4d906fc6c21cf340 4-6,8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "f16a0101921a6db57d08ffc81c28b0f82c2d21bd",
+  "prompts": {
+    "4d906fc6c21cf340": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "368a503d-f3ab-46a4-9aa2-44a8ce04efe1",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3126,
+      "total_deletions": 236,
+      "accepted_lines": 2963,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogConfig.swift": {
+          "additions": 101,
+          "deletions": 2,
+          "accepted_lines": 99
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Window/MouseTracker.swift": {
+          "additions": 4,
+          "deletions": 10,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerAcceptanceTests.swift": {
+          "additions": 660,
+          "deletions": 69,
+          "accepted_lines": 591
+        },
+        "CLAUDE.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 85,
+          "accepted_lines": 85
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/SocketServer.swift": {
+          "additions": 17,
+          "deletions": 17,
+          "accepted_lines": 17
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Scene/BuddyScene.swift": {
+          "additions": 5,
+          "deletions": 1,
+          "accepted_lines": 5
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerLevelContractAcceptanceTests.swift": {
+          "additions": 116,
+          "accepted_lines": 116
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Cat/CatSprite.swift": {
+          "additions": 17,
+          "deletions": 6,
+          "accepted_lines": 17
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogLevel.swift": {
+          "additions": 27,
+          "accepted_lines": 27
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Window/DockIconBoundsProvider.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Logging/BuddyLogger.swift": {
+          "additions": 126,
+          "deletions": 17,
+          "accepted_lines": 109
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PromptExecutor.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Notification/NotificationManager.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 317,
+          "deletions": 6,
+          "accepted_lines": 313
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/MovementComponent.swift": {
+          "additions": 22,
+          "deletions": 5,
+          "accepted_lines": 22
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift": {
+          "additions": 14,
+          "deletions": 1,
+          "accepted_lines": 14
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Scene/FoodManager.swift": {
+          "additions": 18,
+          "deletions": 4,
+          "accepted_lines": 18
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerDocsAndSubsystemAcceptanceTests.swift": {
+          "additions": 234,
+          "deletions": 28,
+          "accepted_lines": 206
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/LogConfigAndWriterTests.swift": {
+          "additions": 124,
+          "deletions": 6,
+          "accepted_lines": 118
+        },
+        "apps/desktop/Optional(\"/var/folders/d8/d5dxllzd14sg3xng327nh19m0000gn/T/BuddyLoggerTests-2C834FF6-B0B5-4A3B-8ADF-87285F1A8E90/\")locked/buddy.jsonl": {
+          "additions": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Update/UpdateChecker.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/GeneralSettingsViewController.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/ClipboardHistoryService.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Skin/SkinPackManager.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLogCLIAcceptanceTests.swift": {
+          "additions": 480,
+          "deletions": 12,
+          "accepted_lines": 468
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/LogConfigEnvAndIsolationTests.swift": {
+          "additions": 82,
+          "accepted_lines": 82
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Session/SessionManager.swift": {
+          "additions": 15,
+          "deletions": 2,
+          "accepted_lines": 15
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLogCLIUnitTests.swift": {
+          "additions": 235,
+          "deletions": 1,
+          "accepted_lines": 234
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManager.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Entity/Components/JumpComponent.swift": {
+          "additions": 5,
+          "deletions": 1,
+          "accepted_lines": 5
+        },
+        "apps/desktop/tests/BuddyCoreTests/Logging/BuddyLoggerTests.swift": {
+          "additions": 154,
+          "deletions": 18,
+          "accepted_lines": 136
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Logging/LogWriter.swift": {
+          "additions": 229,
+          "deletions": 4,
+          "accepted_lines": 225
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift": {
+          "additions": 11,
+          "deletions": 1,
+          "accepted_lines": 11
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Marketplace/MarketplaceManager.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        }
+      }
+    },
+    "8bd84fbfa4f9e2d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b08b8db3-c756-4b77-be47-7b6f5f5ea9ee",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 65,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/scripts/bundle.sh": {
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingspagesnapshottests.swift": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/plugingalleryviewcontroller.swift": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/hotkeyrecorderview.swift": {
+          "accepted_lines": 53
+        }
+      }
+    }
+  }
+}

@@ -108,10 +108,10 @@ final class SettingsPersistenceTests: XCTestCase {
         let vc = GeneralSettingsViewController()
         _ = vc.view
 
-        let switches = findAll(NSSwitch.self, in: vc.view)
-        let onSwitches = switches.filter { $0.state == .on }
+        let switches = findAllSwitches(in: vc.view)
+        let onSwitches = switches.filter { isSwitchOn($0) }
         XCTAssertGreaterThanOrEqual(onSwitches.count, 1,
-                                    "alwaysShowLabel=true 时，重开 VC 至少一个 NSSwitch 初始 state 应为 .on（SC-SET-11 重开恢复），"
+                                    "alwaysShowLabel=true 时，重开 VC 至少一个开关初始 state 应为 .on（SC-SET-11 重开恢复），"
                                     + "实际 on 数: \(onSwitches.count)")
 
         // 预设 alwaysShowLabel=false，新 VC 初始对应开关应 .off
@@ -119,11 +119,11 @@ final class SettingsPersistenceTests: XCTestCase {
         let vc2 = GeneralSettingsViewController()
         _ = vc2.view
 
-        let switches2 = findAll(NSSwitch.self, in: vc2.view)
-        let offSwitches = switches2.filter { $0.state == .off }
+        let switches2 = findAllSwitches(in: vc2.view)
+        let offSwitches = switches2.filter { !isSwitchOn($0) }
         XCTAssertGreaterThanOrEqual(offSwitches.count, switches2.count - 1,
                                     "alwaysShowLabel=false 时，重开 VC 对应开关初始 state 应为 .off（SC-SET-11 重开恢复），"
-                                    + "实际: \(switches2.map { $0.state == .on ? "on" : "off" })")
+                                    + "实际: \(switches2.map { isSwitchOn($0) ? "on" : "off" })")
     }
 
     /// SC-SET-11：通用设置至少含 2 个开关（音效 + 标签）。
@@ -132,9 +132,9 @@ final class SettingsPersistenceTests: XCTestCase {
         let vc = GeneralSettingsViewController()
         _ = vc.view
 
-        let switches = findAll(NSSwitch.self, in: vc.view)
+        let switches = findAllSwitches(in: vc.view)
         XCTAssertGreaterThanOrEqual(switches.count, 2,
-                                    "GeneralSettingsViewController 应至少含 2 个 NSSwitch（音效 + 标签，设计 A4），"
+                                    "GeneralSettingsViewController 应至少含 2 个开关（音效 + 标签，设计 A4），"
                                     + "实际: \(switches.count)")
     }
 
@@ -149,31 +149,55 @@ final class SettingsPersistenceTests: XCTestCase {
 
     // MARK: - 辅助方法
 
-    /// 翻转一个 NSSwitch：切 state + 触发 target/action。
-    private func flipSwitch(_ sw: NSSwitch) {
-        sw.state = (sw.state == .on) ? .off : .on
-        if let target = sw.target, let action = sw.action {
-            _ = target.perform(action, with: sw)
+    /// 翻转一个开关：切 state + 触发回调（兼容 NSSwitch 和 SageSwitch）。
+    private func flipSwitch(_ view: NSView) {
+        if let sw = view as? NSSwitch {
+            sw.state = (sw.state == .on) ? .off : .on
+            if let target = sw.target, let action = sw.action {
+                _ = target.perform(action, with: sw)
+            }
+        } else if let sage = view as? SageSwitch {
+            sage.toggle()
         }
+    }
+
+    /// 读取开关的 on/off 状态（兼容 NSSwitch 和 SageSwitch）。
+    private func isSwitchOn(_ view: NSView) -> Bool {
+        if let sw = view as? NSSwitch {
+            return sw.state == .on
+        } else if let sage = view as? SageSwitch {
+            return sage.isOn
+        }
+        return false
     }
 
     /// 找到翻转后会改变指定 UserDefaults key 的开关。
     /// 策略：逐个翻转开关，检查 UserDefaults[key] 是否变化，命中后翻回恢复。
-    private func findSwitchThatControls(key: String, in vc: NSViewController) -> NSSwitch? {
-        let switches = findAll(NSSwitch.self, in: vc.view)
-        for sw in switches {
+    private func findSwitchThatControls(key: String, in vc: NSViewController) -> NSView? {
+        let switches = findAllSwitches(in: vc.view)
+        for view in switches {
             let before = UserDefaults.standard.bool(forKey: key)
-            flipSwitch(sw)
+            flipSwitch(view)
             let after = UserDefaults.standard.bool(forKey: key)
             if before != after {
                 // 命中：翻回原态（调用方会再翻）
-                flipSwitch(sw)
-                return sw
+                flipSwitch(view)
+                return view
             }
             // 未命中：翻回
-            flipSwitch(sw)
+            flipSwitch(view)
         }
         return nil
+    }
+
+    /// 找全部开关（NSSwitch + SageSwitch）。
+    private func findAllSwitches(in view: NSView) -> [NSView] {
+        var result: [NSView] = []
+        if view is NSSwitch || view is SageSwitch { result.append(view) }
+        for sub in view.subviews {
+            result.append(contentsOf: findAllSwitches(in: sub))
+        }
+        return result
     }
 
     /// 递归找全部指定类型的子视图（复用 SettingsSidebarAcceptanceTests 模式）。

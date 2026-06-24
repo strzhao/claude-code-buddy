@@ -13,7 +13,7 @@ final class SageSwitch: NSView {
 
     private let trackLayer = CALayer()
     private let knobLayer = CALayer()
-    private var isOn: Bool
+    private(set) var isOn: Bool
 
     /// 状态变化回调（newState: Bool，仅用户点击触发）。
     var onChange: ((Bool) -> Void)?
@@ -89,6 +89,11 @@ final class SageSwitch: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        toggle()
+    }
+
+    /// 程序化切换开关（测试 seam，模拟用户点击）。
+    func toggle() {
         isOn.toggle()
         applyState(animated: true)
         onChange?(isOn)

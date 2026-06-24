@@ -77,6 +77,38 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         return result
     }
 
+    /// 找全部开关（NSSwitch + SageSwitch）。
+    private func findAllSwitches(in view: NSView) -> [NSView] {
+        var result: [NSView] = []
+        if view is NSSwitch || view is SageSwitch { result.append(view) }
+        for sub in view.subviews {
+            result.append(contentsOf: findAllSwitches(in: sub))
+        }
+        return result
+    }
+
+    /// 翻转开关（兼容 NSSwitch 和 SageSwitch）。
+    private func flipSwitch(_ view: NSView) {
+        if let sw = view as? NSSwitch {
+            sw.state = (sw.state == .on) ? .off : .on
+            if let target = sw.target, let action = sw.action {
+                _ = target.perform(action, with: sw)
+            }
+        } else if let sage = view as? SageSwitch {
+            sage.toggle()
+        }
+    }
+
+    /// 读取开关 on/off 状态（兼容 NSSwitch 和 SageSwitch）。
+    private func isSwitchOn(_ view: NSView) -> Bool {
+        if let sw = view as? NSSwitch {
+            return sw.state == .on
+        } else if let sage = view as? SageSwitch {
+            return sage.isOn
+        }
+        return false
+    }
+
     /// 递归找 accessibilityIdentifier 匹配的视图。
     private func findViewWithIdentifier(_ id: String, in view: NSView) -> NSView? {
         if view.accessibilityIdentifier() == id { return view }
@@ -637,23 +669,20 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         let vc = GeneralSettingsViewController()
         forceLoadView(vc)
 
-        let switches = findAll(NSSwitch.self, in: vc.view)
+        let switches = findAllSwitches(in: vc.view)
         XCTAssertGreaterThanOrEqual(switches.count, 2,
-                                    "GeneralSettingsViewController 应至少含 2 个 NSSwitch（音效 + 标签），实际: \(switches.count)")
+                                    "GeneralSettingsViewController 应至少含 2 个开关（音效 + 标签），实际: \(switches.count)")
 
         // 逐个翻转开关，验证至少有一个开关翻转后 alwaysShowLabel 变 true，
         // 至少有一个开关翻转后 soundEnabled 变 true。
-        // 这杀死了"开关存在但绑错 key"的 mutation。
         var alwaysShowLabelFlipped = false
         var soundEnabledFlipped = false
 
-        for sw in switches {
+        for view in switches {
             // 模拟用户把开关拨到 .on
-            sw.state = .on
-            // 触发 target/action（若绑定了）
-            if let target = sw.target, let action = sw.action {
-                _ = target.perform(action, with: sw)
-            }
+            flipSwitch(view)
+            // 若已是 on 但未触发回调，再翻一次（toggle 语义）
+            if !isSwitchOn(view) { flipSwitch(view) }
             // 检查哪个 key 被翻转
             if UserDefaults.standard.bool(forKey: "alwaysShowLabel") == true {
                 alwaysShowLabelFlipped = true
@@ -662,18 +691,14 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
                 soundEnabledFlipped = true
             }
             // 复位以测下一个开关
-            sw.state = .off
-            if let target = sw.target, let action = sw.action {
-                _ = target.perform(action, with: sw)
-            }
+            flipSwitch(view)
+            if isSwitchOn(view) { flipSwitch(view) }
         }
 
         XCTAssertTrue(alwaysShowLabelFlipped,
                      "翻转某个开关后 UserDefaults['alwaysShowLabel'] 必须变 true（契约 5：key 名不变）。若失败说明开关未绑定到正确 key 或未写 UserDefaults")
         XCTAssertTrue(soundEnabledFlipped,
                      "翻转某个开关后 UserDefaults['soundEnabled'] 必须变 true（契约 5：key 名不变）。若失败说明开关未绑定到正确 key 或未写 UserDefaults")
-
-        // REAL_DEVICE: 留 QA Tier 1.5 验证开关翻转的完整 UI 反馈（视觉态 + 持久化跨重启）。
 
         // 清理
         UserDefaults.standard.removeObject(forKey: "alwaysShowLabel")
@@ -690,10 +715,10 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         let vc = GeneralSettingsViewController()
         forceLoadView(vc)
 
-        let switches = findAll(NSSwitch.self, in: vc.view)
-        let onSwitches = switches.filter { $0.state == .on }
+        let switches = findAllSwitches(in: vc.view)
+        let onSwitches = switches.filter { isSwitchOn($0) }
         XCTAssertGreaterThanOrEqual(onSwitches.count, 1,
-                                    "alwaysShowLabel=true 时，至少一个 NSSwitch 初始 state 应为 .on（读取路径不回归），实际 on 数: \(onSwitches.count)")
+                                    "alwaysShowLabel=true 时，至少一个开关初始 state 应为 .on（读取路径不回归），实际 on 数: \(onSwitches.count)")
 
         // 清理
         UserDefaults.standard.removeObject(forKey: "alwaysShowLabel")

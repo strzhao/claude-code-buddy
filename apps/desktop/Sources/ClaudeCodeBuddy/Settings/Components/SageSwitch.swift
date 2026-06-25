@@ -88,6 +88,14 @@ final class SageSwitch: NSView {
         applyState(animated: false)
     }
 
+    // MARK: - 非 key window 点击兜底（R2）
+    //
+    // LSUIElement accessory app 下设置窗口可能非 key window，Cocoa 事件架构规定：
+    // 非 key 窗口的第一次 mouseDown 被系统吞掉用于激活窗口，到不了 view（官方 Event-Handling Guide）。
+    // override acceptsFirstMouse 返回 true → 告诉 AppKit「即使窗口非 key，本 view 也响应首击」。
+    // 这是治标 safety net：让 switch 在窗口未 key 时也能点；治本（窗口真 key）靠 activation policy。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         toggle()
     }

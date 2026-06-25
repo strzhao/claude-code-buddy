@@ -2,7 +2,7 @@ import AppKit
 import SpriteKit
 import Combine
 
-public class AppDelegate: NSObject, NSApplicationDelegate {
+public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     /// 供外部模块访问的弱引用（SystemCatManager 用）。
     static weak var shared: AppDelegate?
@@ -32,6 +32,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var isMouseInside = false
     private let terminalAdapters: [TerminalAdapter] = [GhosttyAdapter()]
     private let popover = NSPopover()
+    /// R2：menubar 路径点设置时，等 popover 完全关闭（popoverDidClose）再 showSettings，
+    /// 避免 popover 关闭动画干扰 app activation（日志铁证：popoverShown 时切 .regular 仍不 key）。
+    private var pendingSettingsAfterPopoverClose = false
+    /// R2：记录最近一个非自己的前台 app。menubar 路径点 status item 会让 app 自己变成 frontmost
+    /// （但 isActive 仍 false），需用它做 cooperative activate 的 yield 来源（用户点 menubar 前真正在用的 app）。
+    private var lastExternalFrontApp: NSRunningApplication?
     private lazy var popoverController = SessionPopoverController()
     private var cancellables = Set<AnyCancellable>()
     private var settingsWindowController: SettingsWindowController?
@@ -62,6 +68,19 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(handleBuddyStoreShouldOpen),
             name: .buddyStoreShouldOpen,
+            object: nil
+        )
+
+        // R2：持续追踪非自己的前台 app（didActivate 时更新），供 menubar 路径 cooperative yield 用。
+        // menubar 点 status item 后 frontmost 会变成 app 自己，须用点击前记录的用户 app。
+        if let front = NSWorkspace.shared.frontmostApplication,
+           front != NSRunningApplication.current {
+            lastExternalFrontApp = front
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(trackExternalFrontApp(_:)),
+            name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
 
@@ -268,6 +287,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
         popover.contentViewController = popoverController
         popover.behavior = .transient
+        popover.animates = false  // R2：去掉消失动画，popoverDidClose 更快触发（用户确认动画不重要）
+        popover.delegate = self  // R2：监听 popoverDidClose，menubar 路径等 popover 关闭后再开设置
         // Force loadView + set initial content size
         _ = popoverController.view
         popover.contentSize = popoverController.preferredContentSize
@@ -277,8 +298,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         popoverController.onSettings = { [weak self] in
+            // R2 menubar 根因：popover.performClose 是异步动画关闭，紧接 showSettings 时 popover
+            // 仍 shown，其关闭动画干扰 app activation 致窗口不 key。故只标记，等 popoverDidClose
+            // （动画完成）回调里再 showSettings，此时 popover 已彻底关闭、不再干扰 activation。
+            self?.pendingSettingsAfterPopoverClose = true
             self?.popover.performClose(nil)
-            self?.showSettings()
         }
 
         popoverController.onSessionClicked = { [weak self] session in
@@ -286,6 +310,16 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             guard let adapters = self?.terminalAdapters else { return }
             for adapter in adapters where adapter.activateTab(for: session) { break }
         }
+    }
+
+    // MARK: - NSPopoverDelegate
+
+    public func popoverDidClose(_ notification: Notification) {
+        // R2：menubar 路径点设置时，popover 完全关闭（动画结束）后才开设置窗口，
+        // 避免 popover 关闭动画干扰 activation（pendingSettingsAfterPopoverClose 仅在点设置时置位）。
+        guard pendingSettingsAfterPopoverClose else { return }
+        pendingSettingsAfterPopoverClose = false
+        showSettings(source: "menubar")
     }
 
     // MARK: - Edit Menu
@@ -360,32 +394,81 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Settings
 
-    private func showSettings() {
+    /// source 标识打开来源（menubar/notify/about），用于排查日志。
+    private func showSettings(source: String = "unknown") {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
-        // LSUIElement apps: 先激活 app 再 makeKey，窗口才稳定成为 key。
-        // R1 根因：旧 NSApp.activate(ignoringOtherApps:) 在 macOS 14+ 对 accessory policy
-        // 可能 no-op，致 AXFocused=false → NSTableView selection 失效。
-        // macOS 14+ 用 NSApp.activate()；且顺序须 activate 先、makeKey 后。
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-        }
+
+        // LSUIElement key window 治本（详见 .autopilot/knowledge 沉淀）：
+        // ① 切 .regular——.accessory 窗口无成为 key 的资格（steipete 发现，无 Dock 图标 app 窗口无法 key）
+        // ② cooperative activate（见 activateApp，从用户点 menubar 前在用的 app yield）
+        // ③ makeKey；policy 切换异步，delay 后二次激活兜底（首次 policy 转换可能慢）
+        NSApp.setActivationPolicy(.regular)
+        activateApp()
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.center()
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, let w = self.settingsWindowController?.window else { return }
+            activateApp()
+            w.makeKeyAndOrderFront(nil)
+            w.orderFrontRegardless()
+            BuddyLogger.shared.info("设置窗口二次激活", subsystem: "settings",
+                                    meta: ["source": source, "isKeyWindow": "\(w.isKeyWindow)"])
+        }
+    }
+
+    /// R2 治本：设置窗口关闭后切回 .accessory（恢复无 Dock 图标的 menubar app 形态）。
+    /// 与 showSettings 的 setActivationPolicy(.regular) 配对；由 SettingsWindowController 监听 willClose 触发。
+    func restoreActivationPolicy() {
+        guard NSApp.activationPolicy() == .regular else { return }
+        NSApp.setActivationPolicy(.accessory)
+        BuddyLogger.shared.info("恢复 .accessory policy", subsystem: "settings")
+    }
+
+    /// R2 治本：cooperative activation（macOS 14+）。NSApp.activate() 只是请求、不保证成功
+    ///（日志证实 menubar 路径 frontmost 为外部 app 时也常失败）；activate(from:) 要求当前前台 app
+    /// yield，是官方保证成功的激活路径（Ice 同款）。frontmost 为外部 regular app（终端/编辑器）时从其
+    /// yield；为自己/无前台时降级 NSApp.activate()（此时无 yield 来源，可靠性下降）。
+    private func activateApp() {
+        if #available(macOS 14.0, *) {
+            // menubar 路径点 status item 后 frontmost 会变成 app 自己（isActive 仍 false），
+            // 故优先用记录到的 lastExternalFrontApp（用户点 menubar 前真正在用的 app）做 cooperative yield。
+            let tracked = (lastExternalFrontApp?.isTerminated == false) ? lastExternalFrontApp : nil
+            let frontApp = tracked ?? NSWorkspace.shared.frontmostApplication
+            if let frontApp, frontApp != NSRunningApplication.current {
+                NSRunningApplication.current.activate(from: frontApp)
+                BuddyLogger.shared.info("cooperative activate(from:)", subsystem: "settings",
+                                        meta: ["frontApp": frontApp.bundleIdentifier ?? "?",
+                                               "yieldSource": tracked != nil ? "tracked" : "frontmost"])
+            } else {
+                NSApp.activate()
+                BuddyLogger.shared.info("降级 NSApp.activate()（无外部 yield 来源）", subsystem: "settings")
+            }
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     /// 打开设置窗口并切换到「关于」分类（系统猫点击触发）。
     func openSettingsToAbout() {
-        showSettings()
+        showSettings(source: "about")
         settingsWindowController?.splitViewController.selectSection(.about)
     }
 
     @objc private func handleBuddyStoreShouldOpen() {
-        showSettings()
+        // 经 socket / buddy CLI open_settings 通知进来。
+        showSettings(source: "notify")
+    }
+
+    /// 记录非自己的前台 app 激活（menubar 路径 cooperative yield 的来源：点 status item 后
+    /// frontmost 变 app 自己，须用点击前记录的用户 app 做 activate(from:)）。
+    @objc private func trackExternalFrontApp(_ note: Notification) {
+        guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app != NSRunningApplication.current else { return }
+        lastExternalFrontApp = app
     }
 
     // MARK: - Dock Monitoring

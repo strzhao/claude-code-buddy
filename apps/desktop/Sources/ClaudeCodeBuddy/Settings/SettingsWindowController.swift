@@ -48,6 +48,18 @@ final class SettingsWindowController: NSWindowController {
 
         self.init(window: window)
         self.splitViewController = splitVC
+
+        // settings window key 状态（排查用）+ 关闭时切回 .accessory（配合 showSettings 切 .regular）。
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main
+        ) { _ in
+            BuddyLogger.shared.info("settings window didBecomeKey", subsystem: "settings")
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { _ in
+            AppDelegate.shared?.restoreActivationPolicy()
+        }
     }
 
     @available(*, unavailable)

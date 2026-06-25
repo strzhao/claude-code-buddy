@@ -18,8 +18,10 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (99)
+## Patterns (101)
 
+- [2026-06-25] build-time fetch（编译时 git clone 资源打进 bundle，gitignored 产物 + .gitkeep 占位）+ 编译型插件热更新失效（qr：源码在 monorepo + 用户侧无编译环境 → binary 缺失；非权限问题，ensureStdinChmod 已兜底 +x）+ Makefile 链式依赖强制时序 + 社区插件默认脚本型 | tags: build-time-fetch, monorepo, gitignore, gitkeep, fetch-plugins, makefile, chained-dependency, compiled-plugin, hot-reload, qr, universal-binary, ensurestdin-chmod, file-missing, plugin-crash, shell-vs-compiled, community-plugin, dual-track, localsubdir, gitgsubdir | → patterns/2026-06-25-build-time-fetch-gitignore-artifact-compiled-plugin-hotreload.md
+- [2026-06-25] gitSubdir source sha 改可选（消除 monorepo 更新 mismatch 死结，镜像 gitURL decodeIfPresent）+ TOFU 严格首次（isEverTrusted 只看 pluginName，首次弹框后续免提示，等价 Homebrew 模型；trustKey 仍记 exe hash 供审计）| tags: pluginsourceconfig, gitgsubdir, sha, optional, decodeifpresent, monorepo, mismatch, tofu, isevertrusted, trust-model, first-use-only, homebrew-model, security-tradeoff, marketplace, sync, verifysha, giturl | → patterns/2026-06-25-gitgsubdir-optional-sha-tofu-first-use-only.md
 - [2026-06-24] plugin.json summary 双字段 + displaySummary 降级 + CLI·BuddyCore mirror 双绑（C1/C5）：summary 可选 + 降级（summary→description 首句→name）；向后兼容字段一律 decodeIfPresent ?? 默认（keywords required 致 Codable 整体 decode 失败是本次 bug 根因）；CLI·BuddyCore 降级逻辑逐字一致 mirror | tags: plugin, manifest, summary, displaySummary, fallback, mirror, cli, buddycore, decodeifpresent, backward-compat, keywords, contract, c1, c5, codable, launcher | → patterns/2026-06-24-plugin-summary-displaysummary-mirror-cli-buddycore.md
 - [2026-06-24] 红队 helper 默认填字段掩盖向后兼容场景，Tier 1.5 真实边缘输入才捕获：helper 默认填 keywords:[] 致红队 + contract-checker 漏 keywords required bug；Tier 1.5 造无 summary/keywords 的 legacy plugin.json 才暴露 inspect not found；向后兼容契约 helper 必须提供缺字段变体 | tags: autopilot, red-team, testing, helper, backward-compat, tier-1-5, blind-spot, contract-checker, decodeifpresent, keywords, acceptance-test, qa, edge-input | → patterns/2026-06-24-red-team-helper-masked-backward-compat-tier1-5.md
 

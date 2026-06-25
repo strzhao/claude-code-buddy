@@ -38,7 +38,7 @@ struct MarketplaceInspection: Codable, Equatable {
 
         /// C1 降级 / 向后兼容：无 summary/description 的旧 inspect JSON 仍能 decode（decodeIfPresent 兜底空串）。
         /// 生产 inspect() 始终填 displaySummary（非空），此处仅容错外部/旧 JSON（红队 AT03）。
-        private enum CodingKeys: String, CodingKey {
+        private enum CodingKeys: String, CodingKey {  // swiftlint:disable:this nesting
             case name, version, enabled, source, summary, description
         }
         init(from decoder: Decoder) throws {
@@ -68,7 +68,7 @@ struct MarketplaceInspection: Codable, Equatable {
         }
 
         /// C1 降级 / 向后兼容：无 summary/description 的旧 inspect JSON 仍能 decode（红队 AT03 同语义）。
-        private enum CodingKeys: String, CodingKey {
+        private enum CodingKeys: String, CodingKey {  // swiftlint:disable:this nesting
             case name, enabled, summary, description
         }
         init(from decoder: Decoder) throws {
@@ -103,6 +103,8 @@ final class MarketplaceManager {
 
     private let resolver: PluginSourceResolving
     private let trustStore: TrustStore
+    /// C4/C5：自动更新开关存储（sync updated 时读，ON → installPlugin 覆盖，OFF → 仅 cache）。
+    private let autoUpdateStore: MarketplaceAutoUpdateStore
     private let pluginsDir: URL
     private let marketplacePath: URL
     private let metaPath: URL
@@ -125,9 +127,10 @@ final class MarketplaceManager {
     /// 1 小时 debounce 间隔。
     private static let syncDebounceSeconds: TimeInterval = 3600
 
-    /// 默认 GitHub Raw URL（生产 fallback）。
-    private static let productionRemoteURLString =
-        "https://raw.githubusercontent.com/stringzhao/claude-code-buddy/main/marketplace/marketplace.json"
+    /// 默认 GitHub Raw URL（C10：指向官方插件 monorepo 的 marketplace.json）。
+    /// 从旧 claude-code-buddy 仓库 marketplace/marketplace.json 迁移至 buddy-official-plugins 根。
+    /// internal 供测试断言（C10 契约：必须含 buddy-official-plugins）。
+    static let productionRemoteURLString = LauncherConstants.officialMarketplaceRawURL
 
     /// 默认远程 URL：读 env `BUDDY_MARKETPLACE_URL` 或 GitHub Raw 生产 fallback。
     ///
@@ -143,6 +146,7 @@ final class MarketplaceManager {
     init(
         resolver: PluginSourceResolving = PluginSourceResolver.shared,
         trustStore: TrustStore = .shared,
+        autoUpdateStore: MarketplaceAutoUpdateStore = .shared,
         pluginsDir: URL = LauncherConstants.launcherPluginsDir,
         marketplacePath: URL = LauncherConstants.buddyDir.appendingPathComponent("marketplace.json"),
         metaPath: URL = LauncherConstants.buddyDir.appendingPathComponent("marketplace-meta.json"),
@@ -154,6 +158,7 @@ final class MarketplaceManager {
     ) {
         self.resolver = resolver
         self.trustStore = trustStore
+        self.autoUpdateStore = autoUpdateStore
         self.pluginsDir = pluginsDir
         self.marketplacePath = marketplacePath
         self.metaPath = metaPath
@@ -327,14 +332,29 @@ final class MarketplaceManager {
             // 写 cache
             try data.write(to: marketplacePath)
 
-            // 应用变更（remote 视角：added → 新装；updated → replace）
-            for name in (added + updated) {
+            // 应用变更（remote 视角：added → 新装；updated → autoUpdate ON 时覆盖，OFF 时仅 cache）
+            // C5：added 始终安装（新插件，replacing=false）；updated 仅在 autoUpdate ON 时 installPlugin(replacing: true)。
+            // autoUpdate OFF 时 updated 不覆盖（cache 已写，下次用户手动 install 或 reseed 时生效）。
+            // 注：sync 的 installPlugin 本就不调 checkAndPrompt（I-NEW3），故「绕过 TOFU」已是事实。
+            let autoUpdateOn = autoUpdateStore.isEnabled
+            for name in added {
                 guard let plugin = remoteManifest.plugins.first(where: { $0.name == name }) else { continue }
-                let replacing = updated.contains(name)
                 do {
-                    try await installPlugin(plugin, manifest: remoteManifest, replacing: replacing)
+                    try await installPlugin(plugin, manifest: remoteManifest, replacing: false)
                 } catch {
-                    BuddyLogger.shared.error("marketplace install during sync failed", subsystem: "plugin", meta: ["name": name, "error": "\(error)"])
+                    BuddyLogger.shared.error("marketplace install during sync failed", subsystem: "plugin", meta: ["name": name, "kind": "added", "error": "\(error)"])
+                }
+            }
+            for name in updated {
+                guard autoUpdateOn else {
+                    BuddyLogger.shared.info("marketplace sync skip update (autoUpdate OFF)", subsystem: "plugin", meta: ["name": name])
+                    continue
+                }
+                guard let plugin = remoteManifest.plugins.first(where: { $0.name == name }) else { continue }
+                do {
+                    try await installPlugin(plugin, manifest: remoteManifest, replacing: true)
+                } catch {
+                    BuddyLogger.shared.error("marketplace install during sync failed", subsystem: "plugin", meta: ["name": name, "kind": "updated", "error": "\(error)"])
                 }
             }
             // removed: 留旧目录不删

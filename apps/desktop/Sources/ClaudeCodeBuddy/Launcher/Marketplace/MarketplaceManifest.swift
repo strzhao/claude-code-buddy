@@ -38,9 +38,13 @@ struct MarketplaceAuthor: Codable, Equatable {
 /// JSON 表示有两种形态：
 /// - 字符串简写 → `.localSubdir`，例如 `"./plugins/translate"`
 /// - 对象形态，按 `source` 字段判别 → `.gitSubdir` / `.gitURL` / `.file`
+///
+/// `gitSubdir.sha` 可选（C1.1）：monorepo 持续 push 新 commit 时不强校验 sha，
+/// 跟随 `ref` 最新。镜像 `gitURL.sha` 的可选模式。安全靠 git clone HTTPS（来源可信）
+/// + TOFU 严格首次（子设计 5）同属"信任后不再反复校验"哲学。
 enum PluginSourceConfig: Equatable {
     case localSubdir(path: String)
-    case gitSubdir(url: String, path: String, ref: String, sha: String)
+    case gitSubdir(url: String, path: String, ref: String, sha: String?)
     case gitURL(url: String, sha: String?)
     case file(path: String)
 }
@@ -70,7 +74,7 @@ extension PluginSourceConfig: Codable {
                 url: try container.decode(String.self, forKey: .url),
                 path: try container.decode(String.self, forKey: .path),
                 ref: try container.decode(String.self, forKey: .ref),
-                sha: try container.decode(String.self, forKey: .sha)
+                sha: try container.decodeIfPresent(String.self, forKey: .sha)
             )
         case "url":
             self = .gitURL(
@@ -99,7 +103,7 @@ extension PluginSourceConfig: Codable {
             try container.encode(url, forKey: .url)
             try container.encode(path, forKey: .path)
             try container.encode(ref, forKey: .ref)
-            try container.encode(sha, forKey: .sha)
+            try container.encodeIfPresent(sha, forKey: .sha)
         case .gitURL(let url, let sha):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("url", forKey: .source)

@@ -73,7 +73,11 @@ final class PluginSourceResolver: PluginSourceResolving {
             case .gitSubdir(let url, let path, let ref, let sha):
                 let cloneDir = try await gitClone(url: url, ref: ref)
                 tempDirToCleanOnFailure = cloneDir
-                try verifySHA(in: cloneDir, expected: sha)
+                // C1.1：sha 可选 —— 仅当 monorepo 填了 sha 时校验（镜像 gitURL 的可选 sha 模式）。
+                // 不填 sha 时跟随 ref 最新 commit，供自动更新（monorepo 持续 push 不触发 mismatch）。
+                if let sha {
+                    try verifySHA(in: cloneDir, expected: sha)
+                }
                 let resolved = cloneDir.appending(path: path)
                 guard FileManager.default.fileExists(
                     atPath: resolved.appending(path: "plugin.json").path

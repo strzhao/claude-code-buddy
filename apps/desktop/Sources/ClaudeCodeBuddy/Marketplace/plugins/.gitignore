@@ -1,0 +1,8 @@
+# 官方插件源码已迁移至独立 monorepo：
+# https://github.com/strzhao/buddy-official-plugins
+#
+# 本目录内容由 build-time fetch（Scripts/fetch-plugins.sh）从 monorepo 拉取填充，
+# 属构建产物，不入库。仅保留 .gitkeep 占位让目录存在（SPM .copy("Marketplace") 需要）。
+*
+!.gitignore
+!.gitkeep

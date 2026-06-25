@@ -64,6 +64,16 @@ final class TrustStore {
         return records.contains { $0.pluginName == plugin.name && $0.trustKey == key }
     }
 
+    /// C6：是否曾经信任过该插件（任意记录即 true，不看 exe hash）。
+    ///
+    /// TOFU 严格首次：首次执行弹框，信任后写入记录；后续更新（exe 变化）不再弹框。
+    /// trustKey 仍记录（含 exe hash，用于审计/显示），但不用于「是否重新弹框」的判定。
+    /// 官方与第三方插件走同一 codepath（C7），不区分 source —— 签名只接受 pluginName，无 source 参数。
+    func isEverTrusted(_ pluginName: String) -> Bool {
+        let records = (try? loadRecords()) ?? []
+        return records.contains { $0.pluginName == pluginName }
+    }
+
     func approve(_ plugin: PluginManifest, executablePath: URL) throws {
         let key = try Self.trustKey(for: plugin, executablePath: executablePath)
         var records = (try? loadRecords()) ?? []
@@ -84,11 +94,14 @@ final class TrustStore {
     }
 
     /// trust check 入口：已信任直接返回 true；首次执行弹 NSAlert 确认。
-    /// 返回 true = 允许执行；false = 用户拒绝
+    ///
+    /// C6 TOFU 严格首次：判定改为 `isEverTrusted(pluginName)`（任意记录即放行，不看 exe hash）。
+    /// 首次（无记录）→ 弹 NSAlert；信任后写记录；后续更新（exe 变化）→ isEverTrusted=true 直接放行。
+    /// 返回 true = 允许执行；false = 用户拒绝。
     /// **必须在 @MainActor**（NSAlert 需主线程）
     @MainActor
     func checkAndPrompt(_ plugin: PluginManifest, executablePath: URL) async -> Bool {
-        if isTrusted(plugin, executablePath: executablePath) { return true }
+        if isEverTrusted(plugin.name) { return true }
         let approved = await TrustPrompt.askUser(plugin: plugin, executablePath: executablePath)
         guard approved else { return false }
         try? approve(plugin, executablePath: executablePath)

@@ -26,7 +26,7 @@ jobs:
         working-directory: apps/desktop
 
       - name: Build
-        run: swift build
+        run: make build
         working-directory: apps/desktop
 
       - name: Test

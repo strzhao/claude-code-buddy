@@ -49,6 +49,8 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     private let builtinRegistry: BuiltinPluginRegistry
     /// C6：内置插件开关存储（开关分派 builtin 分支）。
     private let builtinEnabledStore: BuiltinPluginEnabledStore
+    /// C4：官方插件自动更新开关存储（顶部 switch 绑定）。
+    private let autoUpdateStore: MarketplaceAutoUpdateStore
 
     // MARK: - UI
 
@@ -61,18 +63,30 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     /// C6：「插件开发文档」入口按钮（NSWorkspace 打开 web /plugin/docs）。
     private let docsButton = NSButton(title: "插件开发文档", target: nil, action: nil)
 
+    /// C4：官方插件自动更新开关（独立分组卡片，默认 ON）。
+    /// 绑定 MarketplaceAutoUpdateStore（UserDefaults `buddy.launcher.marketplace.autoUpdate`）。
+    private let autoUpdateLabel = SettingsGroupLabel(title: "自动更新")
+    private let autoUpdateGroup = SettingsGroupView()
+    private let autoUpdateRow = SettingsToggleRow(
+        title: "官方插件自动更新",
+        subtitle: "检测到新版本时自动覆盖安装，无需手动重装",
+        isOn: MarketplaceAutoUpdateStore.shared.isEnabled
+    )
+
     // MARK: - Init
 
     init(
         marketplace: MarketplaceInspecting = MarketplaceManager.shared,
         plugins: PluginToggling = PluginManager.shared,
         builtinRegistry: BuiltinPluginRegistry = .shared,
-        builtinEnabledStore: BuiltinPluginEnabledStore = .shared
+        builtinEnabledStore: BuiltinPluginEnabledStore = .shared,
+        autoUpdateStore: MarketplaceAutoUpdateStore = .shared
     ) {
         self.marketplace = marketplace
         self.plugins = plugins
         self.builtinRegistry = builtinRegistry
         self.builtinEnabledStore = builtinEnabledStore
+        self.autoUpdateStore = autoUpdateStore
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -107,6 +121,18 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         container.addSubview(scrollView)
 
         contentView.translatesAutoresizingMaskIntoConstraints = false
+
+        // C4：自动更新分组（顶部，在「插件」分组之上）
+        autoUpdateLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(autoUpdateLabel)
+        autoUpdateGroup.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(autoUpdateGroup)
+        autoUpdateGroup.addRow(autoUpdateRow)
+        // C4：绑定开关到 MarketplaceAutoUpdateStore（UserDefaults）
+        autoUpdateRow.onToggle = { [weak self] isOn in
+            self?.autoUpdateStore.setEnabled(isOn)
+            BuddyLogger.shared.info("marketplace autoUpdate toggled", subsystem: "settings", meta: ["enabled": isOn])
+        }
 
         groupLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(groupLabel)
@@ -145,8 +171,18 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             contentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor),
 
-            // groupLabel
-            groupLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: SettingsTheme.groupTopInset),
+            // autoUpdateLabel（顶部第一个分组）
+            autoUpdateLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: SettingsTheme.groupTopInset),
+            autoUpdateLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
+            autoUpdateLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // autoUpdateGroup（自动更新开关卡片）
+            autoUpdateGroup.topAnchor.constraint(equalTo: autoUpdateLabel.bottomAnchor, constant: 6),
+            autoUpdateGroup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
+            autoUpdateGroup.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // groupLabel（插件分组，在自动更新分组之下）
+            groupLabel.topAnchor.constraint(equalTo: autoUpdateGroup.bottomAnchor, constant: SettingsTheme.groupTopInset),
             groupLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
             groupLabel.trailingAnchor.constraint(lessThanOrEqualTo: docsButton.leadingAnchor, constant: -8),
 
@@ -154,7 +190,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             docsButton.centerYAnchor.constraint(equalTo: groupLabel.centerYAnchor),
             docsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            // group（分组卡片，内容自适应高度，参照 GeneralSettings 无 bottom 约束）
+            // group（插件列表分组卡片，内容自适应高度）
             group.topAnchor.constraint(equalTo: groupLabel.bottomAnchor, constant: 6),
             group.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
             group.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),

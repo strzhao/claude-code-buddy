@@ -37,8 +37,13 @@ test-results/
 # Sprite processing backup
 Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
 
-# qr-gen universal binary（Makefile build-qr-gen 产物，不入库；源码 qr-gen.swift 入库）
+# qr-gen universal binary（Makefile build-qr-gen 产物，不入库；源码在 monorepo）
+# 注：整个 plugins/ 目录已由 apps/desktop/Sources/.../plugins/.gitignore 排除（C2），
+# 此条为历史保留，现被其上级 .gitignore 的 `*` 规则覆盖。
 apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen
+
+# fetch-plugins 缓存（C8 兜底用，构建产物不入库）
+apps/desktop/.cache/
 
 claude-code-buddy-web/
 

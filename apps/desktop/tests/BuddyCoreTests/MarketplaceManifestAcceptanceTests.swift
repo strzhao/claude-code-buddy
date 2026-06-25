@@ -48,6 +48,7 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
 
     func test_AT02_gitSubdirRoundTrip() throws {
         // AT02: {"source": "git-subdir", url, path, ref, sha} → .gitSubdir → 字段全等
+        // C1.1：sha 现为 String?（decodeIfPresent），填 sha 时 round-trip 保持
         let json = """
         {"source":"git-subdir","url":"https://github.com/x/y.git","path":"plugins/z","ref":"v1.0.0","sha":"abc123"}
         """
@@ -60,6 +61,36 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
         let reEncoded = try encode(decoded)
         let reDecoded = try JSONDecoder().decode(PluginSourceConfig.self, from: reEncoded)
         XCTAssertEqual(reDecoded, decoded)
+    }
+
+    // MARK: - AT02b gitSubdir 缺 sha 能 decode（C1.1，镜像 AT04 gitURL 无 sha）
+
+    func test_AT02b_gitSubdirWithoutShaRoundTrip() throws {
+        // AT02b: {"source": "git-subdir", url, path, ref}（无 sha）→ .gitSubdir(sha=nil) round-trip
+        // C1.1：monorepo marketplace.json 的 gitSubdir 不填 sha，跟随 ref 最新
+        let json = """
+        {"source":"git-subdir","url":"https://github.com/strzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}
+        """
+        let decoded = try decode(PluginSourceConfig.self, from: json)
+        XCTAssertEqual(
+            decoded,
+            .gitSubdir(url: "https://github.com/strzhao/buddy-official-plugins", path: "plugins/hello", ref: "main", sha: nil)
+        )
+
+        let reEncoded = try encode(decoded)
+        let reDecoded = try JSONDecoder().decode(PluginSourceConfig.self, from: reEncoded)
+        XCTAssertEqual(reDecoded, decoded)
+
+        // 验证 nil sha 在 case 中保留
+        if case .gitSubdir(_, _, _, let sha) = reDecoded {
+            XCTAssertNil(sha, "gitSubdir 缺 sha 时应 decode 为 nil 而非空串/崩溃")
+        } else {
+            XCTFail("expected .gitSubdir case")
+        }
+
+        // reEncoded JSON 不应含 "sha" 键（encodeIfPresent 省略 nil）
+        let asString = String(data: reEncoded, encoding: .utf8) ?? ""
+        XCTAssertFalse(asString.contains("\"sha\""), "nil sha 不应 encode 出 sha 键，got: \(asString)")
     }
 
     // MARK: - AT03 gitURL with sha
@@ -131,8 +162,8 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
 
         XCTAssertEqual(manifest.schemaVersion, 1)
         XCTAssertEqual(manifest.name, "buddy-official")
-        // translate 已折进默认流（Buddy 万能输入框内建能力），不再作为 bundled 插件；qr 插件已加入 seed
-        XCTAssertEqual(manifest.plugins.count, 2)
+        // hello/qr/qzh 三个官方插件均在 seed（qzh 随 monorepo 迁移一并加入 bundle seed）
+        XCTAssertEqual(manifest.plugins.count, 3)
 
         let hello = manifest.plugins.first { $0.name == "hello" }
         XCTAssertNotNil(hello)
@@ -140,6 +171,9 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
         let qr = manifest.plugins.first { $0.name == "qr" }
         XCTAssertNotNil(qr, "qr 插件必须存在于 seed marketplace.json")
         XCTAssertEqual(qr?.source, .localSubdir(path: "./plugins/qr"))
+        let qzh = manifest.plugins.first { $0.name == "qzh" }
+        XCTAssertNotNil(qzh, "qzh 插件必须存在于 seed marketplace.json（随 monorepo 迁移）")
+        XCTAssertEqual(qzh?.source, .localSubdir(path: "./plugins/qzh"))
     }
 
     // MARK: - AT07 schemaVersion 缺失抛错

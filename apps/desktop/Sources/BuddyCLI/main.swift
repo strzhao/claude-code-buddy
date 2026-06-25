@@ -2145,7 +2145,7 @@ struct CLIMarketplacePlugin: Codable {
 /// 否则按 `source` 字段判别 `git-subdir` / `url` / `file`
 enum CLIPluginSourceConfig: Codable {
     case localSubdir(path: String)
-    case gitSubdir(url: String, path: String, ref: String, sha: String)
+    case gitSubdir(url: String, path: String, ref: String, sha: String?)
     case gitURL(url: String, sha: String?)
     case file(path: String)
 
@@ -2171,7 +2171,7 @@ enum CLIPluginSourceConfig: Codable {
                 url: try container.decode(String.self, forKey: .url),
                 path: try container.decode(String.self, forKey: .path),
                 ref: try container.decode(String.self, forKey: .ref),
-                sha: try container.decode(String.self, forKey: .sha)
+                sha: try container.decodeIfPresent(String.self, forKey: .sha)
             )
         case "url":
             self = .gitURL(
@@ -2200,7 +2200,7 @@ enum CLIPluginSourceConfig: Codable {
             try container.encode(url, forKey: .url)
             try container.encode(path, forKey: .path)
             try container.encode(ref, forKey: .ref)
-            try container.encode(sha, forKey: .sha)
+            try container.encodeIfPresent(sha, forKey: .sha)
         case .gitURL(let url, let sha):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("url", forKey: .source)

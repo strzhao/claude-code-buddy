@@ -1,0 +1,72 @@
+.autopilot/knowledge/patterns/2026-06-25-build-time-fetch-gitignore-artifact-compiled-plugin-hotreload.md
+  44ddbc11da2da507 1-20
+.autopilot/knowledge/patterns/2026-06-25-gitgsubdir-optional-sha-tofu-first-use-only.md
+  44ddbc11da2da507 1-18
+.autopilot/knowledge/index.md
+  44ddbc11da2da507 21,23-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "802968a0ad6c64c0be35b8bbd01ed4f41436a7e5",
+  "prompts": {
+    "44ddbc11da2da507": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "336e97a9-74c8-4863-a79d-29d37bf1bd6c",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 1,
+      "accepted_lines": 631,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        ".autopilot/knowledge/patterns/2026-06-25-build-time-fetch-gitignore-artifact-compiled-plugin-hotreload.md": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        ".autopilot/knowledge/patterns/2026-06-25-gitgsubdir-optional-sha-tofu-first-use-only.md": {
+          "additions": 18,
+          "accepted_lines": 18
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qr/plugin.json": {
+          "accepted_lines": 13
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qzh/setup.sh": {
+          "accepted_lines": 73
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qzh/qzh-exec": {
+          "accepted_lines": 207
+        },
+        "apps/desktop/.cache/buddy-plugins/marketplace.json": {
+          "accepted_lines": 56
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qr/qr-gen.swift": {
+          "accepted_lines": 101
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qzh/plugin.json": {
+          "accepted_lines": 13
+        },
+        "apps/desktop/.cache/buddy-plugins/.fetched-from": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/qzh/README.md": {
+          "accepted_lines": 88
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/hello/hello.sh": {
+          "accepted_lines": 25
+        },
+        "apps/desktop/.cache/buddy-plugins/plugins/hello/plugin.json": {
+          "accepted_lines": 13
+        }
+      }
+    }
+  }
+}

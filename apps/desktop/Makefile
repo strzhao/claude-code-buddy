@@ -1,4 +1,4 @@
-.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle fetch-plugins fix-plugin-perms
+.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle fetch-plugins fetch-plugins-local fix-plugin-perms
 
 # C12 链式依赖（M8 qr shell 化后简化）：fetch-plugins → fix-plugin-perms → build/bundle。
 # qr 已从编译型（qr-gen.swift + swiftc lipo）改为脚本型（qr-gen.sh），无需 build-qr-gen target。
@@ -11,6 +11,24 @@
 # 失败兜底见 Scripts/fetch-plugins.sh（缓存 / 清晰错误）。SKIP_FETCH_PLUGINS=1 可跳过（本地调试）。
 fetch-plugins:
 	@bash Scripts/fetch-plugins.sh
+
+# fetch-plugins-local: 本地开发循环 —— 直接从本地 clone 拉（免 GitHub 网络往返）。
+# 默认指 ~/workspace/buddy-official-plugins（与 app repo 同级的 workspace clone），
+# BUDDY_LOCAL_PLUGINS_DIR 可 override 指向任意本地 clone 路径。
+# 实现：把 fetch-plugins.sh 的 BUDDY_OFFICIAL_PLUGINS_URL 设为 file:// URL（脚本已支持）。
+# 适用：开发插件时改 monorepo → make fetch-plugins-local 立即生效，无需 git push。
+# 默认值用 abspath 算（CURDIR = apps/desktop，../../../buddy-official-plugins = workspace 同级 clone）。
+DEFAULT_LOCAL_PLUGINS_DIR := $(abspath $(CURDIR)/../../../buddy-official-plugins)
+fetch-plugins-local:
+	@LOCAL_DIR="$$BUDDY_LOCAL_PLUGINS_DIR"; \
+	if [ -z "$$LOCAL_DIR" ]; then LOCAL_DIR="$(DEFAULT_LOCAL_PLUGINS_DIR)"; fi; \
+	if [ ! -d "$$LOCAL_DIR/.git" ]; then \
+		echo "[fetch-plugins-local] ERROR: 本地 monorepo 不存在: $$LOCAL_DIR" >&2; \
+		echo "  设 BUDDY_LOCAL_PLUGINS_DIR=<path> override，或 clone https://github.com/strzhao/buddy-official-plugins" >&2; \
+		exit 1; \
+	fi; \
+	echo "[fetch-plugins-local] 从本地 clone 拉: $$LOCAL_DIR"; \
+	BUDDY_OFFICIAL_PLUGINS_URL="file://$$LOCAL_DIR" bash Scripts/fetch-plugins.sh
 
 # fix-plugin-perms 直接依赖 fetch-plugins（M8 qr shell 化：不再有 build-qr-gen 编译步骤）。
 # 修正 Marketplace 插件目录下 shell 脚本的可执行位（git 不保留权限位，CI/clone 后需重建）。

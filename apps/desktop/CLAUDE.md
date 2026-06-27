@@ -190,6 +190,40 @@ buddy launcher hotkey clear                             # 重置为默认 (Ctrl+
 参数：`--key <key>`（字母 a-z / 数字 0-9 / space / f1-f20 / return 等）+ `--modifiers <csv>`（command,shift,control,option）。
 CLI 通过 socket 让 app 进程调 KeyboardShortcuts 库 API，即时重注册 Carbon 热键（无需重启 app）。
 
+### 插件开发约定（社区优先）
+
+**新能力默认走社区插件，内置保留边界**（2026-06-28 确立）：
+
+- **社区优先**：新功能（二维码、监控控制、文件操作等「确定性子进程产物」或「LLM 工具」）默认实现为**社区插件**，放进独立 monorepo [`strzhao/buddy-official-plugins`](https://github.com/strzhao/buddy-official-plugins)，不编进 app。
+  - 优势：热更新（改 monorepo → 用户 `buddy launcher update` 即生效，不重发 app）、可审计（shell 脚本可读）、零编译（声明 deps 由 app 首次执行时自动安装）。
+  - 例外：需要常驻内存 / 系统 API / 高频路径的能力才进内置（见下方边界）。
+- **内置保留边界**（仅以下四类留内置，其他迁社区）：
+  1. **Calculator / Paste / AppLauncher / SystemCommand** —— 已有的四个内置插件（进程内、需 NSPasteboard/NSWorkspace/登录框架等系统 API）。
+  2. **lock（锁屏）等需系统私有框架的能力** —— 依赖 `login.framework` dlopen，社区插件做不到。
+  3. **高频/常驻能力**（如 ClipboardHistoryService 的 Timer 轮询）—— 进程内常驻，社区插件是按需 spawn 的短命子进程。
+  4. **核心路由/仲裁**（LauncherManager / BuiltinPluginRegistry / Router）—— 框架本身，非插件。
+- **社区插件技术栈**：
+  - **command mode**（零 LLM、子进程直接产出）：适合二维码、截图、文件转换等确定性输出。脚本读 stdin JSON `$INPUT=$(cat)` + `jq -r '.query // ""'` 取 query，产出写 `$BUDDY_OUTPUT_IMAGE`（图片）或 `$BUDDY_OUTPUT_CANDIDATES`（候选）或 stdout（文本）。
+  - **stdin mode**（子进程 stdout 回灌 LLM）：适合「LLM 调用工具」语义。
+  - **prompt mode**（LLM 单轮）：适合翻译、问答、改写。
+  - 外部依赖走 `deps` 声明（`{check, brew, label}`），app 首次执行时弹信任框 + 自动 `brew install`（见 DependencyInstaller/TrustPrompt）。
+
+**官方插件 monorepo**：`~/workspace/buddy-official-plugins`（与 app repo 同级的 workspace clone），结构 `plugins/<name>/{plugin.json, 主脚本, README.md}` + 根 `marketplace.json`。
+
+**本地开发循环**（改 monorepo → 立即在 app 生效，免 git push）：
+
+```bash
+# 在 apps/desktop 下：
+make fetch-plugins-local                    # 从本地 clone 拉（默认 ~/workspace/buddy-official-plugins）
+make fetch-plugins-local BUDDY_LOCAL_PLUGINS_DIR=/path/to/clone   # override clone 路径
+make fetch-plugins                          # 从 GitHub main 拉（验证发版链路）
+SKIP_FETCH_PLUGINS=1 make build             # 跳过 fetch（离线调试，需已有 plugins/ 内容）
+```
+
+build-time fetch 机制：Makefile `fetch-plugins` → `Scripts/fetch-plugins.sh` 从 monorepo git clone 拉取 `plugins/` 源 + 生成 bundle `marketplace.json`，填进 `Sources/ClaudeCodeBuddy/Marketplace/plugins/`（构建产物，.gitignore 忽略）。`BUDDY_OFFICIAL_PLUGINS_URL=file:///path` 可指向任意本地/远程 monorepo。
+
+**release 链路**（C1）：`.github/workflows/release.yml` 在 `Build arm64` 前有 `make -C apps/desktop fetch-plugins` step，保证发版带插件（fetch 失败令 CI 失败，非静默）。
+
 ### 插件管理
 
 ```bash
@@ -270,7 +304,7 @@ buddy log show --subsystem plugin                  # 看插件子系统日志
 
 UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片（白底保证扫码对比度），点击 → `CopyService.copyImage`（clearContents + setData .png）+ ✓ 反馈（1.2s 复位）。无图片无 stdout 时显示占位「未生成图片」。
 
-**qr 插件（command mode 首个用例）**：CoreImage `CIFilter.qrCodeGenerator` 生成 PNG，universal binary（arm64 + x86_64 + lipo）随插件分发。Makefile `build-qr-gen` 目标在 `swift build` 前编译二进制，保证 SPM `.copy("Marketplace")` 拷到含二进制的目录。
+**qr 插件（command mode 首个用例，社区插件）**：`plugins/qr/qr-gen.sh`（shell 脚本）调 `qrencode -s 24 -m 2 -l M` 生成 ≥480px PNG 写 `$BUDDY_OUTPUT_IMAGE`。声明 `deps: [qrencode, jq]`，首次执行时 app 弹信任框 + 自动 `brew install`。v0.2.0 从编译型 universal binary（CoreImage）改为 shell 脚本（qrencode），随官方插件 monorepo build-time fetch 分发。
 
 ### 通用候选输出通道 + 选中回调重入
 

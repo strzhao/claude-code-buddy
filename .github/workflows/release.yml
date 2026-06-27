@@ -32,6 +32,12 @@ jobs:
         run: swift --version
         working-directory: apps/desktop
 
+      - name: Fetch official plugins
+        # C1：在 swift build 之前从官方插件 monorepo 拉取 plugins/ 源打进 bundle。
+        # fetch 失败令 CI 失败（非静默）—— release 不带插件等于发布残缺 app。
+        # Makefile fetch-plugins target 调用 Scripts/fetch-plugins.sh（含缓存兜底）。
+        run: make -C apps/desktop fetch-plugins
+
       - name: Build arm64 (native)
         run: swift build -c release --arch arm64
         working-directory: apps/desktop

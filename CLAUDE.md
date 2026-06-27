@@ -67,12 +67,20 @@ buddy launcher inspect <name>           # 查看详情（JSON）
 buddy launcher remove <name>            # 卸载
 ```
 
+### 社区插件优先约定
+
+Launcher 新能力**默认走社区插件**（独立 monorepo [`strzhao/buddy-official-plugins`](https://github.com/strzhao/buddy-official-plugins)，本地 clone 在 `~/workspace/buddy-official-plugins`），不编进 app。仅以下四类保留内置（Calculator/Paste/AppLauncher/SystemCommand + 需系统框架/常驻/核心路由的能力）。详见 [apps/desktop/CLAUDE.md#插件开发约定社区优先](apps/desktop/CLAUDE.md#插件开发约定社区优先)。
+
+- 官方插件 monorepo build-time fetch：app 打包时 `make fetch-plugins` 从 GitHub main 拉取 `plugins/` 源打进 bundle（release.yml 在 swift build 前执行此 step）。
+- 本地开发循环：`make -C apps/desktop fetch-plugins-local`（从本地 clone 拉，免 git push，`BUDDY_LOCAL_PLUGINS_DIR` 可 override）。
+- 例外：lock（锁屏，需 `login.framework`）、ClipboardHistoryService（常驻 Timer）等留内置。
+
 ## 子项目快速入口
 
 - **桌面应用**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md) — Swift 架构、状态机、调试猫、快照测试
 - **Web 商店**: [apps/web/CLAUDE.md](apps/web/CLAUDE.md) — Next.js 架构、API 端点、认证系统
 - **Skin CLI**: `packages/skin-cli/` — 皮肤包上传工具
-- **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — Ctrl+Space 召唤 + AI 路由 + CLI 插件
+- **Launcher 启动器**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#launcher-子系统) — Ctrl+Space 召唤 + AI 路由 + CLI 插件 + 社区插件优先约定
 - **日志系统**: [apps/desktop/CLAUDE.md](apps/desktop/CLAUDE.md#日志系统task-0142026-06-24) — desktop 所有开发日志必须用 `BuddyLogger`（禁 `print`/`NSLog`），`buddy log show/grep/tail` 取阅
 
 ## Agent Harness 设计

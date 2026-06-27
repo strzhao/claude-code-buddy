@@ -73,6 +73,17 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         isOn: MarketplaceAutoUpdateStore.shared.isEnabled
     )
 
+    /// M7：自动安装插件依赖开关（独立分组卡片，默认 ON）。
+    /// 绑定 DependencySettingsStore（UserDefaults `buddy.launcher.plugin.autoInstallDeps`）。
+    /// 关闭时首次权限弹框回退显示 `brew install <pkg>` 命令 + 复制（不自动装）。
+    private let depInstallLabel = SettingsGroupLabel(title: "依赖安装")
+    private let depInstallGroup = SettingsGroupView()
+    private let depInstallRow = SettingsToggleRow(
+        title: "自动安装插件依赖",
+        subtitle: "首次运行插件时自动通过 Homebrew 安装声明的外部依赖",
+        isOn: DependencySettingsStore.shared.isEnabled
+    )
+
     // MARK: - Init
 
     init(
@@ -134,6 +145,18 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             BuddyLogger.shared.info("marketplace autoUpdate toggled", subsystem: "settings", meta: ["enabled": isOn])
         }
 
+        // M7：依赖安装分组（自动更新分组之后，插件列表之上）
+        depInstallLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(depInstallLabel)
+        depInstallGroup.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(depInstallGroup)
+        depInstallGroup.addRow(depInstallRow)
+        // M7：绑定开关到 DependencySettingsStore（UserDefaults buddy.launcher.plugin.autoInstallDeps）
+        depInstallRow.onToggle = { isOn in
+            DependencySettingsStore.shared.setEnabled(isOn)
+            BuddyLogger.shared.info("plugin autoInstallDeps toggled", subsystem: "settings", meta: ["enabled": isOn])
+        }
+
         groupLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(groupLabel)
 
@@ -181,8 +204,18 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             autoUpdateGroup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
             autoUpdateGroup.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            // groupLabel（插件分组，在自动更新分组之下）
-            groupLabel.topAnchor.constraint(equalTo: autoUpdateGroup.bottomAnchor, constant: SettingsTheme.groupTopInset),
+            // M7：depInstallLabel（依赖安装分组，在自动更新分组之下）
+            depInstallLabel.topAnchor.constraint(equalTo: autoUpdateGroup.bottomAnchor, constant: SettingsTheme.groupTopInset),
+            depInstallLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
+            depInstallLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // M7：depInstallGroup（自动安装依赖开关卡片）
+            depInstallGroup.topAnchor.constraint(equalTo: depInstallLabel.bottomAnchor, constant: 6),
+            depInstallGroup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
+            depInstallGroup.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // groupLabel（插件分组，在依赖安装分组之下）
+            groupLabel.topAnchor.constraint(equalTo: depInstallGroup.bottomAnchor, constant: SettingsTheme.groupTopInset),
             groupLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SettingsTheme.contentPadding),
             groupLabel.trailingAnchor.constraint(lessThanOrEqualTo: docsButton.leadingAnchor, constant: -8),
 

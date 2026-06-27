@@ -1,41 +1,30 @@
-.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle fetch-plugins build-qr-gen fix-plugin-perms
+.PHONY: build run run-raw run-bundle test test-raw test-only test-fast test-launcher test-acceptance test-all lint lint-fix format clean release bundle fetch-plugins fix-plugin-perms
 
-# C12 链式依赖（I1 修复）：fetch-plugins → build-qr-gen → fix-plugin-perms → build/bundle。
+# C12 链式依赖（M8 qr shell 化后简化）：fetch-plugins → fix-plugin-perms → build/bundle。
+# qr 已从编译型（qr-gen.swift + swiftc lipo）改为脚本型（qr-gen.sh），无需 build-qr-gen target。
 # Make 同行 prerequisite 顺序不保证，故用链式（每个 target 依赖前一个）强制时序：
 #   1. fetch-plugins: 从官方插件 monorepo git clone 拉取 plugins/ 源 + 生成 bundle marketplace.json
-#   2. build-qr-gen:  编译 qr-gen.swift 为 universal binary（源需先就位，故依赖 fetch-plugins）
-#   3. fix-plugin-perms: chmod shell 脚本可执行位（晚于编译，故依赖 build-qr-gen）
-#   4. build/bundle/release: swift build（SPM .copy 把含二进制+脚本的目录拷进 bundle）
+#   2. fix-plugin-perms: chmod shell 脚本可执行位（含 qr-gen.sh + qzh-exec）
+#   3. build/bundle/release: swift build（SPM .copy 把含脚本的目录拷进 bundle）
 
 # fetch-plugins: 从 buddy-official-plugins monorepo 拉取官方插件源（C1/C2/C3）。
 # 失败兜底见 Scripts/fetch-plugins.sh（缓存 / 清晰错误）。SKIP_FETCH_PLUGINS=1 可跳过（本地调试）。
 fetch-plugins:
 	@bash Scripts/fetch-plugins.sh
 
-# build-qr-gen 依赖 fetch-plugins：qr-gen.swift 源需先从 monorepo fetch 就位才能编译。
-QR_GEN_SRC := Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen.swift
-QR_GEN_OUT := Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen
-
-build-qr-gen: fetch-plugins
-	@echo "▶ 构建 qr-gen universal binary (arm64 + x86_64)"
-	@build_dir=$$(mktemp -d); \
-	swiftc -target arm64-apple-macosx14 -O -o $$build_dir/qr-gen-arm64 $(QR_GEN_SRC) -framework AppKit -framework CoreImage; \
-	swiftc -target x86_64-apple-macosx14 -O -o $$build_dir/qr-gen-x86_64 $(QR_GEN_SRC) -framework AppKit -framework CoreImage; \
-	lipo -create -output $(QR_GEN_OUT) $$build_dir/qr-gen-arm64 $$build_dir/qr-gen-x86_64; \
-	chmod 755 $(QR_GEN_OUT); \
-	rm -rf $$build_dir
-	@echo "✓ qr-gen → $(QR_GEN_OUT)"
-
-# fix-plugin-perms 依赖 build-qr-gen：权限修正晚于编译（C12 链式末端）。
+# fix-plugin-perms 直接依赖 fetch-plugins（M8 qr shell 化：不再有 build-qr-gen 编译步骤）。
 # 修正 Marketplace 插件目录下 shell 脚本的可执行位（git 不保留权限位，CI/clone 后需重建）。
+# 含 qr-gen.sh（M8 shell 化产物）+ qzh-exec。
 PLUGIN_SCRIPTS := Sources/ClaudeCodeBuddy/Marketplace/plugins/qzh/qzh-exec
+QR_GEN_SCRIPT := Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen.sh
 
-fix-plugin-perms: build-qr-gen
+fix-plugin-perms: fetch-plugins
 	@echo "▶ 修正 Marketplace 插件脚本可执行位"
 	@chmod 755 $(PLUGIN_SCRIPTS)
+	@if [ -f "$(QR_GEN_SCRIPT)" ]; then chmod 755 $(QR_GEN_SCRIPT); echo "✓ $(QR_GEN_SCRIPT) → 755"; fi
 	@echo "✓ $(PLUGIN_SCRIPTS) → 755"
 
-# build 依赖 fix-plugin-perms（链式末端）：swift build 前 plugins/ 已填充 + 编译 + 权限就绪。
+# build 依赖 fix-plugin-perms（链式末端）：swift build 前 plugins/ 已填充 + 权限就绪。
 build: fix-plugin-perms
 	swift build
 
@@ -107,7 +96,7 @@ clean:
 	rm -rf .build/
 
 # I-NEW2：release 保留现有编译参数（两次 swift build 产出 app + buddy-cli 二进制），
-# 仅改依赖为 fix-plugin-perms（链式 fetch → qr-gen → perms → release），否则 bundle 无 buddy CLI。
+# 依赖 fix-plugin-perms（M8 后链式：fetch → perms → release，无 build-qr-gen），否则 bundle 无 buddy CLI。
 release: fix-plugin-perms
 	swift build -c release --arch arm64
 	swift build -c release --arch arm64 --target buddy-cli

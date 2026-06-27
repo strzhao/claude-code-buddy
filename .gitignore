@@ -37,10 +37,9 @@ test-results/
 # Sprite processing backup
 Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
 
-# qr-gen universal binary（Makefile build-qr-gen 产物，不入库；源码在 monorepo）
-# 注：整个 plugins/ 目录已由 apps/desktop/Sources/.../plugins/.gitignore 排除（C2），
-# 此条为历史保留，现被其上级 .gitignore 的 `*` 规则覆盖。
-apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins/qr/qr-gen
+# qr-gen binary 排除规则已移除（M8 qr shell 化：qr-gen.swift + binary 删除，改 qr-gen.sh 脚本入库）。
+# 注：整个 plugins/ 目录仍由 apps/desktop/Sources/.../plugins/.gitignore 的 `*` 规则排除
+# （fetch-plugins build-time clone 覆盖填充，不入库）。
 
 # fetch-plugins 缓存（C8 兜底用，构建产物不入库）
 apps/desktop/.cache/

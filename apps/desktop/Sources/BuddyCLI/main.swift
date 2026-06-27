@@ -1797,6 +1797,50 @@ private struct CLIPluginManifestCheck: Codable {
     let maxIterations: Int?
     let model: String?
     let autoCopyToClipboard: Bool?
+    /// M1/C5 mirror：与 BuddyCore PluginManifest.deps 同构（可选，降级）。
+    /// decodeIfPresent ?? []，向后兼容无 deps 字段的 legacy plugin.json。
+    let deps: [CLIPluginDep]?
+
+    /// M1/C5 mirror：PluginDep 结构镜像（Foundation-only，与 BuddyCore PluginDep 字段逐字一致）。
+    struct CLIPluginDep: Codable {
+        let check: String
+        let brew: String?
+        let label: String?
+
+        init(check: String, brew: String? = nil, label: String? = nil) {
+            self.check = check
+            self.brew = brew
+            self.label = label
+        }
+
+        // swiftlint:disable:next nesting - CLIPluginDep 嵌套在 CLIPluginManifest 内（mirror 必要），CodingKeys 为其 Codable 自定义 init 服务
+        private enum CodingKeys: String, CodingKey { case check, brew, label }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let decodedCheck = try c.decode(String.self, forKey: .check)
+            guard !decodedCheck.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .check, in: c, debugDescription: "CLIPluginDep.check must be non-empty")
+            }
+            check = decodedCheck
+            let decodedBrew = try c.decodeIfPresent(String.self, forKey: .brew)
+            if let brewValue = decodedBrew, !brewValue.isEmpty {
+                // B1 安全 mirror：brew 包名白名单（防 shell 注入，与 BuddyCore PluginDep 逐字一致）
+                let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._+-/@")
+                guard brewValue.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+                    throw DecodingError.dataCorruptedError(forKey: .brew, in: c, debugDescription: "CLIPluginDep.brew 包名含非法字符（防 shell 注入）")
+                }
+            }
+            brew = decodedBrew
+            label = try c.decodeIfPresent(String.self, forKey: .label)
+        }
+    }
+
+    /// M1/C5：deps 访问器，永远返回数组（无字段 → 空数组）。
+    /// SOURCE OF TRUTH: BuddyCore PluginManifest.deps accessor（双绑，逐字一致降级语义）。
+    var cliDeps: [CLIPluginDep] {
+        deps ?? []
+    }
 
     /// C1/C5 降级（SOURCE OF TRUTH: BuddyCore PluginManifest.displaySummary，双绑）。
     /// 取值优先级：summary 非空 → summary；否则 description 首句（按 。/./换行切第一段 trim）；都空 → name。
@@ -2113,6 +2157,14 @@ private func cmdLauncherInspect(_ name: String) {
         if let args = m.args { out["args"] = args }
     default:
         break
+    }
+    // M1/C5：deps 字段输出（场景 8 契约：inspect JSON 含 deps，列 check 名）。
+    // 始终输出数组（无声明 → []，向后兼容）；每个 dep 展开为 {check,brew,label} 字典。
+    out["deps"] = m.cliDeps.map { d in
+        var dict: [String: Any] = ["check": d.check]
+        if let brew = d.brew { dict["brew"] = brew }
+        if let label = d.label { dict["label"] = label }
+        return dict
     }
     if let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]),
        let str = String(data: data, encoding: .utf8) {

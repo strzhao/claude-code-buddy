@@ -244,8 +244,11 @@ class StdinExecutor {
         return (LauncherConstants.pluginPathPrefixes + [currentPath]).joined(separator: ":")
     }
 
-    /// 在扩展 PATH 中定位 binary，返回首个找到的绝对路径或 nil
-    private func locateBinary(_ name: String, in path: String) -> URL? {
+    /// 在扩展 PATH 中定位 binary，返回首个找到的绝对路径或 nil。
+    ///
+    /// M2（T2）：从 `private` 提升为 `internal`，供 `DependencyResolver` 跨文件复用
+    /// （避免重复实现命令存在性检查逻辑；复用同一扩展 PATH 规则保证一致性）。
+    internal func locateBinary(_ name: String, in path: String) -> URL? {
         for dir in path.split(separator: ":") {
             let candidate = URL(fileURLWithPath: String(dir)).appending(path: name)
             if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }

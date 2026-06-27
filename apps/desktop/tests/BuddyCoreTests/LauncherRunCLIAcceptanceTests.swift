@@ -110,8 +110,12 @@ final class LauncherRunCLIAcceptanceTests: XCTestCase {
     /// run 分支才能调用它。若签名缺失，编译期即失败（TOFU seam 不可能绕过）。
     func test_AT04_trustStoreCheckAndPromptSignatureExists() async {
         // 契约 C4 B1: TrustStore.checkAndPrompt(_:executablePath:) async -> Bool 必须存在
-        // （QueryHandler run 分支的硬依赖）。方法引用编译期校验签名。
-        let method: (PluginManifest, URL) async -> Bool = TrustStore.shared.checkAndPrompt
+        // （QueryHandler run 分支的硬依赖）。
+        // M5 改造：checkAndPrompt 加了 seam 默认参数（真实签名对外不变，6 调用点无需改），
+        // 方法引用类型随默认参数展开变长，改用闭包包装校验核心签名（plugin, exe）async -> Bool 可达。
+        let method: (PluginManifest, URL) async -> Bool = { plugin, exe in
+            await TrustStore.shared.checkAndPrompt(plugin, executablePath: exe)
+        }
         _ = method
         // 被测方法存在即契约成立（无需实跑，避免弹 NSAlert）
         XCTAssertTrue(true, "TrustStore.checkAndPrompt 签名存在（C4 B1 TOFU seam 可达）")

@@ -10,7 +10,7 @@
 #   5. 缓存兜底（C8）：clone 失败时若 .cache/buddy-plugins/ 有上次成功 fetch → 用缓存 + stderr 警告；
 #      无缓存无网络 → 清晰错误退出非 0（不产半成品）
 #
-# 时序（C12）：Makefile 链式 fetch-plugins → build-qr-gen → fix-plugin-perms → build/bundle。
+# 时序（C12，M8 qr shell 化后简化）：Makefile 链式 fetch-plugins → fix-plugin-perms → build/bundle。
 # 本脚本由 Makefile `fetch-plugins` target 调用，在 swift build 前执行。
 set -euo pipefail
 

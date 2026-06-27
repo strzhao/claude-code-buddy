@@ -25,6 +25,9 @@ struct StdinConfig: Codable, Equatable {
     let args: [String]  // decode 时 decodeIfPresent ?? [] 容旧格式
     let env: [String: String]?
     let requiredPath: [String]?
+    /// M1（依赖声明）：作者申明的外部依赖列表。
+    /// decode 时 decodeIfPresent ?? []（向后兼容无 deps 字段的 legacy 插件 → 空数组）。
+    let deps: [PluginDep]
 }
 
 struct PromptConfig: Codable, Equatable {
@@ -35,12 +38,61 @@ struct PromptConfig: Codable, Equatable {
 }
 
 /// command mode：零 LLM、bypass agent loop，子进程直接产出（含可选图片通道）。
-/// 与 StdinConfig 同构（cmd/args/env/requiredPath），复用 cmd 路径校验。
+/// 与 StdinConfig 同构（cmd/args/env/requiredPath/deps），复用 cmd 路径校验。
 struct CommandConfig: Codable, Equatable {
     let cmd: String
     let args: [String]              // decode 时 decodeIfPresent ?? [] 容旧格式
     let env: [String: String]?
     let requiredPath: [String]?
+    /// M1（依赖声明）：作者申明的外部依赖列表。与 StdinConfig.deps 同语义。
+    let deps: [PluginDep]
+}
+
+/// M1（依赖声明 schema）：插件作者在 plugin.json 申明的外部依赖。
+///
+/// 与 `requiredPath` 关系：requiredPath 是通用命令存在性检查（旧机制，仅校验命令存在）；
+/// deps.check 等价但携带安装元数据（brew 映射 + 人话 label），供首次权限弹框展示 + 自动安装。
+/// DependencyResolver 合并两者按 check 名去重。
+///
+/// 字段：
+/// - `check`：命令存在性检查名（如 "qrencode"），边界值 count >= 1。
+/// - `brew`：Homebrew 包名（如 "qrencode"）；nil = 无 brew 映射（只能手动装）。
+/// - `label`：人话描述给用户看（如 "二维码生成库"）；nil = 无描述。
+///
+/// Codable 向后兼容：PluginManifest decode 时 `deps: decodeIfPresent ?? []`。
+struct PluginDep: Codable, Equatable {
+    let check: String
+    let brew: String?
+    let label: String?
+
+    init(check: String, brew: String? = nil, label: String? = nil) {
+        self.check = check
+        self.brew = brew
+        self.label = label
+    }
+
+    private enum CodingKeys: String, CodingKey { case check, brew, label }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedCheck = try c.decode(String.self, forKey: .check)
+        // 契约边界值 PluginDep.check: count >= 1（空 check 拒绝，防恶意/手误空依赖名）
+        guard !decodedCheck.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .check, in: c, debugDescription: "PluginDep.check must be non-empty (count >= 1)")
+        }
+        check = decodedCheck
+        let decodedBrew = try c.decodeIfPresent(String.self, forKey: .brew)
+        if let brewValue = decodedBrew, !brewValue.isEmpty {
+            // B1 安全：brew 包名字符白名单（brew 走 /bin/sh -c，防 shell 注入）
+            // 允许 Homebrew 包名规范：字母数字 . _ + - /（含 tap/name 如 homebrew/cask/foo）
+            let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._+-/@")
+            guard brewValue.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+                throw DecodingError.dataCorruptedError(forKey: .brew, in: c, debugDescription: "PluginDep.brew 包名含非法字符（仅允许字母数字 . _ + - /，防 shell 注入）")
+            }
+        }
+        brew = decodedBrew
+        label = try c.decodeIfPresent(String.self, forKey: .label)
+    }
 }
 
 // MARK: - Codable
@@ -50,6 +102,7 @@ extension PluginManifest {
         case name, version, description, summary, keywords, timeout, mode
         case cmd, args, env, requiredPath
         case systemPrompt, maxIterations, model, autoCopyToClipboard
+        case deps
     }
 
     init(from decoder: Decoder) throws {
@@ -69,7 +122,9 @@ extension PluginManifest {
                 cmd: try c.decode(String.self, forKey: .cmd),
                 args: try c.decodeIfPresent([String].self, forKey: .args) ?? [],
                 env: try c.decodeIfPresent([String: String].self, forKey: .env),
-                requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath)
+                requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath),
+                // M1：deps 可选（decodeIfPresent ?? []），向后兼容无 deps 字段的 legacy 插件
+                deps: try c.decodeIfPresent([PluginDep].self, forKey: .deps) ?? []
             ))
         case "prompt":
             modeConfig = .prompt(PromptConfig(
@@ -83,7 +138,9 @@ extension PluginManifest {
                 cmd: try c.decode(String.self, forKey: .cmd),
                 args: try c.decodeIfPresent([String].self, forKey: .args) ?? [],
                 env: try c.decodeIfPresent([String: String].self, forKey: .env),
-                requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath)
+                requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath),
+                // M1：deps 可选（decodeIfPresent ?? []），同 stdin
+                deps: try c.decodeIfPresent([PluginDep].self, forKey: .deps) ?? []
             ))
         default:
             throw LauncherError.pluginManifestInvalid("unknown mode: \(mode)")
@@ -105,6 +162,8 @@ extension PluginManifest {
             try c.encode(cfg.args, forKey: .args)
             try c.encodeIfPresent(cfg.env, forKey: .env)
             try c.encodeIfPresent(cfg.requiredPath, forKey: .requiredPath)
+            // M1：deps 非空才 encode（空数组等价于无字段，保持与 legacy 产物一致）
+            if !cfg.deps.isEmpty { try c.encode(cfg.deps, forKey: .deps) }
         case .prompt(let cfg):
             try c.encode("prompt", forKey: .mode)
             try c.encode(cfg.systemPrompt, forKey: .systemPrompt)
@@ -117,6 +176,8 @@ extension PluginManifest {
             try c.encode(cfg.args, forKey: .args)
             try c.encodeIfPresent(cfg.env, forKey: .env)
             try c.encodeIfPresent(cfg.requiredPath, forKey: .requiredPath)
+            // M1：deps 非空才 encode（同 stdin）
+            if !cfg.deps.isEmpty { try c.encode(cfg.deps, forKey: .deps) }
         }
     }
 }
@@ -258,6 +319,9 @@ extension PluginManifest {
     var args: [String] { stdinConfig?.args ?? commandConfig?.args ?? [] }
     var env: [String: String]? { stdinConfig?.env ?? commandConfig?.env }
     var requiredPath: [String]? { stdinConfig?.requiredPath ?? commandConfig?.requiredPath }
+    /// M1：便利访问 deps（stdin/command 返回声明列表；prompt 返回空数组）。
+    /// 非可选（永远返回数组，空数组 = 无声明依赖），与 collectMissing 直接对接。
+    var deps: [PluginDep] { stdinConfig?.deps ?? commandConfig?.deps ?? [] }
 }
 
 // MARK: - 便利 init（兼容旧调用方式，仅供测试使用）
@@ -273,7 +337,8 @@ extension PluginManifest {
         env: [String: String]? = nil,
         timeout: Int? = nil,
         requiredPath: [String]? = nil,
-        summary: String? = nil
+        summary: String? = nil,
+        deps: [PluginDep] = []
     ) {
         self.name = name
         self.version = version
@@ -281,6 +346,6 @@ extension PluginManifest {
         self.summary = summary
         self.keywords = keywords
         self.timeout = timeout
-        self.modeConfig = .stdin(StdinConfig(cmd: cmd, args: args, env: env, requiredPath: requiredPath))
+        self.modeConfig = .stdin(StdinConfig(cmd: cmd, args: args, env: env, requiredPath: requiredPath, deps: deps))
     }
 }

@@ -429,7 +429,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// R2 治本：cooperative activation（macOS 14+）。NSApp.activate() 只是请求、不保证成功
-    ///（日志证实 menubar 路径 frontmost 为外部 app 时也常失败）；activate(from:) 要求当前前台 app
+    /// （日志证实 menubar 路径 frontmost 为外部 app 时也常失败）；activate(from:) 要求当前前台 app
     /// yield，是官方保证成功的激活路径（Ice 同款）。frontmost 为外部 regular app（终端/编辑器）时从其
     /// yield；为自己/无前台时降级 NSApp.activate()（此时无 yield 来源，可靠性下降）。
     private func activateApp() {

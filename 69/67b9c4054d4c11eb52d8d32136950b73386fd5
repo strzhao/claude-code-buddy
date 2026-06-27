@@ -1,0 +1,38 @@
+.autopilot/knowledge/patterns/2026-06-27-modal-runloop-task-not-pump-installsync-bypass.md
+  44ddbc11da2da507 1-25
+.autopilot/knowledge/index.md
+  44ddbc11da2da507 129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6967b9c4054d4c11eb52d8d32136950b73386fd5",
+  "prompts": {
+    "44ddbc11da2da507": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "336e97a9-74c8-4863-a79d-29d37bf1bd6c",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 26,
+      "total_deletions": 0,
+      "accepted_lines": 168,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        ".autopilot/knowledge/patterns/2026-06-27-modal-runloop-task-not-pump-installsync-bypass.md": {
+          "additions": 25,
+          "accepted_lines": 25
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestDepsTests.swift": {
+          "accepted_lines": 142
+        }
+      }
+    }
+  }
+}

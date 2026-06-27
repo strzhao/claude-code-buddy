@@ -178,13 +178,22 @@ enum AppIndexScanner {
 
     /// 为含 CJK 字符的 app 显示名生成拼音别名（如 "微信" → ["weixin", "wx"]）。
     /// 使用系统 CFStringTransform 转 Latin + 去声调，无 CJK 时返回空。
-    private static func pinyinAliases(for name: String) -> [String] {
+    /// internal 以便单元测试覆盖 ü→v 归一（见 AppIndexTests）。
+    static func pinyinAliases(for name: String) -> [String] {
         let mutable = NSMutableString(string: name)
-        // 转 Latin（拼音带声调，如 "wēi xìn"）
+        // 转 Latin（拼音带声调，如 "lǜ lián yún"）
         CFStringTransform(mutable, nil, kCFStringTransformToLatin, false)
-        // 去声调（→ "wei xin"）
-        CFStringTransform(mutable, nil, kCFStringTransformStripCombiningMarks, false)
-        let pinyin = (mutable as String).lowercased()
+        // ü → v 归一（必须在去声调之前）：中文拼音输入法用 v 代替 ü（键盘无 ü 键），
+        // 而 CFStringTransformStripCombiningMarks 会把 ü 抹成 u（"绿"→lu 而非 lv），
+        // 导致"绿联云"用 "lvlian" 搜不到。ü 系列只出现在 lü/nü，不误伤普通 u（lian/yun 等）。
+        var latin = mutable as String
+        for c in ["ü", "Ü", "ǖ", "ǘ", "ǚ", "ǜ"] {
+            latin = latin.replacingOccurrences(of: c, with: "v")
+        }
+        // 去声调（→ "lv lian yun"）
+        let stripped = NSMutableString(string: latin)
+        CFStringTransform(stripped, nil, kCFStringTransformStripCombiningMarks, false)
+        let pinyin = (stripped as String).lowercased()
 
         // 无 CJK 字符则跳过（转换后与原名相同）
         guard pinyin != name.lowercased() else { return [] }

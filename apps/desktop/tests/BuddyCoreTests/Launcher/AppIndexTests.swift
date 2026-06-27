@@ -119,6 +119,35 @@ final class AppIndexTests: XCTestCase {
                        "WeChat.app 应能通过 wexin（weixin 子序列）容错搜到")
     }
 
+    /// 回归：ü → v 归一。"绿"含 lü，CFStringTransformStripCombiningMarks 默认把 ü 抹成 u，
+    /// 导致用户用拼音输入法敲的 "lvlian" 搜不到"绿联云"。修复后应生成 lv 前缀。
+    func test_pinyinAliases_normalizesUmlautUToV() {
+        XCTAssertEqual(AppIndexScanner.pinyinAliases(for: "绿联云"),
+                       ["lvlianyun", "lly"],
+                       "绿联云 应归一为 lvlianyun/lly，而非 lulianyun/lly")
+        XCTAssertEqual(AppIndexScanner.pinyinAliases(for: "女娲"), ["nvwa", "nw"])
+        XCTAssertEqual(AppIndexScanner.pinyinAliases(for: "旅人"), ["lvren", "lr"])
+    }
+
+    /// ü 归一不误伤普通 u：lian/yun/suo 中的 u 保持 u。
+    func test_pinyinAliases_preservesNormalU() {
+        XCTAssertEqual(AppIndexScanner.pinyinAliases(for: "支付宝"), ["zhifubao", "zfb"])
+        XCTAssertEqual(AppIndexScanner.pinyinAliases(for: "微信"), ["weixin", "wx"])
+    }
+
+    /// 用户场景回归：搜 "lvlian" 应命中"绿联云"（前缀匹配 lvlianyun）。
+    func test_search_matchesLvlian_umlautNormalization() {
+        let idx = makeIndex(entries: [
+            AppEntry(url: URL(fileURLWithPath: "/Applications/绿联云.app"),
+                     name: "绿联云",
+                     aliases: ["绿联云"] + AppIndexScanner.pinyinAliases(for: "绿联云"))
+        ])
+        XCTAssertEqual(idx.search("lvlian", limit: 10).first?.name, "绿联云",
+                       "绿联云 应能通过 lvlian（拼音输入法用 v 代 ü）搜到")
+        XCTAssertEqual(idx.search("lvlianyun", limit: 10).first?.name, "绿联云")
+        XCTAssertEqual(idx.search("lly", limit: 10).first?.name, "绿联云")
+    }
+
     func test_search_limit_truncates() {
         let entries = (1...20).map { i in
             AppEntry(

@@ -17,4 +17,13 @@
 - 编译型插件：优先 shell 化（社区友好）；若需编译（零依赖能力如 CoreImage），binary 入库 monorepo（git index `100755`，`.gitattributes` 标记 binary）或 release asset；`ensureStdinChmod` 已兜底 +x。
 - QA 真机验收编译型插件热更新：模拟用户侧（`rm launcher-plugins/<name>` + sync gitSubdir clone）验证 binary 就位 + 可执行。
 
-**关联**: [[2026-06-19-coreimage-qr-universal-binary-marketplace-plugin]]（qr 编译型基础）、[[2026-05-26-spm-copy-executable-script-chmod-755]]（ensureStdinChmod 兜底）、[[2026-06-25-gitgsubdir-optional-sha-tofu-first-use-only]]（同轮 source/信任配置）。
+## ✅ 已落地（2026-06-28，社区插件优先闭环）
+
+本文档预测的迁移全部兑现：
+- **qr-gen.swift + universal binary 删除** → `qr-gen.sh`（command mode，`INPUT=$(cat)`+`jq` 取 query → `qrencode -s 24 -m 2 -l M` 写 `$BUDDY_OUTPUT_IMAGE`）。**-s 24 实测 600px ≥480px 可扫**（plan-reviewer 实测 `-s 10` 仅 250px 不可扫——模块放大参数必须按 `(模块数+2×margin)×-s ≥480` 算，不能拍脑袋）。
+- **方案3 依赖机制首个真实用例**：`plugin.json deps:[{check:qrencode,brew:qrencode},{check:jq,brew:jq}]`，首次执行经 TrustPrompt「信任+依赖合并」弹框 + `installAllSync` 自动 `brew install`。
+- **G1 根因+修复**：`release.yml` 直接 `swift build` 绕过 Makefile `fetch-plugins` 链 → 发版 `Marketplace/plugins/` 空（brew 用户拿不到官方插件 = 上次 qr 失踪根因）。修复 = release.yml `Build arm64` 前加 `make -C apps/desktop fetch-plugins`。**属 [[2026-04-18-release-bundle-script-desync-integrity-check]] 同类陷阱**（两条独立打包路径必须同步）的新实例（build-time-fetch）。
+- **本地开发循环**：Makefile `fetch-plugins-local`（`BUDDY_OFFICIAL_PLUGINS_URL=file://` 指本地 clone），改 monorepo → `make fetch-plugins-local && make build` 即见效，免 push。
+- 端到端真机验证：file:// fetch（sha 逐字一致）→ dev bundle → reseed → `buddy launcher run qr` exit 0（app log `launcher run ok`，538ms/18ms 两次）。
+
+**关联**: [[2026-06-19-coreimage-qr-universal-binary-marketplace-plugin]]（qr 编译型基础）、[[2026-05-26-spm-copy-executable-script-chmod-755]]（ensureStdinChmod 兜底）、[[2026-06-25-gitgsubdir-optional-sha-tofu-first-use-only]]（同轮 source/信任配置）、[[2026-06-28-red-team-assertion-mechanism-precision]]（本次 SC1/SC7 红队断言误报教训）。

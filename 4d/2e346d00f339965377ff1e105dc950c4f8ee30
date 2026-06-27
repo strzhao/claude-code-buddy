@@ -1,0 +1,264 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPromptView.swift
+  44ddbc11da2da507 1-367
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestDepsTests.swift
+  44ddbc11da2da507 1-36,38-172
+  6a902abf5923e1f4 37
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPrompt.swift
+  44ddbc11da2da507 2-3,5-14,17,19-20,23-242,246-247,255-256,266-267
+apps/desktop/Scripts/fetch-plugins.sh
+  44ddbc11da2da507 13
+apps/desktop/Sources/BuddyCLI/main.swift
+  44ddbc11da2da507 1800-1843,2161-2168
+apps/desktop/tests/BuddyCoreTests/Launcher/QrShellMigrationAcceptanceTests.swift
+  44ddbc11da2da507 1-30,34-366,369-392
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift
+  44ddbc11da2da507 28-30,41,47-95,105,125-127,141-143,165-166,179-180,322-324,340-341,349
+apps/desktop/tests/BuddyCoreTests/Launcher/AutoInstallDepsSettingAcceptanceTests.swift
+  44ddbc11da2da507 1-33,37,39-53,57-76,79-81,83-86,88-100,103-104,107-124,128-130,134-145,150-153,155,157,159,161,164-176
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencyResolverTests.swift
+  44ddbc11da2da507 1-157
+apps/desktop/tests/BuddyCoreTests/Launcher/TrustPromptViewTests.swift
+  44ddbc11da2da507 1-245
+apps/desktop/tests/BuddyCoreTests/Launcher/TrustStoreDependencyPromptAcceptanceTests.swift
+  44ddbc11da2da507 1-31,33,55-129,131-132,135-154,156-158,161-181,183-185,187-188,192-215,217-218,222-241,243-244,248-279,281-283,287-317,319-321,325-351,353-354,358-381,383-385,387-388,402-405,408-410,418-423,427-432,435-437,439-440,455-456,465-493,495-496,498-511
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerSyncTests.swift
+  44ddbc11da2da507 1-234
+.gitignore
+  44ddbc11da2da507 40-42
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencySettingsStoreTests.swift
+  44ddbc11da2da507 1-86
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencyResolverAcceptanceTests.swift
+  44ddbc11da2da507 1-29,35-115,119-287,289-290,298,308-309
+apps/desktop/tests/BuddyCoreTests/Launcher/CheckAndPromptDepTests.swift
+  44ddbc11da2da507 1-87,89-136,138-182,184-215,218-245
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/DependencyResolver.swift
+  44ddbc11da2da507 1-134
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/StdinExecutor.swift
+  44ddbc11da2da507 247-251
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerTests.swift
+  44ddbc11da2da507 20,44,59,75,85-101,109,123,137,154,168,186
+  6a902abf5923e1f4 1-19,21-42,45-58,60-71,73-74,76-84,102-105,107-108,110-119,121-122,124-135,138-150,152-153,155-166,169-181,183-185,187-199,201-202,204-208,215,217,219-221,223-224,226,228-268
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift
+  44ddbc11da2da507 76-86,148-159,207-218
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/DependencyInstaller.swift
+  44ddbc11da2da507 1-750
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustStore.swift
+  44ddbc11da2da507 96,98-117,120-164,166-199
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginDepSchemaAcceptanceTests.swift
+  44ddbc11da2da507 1-26,31-133,135,138-160,165-195,198-257
+apps/desktop/Makefile
+  44ddbc11da2da507 1,3-4,7-8,15,17,19,21,24,27
+apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerAcceptanceTests.swift
+  44ddbc11da2da507 1-31,46-90,94-98,101-107,109-113,116,118-128,130-134,139-152,155-156,164,166-183,187,189-200,202-205,209,211-222,224-225,228,230-246,248,250,253-266,269-270,272,274-291,293,295,297-333,336,338-363,367-368,371,373,375-383,385,396,398-400,402,406-409,411,423,431-432
+apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift
+  44ddbc11da2da507 432
+apps/desktop/tests/BuddyCoreTests/LauncherRunCLIAcceptanceTests.swift
+  44ddbc11da2da507 113-118
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPromptWindow.swift
+  44ddbc11da2da507 1-105
+apps/desktop/tests/BuddyCoreTests/Launcher/CheckAndPromptIntegrationTests.swift
+  44ddbc11da2da507 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "4d2e346d00f339965377ff1e105dc950c4f8ee30",
+  "prompts": {
+    "44ddbc11da2da507": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "336e97a9-74c8-4863-a79d-29d37bf1bd6c",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 6240,
+      "total_deletions": 546,
+      "accepted_lines": 5040,
+      "overriden_lines": 205,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/DependencyResolver.swift": {
+          "additions": 150,
+          "deletions": 16,
+          "accepted_lines": 134
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencySettingsStoreTests.swift": {
+          "additions": 86,
+          "accepted_lines": 86
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPromptView.swift": {
+          "additions": 472,
+          "deletions": 105,
+          "accepted_lines": 367
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/StdinExecutor.swift": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 5
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/TrustStoreDependencyPromptAcceptanceTests.swift": {
+          "additions": 489,
+          "deletions": 1,
+          "accepted_lines": 404,
+          "overriden_lines": 58
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerSyncTests.swift": {
+          "additions": 236,
+          "deletions": 2,
+          "accepted_lines": 234
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CheckAndPromptDepTests.swift": {
+          "additions": 246,
+          "accepted_lines": 240,
+          "overriden_lines": 4
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyResolverTests.swift": {
+          "additions": 157,
+          "accepted_lines": 157
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyProgressWindowTests.swift": {
+          "additions": 249
+        },
+        ".gitignore": {
+          "additions": 3,
+          "deletions": 4,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginDepSchemaAcceptanceTests.swift": {
+          "additions": 259,
+          "accepted_lines": 244,
+          "overriden_lines": 7
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPromptWindow.swift": {
+          "additions": 120,
+          "deletions": 15,
+          "accepted_lines": 105
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/QrShellMigrationAcceptanceTests.swift": {
+          "additions": 394,
+          "deletions": 4,
+          "accepted_lines": 387,
+          "overriden_lines": 3
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 53,
+          "deletions": 1,
+          "accepted_lines": 52
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerTests.swift": {
+          "additions": 27,
+          "deletions": 9,
+          "accepted_lines": 27
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/CheckAndPromptIntegrationTests.swift": {
+          "additions": 68,
+          "accepted_lines": 68
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerAcceptanceTests.swift": {
+          "additions": 437,
+          "deletions": 7,
+          "accepted_lines": 325,
+          "overriden_lines": 90
+        },
+        "apps/desktop/Makefile": {
+          "additions": 11,
+          "deletions": 22,
+          "accepted_lines": 11
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/App/AppDelegate.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustPrompt.swift": {
+          "additions": 366,
+          "deletions": 151,
+          "accepted_lines": 241
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/TrustPromptViewTests.swift": {
+          "additions": 294,
+          "deletions": 49,
+          "accepted_lines": 245
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/DependencyInstaller.swift": {
+          "additions": 832,
+          "deletions": 82,
+          "accepted_lines": 750
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/TrustStore.swift": {
+          "additions": 142,
+          "deletions": 50,
+          "accepted_lines": 100
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift": {
+          "additions": 72,
+          "deletions": 7,
+          "accepted_lines": 70
+        },
+        "apps/desktop/tests/BuddyCoreTests/LauncherRunCLIAcceptanceTests.swift": {
+          "additions": 6,
+          "deletions": 2,
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/PluginGalleryViewController.swift": {
+          "additions": 35,
+          "deletions": 2,
+          "accepted_lines": 35
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/AutoInstallDepsSettingAcceptanceTests.swift": {
+          "additions": 183,
+          "accepted_lines": 145,
+          "overriden_lines": 29
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyResolverAcceptanceTests.swift": {
+          "additions": 302,
+          "accepted_lines": 284,
+          "overriden_lines": 14
+        },
+        "apps/desktop/Scripts/fetch-plugins.sh": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestDepsTests.swift": {
+          "additions": 155,
+          "deletions": 13,
+          "accepted_lines": 142
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/DependencyProgressWindow.swift": {
+          "additions": 217
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestDepsTests.swift": {
+          "additions": 172,
+          "accepted_lines": 171
+        }
+      }
+    },
+    "6a902abf5923e1f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2968293d-f2d3-4f1d-940f-bb0d7838adc5",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 279,
+      "total_deletions": 24,
+      "accepted_lines": 221,
+      "overriden_lines": 14,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/DependencyInstallerTests.swift": {
+          "additions": 278,
+          "deletions": 23,
+          "accepted_lines": 220,
+          "overriden_lines": 14
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestDepsTests.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

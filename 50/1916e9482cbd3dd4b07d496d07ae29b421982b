@@ -1,0 +1,36 @@
+apps/desktop/tests/BuddyCoreTests/Launcher/AppIndexTests.swift
+  9fef9a7acda4a803 122-150
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift
+  9fef9a7acda4a803 181-182,184,186-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "501916e9482cbd3dd4b07d496d07ae29b421982b",
+  "prompts": {
+    "9fef9a7acda4a803": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b2982e0-b885-49a8-a660-be48dcb96aad",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 43,
+      "total_deletions": 5,
+      "accepted_lines": 43,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/AppIndexTests.swift": {
+          "additions": 29,
+          "accepted_lines": 29
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift": {
+          "additions": 14,
+          "deletions": 5,
+          "accepted_lines": 14
+        }
+      }
+    }
+  }
+}

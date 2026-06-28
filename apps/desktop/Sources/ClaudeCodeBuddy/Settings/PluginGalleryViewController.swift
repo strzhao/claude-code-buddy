@@ -86,21 +86,23 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
 
     // MARK: - Init
 
+    @MainActor
     init(
-        marketplace: MarketplaceInspecting = MarketplaceManager.shared,
-        plugins: PluginToggling = PluginManager.shared,
-        builtinRegistry: BuiltinPluginRegistry = .shared,
-        builtinEnabledStore: BuiltinPluginEnabledStore = .shared,
-        autoUpdateStore: MarketplaceAutoUpdateStore = .shared
+        marketplace: MarketplaceInspecting? = nil,
+        plugins: PluginToggling? = nil,
+        builtinRegistry: BuiltinPluginRegistry? = nil,
+        builtinEnabledStore: BuiltinPluginEnabledStore? = nil,
+        autoUpdateStore: MarketplaceAutoUpdateStore? = nil
     ) {
-        self.marketplace = marketplace
-        self.plugins = plugins
-        self.builtinRegistry = builtinRegistry
-        self.builtinEnabledStore = builtinEnabledStore
-        self.autoUpdateStore = autoUpdateStore
+        self.marketplace = marketplace ?? MarketplaceManager.shared
+        self.plugins = plugins ?? PluginManager.shared
+        self.builtinRegistry = builtinRegistry ?? .shared
+        self.builtinEnabledStore = builtinEnabledStore ?? .shared
+        self.autoUpdateStore = autoUpdateStore ?? .shared
         super.init(nibName: nil, bundle: nil)
     }
 
+    @MainActor
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not used")
     }

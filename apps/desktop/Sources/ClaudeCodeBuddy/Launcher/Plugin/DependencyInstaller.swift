@@ -123,9 +123,9 @@ protocol CancellableBrewRunnerProtocol: AnyObject {
 final class BrewProcessRunner: CancellableBrewRunnerProtocol {
 
     /// 默认超时（brew update 慢容忍）。
-    static let defaultTimeoutSec = 180
+    nonisolated static let defaultTimeoutSec = 180
     /// SIGTERM 后 SIGKILL 兜底宽限期。
-    static let defaultSigkillGraceSec = 3
+    nonisolated static let defaultSigkillGraceSec = 3
 
     /// 当前活跃子进程句柄（cancel 用，nil = 无活跃进程）。
     private var currentProcess: Process?
@@ -234,9 +234,7 @@ final class BrewProcessRunner: CancellableBrewRunnerProtocol {
                 try? await Task.sleep(for: .seconds(timeoutSec))
                 guard !Task.isCancelled else { return }
                 guard process.isRunning else { return }
-                state.lock.lock()
-                state.cancelled = true
-                state.lock.unlock()
+                state.lock.withLock { state.cancelled = true }
                 guard_.tryResume { cont.resume(returning: true) }
                 let pid = process.processIdentifier
                 process.terminate()
@@ -270,9 +268,7 @@ final class BrewProcessRunner: CancellableBrewRunnerProtocol {
         currentRunState = nil
 
         // cancelled 标记：超时或用户 cancel 触发 SIGTERM 后，state.cancelled == true
-        state.lock.lock()
-        let cancelledFlag = state.cancelled
-        state.lock.unlock()
+        let cancelledFlag = state.lock.withLock { state.cancelled }
         let wasCancelled = timedOut || cancelledFlag
         if wasCancelled {
             return ProcessRunResult(exitCode: process.terminationStatus, stdout: stdoutStr, stderr: stderrStr, wasCancelled: true)

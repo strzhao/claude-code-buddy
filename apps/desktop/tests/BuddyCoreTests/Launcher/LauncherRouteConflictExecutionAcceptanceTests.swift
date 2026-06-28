@@ -242,12 +242,13 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
         let qzh = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
         LauncherManager.shared.pluginsOverride = [qzh]
 
+        // 跳过 debounce，使 updateQuery 后 instantActions 快速落地（与其他测试同模式）
+        LauncherManager.shared.instantDebounceMsOverride = 0
         LauncherManager.shared.show()
         LauncherManager.shared.updateQuery("qzh")
-        await waitForQuerySettled()
-        // 防时序 flake：debounce Task 偶尔需更长 RunLoop，多等一轮
-        if LauncherManager.shared.instantActions.isEmpty {
-            await waitForQuerySettled(120)
+        // 轮询等待 debounce Task 在 MainActor 上完成（比固定 sleep 更抗 CI 波动）
+        for _ in 0..<200 where LauncherManager.shared.instantActions.isEmpty {
+            await Task.yield()
         }
 
         // 诊断：确认 override 注入未丢 + 状态

@@ -291,7 +291,7 @@ class StdinExecutor {
         let state = State()
 
         return await withCheckedContinuation { (cont: CheckedContinuation<Data, Never>) in
-            func tryResume() {
+            @Sendable func tryResume() {
                 state.lock.lock()
                 defer { state.lock.unlock() }
                 guard !state.resumed else { return }

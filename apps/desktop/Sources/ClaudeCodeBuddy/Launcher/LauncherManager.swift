@@ -627,7 +627,11 @@ final class LauncherManager: ObservableObject {
                     let dir = try PluginManager.shared.pluginDir(for: manifest)
                     let executablePath = dir.appending(path: manifest.cmd)
                     let modeStr: String = {
-                        switch manifest.modeConfig { case .stdin: return "stdin"; case .command: return "command"; case .prompt: return "prompt" }
+                        switch manifest.modeConfig {
+                        case .stdin: return "stdin"
+                        case .command: return "command"
+                        case .prompt: return "prompt"
+                        }
                     }()
                     BuddyLogger.shared.info("submit: withPlugin entry", subsystem: "launcher", meta: ["plugin": manifest.name, "mode": modeStr])
                     let trusted = await TrustStore.shared.checkAndPrompt(

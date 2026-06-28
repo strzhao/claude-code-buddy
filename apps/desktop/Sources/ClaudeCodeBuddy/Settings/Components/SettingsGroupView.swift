@@ -72,4 +72,9 @@ final class SettingsGroupView: NSView {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         rowCount = 0
     }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layer?.backgroundColor = SettingsTheme.cardBackgroundColor.cgColor
+    }
 }

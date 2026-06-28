@@ -40,6 +40,7 @@ final class SettingsSplitViewController: NSSplitViewController {
         case .hotkey:   return KeyboardShortcutsViewController()
         case .general: return GeneralSettingsViewController()
         case .about:   return AboutSettingsViewController()
+        case .ai:      return ProviderSettingsViewController()
         }
     }
 

@@ -232,17 +232,17 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
     // MARK: - SC-04 sidebar 5 项顺序 [皮肤/插件/热键/通用/关于]
 
-    /// 契约 3：sidebar 恰好 5 项，顺序 [皮肤,插件,热键,通用,关于]，不含 AI 配置。
+    /// 契约 3：sidebar 恰好 6 项，顺序 [皮肤,插件,热键,通用,关于,AI 配置]。
     /// 契约 2：sidebar 分类来自单一数据源 SettingsSection.allCases。
-    func test_SC04_SettingsSection_allCases_isFiveInOrder() {
-        // SettingsSection.allCases 恰好 5 项
-        XCTAssertEqual(SettingsSection.allCases.count, 5,
-                       "SettingsSection.allCases 必须恰好 5 项，实际: \(SettingsSection.allCases.count)")
+    func test_SC04_SettingsSection_allCases_isSixInOrder() {
+        // SettingsSection.allCases 恰好 6 项
+        XCTAssertEqual(SettingsSection.allCases.count, 6,
+                       "SettingsSection.allCases 必须恰好 6 项，实际: \(SettingsSection.allCases.count)")
 
-        // 顺序逐字断言：skins, plugins, hotkey, general, about
-        let expected: [SettingsSection] = [.skins, .plugins, .hotkey, .general, .about]
+        // 顺序逐字断言：skins, plugins, hotkey, general, about, ai
+        let expected: [SettingsSection] = [.skins, .plugins, .hotkey, .general, .about, .ai]
         XCTAssertEqual(SettingsSection.allCases, expected,
-                       "SettingsSection.allCases 顺序必须为 [skins, plugins, hotkey, general, about]")
+                       "SettingsSection.allCases 顺序必须为 [skins, plugins, hotkey, general, about, ai]")
 
         // 各 case rawValue 逐字断言（契约 4 持久化值依赖）
         XCTAssertEqual(SettingsSection.skins.rawValue, "skins")
@@ -250,14 +250,15 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         XCTAssertEqual(SettingsSection.hotkey.rawValue, "hotkey")
         XCTAssertEqual(SettingsSection.general.rawValue, "general")
         XCTAssertEqual(SettingsSection.about.rawValue, "about")
+        XCTAssertEqual(SettingsSection.ai.rawValue, "ai")
 
-        // 不含 AI 配置（契约 3：本次只做结构，不做 AI 配置）
-        XCTAssertFalse(SettingsSection.allCases.contains(where: { $0.rawValue.lowercased().contains("ai") }),
-                       "sidebar 分类不得含 AI 配置项（本次不做）")
+        // 含 AI 配置
+        XCTAssertTrue(SettingsSection.allCases.contains(where: { $0.rawValue == "ai" }),
+                       "sidebar 分类必须含 AI 配置项")
     }
 
-    /// SC-04 sidebar 渲染项数：NSTableView numberOfRows == 5。
-    func test_SC04_sidebarTableView_hasFiveRows() {
+    /// SC-04 sidebar 渲染项数：NSTableView numberOfRows == 6。
+    func test_SC04_sidebarTableView_hasSixRows() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
               let splitVC = window.contentViewController as? NSSplitViewController,
@@ -274,8 +275,8 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
             return XCTFail("sidebar VC 中必须含 NSTableView（设计：NSTableView 列分类）")
         }
 
-        XCTAssertEqual(tableView.numberOfRows, 5,
-                       "sidebar NSTableView.numberOfRows 必须为 5（对应 SettingsSection.allCases.count）")
+        XCTAssertEqual(tableView.numberOfRows, 6,
+                       "sidebar NSTableView.numberOfRows 必须为 6（对应 SettingsSection.allCases.count）")
     }
 
     // MARK: - SC-05 默认选中皮肤
@@ -406,7 +407,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
             return XCTFail("sidebar 必须含 NSTableView")
         }
 
-        XCTAssertEqual(tableView.numberOfRows, 5, "sidebar 必须有 5 行")
+        XCTAssertEqual(tableView.numberOfRows, 6, "sidebar 必须有 6 行")
 
         // 契约 7：sidebar item accessibilityIdentifier = `settings.sidebar.\(section.rawValue)`
         // 逐行验证（cellView 或 rowView 的 accessibilityIdentifier 必须符合命名规范）

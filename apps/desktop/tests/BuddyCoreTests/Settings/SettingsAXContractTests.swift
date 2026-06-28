@@ -41,6 +41,7 @@ final class SettingsAXContractTests: XCTestCase {
         "settings.sidebar.hotkey",
         "settings.sidebar.general",
         "settings.sidebar.about",
+        "settings.sidebar.ai",
     ]
 
     private static let detailAXID = "settings.detail"
@@ -78,15 +79,15 @@ final class SettingsAXContractTests: XCTestCase {
                        "SC-SET-03 失败：sidebar row AX id 集合必须逐字 == \(Self.expectedSidebarIDs)，实际: \(sidebarIDs)")
     }
 
-    /// sidebar AX id 数量 == 5（5 个 section，不多不少）。
+    /// sidebar AX id 数量 == 6（6 个 section，不多不少）。
     /// 杀死"少设/多设 AX id"的 mutation。
-    func test_SC_SET_03_sidebarRowAXIDs_countIs5() {
+    func test_SC_SET_03_sidebarRowAXIDs_countIs6() {
         let splitVC = SettingsSplitViewController()
         _ = splitVC.view
 
         let sidebarIDs = collectSidebarRowAXIDs(from: splitVC)
-        XCTAssertEqual(sidebarIDs.count, 5,
-                       "sidebar row AX id 数量必须 == 5（对应 SettingsSection.allCases.count），实际: \(sidebarIDs.count)")
+        XCTAssertEqual(sidebarIDs.count, 6,
+                       "sidebar row AX id 数量必须 == 6（对应 SettingsSection.allCases.count），实际: \(sidebarIDs.count)")
     }
 
     /// sidebar AX id 命名格式逐字（前缀 `settings.sidebar.` + section.rawValue）。

@@ -356,9 +356,9 @@ final class ProviderSettingsViewController: NSViewController {
             return
         }
         loadProvider(id: newID)
-        // 更新激活提供者
+        // 更新激活提供者（saveCurrentProvider 已调 persistConfig，此处仅更新 activeProvider）
         config.activeProvider = newID
-        persistConfig()
+        try? config.save()
     }
 
     /// 类型切换：清空模型 + 切换 baseURL 默认值。
@@ -406,10 +406,16 @@ final class ProviderSettingsViewController: NSViewController {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let kind = kindPopup.titleOfSelectedItem ?? "anthropic"
+        if kind == "anthropic" {
+            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        } else {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = 15
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
             DispatchQueue.main.async {
                 self?.testButton.isEnabled = true
                 self?.testSpinner.stopAnimation(nil)
@@ -431,7 +437,7 @@ final class ProviderSettingsViewController: NSViewController {
                 }
 
                 switch httpResponse.statusCode {
-                case 200:
+                case 200...299:
                     self?.showTestResult("连接成功 — API 可正常访问", isError: false)
                 case 401:
                     self?.showTestResult("认证失败 (401)：API 密钥无效或已过期", isError: true)
@@ -477,12 +483,14 @@ final class ProviderSettingsViewController: NSViewController {
             }
         }
 
-        // 更新内存模型
+        // 更新内存模型（保留已有 noThinking 值，避免 CLI 设置的字段被 UI 保存静默丢失）
+        let existingNoThinking = editingProviderID.flatMap { config.providers[$0]?.noThinking }
         let provider = ProviderConfig(
             kind: kind,
             baseURL: baseURL.isEmpty ? nil : baseURL,
             model: model,
-            keyRef: keyRef
+            keyRef: keyRef,
+            noThinking: existingNoThinking
         )
         config.providers[id] = provider
         persistConfig()

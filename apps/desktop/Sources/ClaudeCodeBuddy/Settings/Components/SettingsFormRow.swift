@@ -42,6 +42,11 @@ final class SettingsFormRow: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// LSUIElement 兼容：非 key window 下的首次点击仍需传递到嵌套控件（NSTextField/NSPopUpButton 等）。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     // MARK: - Setup
 
     private func setupView() {

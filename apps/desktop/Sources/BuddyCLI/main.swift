@@ -256,6 +256,8 @@ private struct CLIOptions {
     var baseURL: String = ""
     var model: String = ""
     var apiKey: String = ""
+    /// B2：关闭 LLM thinking 模式
+    var noThinking: Bool = false
     // Launcher hotkey (task 2026-06-15)
     var hotkeyKey: String = ""
     var hotkeyModifiers: String = ""
@@ -407,6 +409,8 @@ private func parseArguments(_ args: [String]) -> CLIOptions {
         case "--modifiers":
             i += 1
             if i < args.count { opts.hotkeyModifiers = args[i] }
+        case "--no-thinking":
+            opts.noThinking = true
         case "--index":
             i += 1
             if i < args.count, let n = Int(args[i]) { opts.launcherDebugIndex = n }
@@ -1346,6 +1350,16 @@ private struct CLIProviderConfig: Codable {
     let baseURL: String?
     let model: String
     let keyRef: String
+    /// B2：关闭 LLM thinking 模式（对应 ProviderConfig.noThinking）
+    var noThinking: Bool?
+
+    init(kind: String, baseURL: String?, model: String, keyRef: String, noThinking: Bool? = nil) {
+        self.kind = kind
+        self.baseURL = baseURL
+        self.model = model
+        self.keyRef = keyRef
+        self.noThinking = noThinking
+    }
 }
 
 private struct CLILauncherConfig: Codable {
@@ -1506,7 +1520,8 @@ private func cmdLauncherConfigSet(_ opts: CLIOptions) {
         kind: opts.kind,
         baseURL: opts.kind == "openai-compatible" ? opts.baseURL : nil,
         model: opts.model,
-        keyRef: keyRef
+        keyRef: keyRef,
+        noThinking: opts.noThinking ? true : nil  // B2：--no-thinking 设置时传 true，否则 nil
     )
     if cfg.activeProvider.isEmpty {
         cfg.activeProvider = opts.providerId
@@ -1521,6 +1536,7 @@ private func cmdLauncherConfigSet(_ opts: CLIOptions) {
     print("Provider \(opts.providerId) configured.")
     print("  kind: \(opts.kind), model: \(opts.model)")
     if opts.kind == "openai-compatible" { print("  base_url: \(opts.baseURL)") }
+    if opts.noThinking { print("  no_thinking: yes") }
     if cfg.activeProvider == opts.providerId { print("  active: yes") }
 }
 
@@ -1537,12 +1553,14 @@ private func cmdLauncherConfigGet(_ opts: CLIOptions) {
         }
         let baseURLStr = p.baseURL.map { ", base_url=\($0)" } ?? ""
         let activeStr = cfg.activeProvider == opts.providerId ? " [active]" : ""
-        print("\(opts.providerId): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(activeStr)")
+        let thinkingStr = p.noThinking == true ? ", no_thinking=true" : ""
+        print("\(opts.providerId): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(thinkingStr)\(activeStr)")
     } else {
         for (id, p) in cfg.providers.sorted(by: { $0.key < $1.key }) {
             let baseURLStr = p.baseURL.map { ", base_url=\($0)" } ?? ""
             let activeStr = cfg.activeProvider == id ? " [active]" : ""
-            print("\(id): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(activeStr)")
+            let thinkingStr = p.noThinking == true ? ", no_thinking=true" : ""
+            print("\(id): kind=\(p.kind), model=\(p.model)\(baseURLStr)\(thinkingStr)\(activeStr)")
         }
     }
 }

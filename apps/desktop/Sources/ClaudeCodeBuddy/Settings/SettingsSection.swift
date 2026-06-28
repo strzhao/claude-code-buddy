@@ -12,12 +12,12 @@ enum SettingsSection: String, CaseIterable {
     case plugins
     /// 热键录入（KeyboardShortcutsViewController）
     case hotkey
+    /// AI 配置（提供者/系统提示词/工具，ProviderSettingsViewController）
+    case ai
     /// 通用偏好（音效/标签开关 + 开机自启，GeneralSettingsViewController）
     case general
     /// 关于（版本/反馈/开源，AboutSettingsViewController）
     case about
-    /// AI 配置（提供者/系统提示词/工具，ProviderSettingsViewController）
-    case ai
 
     /// 中文展示名（sidebar cell title 与 AX title 共用）。
     var displayTitle: String {

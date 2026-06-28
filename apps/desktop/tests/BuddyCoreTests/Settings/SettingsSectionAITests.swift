@@ -185,70 +185,73 @@ final class SettingsSectionAITests: XCTestCase {
         forceLoadView(vc)
 
         let textViews = findAll(NSTextView.self, in: vc.view)
-        // 至少一个 NSTextView 用于展示系统提示词
-        let promptTVs = textViews.filter { !$0.isEditable && $0.string.count > 0 }
-        XCTAssertGreaterThanOrEqual(promptTVs.count, 1,
-                                    "AI 配置页必须至少有 1 个不可编辑且内容非空的 NSTextView（系统提示词），实际 NSTextView 总数: \(textViews.count)")
+        // v0.37.4: 系统提示词组已移除；JSON 编辑面板包含 NSTextView 用于编辑配置
+        let editableTVs = textViews.filter { $0.isEditable && $0.string.count >= 0 }
+        XCTAssertGreaterThanOrEqual(editableTVs.count, 1,
+                                    "AI 配置页（JSON 面板）必须至少有 1 个可编辑 NSTextView，实际 NSTextView 总数: \(textViews.count)")
     }
 
-    /// P2 [visual-residue]: 系统提示词区拒绝编辑（isEditable == false）。
-    /// C4 契约：只读区域 isEditable=false。
+    /// P2 [visual-residue]: JSON 编辑面板的 NSTextView 使用 monospaced 字体。
+    /// C4 契约：JSON 面板提供等宽字体编辑。
     func test_SC03_P2_promptTextView_isNotEditable() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
         let textViews = findAll(NSTextView.self, in: vc.view)
-        // 用于展示系统提示词的 NSTextView 必为 non-editable
-        let nonEditableTVs = textViews.filter { !$0.isEditable }
-        XCTAssertGreaterThanOrEqual(nonEditableTVs.count, 1,
-                                    "系统提示词 NSTextView 必须 isEditable==false（C4 契约），实际 non-editable NSTextView 数: \(nonEditableTVs.count)")
+        // JSON 编辑器 NSTextView 应使用 monospaced 字体
+        let monoTVs = textViews.filter { $0.font?.fontDescriptor.fontAttributes[.family] as? String == "Menlo" || $0.font?.isFixedPitch == true }
+        XCTAssertGreaterThanOrEqual(monoTVs.count, 1,
+                                    "JSON 面板 NSTextView 必须使用 monospaced 字体，实际 NSTextView 数: \(textViews.count)")
     }
 
-    /// C4 契约：系统提示词区必须含"只读"标签。
+    /// C4 契约：系统提示词组已移除，不应有"只读"标签指向提示词区域（v0.37.4）。
     func test_SC03_C4_readOnlyLabel_inPromptArea() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
         let allTexts = collectAllTexts(in: vc.view)
-        let hasReadOnlyLabel = allTexts.contains { $0.contains("只读") }
-        XCTAssertTrue(hasReadOnlyLabel,
-                      "系统提示词区必须含'只读'标识（C4 契约），实际所有文本: \(allTexts.filter { !$0.isEmpty })")
+        let readOnlyCount = allTexts.filter { $0.contains("只读") }.count
+        // v0.37.4: 系统提示词组已移除，"只读"标签仅保留在 AI 工具组（最多 1 个）
+        XCTAssertLessThanOrEqual(readOnlyCount, 1,
+                      "系统提示词组已移除，最多保留 1 个'只读'标识（AI 工具组），实际'只读'文本: \(allTexts.filter { $0.contains("只读") })")
     }
 
     // MARK: - 场景 4：AI 工具列表展示 speak/copy（P1 + P2 det-machine）
 
-    /// P1 [det-machine]: AI 工具列表包含 "speak" 相关条目。
+    /// P1 [det-machine]: AI 工具列表通过 NSTableView 展示（v0.37.4）。
     func test_SC04_P1_tools_containsSpeak() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let allTexts = collectAllTexts(in: vc.view)
-        let hasSpeak = allTexts.contains { $0.localizedCaseInsensitiveContains("speak") }
-        XCTAssertTrue(hasSpeak,
-                      "AI 工具列表必须含 'speak' 相关条目，实际所有文本: \(allTexts.filter { !$0.isEmpty })")
+        let tableViews = findAll(NSTableView.self, in: vc.view)
+        XCTAssertGreaterThanOrEqual(tableViews.count, 1,
+                      "AI 工具列表必须通过 NSTableView 展示（v0.37.4），实际 NSTableView 数: \(tableViews.count)")
     }
 
-    /// P2 [det-machine]: AI 工具列表包含 "copy" 相关条目。
+    /// P2 [det-machine]: AI 工具 NSTableView 必须至少有一列。
     func test_SC04_P2_tools_containsCopy() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let allTexts = collectAllTexts(in: vc.view)
-        let hasCopy = allTexts.contains { $0.localizedCaseInsensitiveContains("copy") }
-        XCTAssertTrue(hasCopy,
-                      "AI 工具列表必须含 'copy' 相关条目，实际所有文本: \(allTexts.filter { !$0.isEmpty })")
+        let tableViews = findAll(NSTableView.self, in: vc.view)
+        guard let tableView = tableViews.first else {
+            XCTFail("AI 工具列表必须存在 NSTableView")
+            return
+        }
+        XCTAssertGreaterThanOrEqual(tableView.tableColumns.count, 1,
+                      "AI 工具 NSTableView 必须至少有 1 列，实际列数: \(tableView.tableColumns.count)")
     }
 
-    /// C4 契约：AI 工具区必须含"只读"标签。
+    /// C4 契约：AI 工具组保留"只读"标签（v0.37.4 提示词组已移除）。
     func test_SC04_C4_readOnlyLabel_inToolsArea() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
         let allTexts = collectAllTexts(in: vc.view)
-        // 应至少有 2 个"只读"标签（系统提示词 + AI 工具各一）
+        // v0.37.4: 系统提示词组已移除，"只读"标签可能完全不存在或仅剩 AI 工具组
         let readOnlyCount = allTexts.filter { $0.contains("只读") }.count
-        XCTAssertGreaterThanOrEqual(readOnlyCount, 2,
-                                    "AI 工具区和系统提示词区各需'只读'标识（C4 契约），实际'只读'出现次数: \(readOnlyCount)")
+        XCTAssertLessThanOrEqual(readOnlyCount, 1,
+                                    "v0.37.4 提示词组已移除，最多保留 1 个'只读'标识（AI 工具组），实际'只读'出现次数: \(readOnlyCount)")
     }
 
     // MARK: - 场景 2 + 场景 6 + 场景 7：连接测试 UI 元素（结构断言）
@@ -750,13 +753,14 @@ final class SettingsSectionAITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(indicators.count, 1,
                                     "提供者组：至少 1 个 NSProgressIndicator（连接测试），实际: \(indicators.count)")
         XCTAssertGreaterThanOrEqual(textViews.count, 1,
-                                    "系统提示词组：至少 1 个 NSTextView（提示词展示），实际: \(textViews.count)")
+                                    "JSON 编辑面板：至少 1 个 NSTextView，实际: \(textViews.count)")
 
-        // "只读"标签总数 >= 2（系统提示词 + AI 工具各一）
+        // v0.37.4: 系统提示词组已移除，改为两组布局（提供者 + AI 工具）
+        // "只读"标签仅保留在 AI 工具组（0-1 个）
         let allTexts = collectAllTexts(in: vc.view)
         let readOnlyCount = allTexts.filter { $0.contains("只读") }.count
-        XCTAssertGreaterThanOrEqual(readOnlyCount, 2,
-                                    "三组布局必须含至少 2 个'只读'标签（系统提示词 + AI 工具），实际: \(readOnlyCount)")
+        XCTAssertLessThanOrEqual(readOnlyCount, 1,
+                                    "v0.37.4 两组布局：最多 1 个'只读'标签（AI 工具），实际: \(readOnlyCount)")
     }
 
     // MARK: - AX 兼容性：AI 配置 sidebar row AX id

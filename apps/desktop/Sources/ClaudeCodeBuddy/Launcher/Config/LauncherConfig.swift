@@ -35,6 +35,9 @@ struct LauncherConfig: Codable, Equatable {
 
     static let empty = LauncherConfig(activeProvider: "", providers: [:])
 
+    /// 已配置的提供者 ID 列表（排序，供 UI 下拉菜单）。
+    var providerIDs: [String] { providers.keys.sorted() }
+
     /// 从指定路径加载配置；文件不存在或解析失败时返回 .empty
     static func load(from path: URL) throws -> LauncherConfig {
         guard FileManager.default.fileExists(atPath: path.path) else {

@@ -16,6 +16,8 @@ enum SettingsSection: String, CaseIterable {
     case general
     /// 关于（版本/反馈/开源，AboutSettingsViewController）
     case about
+    /// AI 配置（提供者/系统提示词/工具，ProviderSettingsViewController）
+    case ai
 
     /// 中文展示名（sidebar cell title 与 AX title 共用）。
     var displayTitle: String {
@@ -25,6 +27,7 @@ enum SettingsSection: String, CaseIterable {
         case .hotkey:   return "热键"
         case .general: return "通用"
         case .about:   return "关于"
+        case .ai:      return "AI 配置"
         }
     }
 
@@ -36,6 +39,7 @@ enum SettingsSection: String, CaseIterable {
         case .hotkey:   return "keyboard"
         case .general: return "gearshape"
         case .about:   return "info.circle"
+        case .ai:      return "cpu"
         }
     }
 }

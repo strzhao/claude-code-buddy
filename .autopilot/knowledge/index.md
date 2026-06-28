@@ -18,7 +18,9 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
-## Patterns (103)
+## Patterns (104)
+
+- [2026-06-28] CALayer CGColor 外观切换不刷新 + NSCollectionViewItem 适配：动态 NSColor.cgColor 快照为固定值，必须重写 viewDidChangeEffectiveAppearance 刷新；NSCollectionViewItem (NSViewController) 无法 override NSView 方法，需嵌套 NSView 子类 + weak owner 转发 | tags: calayer, cgcolor, appkit, appearance, viewdidchangeeffectiveappearance, nscollectionviewitem, nsview, dark-mode, light-mode | → patterns/2026-06-28-calayer-cgcolor-appearance-refresh-viewdidchange.md
 
 - [2026-06-28] 红队验收断言机制精确性：grep 命中注释行（release.yml `# 在 swift build 之前` 含字面量）→ 行号误判对正确 impl 报 FAIL；regex 语序反（要求「内置」在前但文案是「保留内置」）→ 不匹配误报。断言要匹配机制（YAML 顺序用 `^[[:space:]]*run:.*` 命令行；文案枚举语序）非裸字面量。区分「弱化测试让 broken 过」(禁) vs「修测试机制缺陷」(必要，判据=独立核验 impl 真满足契约) | tags: red-team, acceptance-test, false-positive, grep, regex, comment-matching, yaml, release-yml, test-precision, mutation-survival, autopilot, qa, bash | → patterns/2026-06-28-red-team-assertion-mechanism-precision.md
 - [2026-06-25] LSUIElement menubar status item 点开窗口非 key 的 4 层根因链：① .accessory 窗口无 key 资格须临时切 .regular（关窗切回）；② 点 status item 让 app 自己成 frontmost 但 isActive=false → cooperative yield 须用 tracked app（didActivate 记录的点 menubar 前用户 app）而非 frontmost；③ popover.performClose 动画干扰 activation 须 popoverDidClose 后再 showSettings + animates=false；④ NSApp.activate() cooperative 不保证须 activate(from:)；治标 acceptsFirstMouse 让 SageSwitch 非 key 也能点 | tags: lsuielement, key-window, menubar, status-item, cooperative-activation, nspopover, activationpolicy, nsrunningapplication, accessory, regular, macos-14, accepts-first-mouse, sage-switch | → patterns/2026-06-25-lsuielement-menubar-status-item-cooperative-tracked-activate.md

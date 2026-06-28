@@ -4,6 +4,19 @@ import AppKit
 
 class SkinCardItem: NSCollectionViewItem {
 
+    // MARK: - SkinCardItemView (nested)
+
+    /// SkinCardItem 的 view 层容器，重写 viewDidChangeEffectiveAppearance 以响应系统外观切换。
+    /// 外观切换时转发给 owner 的 updateSelectionAppearance() 刷新选中态边框/填充/勾选标记。
+    private final class SkinCardItemView: NSView {
+        weak var owner: SkinCardItem?
+
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            owner?.updateSelectionAppearance()
+        }
+    }
+
     static let identifier = NSUserInterfaceItemIdentifier("SkinCardItem")
 
     private let previewImageView = NSImageView()
@@ -47,7 +60,8 @@ class SkinCardItem: NSCollectionViewItem {
     }
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 170, height: 224))
+        let container = SkinCardItemView(frame: NSRect(x: 0, y: 0, width: 170, height: 224))
+        container.owner = self
         container.wantsLayer = true
         container.layer?.cornerRadius = SettingsTheme.cardCornerRadius
         // 边框用 sage 品牌色（A4：controlAccentColor → SettingsTheme.accent 三处之一）

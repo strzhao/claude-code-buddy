@@ -18,6 +18,8 @@
 - [2026-04-13] 猫咪朝向系统集中化 | tags: architecture, facing, movement | → decisions/2026-04-13-cat-facing-centralized-api.md
 - [2026-04-13] 活动边界采用逻辑约束而非窗口裁剪 | tags: window, bounds, dock | → decisions/2026-04-13-activity-bounds-logical-not-window-crop.md
 
+- [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
+
 ## Patterns (104)
 
 - [2026-06-28] CALayer CGColor 外观切换不刷新 + NSCollectionViewItem 适配：动态 NSColor.cgColor 快照为固定值，必须重写 viewDidChangeEffectiveAppearance 刷新；NSCollectionViewItem (NSViewController) 无法 override NSView 方法，需嵌套 NSView 子类 + weak owner 转发 | tags: calayer, cgcolor, appkit, appearance, viewdidchangeeffectiveappearance, nscollectionviewitem, nsview, dark-mode, light-mode | → patterns/2026-06-28-calayer-cgcolor-appearance-refresh-viewdidchange.md

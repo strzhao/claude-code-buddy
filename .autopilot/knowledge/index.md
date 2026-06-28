@@ -20,7 +20,9 @@
 
 - [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
 
-## Patterns (104)
+## Patterns (106)
+- [2026-06-28] SettingsSection 枚举新增 case 须同步更新 3 类测试合约 | tags: settings, settings-section, enum, test-contract, allcases, ax-id, sidebar, acceptance-test, tab, appkit | → patterns/2026-06-28-settings-section-enum-extension-test-contract.md
+- [2026-06-28] 连接测试与 LLM 推理请求分层：URLSession 直连而非 LauncherProvider.send() | tags: connection-test, url-session, provider, launcher, http-timeout, auth-header, kind-differentiation, anthropic, openai-compatible, token-cost | → patterns/2026-06-28-connection-test-urlsession-vs-provider-send.md
 
 - [2026-06-28] CALayer CGColor 外观切换不刷新 + NSCollectionViewItem 适配：动态 NSColor.cgColor 快照为固定值，必须重写 viewDidChangeEffectiveAppearance 刷新；NSCollectionViewItem (NSViewController) 无法 override NSView 方法，需嵌套 NSView 子类 + weak owner 转发 | tags: calayer, cgcolor, appkit, appearance, viewdidchangeeffectiveappearance, nscollectionviewitem, nsview, dark-mode, light-mode | → patterns/2026-06-28-calayer-cgcolor-appearance-refresh-viewdidchange.md
 

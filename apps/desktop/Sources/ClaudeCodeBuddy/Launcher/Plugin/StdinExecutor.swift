@@ -11,6 +11,7 @@ class StdinExecutor {
             let extPath = makeExtendedPath()
             for binary in required {
                 guard locateBinary(binary, in: extPath) != nil else {
+                    BuddyLogger.shared.warn("stdin executor: binary not found", subsystem: "plugin", meta: ["binary": binary, "plugin": plugin.name])
                     throw LauncherError.pluginMissingDependency(binary)
                 }
             }
@@ -60,6 +61,7 @@ class StdinExecutor {
         do {
             // 设置 qualityOfService 不影响 pgid；Process.run() 后可用 setsid 或直接用 pid 负数 kill
             try process.run()
+            BuddyLogger.shared.info("stdin executor: process started", subsystem: "plugin", meta: ["cmd": plugin.cmd, "plugin": plugin.name])
         } catch {
             throw LauncherError.pluginCrash(-1, "process.run 失败：\(error.localizedDescription)")
         }
@@ -110,6 +112,7 @@ class StdinExecutor {
                 // 超时：立即 resume(true) 后再发 SIGTERM，异步等待 SIGKILL 兜底
                 guard_.tryResume { cont.resume(returning: true) }
                 let pid = process.processIdentifier
+                BuddyLogger.shared.warn("stdin executor: timeout, killing process", subsystem: "plugin", meta: ["pid": pid, "timeoutSec": timeoutSec, "plugin": plugin.name])
                 process.terminate()  // SIGTERM（对 bash 主进程）
                 Task.detached {
                     try? await Task.sleep(for: .seconds(LauncherConstants.pluginSigkillGraceSec))
@@ -154,6 +157,7 @@ class StdinExecutor {
             throw LauncherError.pluginTimeout(timeoutSec)
         }
         if process.terminationStatus != 0 {
+            BuddyLogger.shared.warn("stdin executor: non-zero exit", subsystem: "plugin", meta: ["exitCode": Int(process.terminationStatus), "plugin": plugin.name])
             throw LauncherError.pluginCrash(
                 process.terminationStatus,
                 String(stderrStr.prefix(200))
@@ -167,6 +171,7 @@ class StdinExecutor {
         // 完全对称 image 通道；失败降级 nil（候选可选，非 error）。
         let candidatesData = readCandidatesOutputSafely(at: outputCandidatesPath)
 
+        BuddyLogger.shared.info("stdin executor: process succeeded", subsystem: "plugin", meta: ["exitCode": Int(process.terminationStatus), "durationMs": durationMs, "plugin": plugin.name])
         return PluginResult(
             stdout: stdoutStr,
             stderr: stderrStr,
@@ -194,17 +199,23 @@ class StdinExecutor {
                                     .resolvingSymlinksInPath().path) as String?,
               resolved == expectedPath else {
             // 路径被 symlink 篡改 → 丢弃（不读不信任的内容）
+            BuddyLogger.shared.warn("stdin executor: image output symlink mismatch", subsystem: "plugin")
             return nil
         }
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else { return nil }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else {
+            BuddyLogger.shared.warn("stdin executor: image output read failed", subsystem: "plugin")
+            return nil
+        }
         guard data.count <= LauncherConstants.pluginMaxImageBytes else {
             // 超限丢弃（边界值反例：image.count > 5MB → image = nil）
+            BuddyLogger.shared.warn("stdin executor: image output too large", subsystem: "plugin", meta: ["bytes": data.count])
             return nil
         }
         // PNG 完整性校验（场景6.P2）：末尾必须含 IEND chunk（49 45 4E 44 AE 42 60 82）。
         // 子进程崩溃/中断会写出不完整 PNG（缺 IEND）→ 丢弃，不渲染损坏图片。
         let pngIENDSuffix = Data([0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82])
         guard data.count >= pngIENDSuffix.count, data.suffix(pngIENDSuffix.count) == pngIENDSuffix else {
+            BuddyLogger.shared.warn("stdin executor: image output missing IEND chunk", subsystem: "plugin")
             return nil
         }
         return data
@@ -226,16 +237,25 @@ class StdinExecutor {
         guard let resolved = try? (URL(fileURLWithPath: expectedPath)
                                     .resolvingSymlinksInPath().path) as String?,
               resolved == expectedPath else {
+            BuddyLogger.shared.warn("stdin executor: candidates output symlink mismatch", subsystem: "plugin")
             return nil
         }
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else { return nil }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else {
+            BuddyLogger.shared.warn("stdin executor: candidates output read failed", subsystem: "plugin")
+            return nil
+        }
         guard data.count <= LauncherConstants.pluginMaxCandidatesBytes else {
             // 超限丢弃（边界值反例：count > 64KiB → nil）
+            BuddyLogger.shared.warn("stdin executor: candidates output too large", subsystem: "plugin", meta: ["bytes": data.count])
             return nil
         }
         // JSON 完整性校验（对称 image 的 IEND 尾部校验）：解码失败 → nil（损坏候选不渲染）。
         // 字段缺失（如缺 selection）会抛 decodingError → 降级 nil（C2 所有字段必需）。
-        return try? JSONDecoder().decode([LauncherCandidate].self, from: data)
+        guard let candidates = try? JSONDecoder().decode([LauncherCandidate].self, from: data) else {
+            BuddyLogger.shared.warn("stdin executor: candidates output JSON decode failed", subsystem: "plugin")
+            return nil
+        }
+        return candidates
     }
 
     /// 构造扩展 PATH：pluginPathPrefixes 在前 + 当前 PATH 在后

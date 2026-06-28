@@ -11,6 +11,10 @@ final class PluginDispatcher {
     }
 
     func execute(_ plugin: PluginManifest, pluginDir: URL, input: PluginInput) async throws -> PluginResult {
+        let modeStr: String = {
+            switch plugin.modeConfig { case .stdin: return "stdin"; case .command: return "command"; case .prompt: return "prompt" }
+        }()
+        BuddyLogger.shared.info("plugin dispatcher: mode dispatch", subsystem: "plugin", meta: ["plugin": plugin.name, "mode": modeStr])
         switch plugin.modeConfig {
         case .stdin:
             return try await stdinExecutor.execute(plugin, pluginDir: pluginDir, input: input)

@@ -162,7 +162,7 @@ private func checkSocket() -> Bool {
 
 /// Sends a query to the Buddy app and reads the JSON response.
 /// Returns the raw response data, or throws SocketError on failure.
-private func sendQuery(_ query: [String: Any]) throws -> Data {
+private func sendQuery(_ query: [String: Any], timeout: TimeInterval = 2.0) throws -> Data {
     guard let payloadData = try? JSONSerialization.data(withJSONObject: query) else {
         throw SocketError.sendFailed("Failed to encode query")
     }
@@ -203,10 +203,10 @@ private func sendQuery(_ query: [String: Any]) throws -> Data {
         throw SocketError.sendFailed(String(cString: strerror(errno)))
     }
 
-    // Read response with timeout (2 seconds)
+    // Read response with timeout
     var response = Data()
     var buf = [UInt8](repeating: 0, count: 4096)
-    let deadline = Date().addingTimeInterval(2.0)
+    let deadline = Date().addingTimeInterval(timeout)
 
     while Date() < deadline {
         let n = read(fd, &buf, buf.count)
@@ -339,6 +339,7 @@ private func printHelp() {
       buddy launcher debug candidates <query>   生成内置插件候选（JSON，功能调试用）
       buddy launcher debug perform <query> [--index N]   执行第 N 个候选并读剪贴板（默认 N=0）
       buddy launcher debug registry             列出已注册内置插件（priority 降序，JSON）
+      buddy launcher debug route <query>        AI 路由调试：query → narrow → AI select → LLM 响应（JSON）
 
     Hotkey 参数：
       --key <key>           热键主键（如 space, a, f1, return；字母 a-z / 数字 0-9）
@@ -1045,8 +1046,15 @@ private func main() {
                 cmdLauncherDebugPerform(q, index: opts.launcherDebugIndex)
             case "registry":
                 cmdLauncherDebugRegistry()
+            case "route":
+                let q = opts.positionalArgs.dropFirst().first ?? ""
+                guard !q.isEmpty else {
+                    fputs("Usage: buddy launcher debug route <query>\n", stderr)
+                    exit(2)
+                }
+                cmdLauncherDebugRoute(q)
             default:
-                fputs("Usage: buddy launcher debug <candidates|perform|registry> ...\n", stderr)
+                fputs("Usage: buddy launcher debug <candidates|perform|registry|route> ...\n", stderr)
                 exit(2)
             }
         default:
@@ -1691,6 +1699,25 @@ private func cmdLauncherDebugRegistry() {
     let queryDict: [String: Any] = ["action": "launcher_debug_registry"]
     do {
         let data = try sendQuery(queryDict)
+        if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+// MARK: - Launcher Debug Route (AI 路由调试：query → narrow → AI select → LLM 响应)
+//   请求 action = launcher_debug_route，字段 query:String（非空）
+//   响应：{status:"ok", data:{query, decision, candidates[], outputText, durationMs}}
+private func cmdLauncherDebugRoute(_ query: String) {
+    let queryDict: [String: Any] = [
+        "action": "launcher_debug_route",
+        "query": query,
+    ]
+    do {
+        let data = try sendQuery(queryDict, timeout: 30.0)
         if let str = String(data: data, encoding: .utf8) {
             print(str)
         }

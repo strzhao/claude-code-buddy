@@ -265,6 +265,7 @@ CLI mirror `cliDisplaySummary` 同语义（C5 双绑，`cliFirstSentence` 与 `f
 buddy launcher debug candidates <query>            # 生成内置插件候选（JSON）
 buddy launcher debug perform <query> [--index N]   # 执行第 N 个候选并读剪贴板（默认 N=0）
 buddy launcher debug registry                      # 列出已注册内置插件（priority 降序，JSON）
+buddy launcher debug route <query>                 # AI 路由调试：query → narrow → AI select → LLM 响应（JSON）
 buddy launcher run <name> --input "xxx" [--json]   # dry-run 直接执行具名外部插件（含 TOFU）
 buddy log show --subsystem plugin                  # 看插件子系统日志
 ```
@@ -277,6 +278,7 @@ buddy log show --subsystem plugin                  # 看插件子系统日志
 - `candidates` → `{status:"ok", data:{query, count, candidates:[{pluginId, title, subtitle, score}]}}`
 - `perform` → `{status:"ok", data:{pluginId, performed:true, copied?}}`（`copied` 仅当 perform 后 pasteboard 非空才返回）
 - `registry` → `{status:"ok", data:{plugins:[{id, priority, sectionTitle, summary, enabled}]}}`（priority 降序；C2/C3 含 summary + enabled）
+- `route` → `{status:"ok", data:{query, decision, candidates:[{name, score, mode}], outputText, durationMs}}`（端到端 AI 路由调试；绕过 LauncherManager.submit 的 isSubmitting 卫兵，在 handler 上下文直接调 ProviderFactory + LauncherRouter + PromptExecutor）
 - `run` → `{status:"ok", data:{name, stdout, stderr, exit_code, duration_ms}}`（C4；trust 失败 → `{status:"error", message:"not trusted"}` + CLI exit 非 0）
 
 **run 与 debug perform 区别**：run 是 name→直接 execute（不经候选路由），跑外部子进程插件；debug perform 是 query→candidates→perform N，跑内置 in-process 插件。run 必须经 `TrustStore.checkAndPrompt`（B1，TOFU 不绕过）。

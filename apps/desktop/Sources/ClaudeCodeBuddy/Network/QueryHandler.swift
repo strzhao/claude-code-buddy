@@ -87,6 +87,8 @@ final class QueryHandler {
             return handleLauncherDebugRegistry()
         case "launcher_debug_run_plugin":
             return await handleLauncherDebugRunPlugin(query: query)
+        case "launcher_debug_route":
+            return await handleLauncherDebugRoute(query: query)
         case "open_settings":
             NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
             return okResponse(data: ["opened": "settings"])
@@ -437,6 +439,102 @@ final class QueryHandler {
             "duration_ms": result.durationMs,
         ])
         return okResponse(data: data)
+    }
+
+    /// launcher_debug_route → 提取 query → ProviderFactory 创建 provider → LauncherRouter narrow + AI select
+    /// → PromptExecutor.execute 直接获取 LLM 响应 → 返回 {query, decision, candidates[], outputText, durationMs}。
+    /// 绕过 LauncherManager.submit 的 isSubmitting 卫兵和 AsyncStream（在 handler 上下文中不适合 consume 异步流）。
+    @MainActor
+    private func handleLauncherDebugRoute(query: [String: Any]) async -> Data {
+        guard let q = query["query"] as? String, !q.isEmpty else {
+            return errorResponse(message: "missing 'query'")
+        }
+
+        let startTime = Date()
+
+        // 1. 加载配置
+        let config: LauncherConfig
+        do {
+            config = try LauncherConfig.load()
+        } catch {
+            return errorResponse(message: "config load failed: \(error.localizedDescription)")
+        }
+        guard !config.activeProvider.isEmpty,
+              let providerConfig = config.providers[config.activeProvider] else {
+            return errorResponse(message: "provider not configured")
+        }
+
+        // 2. 创建 provider
+        let store: SecretStore
+        do {
+            store = try SecretStoreFactory.create()
+        } catch {
+            return errorResponse(message: "secretStore unavailable: \(error.localizedDescription)")
+        }
+        let provider: LauncherProvider
+        do {
+            provider = try ProviderFactory.create(providerConfig, store: store)
+        } catch {
+            return errorResponse(message: "provider creation failed: \(error.localizedDescription)")
+        }
+
+        // 3. LauncherRouter: narrow candidates + AI select
+        let plugins = (try? PluginManager.shared.list()) ?? []
+        let scored = LauncherRouter.narrowCandidatesScored(query: q, plugins: plugins)
+        let candidates: [[String: Any]] = scored.map {
+            [
+                "name": $0.manifest.name,
+                "score": $0.score,
+                "mode": String(describing: $0.manifest.modeConfig),
+            ]
+        }
+
+        var decision = "directChat"
+        if !candidates.isEmpty {
+            let router = LauncherRouter(
+                pluginManager: PluginManager.shared,
+                provider: provider,
+                routerModel: providerConfig.model
+            )
+            let narrowList = router.narrowCandidates(q)
+            if !narrowList.isEmpty {
+                do {
+                    let routeDecision = try await router.pickWithAI(query: q, from: narrowList)
+                    if case .withPlugin(let m) = routeDecision {
+                        decision = "withPlugin:\(m.name)"
+                    }
+                } catch {
+                    // AI select 失败 → 降级为 directChat
+                    decision = "directChat (router failed: \(error.localizedDescription))"
+                }
+            }
+        }
+
+        // 4. PromptExecutor 直接获取 LLM 响应
+        let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
+        let cfg = PromptConfig(
+            systemPrompt: DefaultAgentPrompt.system,
+            maxIterations: 1,
+            model: nil,
+            autoCopyToClipboard: false
+        )
+        let outputText: String
+        do {
+            let result = try await promptExecutor.execute(query: q, config: cfg)
+            outputText = result.exitCode == 0 ? result.stdout : result.stderr
+        } catch {
+            outputText = "LLM execute failed: \(error.localizedDescription)"
+        }
+
+        let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
+
+        return okResponse(data: [
+            "query": q,
+            "decision": decision,
+            "candidates": candidates,
+            "outputText": outputText,
+            "durationMs": durationMs,
+        ])
     }
 
     // MARK: - Response Helpers

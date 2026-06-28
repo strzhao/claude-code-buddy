@@ -14,6 +14,7 @@ final class AnthropicProvider: LauncherProvider {
 
     func send(messages: [AgentMessage], tools: [AgentTool], model: String, system: String? = nil) async throws -> AgentResponse {
         guard apiKey.count >= LauncherConstants.minAPIKeyLength else {
+            BuddyLogger.shared.warn("anthropic provider: API key too short", subsystem: "launcher-agent", meta: ["keyLen": apiKey.count])
             throw LauncherError.invalidAPIKey("too short")
         }
 
@@ -41,6 +42,7 @@ final class AnthropicProvider: LauncherProvider {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            BuddyLogger.shared.error("anthropic provider: network failure", subsystem: "launcher-agent", meta: ["error": "\(error)"])
             throw LauncherError.networkFailure(error)
         }
 
@@ -49,6 +51,7 @@ final class AnthropicProvider: LauncherProvider {
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             let bodySnippet = String(data: data.prefix(200), encoding: .utf8) ?? ""
+            BuddyLogger.shared.error("anthropic provider: HTTP error", subsystem: "launcher-agent", meta: ["statusCode": httpResponse.statusCode, "bodySnippetLen": bodySnippet.count])
             throw LauncherError.providerHTTPError(httpResponse.statusCode, bodySnippet)
         }
 

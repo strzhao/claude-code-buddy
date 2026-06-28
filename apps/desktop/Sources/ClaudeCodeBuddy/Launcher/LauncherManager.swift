@@ -394,6 +394,7 @@ final class LauncherManager: ObservableObject {
         do {
             config = try configOverride ?? LauncherConfig.load()
         } catch {
+            BuddyLogger.shared.error("submit: config load failed", subsystem: "launcher", meta: ["error": "\(error)"])
             isSubmitting = false
             stage = .error
             return Self.errorStream(.networkFailure(error))
@@ -413,6 +414,7 @@ final class LauncherManager: ObservableObject {
         lastRouteSelectedIndex = -1
         lastRoutePluginName = nil
         stage = .narrowing
+        BuddyLogger.shared.info("submit start", subsystem: "launcher", meta: ["query": query])
 
         return AsyncStream { continuation in
             // Task.detached 离开 MainActor，避免阻塞 UI 线程（保留 task 003 结构）
@@ -433,6 +435,7 @@ final class LauncherManager: ObservableObject {
                 )
                 if isShortCircuit && topIsCommand, let manifest = topManifest,
                    let dir = try? PluginManager.shared.pluginDir(for: manifest) {
+                    BuddyLogger.shared.info("submit: command shortcut hit", subsystem: "launcher", meta: ["plugin": manifest.name])
                     await MainActor.run {
                         LauncherManager.shared.lastRouteCandidates = scored.map(\.manifest)
                         LauncherManager.shared.lastRouteSelectedIndex = 0
@@ -442,6 +445,7 @@ final class LauncherManager: ObservableObject {
                     let executablePath = dir.appending(path: manifest.cmd)
                     let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
                     guard trusted else {
+                        BuddyLogger.shared.warn("submit: command shortcut trust failed", subsystem: "launcher", meta: ["plugin": manifest.name])
                         continuation.yield(.error(.pluginNotTrusted(manifest.name)))
                         continuation.finish()
                         await MainActor.run {
@@ -477,6 +481,7 @@ final class LauncherManager: ObservableObject {
 
                 // 非 command 短路：需 provider（directChat/aiSelect/stdin/prompt）
                 guard let providerConfig = providerConfig, let store = store else {
+                    BuddyLogger.shared.warn("submit: provider not configured", subsystem: "launcher")
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
@@ -489,6 +494,7 @@ final class LauncherManager: ObservableObject {
                 do {
                     provider = try (factoryOverride ?? ProviderFactory.create)(providerConfig, store)
                 } catch let err as LauncherError {
+                    BuddyLogger.shared.error("submit: provider creation failed", subsystem: "launcher", meta: ["error": "\(err)"])
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
@@ -497,6 +503,7 @@ final class LauncherManager: ObservableObject {
                     continuation.finish()
                     return
                 } catch {
+                    BuddyLogger.shared.error("submit: provider creation failed (generic)", subsystem: "launcher", meta: ["error": "\(error)"])
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
@@ -577,6 +584,7 @@ final class LauncherManager: ObservableObject {
                     // 默认流：单轮流式 + Buddy system prompt + 框架 meta tools（render-only 按钮）。
                     // 不走 LauncherAgent 的 execute-loop —— attach_action 是「声明按钮」非「执行动作」，
                     // 用 PromptExecutor 单轮路径收集 .action 后随文本一并展示。
+                    BuddyLogger.shared.info("submit: directChat start", subsystem: "launcher", meta: ["query": query])
                     let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
                     let cfg = PromptConfig(
                         systemPrompt: DefaultAgentPrompt.system,
@@ -585,20 +593,26 @@ final class LauncherManager: ObservableObject {
                         autoCopyToClipboard: false
                     )
                     await MainActor.run { LauncherManager.shared.stage = .streaming }
+                    let directChatStart = Date()
                     do {
                         let result = try await promptExecutor.execute(query: query, config: cfg)
+                        let durationMs = Int(Date().timeIntervalSince(directChatStart) * 1000)
                         if result.exitCode == 0 {
+                            BuddyLogger.shared.info("submit: directChat success", subsystem: "launcher", meta: ["durationMs": durationMs])
                             continuation.yield(.text(result.stdout))
                             for action in result.actions {
                                 continuation.yield(.action(action))
                             }
                         } else {
+                            BuddyLogger.shared.info("submit: directChat non-zero exit", subsystem: "launcher", meta: ["exitCode": Int(result.exitCode), "durationMs": durationMs])
                             continuation.yield(.text(result.stderr))
                         }
                         continuation.yield(.done(reason: "end_turn"))
                     } catch let err as LauncherError {
+                        BuddyLogger.shared.error("submit: directChat failed", subsystem: "launcher", meta: ["error": "\(err)"])
                         continuation.yield(.error(err))
                     } catch {
+                        BuddyLogger.shared.error("submit: directChat failed (generic)", subsystem: "launcher", meta: ["error": "\(error)"])
                         continuation.yield(.error(.networkFailure(error)))
                     }
                     await MainActor.run {
@@ -612,10 +626,15 @@ final class LauncherManager: ObservableObject {
                     // trust check 提前到 mode 分支之前（stdin/prompt 都做）
                     let dir = try PluginManager.shared.pluginDir(for: manifest)
                     let executablePath = dir.appending(path: manifest.cmd)
+                    let modeStr: String = {
+                        switch manifest.modeConfig { case .stdin: return "stdin"; case .command: return "command"; case .prompt: return "prompt" }
+                    }()
+                    BuddyLogger.shared.info("submit: withPlugin entry", subsystem: "launcher", meta: ["plugin": manifest.name, "mode": modeStr])
                     let trusted = await TrustStore.shared.checkAndPrompt(
                         manifest, executablePath: executablePath
                     )
                     guard trusted else {
+                        BuddyLogger.shared.warn("submit: withPlugin trust failed", subsystem: "launcher", meta: ["plugin": manifest.name])
                         continuation.yield(.error(.pluginNotTrusted(manifest.name)))
                         continuation.finish()
                         return
@@ -647,6 +666,7 @@ final class LauncherManager: ObservableObject {
                         // command mode bypass agent loop（零 LLM）：直接调 StdinExecutor，结果映射为
                         // AgentEvent.text（stdout 非空时）+ .image（图片通道）+ .done。
                         // 仿 prompt mode 结构（:496-532），但走 stdinExecutor 路径。
+                        BuddyLogger.shared.info("submit: command mode entry", subsystem: "launcher", meta: ["plugin": manifest.name])
                         let dispatcher = PluginDispatcher(stdinExecutor: .shared)
                         // strip 命中 keyword 前缀（如 "qr https://..." → "https://..."）
                         let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
@@ -682,6 +702,7 @@ final class LauncherManager: ObservableObject {
 
                     case .prompt:
                         // prompt mode bypass agent loop：直接调 PromptExecutor，结果映射为 AgentEvent.text
+                        BuddyLogger.shared.info("submit: prompt mode entry", subsystem: "launcher", meta: ["plugin": manifest.name])
                         let promptExecutor = PromptExecutor(provider: provider, activeProviderModel: providerConfig.model)
                         let dispatcher = PluginDispatcher(stdinExecutor: .shared, promptExecutor: promptExecutor)
                         // strip 命中 keyword 前缀（如 "tr buddy" → "buddy"），避免 LLM 把 keyword 当 query
@@ -719,6 +740,7 @@ final class LauncherManager: ObservableObject {
                     }
                 }
 
+                BuddyLogger.shared.info("submit: agent loop start", subsystem: "launcher", meta: ["model": providerConfig.model])
                 let agent = LauncherAgent(
                     provider: provider,
                     tools: tools,
@@ -774,15 +796,18 @@ final class LauncherManager: ObservableObject {
         do {
             config = try configOverride ?? LauncherConfig.load()
         } catch {
+            BuddyLogger.shared.error("submitWithPlugin: config load failed", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
             stage = .error
             return Self.errorStream(.networkFailure(error))
         }
         guard !config.activeProvider.isEmpty,
               let providerConfig = config.providers[config.activeProvider] else {
+            BuddyLogger.shared.warn("submitWithPlugin: provider not configured", subsystem: "launcher", meta: ["plugin": manifest.name])
             stage = .error
             return Self.errorStream(.providerNotConfigured)
         }
         guard let store = secretStore else {
+            BuddyLogger.shared.error("submitWithPlugin: secretStore unavailable", subsystem: "launcher", meta: ["plugin": manifest.name])
             stage = .error
             return Self.errorStream(.secretStoreUnavailable)
         }
@@ -798,11 +823,13 @@ final class LauncherManager: ObservableObject {
                 do {
                     provider = try (factoryOverride ?? ProviderFactory.create)(providerConfig, store)
                 } catch let err as LauncherError {
+                    BuddyLogger.shared.error("submitWithPlugin: provider creation failed", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(err)"])
                     await MainActor.run { LauncherManager.shared.stage = .error }
                     continuation.yield(.error(err))
                     continuation.finish()
                     return
                 } catch {
+                    BuddyLogger.shared.error("submitWithPlugin: provider creation failed (generic)", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
                     await MainActor.run { LauncherManager.shared.stage = .error }
                     continuation.yield(.error(.networkFailure(error)))
                     continuation.finish()
@@ -891,6 +918,7 @@ final class LauncherManager: ObservableObject {
     ) -> AsyncStream<AgentEvent> {
         // command mode 才支持候选回调（stdin/prompt 走 LLM loop，语义不同）
         guard case .command = manifest.modeConfig else {
+            BuddyLogger.shared.error("submitWithCandidate: not command mode", subsystem: "launcher", meta: ["plugin": manifest.name])
             return Self.errorStream(.pluginCrash(-1, "submitWithCandidate 仅支持 command mode 插件"))
         }
 
@@ -907,6 +935,7 @@ final class LauncherManager: ObservableObject {
                 do {
                     dir = try pm.pluginDir(for: manifest)
                 } catch {
+                    BuddyLogger.shared.error("submitWithCandidate: pluginDir failed", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
@@ -919,6 +948,7 @@ final class LauncherManager: ObservableObject {
                 // C6：trustKey 不含 selection，同二进制同 args ⇒ 已信任则不弹框
                 let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
                 guard trusted else {
+                    BuddyLogger.shared.warn("submitWithCandidate: trust failed", subsystem: "launcher", meta: ["plugin": manifest.name])
                     continuation.yield(.error(.pluginNotTrusted(manifest.name)))
                     continuation.finish()
                     await MainActor.run {
@@ -954,8 +984,10 @@ final class LauncherManager: ObservableObject {
                     }
                     continuation.yield(.done(reason: "end_turn"))
                 } catch let err as LauncherError {
+                    BuddyLogger.shared.error("submitWithCandidate: execute failed (LauncherError)", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(err)"])
                     continuation.yield(.error(err))
                 } catch {
+                    BuddyLogger.shared.error("submitWithCandidate: execute failed (generic)", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
                     continuation.yield(.error(.networkFailure(error)))
                 }
                 await MainActor.run {
@@ -984,6 +1016,7 @@ final class LauncherManager: ObservableObject {
     func submitCommandDirect(_ manifest: PluginManifest, query: String) -> AsyncStream<AgentEvent> {
         // C11：guard case .command（非 command → errorStream）
         guard case .command = manifest.modeConfig else {
+            BuddyLogger.shared.error("submitCommandDirect: not command mode", subsystem: "launcher", meta: ["plugin": manifest.name])
             return Self.errorStream(.pluginCrash(-1, "submitCommandDirect 仅支持 command mode 插件"))
         }
 
@@ -1006,6 +1039,7 @@ final class LauncherManager: ObservableObject {
                 do {
                     dir = try pm.pluginDir(for: manifest)
                 } catch {
+                    BuddyLogger.shared.error("submitCommandDirect: pluginDir failed", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
                     await MainActor.run {
                         LauncherManager.shared.stage = .error
                         LauncherManager.shared.isSubmitting = false
@@ -1018,6 +1052,7 @@ final class LauncherManager: ObservableObject {
                 // TOFU 不变（C8）：command trustKey = "command:" + SHA256(cmd+args+exeBytes)
                 let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
                 guard trusted else {
+                    BuddyLogger.shared.warn("submitCommandDirect: trust failed", subsystem: "launcher", meta: ["plugin": manifest.name])
                     continuation.yield(.error(.pluginNotTrusted(manifest.name)))
                     continuation.finish()
                     await MainActor.run {
@@ -1054,8 +1089,10 @@ final class LauncherManager: ObservableObject {
                     }
                     continuation.yield(.done(reason: "end_turn"))
                 } catch let err as LauncherError {
+                    BuddyLogger.shared.error("submitCommandDirect: execute failed (LauncherError)", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(err)"])
                     continuation.yield(.error(err))
                 } catch {
+                    BuddyLogger.shared.error("submitCommandDirect: execute failed (generic)", subsystem: "launcher", meta: ["plugin": manifest.name, "error": "\(error)"])
                     continuation.yield(.error(.networkFailure(error)))
                 }
                 await MainActor.run {

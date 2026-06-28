@@ -36,6 +36,7 @@ final class LauncherAgent {
                     AgentMessage(role: "user", content: [.text(prompt)])
                 ]
 
+                BuddyLogger.shared.info("agent loop start", subsystem: "launcher-agent", meta: ["maxIterations": config.maxIterations])
                 for _ in 1...config.maxIterations {
                     // 检查取消
                     if Task.isCancelled {
@@ -47,10 +48,12 @@ final class LauncherAgent {
                     do {
                         resp = try await provider.send(messages: messages, tools: tools, model: model, system: nil)
                     } catch let err as LauncherError {
+                        BuddyLogger.shared.error("agent loop: provider send failed", subsystem: "launcher-agent", meta: ["error": "\(err)"])
                         continuation.yield(.error(err))
                         continuation.finish()
                         return
                     } catch {
+                        BuddyLogger.shared.error("agent loop: provider send failed (generic)", subsystem: "launcher-agent", meta: ["error": "\(error)"])
                         continuation.yield(.error(.networkFailure(error)))
                         continuation.finish()
                         return
@@ -67,6 +70,7 @@ final class LauncherAgent {
                     messages.append(AgentMessage(role: "assistant", content: resp.content))
 
                     if resp.stopReason != "tool_use" {
+                        BuddyLogger.shared.info("agent loop: normal end", subsystem: "launcher-agent", meta: ["stopReason": resp.stopReason])
                         continuation.yield(.done(reason: resp.stopReason))
                         continuation.finish()
                         return
@@ -76,6 +80,7 @@ final class LauncherAgent {
                     var toolResults: [AgentContent] = []
                     for item in resp.content {
                         if case .toolUse(let id, let name, let input) = item {
+                            BuddyLogger.shared.info("agent loop: tool_use execute", subsystem: "launcher-agent", meta: ["toolName": name])
                             continuation.yield(.toolCall(name: name, input: input))
                             let output: String
                             let isError: Bool
@@ -83,6 +88,7 @@ final class LauncherAgent {
                                 output = try await toolExecutor(name, input)
                                 isError = false
                             } catch {
+                                BuddyLogger.shared.error("agent loop: tool executor failed", subsystem: "launcher-agent", meta: ["toolName": name, "error": "\(error)"])
                                 output = "Tool failed: \(error.localizedDescription)"
                                 isError = true
                             }
@@ -95,6 +101,7 @@ final class LauncherAgent {
                 }
 
                 // 达到 max iterations
+                BuddyLogger.shared.warn("agent loop: max iterations reached", subsystem: "launcher-agent", meta: ["maxIterations": config.maxIterations])
                 continuation.yield(.error(.maxIterations))
                 continuation.finish()
             }

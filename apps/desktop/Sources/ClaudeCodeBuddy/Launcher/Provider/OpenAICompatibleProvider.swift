@@ -55,6 +55,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            BuddyLogger.shared.error("openai-compatible provider send: network failure", subsystem: "launcher-agent", meta: ["error": "\(error)"])
             throw LauncherError.networkFailure(error)
         }
 
@@ -63,6 +64,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             let bodySnippet = String(data: data.prefix(200), encoding: .utf8) ?? ""
+            BuddyLogger.shared.error("openai-compatible provider send: HTTP error", subsystem: "launcher-agent", meta: ["statusCode": httpResponse.statusCode, "bodySnippetLen": bodySnippet.count])
             throw LauncherError.providerHTTPError(httpResponse.statusCode, bodySnippet)
         }
 
@@ -96,6 +98,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
         model: String,
         system: String? = nil
     ) async throws -> AsyncThrowingStream<ProviderChunk, Error> {
+        BuddyLogger.shared.info("openai-compatible provider sendStream start", subsystem: "launcher-agent", meta: ["model": model, "msgCount": messages.count])
         guard apiKey.count >= LauncherConstants.minAPIKeyLength else {
             throw LauncherError.invalidAPIKey("too short")
         }
@@ -133,6 +136,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
         do {
             (bytes, response) = try await session.bytes(for: request)
         } catch {
+            BuddyLogger.shared.error("openai-compatible provider sendStream: network failure", subsystem: "launcher-agent", meta: ["error": "\(error)"])
             throw LauncherError.networkFailure(error)
         }
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -146,6 +150,7 @@ final class OpenAICompatibleProvider: LauncherProvider {
                 if errorData.count >= 200 { break }
             }
             let bodySnippet = String(data: errorData, encoding: .utf8) ?? ""
+            BuddyLogger.shared.error("openai-compatible provider sendStream: HTTP error", subsystem: "launcher-agent", meta: ["statusCode": httpResponse.statusCode, "bodySnippetLen": bodySnippet.count])
             throw LauncherError.providerHTTPError(httpResponse.statusCode, bodySnippet)
         }
 

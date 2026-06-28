@@ -26,6 +26,19 @@
 	<string>点击猫咪时需要控制 Ghostty 以切换到对应的终端标签页。</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>qwen-api.tunnel.stringzhao.life</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

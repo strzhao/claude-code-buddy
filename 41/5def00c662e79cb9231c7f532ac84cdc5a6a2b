@@ -1,0 +1,30 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift
+  c03d5c9e6eb55ffa 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "415def00c662e79cb9231c7f532ac84cdc5a6a2b",
+  "prompts": {
+    "c03d5c9e6eb55ffa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62fad868-9e33-495b-8192-d6e177d1c40e",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

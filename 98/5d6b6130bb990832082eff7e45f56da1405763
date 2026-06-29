@@ -1,0 +1,60 @@
+apps/desktop/tests/BuddyCoreTests/Settings/SettingsSectionAIRedesignTests.swift
+  c03d5c9e6eb55ffa 92-94,97-99,102-105,114,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "f8d8c62b4e478df75264d6fe6f0ac83f6a40ada5",
+  "prompts": {
+    "6a070739c74b29b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9a22bba-8516-4c09-9b68-71a55130f13f",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 500,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "accepted_lines": 436
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "accepted_lines": 36
+        },
+        "homebrew/casks/claude-code-buddy.rb": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "accepted_lines": 21
+        }
+      }
+    },
+    "c03d5c9e6eb55ffa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62fad868-9e33-495b-8192-d6e177d1c40e",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 13,
+      "accepted_lines": 12,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Settings/SettingsSectionAIRedesignTests.swift": {
+          "additions": 12,
+          "deletions": 13,
+          "accepted_lines": 12
+        }
+      }
+    }
+  }
+}

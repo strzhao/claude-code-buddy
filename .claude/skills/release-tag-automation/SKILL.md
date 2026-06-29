@@ -91,10 +91,9 @@ git push origin "v$NEXT_VERSION"
 
 ### 6. 等待 GitHub Actions CI/CD 完成
 
-使用 `gh` CLI 轮询 workflow run 状态。完整的 release workflow 有三个 job：
-- `build-arch` — 并行编译 arm64 和 x86_64
-- `release` — 合并 universal binary、组装 .app、创建 GitHub Release
-- `update-homebrew-tap` — 更新 Homebrew cask formula
+使用 `gh` CLI 轮询 workflow run 状态。release workflow 有两个 job：
+- `release`（"Build + Release (universal)"）— 在 `macos-14` 单机上 native 编译 arm64 + 交叉编译 x86_64，lipo 合并 universal binary、组装 .app、ad-hoc 签名、zip、创建 GitHub Release
+- `update-homebrew-tap`（"Update Homebrew Tap"）— 在 `ubuntu-latest` 上下载 release zip 算 sha256、更新 Cask formula、推送到 tap 仓库、并把 cask 同步回 main
 
 **获取 workflow run ID**：
 
@@ -125,7 +124,7 @@ while true; do
 done
 ```
 
-> **预计等待时间**：约 15-25 分钟。build-arch 两个 job 约 5-8 分钟（并行），release 约 3-5 分钟，update-homebrew-tap 约 1-2 分钟。向用户展示当前进度，让用户了解等待是预期的。
+> **预计等待时间**：约 2-5 分钟（实测 v0.37.8：release job ~1m54s，update-homebrew-tap ~5s，合计约 2 分钟；随 runner 负载浮动）。向用户展示当前进度。
 
 ### 7. 等待 Homebrew tap 仓库同步
 

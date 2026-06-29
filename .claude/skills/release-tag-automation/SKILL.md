@@ -137,7 +137,11 @@ CI 的 `update-homebrew-tap` job 会将更新的 cask 推送到 `strzhao/homebre
 
 ```bash
 # 更新本地 tap clone（brew tap --force 不够，必须 git pull）
-TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/strzhao/homebrew-claude-code-buddy"
+# 注意：必须用 brew --repository，不能用 brew --prefix。
+#   - Apple Silicon: brew --prefix=/opt/homebrew，brew --repository=/opt/homebrew，tap 在 /opt/homebrew/Library/Taps/
+#   - Intel:         brew --prefix=/usr/local，  brew --repository=/usr/local/Homebrew，tap 在 /usr/local/Homebrew/Library/Taps/
+# 旧写法 $(brew --prefix)/Homebrew/Library/Taps/ 在 Apple Silicon 上拼成 /opt/homebrew/Homebrew/Library/Taps/（多一段 Homebrew/）会找不到。
+TAP_DIR="$(brew --repository)/Library/Taps/strzhao/homebrew-claude-code-buddy"
 git -C "$TAP_DIR" pull origin main
 
 # 确认 tap cask 版本正确

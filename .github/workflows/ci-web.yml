@@ -57,6 +57,14 @@ jobs:
       - name: Bundle size check
         run: pnpm --filter @stringzhao/web size
 
+      - name: Lighthouse CI (Core Web Vitals gate)
+        # 复用上一步 Build 产物；lighthouserc 的 startServerCommand 起 next start:3000，
+        # autorun 采集 / 与 /upload 后按 'error' 断言性能预算。
+        # continue-on-error 初期非阻塞采集：CI 无后端 env，/ 与 /upload 渲染降级会使
+        # Lighthouse 分数偏低，直接硬门禁可能误报。稳定后再去掉 continue-on-error 转硬门禁。
+        continue-on-error: true
+        run: pnpm --filter @stringzhao/web exec lhci autorun
+
       - name: Security audit
         run: pnpm audit --audit-level=high
 

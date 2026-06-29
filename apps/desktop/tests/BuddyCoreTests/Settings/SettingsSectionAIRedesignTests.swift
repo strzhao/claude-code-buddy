@@ -89,21 +89,20 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
 
     // MARK: - 改动 1：Tab 顺序验证
 
-    /// 验证 SettingsSection.allCases 顺序：skins → plugins → hotkey → ai → general → about。
-    /// ai 必须在 hotkey 之后、general 之前。
-    func test_tabOrder_aiIsAfterHotkeyAndBeforeGeneral() {
+    /// 验证 SettingsSection.allCases 顺序：skins → plugins → hotkey → general → about → ai。
+    /// ai 必须在 about 之后（末尾）。
+    func test_tabOrder_aiIsAfterAbout() {
         let cases = SettingsSection.allCases
 
-        guard let hotkeyIndex = cases.firstIndex(of: .hotkey),
-              let aiIndex = cases.firstIndex(of: .ai),
-              let generalIndex = cases.firstIndex(of: .general) else {
-            return XCTFail("SettingsSection.allCases 必须包含 .hotkey、.ai、.general")
+        guard let aboutIndex = cases.firstIndex(of: .about),
+              let aiIndex = cases.firstIndex(of: .ai) else {
+            return XCTFail("SettingsSection.allCases 必须包含 .about、.ai")
         }
 
-        XCTAssertLessThan(hotkeyIndex, aiIndex,
-                          "AI 配置 tab 必须在热键之后，hotkeyIndex=\(hotkeyIndex), aiIndex=\(aiIndex)")
-        XCTAssertLessThan(aiIndex, generalIndex,
-                          "AI 配置 tab 必须在通用之前，aiIndex=\(aiIndex), generalIndex=\(generalIndex)")
+        XCTAssertLessThan(aboutIndex, aiIndex,
+                          "AI 配置 tab 必须在关于之后（末尾），aboutIndex=\(aboutIndex), aiIndex=\(aiIndex)")
+        XCTAssertEqual(aiIndex, cases.count - 1,
+                       "AI 配置 tab 必须是最后一项，aiIndex=\(aiIndex), lastIndex=\(cases.count - 1)")
     }
 
     /// 验证 allCases 完整包含 6 个 case 且顺序正确。
@@ -112,9 +111,9 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
         XCTAssertEqual(cases.count, 6,
                        "SettingsSection.allCases 必须包含 6 个分类，实际: \(cases.count)")
 
-        let expectedOrder: [SettingsSection] = [.skins, .plugins, .hotkey, .ai, .general, .about]
+        let expectedOrder: [SettingsSection] = [.skins, .plugins, .hotkey, .general, .about, .ai]
         XCTAssertEqual(cases, expectedOrder,
-                       "SettingsSection.allCases 顺序必须为 skins→plugins→hotkey→ai→general→about")
+                       "SettingsSection.allCases 顺序必须为 skins→plugins→hotkey→general→about→ai")
     }
 
     /// ai case 的 displayTitle 和 symbolName 正确。

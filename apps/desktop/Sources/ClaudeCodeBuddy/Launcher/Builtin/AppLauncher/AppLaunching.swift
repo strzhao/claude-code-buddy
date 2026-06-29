@@ -23,8 +23,10 @@ struct NSWorkspaceAppLauncher: AppLaunching {
             throw LauncherError.appLaunchFailed(url.deletingLastPathComponent().lastPathComponent)
         }
 
-        // 使用 NSWorkspace 打开 app bundle URL
-        // 无法同步知道是否成功，只能通过 URL 存在性做前置检查
-        NSWorkspace.shared.open(url)
+        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
+            if let error = error {
+                BuddyLogger.shared.error("启动 app 失败", subsystem: "builtin", meta: ["url": url.path, "error": "\(error)"])
+            }
+        }
     }
 }

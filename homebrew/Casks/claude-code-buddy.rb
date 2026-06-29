@@ -1,6 +1,6 @@
 cask "claude-code-buddy" do
-  version "0.37.5"
-  sha256 "08811d660651850279ce1fd4e77b8a32ceb80daf31a95129bd0fa8c9c65eae68"
+  version "0.37.7"
+  sha256 "8049db79e7a5004bce152400cdda05624da97c500eb54db414fb1e525e01e1d6"
 
   url "https://github.com/strzhao/claude-code-buddy/releases/download/v#{version}/ClaudeCodeBuddy-v#{version}.zip"
   name "Claude Code Buddy"

@@ -46,7 +46,7 @@ final class LauncherAgent {
 
                     let resp: AgentResponse
                     do {
-                        resp = try await provider.send(messages: messages, tools: tools, model: model, system: nil)
+                        resp = try await provider.send(messages: messages, tools: tools, model: model, system: config.systemPrompt)
                     } catch let err as LauncherError {
                         BuddyLogger.shared.error("agent loop: provider send failed", subsystem: "launcher-agent", meta: ["error": "\(err)"])
                         continuation.yield(.error(err))

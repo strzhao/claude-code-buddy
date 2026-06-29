@@ -35,7 +35,7 @@ final class UpdateChecker {
     private static let checkInterval: TimeInterval = 24 * 60 * 60
     private static let cacheKey = "lastUpdateCheckTimestamp"
     private static let dismissedVersionKey = "dismissedUpdateVersion"
-    private static let releasesURL = "https://api.github.com/repos/strzhao/claude-code-buddy/releases/latest"
+    private static let releasesRedirectURL = "https://github.com/strzhao/claude-code-buddy/releases/latest"
     private static let releasesPageURL = "https://github.com/strzhao/claude-code-buddy/releases"
     private static let startupDelay: TimeInterval = 10.0
 
@@ -47,6 +47,10 @@ final class UpdateChecker {
 
     /// 升级进度流（后台线程发布，订阅方通过 receive(on: RunLoop.main) 接收）。
     let upgradeProgress = PassthroughSubject<UpgradePhase, Never>()
+
+    /// 检查结果流：checkForUpdates 完成后发布 CheckOutcome（available/upToDate/failed），
+    /// 供 AboutSettingsViewController 事件驱动渲染「检查更新」反馈。
+    let checkResult = PassthroughSubject<CheckOutcome, Never>()
 
     private init() {}
 
@@ -63,27 +67,12 @@ final class UpdateChecker {
         guard shouldCheck() else { return }
 
         Task {
+            let currentVersion = Self.currentVersion()
             do {
                 let release = try await fetchLatestRelease()
-                let currentVersion = Self.currentVersion()
-
-                // 缓存最新 release 信息（即使已 dismiss 也保留，供 shouldShowSystemCat 使用）
-                latestRelease = release
-
-                if compareVersions(currentVersion, release.version) == .orderedAscending {
-                    let event = UpdateAvailableEvent(
-                        currentVersion: currentVersion,
-                        newVersion: release.version,
-                        htmlURL: release.htmlURL
-                    )
-                    pendingUpdate = event
-                    DispatchQueue.main.async {
-                        EventBus.shared.updateAvailable.send(event)
-                    }
-                }
-                UserDefaults.standard.set(Date(), forKey: Self.cacheKey)
+                processFetchResult(.success(release), currentVersion: currentVersion)
             } catch {
-                BuddyLogger.shared.warn("update check failed", subsystem: "app", meta: ["error": "\(error)"])
+                processFetchResult(.failure(error), currentVersion: currentVersion)
             }
         }
     }
@@ -91,6 +80,39 @@ final class UpdateChecker {
     func forceCheckForUpdates() {
         UserDefaults.standard.removeObject(forKey: Self.cacheKey)
         checkForUpdates()
+    }
+
+    /// 处理一次 fetch 结果，判定并发布 CheckOutcome（同时维护 pendingUpdate / latestRelease / EventBus）。
+    /// 抽取为独立方法以便单元测试绕过网络；UI 相关事件在主线程发布。
+    func processFetchResult(_ result: Result<ReleaseInfo, Error>, currentVersion: String) {
+        switch result {
+        case .success(let release):
+            // 缓存最新 release 信息（即使已 dismiss 也保留，供 shouldShowSystemCat 使用）
+            latestRelease = release
+            if compareVersions(currentVersion, release.version) == .orderedAscending {
+                let event = UpdateAvailableEvent(
+                    currentVersion: currentVersion,
+                    newVersion: release.version,
+                    htmlURL: release.htmlURL
+                )
+                pendingUpdate = event
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    EventBus.shared.updateAvailable.send(event)
+                    self.checkResult.send(.available(event))
+                }
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.checkResult.send(.upToDate)
+                }
+            }
+            UserDefaults.standard.set(Date(), forKey: Self.cacheKey)
+        case .failure(let error):
+            BuddyLogger.shared.warn("update check failed", subsystem: "app", meta: ["error": "\(error)"])
+            DispatchQueue.main.async { [weak self] in
+                self?.checkResult.send(.failed(error))
+            }
+        }
     }
 
     /// 将当前 pendingUpdate 的 newVersion 写入已忽略列表。
@@ -129,6 +151,9 @@ final class UpdateChecker {
 
     var hasPendingUpdate: Bool { pendingUpdate != nil }
 
+    /// pendingUpdate 的新版本号（供关于页初始展示），无则 nil。
+    var pendingNewVersion: String? { pendingUpdate?.newVersion }
+
     /// 已忽略的更新版本（UserDefaults 持久化）。
     /// 读：从 UserDefaults 取；写：写入 UserDefaults（nil 时 removeObject）。
     var dismissedUpdateVersion: String? {
@@ -160,32 +185,36 @@ final class UpdateChecker {
         return Date().timeIntervalSince(lastCheck) >= Self.checkInterval
     }
 
-    private func fetchLatestRelease() async throws -> ReleaseInfo {
-        guard let url = URL(string: Self.releasesURL) else {
+    /// 从 releases/latest redirect 的最终 URL 提取 ReleaseInfo（纯函数，可单测）。
+    /// fetchLatestRelease 换源后用此解析，绕过 api.github.com 未认证 60/h 限流。
+    static func releaseInfo(fromRedirectURL url: URL) throws -> ReleaseInfo {
+        // redirect 后最终 URL 形如 .../releases/tag/vX.Y.Z，末段即 tag
+        guard let tagName = url.pathComponents.last, tagName.hasPrefix("v") else {
+            throw UpdateError.invalidResponse
+        }
+        let version = String(tagName.dropFirst())
+        guard let htmlURL = URL(string: "https://github.com/strzhao/claude-code-buddy/releases/tag/\(tagName)") else {
             throw UpdateError.invalidURL
         }
+        return ReleaseInfo(tagName: tagName, version: version, htmlURL: htmlURL)
+    }
 
+    private func fetchLatestRelease() async throws -> ReleaseInfo {
+        // 用 github.com/releases/latest 的 302 redirect 提取 tag，绕过 api.github.com
+        // 未认证 60/h 限流（web 端点不限流）。HEAD 跟随 redirect，不下载 body。
+        guard let url = URL(string: Self.releasesRedirectURL) else {
+            throw UpdateError.invalidURL
+        }
         var request = URLRequest(url: url)
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.httpMethod = "HEAD"
         request.setValue("ClaudeCodeBuddy", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let finalURL = response.url else {
             throw UpdateError.invalidResponse
         }
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tagName = json["tag_name"] as? String,
-              let htmlURLString = json["html_url"] as? String,
-              let htmlURL = URL(string: htmlURLString)
-        else {
-            throw UpdateError.invalidResponse
-        }
-
-        let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
-        return ReleaseInfo(tagName: tagName, version: version, htmlURL: htmlURL)
+        return try Self.releaseInfo(fromRedirectURL: finalURL)
     }
 
     static func currentVersion() -> String {
@@ -309,7 +338,25 @@ struct ReleaseInfo {
     let htmlURL: URL
 }
 
+/// 一次更新检查的结果，驱动 AboutSettingsViewController 的反馈 UI。
+enum CheckOutcome {
+    case available(UpdateAvailableEvent)
+    case upToDate
+    case failed(Error)
+}
+
 enum UpdateError: Error {
     case invalidURL
     case invalidResponse
+}
+
+extension UpdateError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "更新地址无效，请稍后重试"
+        case .invalidResponse:
+            return "检查更新失败，请稍后重试"
+        }
+    }
 }

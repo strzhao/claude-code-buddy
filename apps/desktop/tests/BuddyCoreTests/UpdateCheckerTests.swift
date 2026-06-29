@@ -54,6 +54,36 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(event.newVersion, "0.14.0")
     }
 
+    // MARK: - Releases Redirect 换源（绕过 GitHub API 60/h 限流）
+
+    /// 契约：从 releases/latest 的 redirect 最终 URL 提取版本号（纯函数，绕过网络）。
+    func testReleaseInfoFromRedirectURL() throws {
+        let url = URL(string: "https://github.com/strzhao/claude-code-buddy/releases/tag/v0.37.6")!
+        let info = try UpdateChecker.releaseInfo(fromRedirectURL: url)
+        XCTAssertEqual(info.tagName, "v0.37.6", "应从 redirect URL 末段提取 tag")
+        XCTAssertEqual(info.version, "0.37.6", "应去掉 v 前缀得到版本号")
+        XCTAssertEqual(info.htmlURL.absoluteString,
+                       "https://github.com/strzhao/claude-code-buddy/releases/tag/v0.37.6")
+    }
+
+    /// 契约：redirect URL 末段非 v* tag 时抛 invalidResponse。
+    func testReleaseInfoFromRedirectURLInvalidThrows() {
+        let url = URL(string: "https://github.com/strzhao/claude-code-buddy/releases")!
+        XCTAssertThrowsError(try UpdateChecker.releaseInfo(fromRedirectURL: url)) { error in
+            XCTAssertTrue(error is UpdateError, "无效 redirect URL 应抛 UpdateError")
+        }
+    }
+
+    // MARK: - UpdateError 友好提示（LocalizedError）
+
+    /// 契约：UpdateError 的 localizedDescription 是中文友好提示，而非 Swift 默认英文技术信息。
+    func testUpdateErrorLocalizedDescriptionIsFriendly() {
+        XCTAssertTrue(UpdateError.invalidResponse.localizedDescription.contains("检查更新"),
+                      "invalidResponse 应有中文友好提示")
+        XCTAssertTrue(UpdateError.invalidURL.localizedDescription.contains("更新"),
+                      "invalidURL 应有中文友好提示")
+    }
+
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: "lastUpdateCheckTimestamp")
         super.tearDown()

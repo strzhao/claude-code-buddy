@@ -106,11 +106,9 @@ describe("PluginDevGuide 常量内容契约 (C7)", () => {
   });
 
   it("test_AT13_guideIsSubstantialSelfContained", () => {
-    // 契约 C7: 自包含完整指南 —— 不能是占位空串。最低长度信号。
-    expect(PLUGIN_DEV_GUIDE.length).toBeGreaterThanOrEqual(
-      200,
-      "PLUGIN_DEV_GUIDE 必须是实质内容，非占位空串",
-    );
+    // 契约 C7: 自包含完整指南 —— 不能是占位空串。最低长度信号（PLUGIN_DEV_GUIDE.length ≥ 200）。
+    // 注：vitest matcher 仅接受 1 个参数，原内联 message 会触发 TS2554 并阻断 CI Type check。
+    expect(PLUGIN_DEV_GUIDE.length).toBeGreaterThanOrEqual(200);
     // 同时确保非纯空白
     expect(PLUGIN_DEV_GUIDE.trim().length).toBeGreaterThan(0);
   });

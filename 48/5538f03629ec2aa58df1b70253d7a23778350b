@@ -1,0 +1,67 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  6a070739c74b29b3 18,22,38-41
+homebrew/Casks/claude-code-buddy.rb
+  6a070739c74b29b3 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "485538f03629ec2aa58df1b70253d7a23778350b",
+  "prompts": {
+    "6a070739c74b29b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9a22bba-8516-4c09-9b68-71a55130f13f",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 509,
+      "total_deletions": 186,
+      "accepted_lines": 509,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "additions": 6,
+          "deletions": 6,
+          "accepted_lines": 6
+        },
+        "homebrew/casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/settingssection.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "additions": 36,
+          "deletions": 32,
+          "accepted_lines": 36
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "additions": 21,
+          "deletions": 3,
+          "accepted_lines": 21
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "additions": 436,
+          "deletions": 135,
+          "accepted_lines": 436
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 6,
+          "deletions": 6,
+          "accepted_lines": 6
+        }
+      }
+    }
+  }
+}

@@ -20,10 +20,11 @@
 
 - [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
 
-## Patterns (106)
+## Patterns (107)
 - [2026-06-28] SettingsSection 枚举新增 case 须同步更新 3 类测试合约 | tags: settings, settings-section, enum, test-contract, allcases, ax-id, sidebar, acceptance-test, tab, appkit | → patterns/2026-06-28-settings-section-enum-extension-test-contract.md
 - [2026-06-28] 连接测试与 LLM 推理请求分层：URLSession 直连而非 LauncherProvider.send() + URL 构造用 appendingPathComponent 替代字符串拼接防双 /v1 | tags: connection-test, url-session, provider, launcher, http-timeout, auth-header, kind-differentiation, anthropic, openai-compatible, token-cost, url-construction, appending-path-component, double-path | → patterns/2026-06-28-connection-test-urlsession-vs-provider-send.md
 - [2026-06-29] AppKit NSPopUpButton programmatic selectItem 触发 target-action 副作用污染 UI 状态：isPopulating 标志位防污染 | tags: appkit, nspopupbutton, selectitem, target-action, side-effect, populateui, ispopulating, guard, settings | → patterns/2026-06-29-nspopupbutton-selectitem-isPopulating-guard.md
+- [2026-06-29] LSUIElement app 调用废弃 NSWorkspace.open(url) 触发 TCC 隐私安全警告：必须用 openApplication(at:configuration:) 带 OpenConfiguration 意图声明 | tags: lsuielement, nsworkspace, openapplication, tcc, privacy, deprecated-api, app-launcher, accessory, open-configuration | → patterns/2026-06-29-lsuielement-nsworkspace-open-deprecated-tcc-warning.md
 
 - [2026-06-28] CALayer CGColor 外观切换不刷新 + NSCollectionViewItem 适配：动态 NSColor.cgColor 快照为固定值，必须重写 viewDidChangeEffectiveAppearance 刷新；NSCollectionViewItem (NSViewController) 无法 override NSView 方法，需嵌套 NSView 子类 + weak owner 转发 | tags: calayer, cgcolor, appkit, appearance, viewdidchangeeffectiveappearance, nscollectionviewitem, nsview, dark-mode, light-mode | → patterns/2026-06-28-calayer-cgcolor-appearance-refresh-viewdidchange.md
 

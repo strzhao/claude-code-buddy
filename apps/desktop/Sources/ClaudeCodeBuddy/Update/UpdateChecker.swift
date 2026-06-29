@@ -35,7 +35,7 @@ final class UpdateChecker {
     private static let checkInterval: TimeInterval = 24 * 60 * 60
     private static let cacheKey = "lastUpdateCheckTimestamp"
     private static let dismissedVersionKey = "dismissedUpdateVersion"
-    private static let releasesURL = "https://api.github.com/repos/strzhao/claude-code-buddy/releases/latest"
+    private static let releasesRedirectURL = "https://github.com/strzhao/claude-code-buddy/releases/latest"
     private static let releasesPageURL = "https://github.com/strzhao/claude-code-buddy/releases"
     private static let startupDelay: TimeInterval = 10.0
 
@@ -185,32 +185,36 @@ final class UpdateChecker {
         return Date().timeIntervalSince(lastCheck) >= Self.checkInterval
     }
 
-    private func fetchLatestRelease() async throws -> ReleaseInfo {
-        guard let url = URL(string: Self.releasesURL) else {
+    /// 从 releases/latest redirect 的最终 URL 提取 ReleaseInfo（纯函数，可单测）。
+    /// fetchLatestRelease 换源后用此解析，绕过 api.github.com 未认证 60/h 限流。
+    static func releaseInfo(fromRedirectURL url: URL) throws -> ReleaseInfo {
+        // redirect 后最终 URL 形如 .../releases/tag/vX.Y.Z，末段即 tag
+        guard let tagName = url.pathComponents.last, tagName.hasPrefix("v") else {
+            throw UpdateError.invalidResponse
+        }
+        let version = String(tagName.dropFirst())
+        guard let htmlURL = URL(string: "https://github.com/strzhao/claude-code-buddy/releases/tag/\(tagName)") else {
             throw UpdateError.invalidURL
         }
+        return ReleaseInfo(tagName: tagName, version: version, htmlURL: htmlURL)
+    }
 
+    private func fetchLatestRelease() async throws -> ReleaseInfo {
+        // 用 github.com/releases/latest 的 302 redirect 提取 tag，绕过 api.github.com
+        // 未认证 60/h 限流（web 端点不限流）。HEAD 跟随 redirect，不下载 body。
+        guard let url = URL(string: Self.releasesRedirectURL) else {
+            throw UpdateError.invalidURL
+        }
         var request = URLRequest(url: url)
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.httpMethod = "HEAD"
         request.setValue("ClaudeCodeBuddy", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let finalURL = response.url else {
             throw UpdateError.invalidResponse
         }
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tagName = json["tag_name"] as? String,
-              let htmlURLString = json["html_url"] as? String,
-              let htmlURL = URL(string: htmlURLString)
-        else {
-            throw UpdateError.invalidResponse
-        }
-
-        let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
-        return ReleaseInfo(tagName: tagName, version: version, htmlURL: htmlURL)
+        return try Self.releaseInfo(fromRedirectURL: finalURL)
     }
 
     static func currentVersion() -> String {
@@ -344,4 +348,15 @@ enum CheckOutcome {
 enum UpdateError: Error {
     case invalidURL
     case invalidResponse
+}
+
+extension UpdateError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "更新地址无效，请稍后重试"
+        case .invalidResponse:
+            return "检查更新失败，请稍后重试"
+        }
+    }
 }

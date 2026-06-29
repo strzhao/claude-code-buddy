@@ -48,6 +48,10 @@ final class UpdateChecker {
     /// 升级进度流（后台线程发布，订阅方通过 receive(on: RunLoop.main) 接收）。
     let upgradeProgress = PassthroughSubject<UpgradePhase, Never>()
 
+    /// 检查结果流：checkForUpdates 完成后发布 CheckOutcome（available/upToDate/failed），
+    /// 供 AboutSettingsViewController 事件驱动渲染「检查更新」反馈。
+    let checkResult = PassthroughSubject<CheckOutcome, Never>()
+
     private init() {}
 
     // MARK: - Public API
@@ -63,27 +67,12 @@ final class UpdateChecker {
         guard shouldCheck() else { return }
 
         Task {
+            let currentVersion = Self.currentVersion()
             do {
                 let release = try await fetchLatestRelease()
-                let currentVersion = Self.currentVersion()
-
-                // 缓存最新 release 信息（即使已 dismiss 也保留，供 shouldShowSystemCat 使用）
-                latestRelease = release
-
-                if compareVersions(currentVersion, release.version) == .orderedAscending {
-                    let event = UpdateAvailableEvent(
-                        currentVersion: currentVersion,
-                        newVersion: release.version,
-                        htmlURL: release.htmlURL
-                    )
-                    pendingUpdate = event
-                    DispatchQueue.main.async {
-                        EventBus.shared.updateAvailable.send(event)
-                    }
-                }
-                UserDefaults.standard.set(Date(), forKey: Self.cacheKey)
+                processFetchResult(.success(release), currentVersion: currentVersion)
             } catch {
-                BuddyLogger.shared.warn("update check failed", subsystem: "app", meta: ["error": "\(error)"])
+                processFetchResult(.failure(error), currentVersion: currentVersion)
             }
         }
     }
@@ -91,6 +80,39 @@ final class UpdateChecker {
     func forceCheckForUpdates() {
         UserDefaults.standard.removeObject(forKey: Self.cacheKey)
         checkForUpdates()
+    }
+
+    /// 处理一次 fetch 结果，判定并发布 CheckOutcome（同时维护 pendingUpdate / latestRelease / EventBus）。
+    /// 抽取为独立方法以便单元测试绕过网络；UI 相关事件在主线程发布。
+    func processFetchResult(_ result: Result<ReleaseInfo, Error>, currentVersion: String) {
+        switch result {
+        case .success(let release):
+            // 缓存最新 release 信息（即使已 dismiss 也保留，供 shouldShowSystemCat 使用）
+            latestRelease = release
+            if compareVersions(currentVersion, release.version) == .orderedAscending {
+                let event = UpdateAvailableEvent(
+                    currentVersion: currentVersion,
+                    newVersion: release.version,
+                    htmlURL: release.htmlURL
+                )
+                pendingUpdate = event
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    EventBus.shared.updateAvailable.send(event)
+                    self.checkResult.send(.available(event))
+                }
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.checkResult.send(.upToDate)
+                }
+            }
+            UserDefaults.standard.set(Date(), forKey: Self.cacheKey)
+        case .failure(let error):
+            BuddyLogger.shared.warn("update check failed", subsystem: "app", meta: ["error": "\(error)"])
+            DispatchQueue.main.async { [weak self] in
+                self?.checkResult.send(.failed(error))
+            }
+        }
     }
 
     /// 将当前 pendingUpdate 的 newVersion 写入已忽略列表。
@@ -128,6 +150,9 @@ final class UpdateChecker {
     }
 
     var hasPendingUpdate: Bool { pendingUpdate != nil }
+
+    /// pendingUpdate 的新版本号（供关于页初始展示），无则 nil。
+    var pendingNewVersion: String? { pendingUpdate?.newVersion }
 
     /// 已忽略的更新版本（UserDefaults 持久化）。
     /// 读：从 UserDefaults 取；写：写入 UserDefaults（nil 时 removeObject）。
@@ -307,6 +332,13 @@ struct ReleaseInfo {
     let tagName: String
     let version: String
     let htmlURL: URL
+}
+
+/// 一次更新检查的结果，驱动 AboutSettingsViewController 的反馈 UI。
+enum CheckOutcome {
+    case available(UpdateAvailableEvent)
+    case upToDate
+    case failed(Error)
 }
 
 enum UpdateError: Error {

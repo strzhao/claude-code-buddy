@@ -24,6 +24,7 @@ final class UpdateAcceptanceTests: XCTestCase {
         checker = UpdateChecker.shared
         cancellables = Set<AnyCancellable>()
         UserDefaults.standard.removeObject(forKey: Self.dismissedKey)
+        checker.clearPendingUpdateForTesting()
     }
 
     override func tearDown() {
@@ -408,5 +409,176 @@ final class UpdateAcceptanceTests: XCTestCase {
 
         XCTAssertTrue(hasUpdateButton || hasProgressIndicator,
                       "更新区域应在版本标签和反馈按钮之间（契约 C5）")
+    }
+
+    // MARK: - 11. checkResult Publisher（检查结果事件驱动，修复「检查更新无反馈」）
+
+    /// 契约：checkForUpdates 完成后必须通过 checkResult 发布结果，让关于页事件驱动更新 UI。
+    /// 检测到新版本 → .available(UpdateAvailableEvent)。
+    func testCheckResultPublishesAvailableWhenNewerVersion() {
+        checker.clearPendingUpdateForTesting()
+
+        let expectation = XCTestExpectation(description: "checkResult 发布 .available")
+        var received: CheckOutcome?
+        checker.checkResult
+            .sink { outcome in
+                received = outcome
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+
+        let release = ReleaseInfo(
+            tagName: "v0.37.5",
+            version: "0.37.5",
+            htmlURL: URL(string: "https://github.com/test")!
+        )
+        checker.processFetchResult(.success(release), currentVersion: "0.37.4")
+
+        wait(for: [expectation], timeout: 1.0)
+
+        guard case .available(let event) = received else {
+            XCTFail("检测到新版本应发布 .available，实际：\(String(describing: received))")
+            return
+        }
+        XCTAssertEqual(event.newVersion, "0.37.5", "应携带新版本号")
+        XCTAssertEqual(event.currentVersion, "0.37.4", "应携带当前版本号")
+    }
+
+    /// 契约：远程版本不高于当前版本 → .upToDate（不再静默无反馈）。
+    func testCheckResultPublishesUpToDateWhenSameVersion() {
+        checker.clearPendingUpdateForTesting()
+
+        let expectation = XCTestExpectation(description: "checkResult 发布 .upToDate")
+        var received: CheckOutcome?
+        checker.checkResult
+            .sink { outcome in
+                received = outcome
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+
+        let release = ReleaseInfo(
+            tagName: "v0.37.5",
+            version: "0.37.5",
+            htmlURL: URL(string: "https://github.com/test")!
+        )
+        checker.processFetchResult(.success(release), currentVersion: "0.37.5")
+
+        wait(for: [expectation], timeout: 1.0)
+
+        guard case .upToDate = received else {
+            XCTFail("同版本应发布 .upToDate，实际：\(String(describing: received))")
+            return
+        }
+    }
+
+    /// 契约：fetch 失败（如网络/限流）→ .failed(Error)，不再只记日志无 UI 反馈。
+    func testCheckResultPublishesFailedOnFetchError() {
+        checker.clearPendingUpdateForTesting()
+
+        let expectation = XCTestExpectation(description: "checkResult 发布 .failed")
+        var received: CheckOutcome?
+        checker.checkResult
+            .sink { outcome in
+                received = outcome
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+
+        checker.processFetchResult(.failure(UpdateError.invalidResponse), currentVersion: "0.37.5")
+
+        wait(for: [expectation], timeout: 1.0)
+
+        guard case .failed(let error) = received else {
+            XCTFail("fetch 失败应发布 .failed，实际：\(String(describing: received))")
+            return
+        }
+        XCTAssertTrue(error is UpdateError, "应携带原始 Error")
+    }
+
+    // MARK: - 12. About 更新区域状态机（修复「检查更新无反馈」，C6）
+
+    /// 契约：updateAreaState = .checking 时立即显示「正在检查更新...」并隐藏按钮。
+    /// 这是点击「检查更新」后的即时反馈（不再静默无响应）。
+    func testAboutCheckingStateShowsCheckingMessage() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+        aboutVC.updateAreaState = .checking
+
+        XCTAssertEqual(aboutVC.updateAreaStatusText, "正在检查更新...",
+                       "checking 应显示「正在检查更新...」")
+        XCTAssertTrue(aboutVC.isCheckUpdateButtonHidden, "checking 时检查按钮应隐藏")
+        XCTAssertTrue(aboutVC.isUpgradeButtonHidden, "checking 时升级按钮应隐藏")
+    }
+
+    /// 契约：发现新版本 → 显示版本号 + 「立即升级」按钮。
+    func testAboutUpdateAvailableShowsVersionAndUpgradeButton() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+        aboutVC.updateAreaState = .updateAvailable("0.37.5")
+
+        XCTAssertTrue(aboutVC.updateAreaStatusText.contains("发现新版本"), "应显示「发现新版本」")
+        XCTAssertTrue(aboutVC.updateAreaStatusText.contains("0.37.5"), "应包含新版本号")
+        XCTAssertFalse(aboutVC.isUpgradeButtonHidden, "应显示「立即升级」按钮")
+        XCTAssertTrue(aboutVC.isCheckUpdateButtonHidden, "应隐藏「检查更新」按钮")
+    }
+
+    /// 契约：无新版本 → 「✓ 已是最新版本」+ 可重新检查。
+    func testAboutUpToDateShowsLatestMessage() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+        aboutVC.updateAreaState = .upToDate
+
+        XCTAssertEqual(aboutVC.updateAreaStatusText, "✓ 已是最新版本")
+        XCTAssertFalse(aboutVC.isCheckUpdateButtonHidden, "应显示「检查更新」以便重新检查")
+        XCTAssertTrue(aboutVC.isUpgradeButtonHidden)
+    }
+
+    /// 契约：检查失败 → 显示失败原因 + 可重试。
+    func testAboutCheckFailedShowsFailureMessage() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+        aboutVC.updateAreaState = .checkFailed("网络错误")
+
+        XCTAssertTrue(aboutVC.updateAreaStatusText.contains("检查失败"), "应显示「检查失败」")
+        XCTAssertTrue(aboutVC.updateAreaStatusText.contains("网络错误"), "应包含失败原因")
+        XCTAssertFalse(aboutVC.isCheckUpdateButtonHidden, "失败时应可重试")
+    }
+
+    // MARK: - 13. 端到端接线：checkResult → 关于页状态（C7，修复核心）
+
+    /// 契约：关于页订阅 UpdateChecker.checkResult，收到事件后事件驱动切换 UI。
+    /// 这是「检查更新无反馈」根因（关于页未订阅结果流）的回归保护。
+    func testAboutSettingsReactsToCheckResultUpToDate() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view  // 触发 loadView → subscribeToCheckResult
+
+        UpdateChecker.shared.checkResult.send(.upToDate)
+        // 刷新主 RunLoop 让 receive(on: RunLoop.main) 派发完成
+        let exp = XCTestExpectation()
+        DispatchQueue.main.async { exp.fulfill() }
+        wait(for: [exp], timeout: 1.0)
+
+        XCTAssertEqual(aboutVC.updateAreaStatusText, "✓ 已是最新版本",
+                       "收到 .upToDate 应事件驱动显示「已是最新版本」")
+    }
+
+    func testAboutSettingsReactsToCheckResultAvailable() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+
+        let event = UpdateAvailableEvent(
+            currentVersion: "0.37.4",
+            newVersion: "0.37.5",
+            htmlURL: URL(string: "https://github.com/test")!
+        )
+        UpdateChecker.shared.checkResult.send(.available(event))
+        let exp = XCTestExpectation()
+        DispatchQueue.main.async { exp.fulfill() }
+        wait(for: [exp], timeout: 1.0)
+
+        XCTAssertTrue(aboutVC.updateAreaStatusText.contains("发现新版本 0.37.5"),
+                      "收到 .available 应事件驱动显示「发现新版本 X」")
+        XCTAssertFalse(aboutVC.isUpgradeButtonHidden, "应显示「立即升级」按钮")
     }
 }

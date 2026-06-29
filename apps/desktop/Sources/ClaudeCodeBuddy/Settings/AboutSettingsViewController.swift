@@ -1,6 +1,16 @@
 import AppKit
 import Combine
 
+/// 「关于」页更新区域的 UI 状态机：覆盖「检查」与「升级」两条路径，单一数据源驱动渲染。
+enum UpdateAreaState {
+    case idle                      // 显示「检查更新」按钮
+    case checking                  // 正在检查（进度 + 「正在检查更新...」）
+    case updateAvailable(String)   // 发现新版本（「发现新版本 X」+ 「立即升级」按钮）
+    case upToDate                  // 已是最新版本
+    case checkFailed(String)       // 检查失败（可重试）
+    case upgrading(UpgradePhase)   // 升级流程中（downloading/installing/done/failed）
+}
+
 /// 「关于」设置分类：App 图标 + 名称 + 版本号 + 更新区域 + 反馈链接 + 开源地址。
 ///
 /// 重构（A4）：补 appIconView 显示 AppIcon（修复一直空位），间距栅格化替代 60/8/24/12 混乱常量，
@@ -24,16 +34,32 @@ final class AboutSettingsViewController: NSViewController {
     private let statusLabel = NSTextField(labelWithString: "")
     private var cancellables = Set<AnyCancellable>()
 
-    /// 跟踪当前升级阶段，驱动 UI 状态。
-    private var currentPhase: UpgradePhase = .idle {
-        didSet { updateUIForPhase() }
+    /// 更新区域 UI 状态（单一数据源）。检查/升级两条路径都通过它驱动渲染。
+    var updateAreaState: UpdateAreaState = .idle {
+        didSet { renderUpdateArea() }
     }
+
+    // MARK: - Internal（测试可观察的渲染结果）
+
+    /// 当前更新区域状态文案。
+    var updateAreaStatusText: String { statusLabel.stringValue }
+    /// 检查更新按钮是否隐藏。
+    var isCheckUpdateButtonHidden: Bool { checkUpdateButton.isHidden }
+    /// 立即升级按钮是否隐藏。
+    var isUpgradeButtonHidden: Bool { upgradeButton.isHidden }
 
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 480))
         setupLayout(in: container)
         self.view = container
         subscribeToUpgradeProgress()
+        subscribeToCheckResult()
+        // 初始状态：后台检查若已发现新版本，直接显示可升级；否则显示「检查更新」
+        if let version = UpdateChecker.shared.pendingNewVersion {
+            updateAreaState = .updateAvailable(version)
+        } else {
+            updateAreaState = .idle
+        }
     }
 
     private func setupLayout(in container: NSView) {
@@ -174,14 +200,34 @@ final class AboutSettingsViewController: NSViewController {
         UpdateChecker.shared.upgradeProgress
             .receive(on: RunLoop.main)
             .sink { [weak self] phase in
-                self?.currentPhase = phase
+                guard let self = self else { return }
+                // 升级流的 .idle 表示中止/重置；其余阶段映射到 .upgrading
+                self.updateAreaState = (phase == .idle) ? .idle : .upgrading(phase)
             }
             .store(in: &cancellables)
     }
 
-    /// 根据当前 UpgradePhase 驱动按钮/进度条/状态标签的可见性和文案。
-    private func updateUIForPhase() {
-        switch currentPhase {
+    /// 订阅检查结果流，事件驱动切换检查态 UI（修复「检查更新无反馈」）。
+    private func subscribeToCheckResult() {
+        UpdateChecker.shared.checkResult
+            .receive(on: RunLoop.main)
+            .sink { [weak self] outcome in
+                guard let self = self else { return }
+                switch outcome {
+                case .available(let event):
+                    self.updateAreaState = .updateAvailable(event.newVersion)
+                case .upToDate:
+                    self.updateAreaState = .upToDate
+                case .failed(let error):
+                    self.updateAreaState = .checkFailed(error.localizedDescription)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// 根据 updateAreaState 渲染更新区域：按钮/进度条/状态标签的可见性与文案。
+    private func renderUpdateArea() {
+        switch updateAreaState {
         case .idle:
             progressIndicator.stopAnimation(nil)
             progressIndicator.isHidden = true
@@ -190,19 +236,67 @@ final class AboutSettingsViewController: NSViewController {
             checkUpdateButton.isEnabled = true
             upgradeButton.isHidden = true
 
-            // 检查是否已有 pending update，有则显示升级按钮
-            if UpdateChecker.shared.hasPendingUpdate {
-                checkUpdateButton.isHidden = true
-                upgradeButton.isHidden = false
-                upgradeButton.isEnabled = true
-                upgradeButton.title = "立即升级"
-            }
-
         case .checking:
             progressIndicator.isHidden = false
             progressIndicator.startAnimation(nil)
             statusLabel.isHidden = false
             statusLabel.stringValue = "正在检查更新..."
+            statusLabel.textColor = SettingsTheme.footnoteColor()
+            checkUpdateButton.isHidden = true
+            upgradeButton.isHidden = true
+
+        case .updateAvailable(let version):
+            progressIndicator.stopAnimation(nil)
+            progressIndicator.isHidden = true
+            statusLabel.isHidden = false
+            statusLabel.stringValue = "发现新版本 \(version)"
+            statusLabel.textColor = SettingsTheme.footnoteColor()
+            checkUpdateButton.isHidden = true
+            upgradeButton.isHidden = false
+            upgradeButton.isEnabled = true
+            upgradeButton.title = "立即升级"
+
+        case .upToDate:
+            progressIndicator.stopAnimation(nil)
+            progressIndicator.isHidden = true
+            statusLabel.isHidden = false
+            statusLabel.stringValue = "✓ 已是最新版本"
+            statusLabel.textColor = SettingsTheme.footnoteColor()
+            checkUpdateButton.isHidden = false
+            checkUpdateButton.isEnabled = true
+            upgradeButton.isHidden = true
+
+        case .checkFailed(let message):
+            progressIndicator.stopAnimation(nil)
+            progressIndicator.isHidden = true
+            statusLabel.isHidden = false
+            statusLabel.stringValue = "✗ 检查失败：\(message)"
+            statusLabel.textColor = SettingsTheme.warningColor
+            checkUpdateButton.isHidden = false
+            checkUpdateButton.isEnabled = true
+            upgradeButton.isHidden = true
+
+        case .upgrading(let phase):
+            renderUpgradePhase(phase)
+        }
+    }
+
+    /// 渲染升级流程阶段（由 .upgrading 委托）。
+    private func renderUpgradePhase(_ phase: UpgradePhase) {
+        switch phase {
+        case .idle:
+            progressIndicator.stopAnimation(nil)
+            progressIndicator.isHidden = true
+            statusLabel.isHidden = true
+            checkUpdateButton.isHidden = false
+            checkUpdateButton.isEnabled = true
+            upgradeButton.isHidden = true
+
+        case .checking:
+            progressIndicator.isHidden = false
+            progressIndicator.startAnimation(nil)
+            statusLabel.isHidden = false
+            statusLabel.stringValue = "准备升级..."
             statusLabel.textColor = SettingsTheme.footnoteColor()
             checkUpdateButton.isHidden = true
             upgradeButton.isHidden = true
@@ -250,12 +344,9 @@ final class AboutSettingsViewController: NSViewController {
 
     @objc private func checkForUpdates() {
         BuddyLogger.shared.info("manual check for updates", subsystem: "settings")
+        // 即时反馈：立即进入「正在检查」态，结果由 checkResult 事件驱动回显（不再静默/写死 2s 延迟）
+        updateAreaState = .checking
         UpdateChecker.shared.forceCheckForUpdates()
-
-        // 检查完成后显示结果
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            self?.updateUIForPhase()
-        }
     }
 
     @objc private func startUpgrade() {

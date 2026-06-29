@@ -1,7 +1,8 @@
 # Knowledge Index
 
-## Decisions (15)
+## Decisions (16)
 
+- [2026-06-29] 社区插件作 LLM tool（selectWithTools）：选择 pass 不执行只返回 (manifest,extractedQuery) 复用 withPlugin 执行；tool 集=所有开启 stdin+command 插件；无 tool_use→directChat；toAgentTool 枚举式 description + manifest 可选 parameters | tags: launcher, select-with-tools, llm-tool, tool-use, routing, openai-compatible, qwen, plugin, manifest-parameters, dry-run, enumerated-description | → decisions/2026-06-29-select-with-tools-plugin-as-llm-tool.md
 - [2026-06-24] 日志系统：JSONL 落盘（~/.buddy/logs/buddy.jsonl）+ buddy log CLI（Foundation-only 直读，app 不运行也能查）+ CLI·BuddyCore 路径 mirror 双绑（BUDDY_LOG_DIR app/CLI 双侧）+ 5MiB 轮转/50MiB·30 保留/容错不崩 + 收编 57 处 print/NSLog | tags: logging, jsonl, buddy-log, cli, foundation-only, mirror, buddycore, rotation, fault-tolerance, singleton, serial-queue, synchronize, debug, release, bu-log-level, bu-log-dir, subsystem, contract, clicklog | → decisions/2026-06-24-logging-system-jsonl-cli-foundation-mirror.md
 - [2026-06-19] 新增 command mode + 通用图片通道：零 LLM bypass agent loop，子进程产 PNG 经 BUDDY_OUTPUT_IMAGE 回传（stdin+command 共享；5+1 处穷尽 switch 同步改；trustKey mode 前缀隔离）| tags: launcher, command-mode, image-channel, agent-loop-bypass, plugin-mode, tofu, stdin-executor, plugin-result, agent-event, png, buddy-output-image | → decisions/2026-06-19-command-mode-image-channel-bypass-agent-loop.md
 - [2026-05-30] launcher 内置插件：直接动作管线（绕过 LLM）+ BuiltinPlugin 协议 + 跨 plugin priority 仲裁 | tags: launcher, builtin-plugin, architecture, direct-action, llm-bypass, in-process, plugin-protocol, registry, priority-arbitration, app-launcher, raycast, alfred, extensibility, nsworkspace | → decisions/2026-05-30-launcher-builtin-plugin-direct-action-pipeline.md
@@ -20,7 +21,8 @@
 
 - [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
 
-## Patterns (106)
+## Patterns (107)
+- [2026-06-29] OpenAICompatibleProvider 非流式 send 与流式 sendStream 的 tools 支持不对称（非流式静默丢弃 tool_calls，:34 注释"tool_calls 留 task 003"）：新 tool-use 路径必须 grep 核实目标 send 真序列化 tools+解析 tool_calls；dry-run 探针打端点 ≠ app 内 provider 代码路径核实，两者都要；附带暴露 LauncherAgent+qwen stdin loop 长期坏 | tags: launcher, openai-compatible-provider, tool-use, send-vs-sendstream, tool-calls, dry-run, verify-before-assume, plan-reviewer, blocker, qwen, launcher-agent, hidden-bug | → patterns/2026-06-29-openai-send-tools-channel-asymmetry.md
 - [2026-06-28] SettingsSection 枚举新增 case 须同步更新 3 类测试合约 | tags: settings, settings-section, enum, test-contract, allcases, ax-id, sidebar, acceptance-test, tab, appkit | → patterns/2026-06-28-settings-section-enum-extension-test-contract.md
 - [2026-06-28] 连接测试与 LLM 推理请求分层：URLSession 直连而非 LauncherProvider.send() + URL 构造用 appendingPathComponent 替代字符串拼接防双 /v1 | tags: connection-test, url-session, provider, launcher, http-timeout, auth-header, kind-differentiation, anthropic, openai-compatible, token-cost, url-construction, appending-path-component, double-path | → patterns/2026-06-28-connection-test-urlsession-vs-provider-send.md
 - [2026-06-29] AppKit NSPopUpButton programmatic selectItem 触发 target-action 副作用污染 UI 状态：isPopulating 标志位防污染 | tags: appkit, nspopupbutton, selectitem, target-action, side-effect, populateui, ispopulating, guard, settings | → patterns/2026-06-29-nspopupbutton-selectitem-isPopulating-guard.md

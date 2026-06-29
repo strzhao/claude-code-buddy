@@ -47,6 +47,8 @@ final class OpenAICompatibleProvider: LauncherProvider {
             model: model,
             messages: oaiMessages,
             maxTokens: 4096,
+            tools: tools.isEmpty ? nil : tools.map(OAITool.init),
+            toolChoice: tools.isEmpty ? nil : "auto",
             chatTemplateKwargs: chatTemplateKwargs
         )
         request.httpBody = try JSONEncoder().encode(body)
@@ -87,7 +89,41 @@ final class OpenAICompatibleProvider: LauncherProvider {
             AgentUsage(inputTokens: u.promptTokens, outputTokens: u.completionTokens)
         }
 
-        return AgentResponse(content: [.text(text)], stopReason: stopReason, usage: usage)
+        // P3.0：解析 tool_calls（非流式通道，对称流式 sendStream 的 tool_calls 处理）
+        // message.tool_calls[{id, function:{name, arguments(JSON 字符串)}}] → .toolUse
+        // arguments 空串/畸形 JSON → soft-fail（input=空 dict），不 throw 不丢弃 tool_call
+        var content: [AgentContent] = []
+        if !text.isEmpty {
+            content.append(.text(text))
+        }
+        if let toolCalls = choice?.message.toolCalls {
+            for tc in toolCalls {
+                let inputArgs = parseToolCallArguments(tc.function?.arguments)
+                if tc.function?.name != nil || !inputArgs.isEmpty {
+                    content.append(.toolUse(
+                        id: tc.id,
+                        name: tc.function?.name ?? "",
+                        input: inputArgs
+                    ))
+                }
+            }
+        }
+        // 兜底：content 为空时给一个空 text（防下游 compactMap 全空）
+        if content.isEmpty {
+            content.append(.text(""))
+        }
+
+        return AgentResponse(content: content, stopReason: stopReason, usage: usage)
+    }
+
+    /// 解析 tool_call.function.arguments（JSON 字符串）→ [String: AnyCodable]。
+    /// 空串/畸形 JSON → soft-fail 返回空 dict（不 throw，不丢弃整个 tool_call）。
+    private func parseToolCallArguments(_ arguments: String?) -> [String: AnyCodable] {
+        guard let args = arguments?.trimmingCharacters(in: .whitespacesAndNewlines), !args.isEmpty else {
+            return [:]
+        }
+        guard let data = args.data(using: .utf8) else { return [:] }
+        return (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
     }
 
     // MARK: - P1 SSE 流式
@@ -247,6 +283,9 @@ private struct OAIRequestBody: Encodable {
     let model: String
     let messages: [OAIMessage]
     let maxTokens: Int
+    /// P3.0：非空时注入 tools（OpenAI function 格式）+ tool_choice:"auto"
+    let tools: [OAITool]?
+    let toolChoice: String?
     /// noThinking=true 时注入，nil 时不序列化（encodeIfPresent 跳过 nil）
     let chatTemplateKwargs: ChatTemplateKwargs?
 
@@ -254,6 +293,8 @@ private struct OAIRequestBody: Encodable {
         case model
         case messages
         case maxTokens = "max_tokens"
+        case tools
+        case toolChoice = "tool_choice"
         case chatTemplateKwargs = "chat_template_kwargs"
     }
 
@@ -262,6 +303,8 @@ private struct OAIRequestBody: Encodable {
         try container.encode(model, forKey: .model)
         try container.encode(messages, forKey: .messages)
         try container.encode(maxTokens, forKey: .maxTokens)
+        try container.encodeIfPresent(tools, forKey: .tools)
+        try container.encodeIfPresent(toolChoice, forKey: .toolChoice)
         try container.encodeIfPresent(chatTemplateKwargs, forKey: .chatTemplateKwargs)
     }
 }
@@ -347,13 +390,36 @@ private struct OAIStreamToolFunction: Decodable {
 }
 
 private struct OAIResponseChoice: Decodable {
-    let message: OAIMessage
+    let message: OAIResponseMessage
     let finishReason: String?
 
     private enum CodingKeys: String, CodingKey {
         case message
         case finishReason = "finish_reason"
     }
+}
+
+/// 响应侧 message（含可选 tool_calls，对称流式 OAIDelta.toolCalls）
+private struct OAIResponseMessage: Decodable {
+    let role: String?
+    let content: String?
+    let toolCalls: [OAIResponseToolCall]?
+
+    private enum CodingKeys: String, CodingKey {
+        case role, content
+        case toolCalls = "tool_calls"
+    }
+}
+
+/// 非流式响应 tool_call：{id, type:"function", function:{name, arguments(JSON 字符串)}}
+private struct OAIResponseToolCall: Decodable {
+    let id: String
+    let function: OAIResponseToolFunction?
+}
+
+private struct OAIResponseToolFunction: Decodable {
+    let name: String?
+    let arguments: String?
 }
 
 private struct OAIResponseUsage: Decodable {

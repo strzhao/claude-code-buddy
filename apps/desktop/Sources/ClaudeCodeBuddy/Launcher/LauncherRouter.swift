@@ -120,6 +120,77 @@ final class LauncherRouter {
         try await aiSelect(query: query, candidates: candidates)
     }
 
+    /// 第 2 阶段（tool 路由）：把所有开启插件作 LLM tool，provider 返回 tool_calls → 匹配 plugin name。
+    ///
+    /// 设计（Part 2）：
+    /// - tools = 所有 plugins 的 toAgentTool()（prompt mode 排除已在 LauncherManager 候选筛选完成）
+    /// - provider.send(tools, system) → 解析 .toolUse → 匹配 plugin name → (RouteDecision, extractedQuery)
+    /// - extractedQuery：tool_call.input["query"] 优先（固定 {query} 契约）；非 query 键 → nil（让执行层 stripKeywordPrefix 兜底）
+    /// - 无 tool_use → 文本兜底（回退 aiSelect name 匹配）
+    /// - hallucinate 名（不在 plugins）→ .directChat（C-HALLUCINATE）
+    /// - 空 plugins → send tools==[]，无 tool_call → .directChat（C-NO-TOOL-NO-FORGE）
+    ///
+    /// 返回元组：(decision, extractedQuery)。extractedQuery==nil 表示未提取（文本兜底/hallucinate/directChat）。
+    func selectWithTools(
+        query: String,
+        plugins: [PluginManifest]
+    ) async throws -> (decision: RouteDecision, extractedQuery: String?) {
+        // 构造 tools：所有 plugins 作 tool（select pass 不执行，仅声明）
+        let tools = plugins.map { $0.toAgentTool() }
+
+        // system prompt：路由指令 + 原始 query（user message）
+        let candidateLines = plugins.map { p in
+            "- \(p.name): \(p.description) (keywords: \(p.keywords.joined(separator: ", ")))"
+        }.joined(separator: "\n")
+        let systemPrompt = """
+        You are a router. Given a user query, decide which plugin to use (or none for direct chat).
+        Available plugins:
+        \(candidateLines)
+
+        Call the matching plugin tool with the user's request as arguments, or reply with text for direct chat.
+        """
+        let messages: [AgentMessage] = [.init(role: "user", content: [.text(query)])]
+
+        let resp = try await provider.send(
+            messages: messages,
+            tools: tools,
+            model: routerModel,
+            system: systemPrompt
+        )
+
+        // 找第一个 .toolUse（与 stdin agent loop 一致：首个 tool_call 即路由决策）
+        let toolUse = resp.content.first { c in
+            if case .toolUse = c { return true }
+            return false
+        }
+
+        guard case .toolUse(_, let toolName, let input)? = toolUse else {
+            // 无 tool_use → .directChat（C-NO-TOOL-NO-FORGE：LLM 选择不调 tool 即直接对话）
+            // 不二次路由（避免浪费 LLM 调用 + 防文本兜底误命中）
+            BuddyLogger.shared.debug("selectWithTools: no tool_use → directChat", subsystem: "launcher", meta: ["query": query])
+            return (.directChat, nil)
+        }
+
+        // 匹配 plugin name（精确匹配，大小写敏感 — C-HALLUCINATE）
+        guard let matched = plugins.first(where: { $0.name == toolName }) else {
+            BuddyLogger.shared.warn("selectWithTools: hallucinated plugin name", subsystem: "launcher", meta: ["query": query, "toolName": toolName])
+            return (.directChat, nil)
+        }
+
+        // extractedQuery：input["query"] 优先（固定 {query} 契约）；结构化 parameters 非 query 键 → nil
+        let extractedQuery: String? = {
+            if let q = input["query"]?.value as? String, !q.isEmpty {
+                return q
+            }
+            return nil
+        }()
+
+        BuddyLogger.shared.info("selectWithTools: routed to plugin", subsystem: "launcher", meta: [
+            "query": query, "plugin": matched.name, "hasExtractedQuery": extractedQuery != nil
+        ])
+        return (.withPlugin(matched), extractedQuery)
+    }
+
     /// 第 2 阶段：AI 选 1（异步，调一次 provider.send，无 tools）
     ///
     /// system prompt 通过 send 的 system 参数传递，user message 仅包含原始 query。

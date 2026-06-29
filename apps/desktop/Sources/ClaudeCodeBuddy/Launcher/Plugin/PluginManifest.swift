@@ -10,6 +10,10 @@ struct PluginManifest: Codable, Equatable {
     let keywords: [String]
     let timeout: Int?
     let modeConfig: PluginModeConfig
+    /// 可选 JSON Schema（opt-in）：插件作者声明结构化参数契约（type/properties/required）。
+    /// toAgentTool() 优先用 parameters 作为 tool inputSchema（强制顶层 type:object），
+    /// 缺失→nil→回退固定 {query} 契约。decodeIfPresent 向后兼容旧 plugin.json。
+    let parameters: [String: AnyCodable]?
 }
 
 enum PluginModeConfig: Equatable {
@@ -103,6 +107,7 @@ extension PluginManifest {
         case cmd, args, env, requiredPath
         case systemPrompt, maxIterations, model, autoCopyToClipboard
         case deps
+        case parameters
     }
 
     init(from decoder: Decoder) throws {
@@ -145,6 +150,8 @@ extension PluginManifest {
         default:
             throw LauncherError.pluginManifestInvalid("unknown mode: \(mode)")
         }
+        // P1：parameters 可选 JSON Schema，缺失→nil（向后兼容旧 plugin.json）
+        parameters = try c.decodeIfPresent([String: AnyCodable].self, forKey: .parameters)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -179,6 +186,8 @@ extension PluginManifest {
             // M1：deps 非空才 encode（同 stdin）
             if !cfg.deps.isEmpty { try c.encode(cfg.deps, forKey: .deps) }
         }
+        // P1：parameters 可选，nil 时不序列化（与 legacy 产物一致）
+        try c.encodeIfPresent(parameters, forKey: .parameters)
     }
 }
 
@@ -338,7 +347,8 @@ extension PluginManifest {
         timeout: Int? = nil,
         requiredPath: [String]? = nil,
         summary: String? = nil,
-        deps: [PluginDep] = []
+        deps: [PluginDep] = [],
+        parameters: [String: AnyCodable]? = nil
     ) {
         self.name = name
         self.version = version
@@ -346,6 +356,7 @@ extension PluginManifest {
         self.summary = summary
         self.keywords = keywords
         self.timeout = timeout
+        self.parameters = parameters
         self.modeConfig = .stdin(StdinConfig(cmd: cmd, args: args, env: env, requiredPath: requiredPath, deps: deps))
     }
 }

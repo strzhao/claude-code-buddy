@@ -531,29 +531,57 @@ final class LauncherManager: ObservableObject {
                     LauncherManager.shared.stage = candidates.isEmpty ? .calling : .routing
                 }
 
-                // 第 2 阶段：AI 选 1（降级：candidates 为空直接 directChat）
+                // 第 2 阶段：tool 路由（P4：selectWithTools 替代 pickWithAI）
+                // candidates 已 keyword 缩候选；再排除 prompt mode（tool 集仅 stdin+command，设计文档约定）
                 let decision: RouteDecision
+                var extractedQuery: String?
                 if candidates.isEmpty {
                     decision = .directChat
                 } else {
-                    do {
-                        decision = try await router.pickWithAI(query: query, from: candidates)
-                    } catch let err as LauncherError {
-                        await MainActor.run {
-                            LauncherManager.shared.stage = .error
-                            LauncherManager.shared.isSubmitting = false
+                    let toolCandidates = candidates.filter { $0.promptConfig == nil }
+                    if toolCandidates.isEmpty {
+                        // 候选全是 prompt mode → 退回旧 aiSelect 文本路由（prompt mode 暂不作 tool）
+                        do {
+                            decision = try await router.pickWithAI(query: query, from: candidates)
+                        } catch let err as LauncherError {
+                            await MainActor.run {
+                                LauncherManager.shared.stage = .error
+                                LauncherManager.shared.isSubmitting = false
+                            }
+                            continuation.yield(.error(err))
+                            continuation.finish()
+                            return
+                        } catch {
+                            await MainActor.run {
+                                LauncherManager.shared.stage = .error
+                                LauncherManager.shared.isSubmitting = false
+                            }
+                            continuation.yield(.error(.networkFailure(error)))
+                            continuation.finish()
+                            return
                         }
-                        continuation.yield(.error(err))
-                        continuation.finish()
-                        return
-                    } catch {
-                        await MainActor.run {
-                            LauncherManager.shared.stage = .error
-                            LauncherManager.shared.isSubmitting = false
+                    } else {
+                        do {
+                            let result = try await router.selectWithTools(query: query, plugins: toolCandidates)
+                            decision = result.decision
+                            extractedQuery = result.extractedQuery
+                        } catch let err as LauncherError {
+                            await MainActor.run {
+                                LauncherManager.shared.stage = .error
+                                LauncherManager.shared.isSubmitting = false
+                            }
+                            continuation.yield(.error(err))
+                            continuation.finish()
+                            return
+                        } catch {
+                            await MainActor.run {
+                                LauncherManager.shared.stage = .error
+                                LauncherManager.shared.isSubmitting = false
+                            }
+                            continuation.yield(.error(.networkFailure(error)))
+                            continuation.finish()
+                            return
                         }
-                        continuation.yield(.error(.networkFailure(error)))
-                        continuation.finish()
-                        return
                     }
                 }
 
@@ -672,8 +700,9 @@ final class LauncherManager: ObservableObject {
                         // 仿 prompt mode 结构（:496-532），但走 stdinExecutor 路径。
                         BuddyLogger.shared.info("submit: command mode entry", subsystem: "launcher", meta: ["plugin": manifest.name])
                         let dispatcher = PluginDispatcher(stdinExecutor: .shared)
-                        // strip 命中 keyword 前缀（如 "qr https://..." → "https://..."）
-                        let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
+                        // P4：优先用 LLM tool_call 提取的 extractedQuery；无则 strip keyword 前缀
+                        // （如 LLM 提取 query="https://example.com" 直用；keyword 触发 "qr https://..." → strip）
+                        let strippedQuery = extractedQuery ?? Self.stripKeywordPrefix(query, manifest: manifest)
                         let pluginInput = PluginInput(
                             query: strippedQuery,
                             sessionId: UUID().uuidString,

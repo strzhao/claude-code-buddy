@@ -158,11 +158,11 @@ final class PluginManifestToAgentToolTests: XCTestCase {
                        "AgentTool.name 必须精确等于 manifest.name 'translate'")
     }
 
-    // R2-b. description == manifest.description
-    func test_toAgentTool_description_matchesManifestDescription() {
+    // R2-b. description 含 manifest.description 的主功能句（P2 合成后是枚举模板，不再精确相等）
+    func test_toAgentTool_description_containsManifestDescription() {
         let tool = translateManifest.toAgentTool()
-        XCTAssertEqual(tool.description, "将文本翻译成目标语言",
-                       "AgentTool.description 必须精确等于 manifest.description")
+        XCTAssertTrue(tool.description.contains("将文本翻译成目标语言"),
+                       "AgentTool.description 必须含 manifest.description 主功能句（P2 合成：summary/desc 首句 + 触发词 + 输入填法），实际: \(tool.description)")
     }
 
     // R2-c. BLOCKER-2：inputSchema 顶层 "type" == "object"

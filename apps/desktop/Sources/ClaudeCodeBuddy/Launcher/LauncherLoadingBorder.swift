@@ -81,9 +81,23 @@ struct LauncherLoadingBorder: View {
             startPoint: headPoint,
             endPoint: tailPoint
         )
+        // 方案 B：多层 stroke 模拟发光，取代 ctx.addFilter(.shadow)。
+        // shadow filter 在 Metal 合成下会绕过 contentView 圆角裁剪、溢出到圆角外的直角区，
+        // 形成直角矩形伪影；stroke 是 backing store 内容，被圆角裁剪正常裁掉，不溢出。
         if glowRadius > 0 {
-            ctx.addFilter(.shadow(color: LauncherTheme.primary.opacity(maxAlpha * 0.7),
-                                  radius: glowRadius))
+            let glowLayers: [(factor: CGFloat, alphaScale: CGFloat)] = [
+                (1.0, 0.08),
+                (0.6, 0.20),
+                (0.3, 0.38)
+            ]
+            for layer in glowLayers {
+                var glowCtx = ctx
+                glowCtx.opacity = Double(layer.alphaScale)
+                glowCtx.stroke(comet,
+                               with: shading,
+                               style: StrokeStyle(lineWidth: lineWidth + 2 * glowRadius * layer.factor,
+                                                  lineCap: .round, lineJoin: .round))
+            }
         }
         ctx.stroke(comet,
                    with: shading,

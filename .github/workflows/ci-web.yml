@@ -59,10 +59,9 @@ jobs:
 
       - name: Lighthouse CI (Core Web Vitals gate)
         # 复用上一步 Build 产物；lighthouserc 的 startServerCommand 起 next start:3000，
-        # autorun 采集 / 与 /upload 后按 'error' 断言性能预算。
-        # continue-on-error 初期非阻塞采集：CI 无后端 env，/ 与 /upload 渲染降级会使
-        # Lighthouse 分数偏低，直接硬门禁可能误报。稳定后再去掉 continue-on-error 转硬门禁。
-        continue-on-error: true
+        # autorun 采集 / 与 /upload 后按 'error' 断言性能预算，超预算即 fail 此步。
+        # 已验证 CI 环境下性能预算达标（commit dda7045 实跑通过）；
+        # 若偶发 categories:performance 综合分误报，可在 lighthouserc 把它单独改 'warn'。
         run: pnpm --filter @stringzhao/web exec lhci autorun
 
       - name: Security audit

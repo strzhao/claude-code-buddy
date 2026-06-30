@@ -30,7 +30,7 @@ extension PluginManifest {
         return [
             "type": AnyCodable("object"),
             "properties": AnyCodable([
-                "query": ["type": "string", "description": "用户原始查询"] as [String: String]
+                "query": ["type": "string", "description": "要处理的内容本身（如网址、文本），不要填整句话"] as [String: String]
             ]),
             "required": AnyCodable(["query"])
         ]

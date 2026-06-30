@@ -317,3 +317,75 @@ final class PluginAsToolQwenAccuracyAcceptanceTests: XCTestCase {
         )
     }
 }
+
+// MARK: - PluginAsToolRealSynthDescAcceptanceTests
+//
+// 红队验收测试（real-process）：用真实 PluginManifest.toAgentTool() 合成的 tool desc
+// （synthesizeToolDescription + effectiveToolInputSchema）打真实 qwen，覆盖参数提取稳定性。
+//
+// 缺口（cli e2e 暴露）：本文件其他场景用硬编码 tool desc（qrTool/shortenTool 强锚点"只填内容本身"），
+// 规避了 synthesizeToolDescription 合成的真实 desc。`buddy launcher debug route` 实跑发现：
+// 真实 synthesize desc 的「输入：填用户的原始请求」+ query 字段 description「用户原始查询」让 qwen
+// 整句透传，extractedQuery 退化。此场景补这条缺口——真实 toAgentTool() 输出 + 真实 qwen。
+//
+// 铁律：qwenReachable 守卫（不可达 skip）；可达时强断言 extractedQuery==URL（非整句）。
+
+final class PluginAsToolRealSynthDescAcceptanceTests: XCTestCase {
+
+    // 真实 toAgentTool()（synthesizeToolDescription + effectiveToolInputSchema）合成 desc + 真实 qwen
+    // → query 字段必须提取内容本身（URL），不能整句透传。
+    func test_realSynthDesc_extractsContentNotFullSentence() async throws {
+        let reachable = await qwenReachable()
+        try XCTSkipUnless(reachable, "qwen 不可达（本地 llama.cpp 未运行），跳过 real-process 测试")
+
+        // 真实 qr manifest（command mode，固定 {query} 契约，parameters nil）—— 复刻 marketplace/qr
+        let qr = PluginManifest(
+            name: "qr",
+            version: "1.0.0",
+            description: "把输入的文本或网址变成一张二维码图片，点击可复制到剪贴板。",
+            summary: "二维码生成器：输入文本或网址生成可扫码图片",
+            keywords: ["qr", "二维码", "码"],
+            timeout: 10,
+            modeConfig: .command(CommandConfig(
+                cmd: "./qr-gen.sh", args: [], env: nil, requiredPath: ["qrencode", "jq"], deps: []
+            )),
+            parameters: nil
+        )
+
+        // 真实 provider（与 app 生产路径同构：OpenAICompatibleProvider + noThinking）
+        let provider = OpenAICompatibleProvider(
+            apiKey: QwenConst.apiKey,
+            baseURL: URL(string: "http://127.0.0.1:8001/v1")!,  // provider 拼 <baseURL>/chat/completions
+            noThinking: true
+        )
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "RealSynth-\(UUID().uuidString)")
+        let router = LauncherRouter(
+            pluginManager: PluginManager(rootDir: tmpDir),
+            provider: provider,
+            routerModel: QwenConst.model
+        )
+
+        // 多样化 query（含场景1「生成二维码 URL」——cli e2e 暴露的整句透传失败用例）
+        let cases: [(query: String, expectURL: String)] = [
+            ("生成二维码 https://example.com", "https://example.com"),
+            ("把这个网址生成二维码 https://buddy.example.org/path", "https://buddy.example.org/path"),
+            ("帮我做一张 https://test.io/x/y 的二维码", "https://test.io/x/y"),
+        ]
+
+        for (query, expectURL) in cases {
+            let (decision, extractedQuery) = try await router.selectWithTools(query: query, plugins: [qr])
+
+            if case .withPlugin(let m) = decision {
+                XCTAssertEqual(m.name, "qr", "query=\"\(query)\": 应选 qr 插件")
+            } else {
+                XCTFail("query=\"\(query)\": decision 应是 .withPlugin(qr)，实际 \(decision)")
+            }
+
+            XCTAssertEqual(extractedQuery, expectURL,
+                           "query=\"\(query)\": 真实 synthesize desc 下 extractedQuery 必须是 URL，实际: \(extractedQuery ?? "nil")")
+            XCTAssertNotEqual(extractedQuery, query,
+                              "query=\"\(query)\": extractedQuery 不能整句透传（必须提取内容本身）")
+        }
+    }
+}

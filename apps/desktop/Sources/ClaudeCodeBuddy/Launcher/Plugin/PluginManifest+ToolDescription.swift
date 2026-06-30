@@ -36,8 +36,15 @@ extension PluginManifest {
             parts.append("触发：" + kws.joined(separator: "、"))
         }
 
-        // 输入填法段（固定契约：用户原始请求；结构化 parameters 时由 inputSchema 自描述）
-        parts.append("输入：填用户的原始请求")
+        // 输入填法段（提取式锚点：弱模型倾向整句透传，必须明确要求只填内容本身。
+        // 否则 LLM 把整句塞进字段 → extractedQuery 退化；cli e2e + real-process 实测证实。）
+        if parameters == nil {
+            // 固定 {query} 契约：明确 query 只填内容本身
+            parts.append("输入：query 只填要处理的内容本身（如网址、文本），不要填整句话")
+        } else {
+            // 结构化 parameters：inputSchema 自描述字段，补通用提取锚点
+            parts.append("输入：按各字段只填对应的值（如网址、文本），不要把整句话塞进单个字段")
+        }
 
         return parts.joined(separator: "。")
     }

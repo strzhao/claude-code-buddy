@@ -473,3 +473,135 @@ final class SelectWithToolsToolCallChannelAcceptanceTests: XCTestCase {
                        "extractedQuery 应取第一个 tool_call 的参数")
     }
 }
+
+// MARK: - LauncherRouterDebugRouteAcceptanceTests
+//
+// 红队验收测试（黑盒 TDD 红灯）：LauncherRouter.debugRoute —— debug CLI 路由入口，
+// 镜像 LauncherManager.submit 的分支决策（narrow 后：空候选→directChat / 全 prompt→pickWithAI /
+// 含 tool 候选→selectWithTools），回传 (decision, extractedQuery, routeMethod)。
+//
+// 背景：`buddy launcher debug route` 是唯一能纯 cli 驱动「自然语言→选插件」的入口，但
+// handleLauncherDebugRoute 原走 pickWithAI（e2a65ca 前旧路由），验证不了 tool-use 核心。
+// debugRoute 把路由分支下沉到 LauncherRouter（有 mock provider 设施可单测），handler 只调它。
+//
+// 验收场景（det-machine）：
+//   场景1[det]: tool 候选非空 → selectWithTools + extractedQuery ｜ assert routeMethod=="selectWithTools"
+//   场景2[det]: 空候选 → directChat + 不调 provider ｜ assert callCount==0
+//   场景3[det]: 全 prompt 候选 → pickWithAI 文本路由（tools==[]）｜ assert routeMethod=="pickWithAI"
+//   场景4[det]: prompt+tool 混合 → selectWithTools 只收 tool 候选作 tool ｜ assert capturedTools.count==1
+
+final class LauncherRouterDebugRouteAcceptanceTests: XCTestCase {
+
+    /// 造 prompt mode manifest（promptConfig 非空 → 不是 tool 候选，会被 filter 排除）。
+    private func makePromptManifest(name: String, description: String = "test", keywords: [String] = []) -> PluginManifest {
+        PluginManifest(
+            name: name,
+            version: "1.0.0",
+            description: description,
+            summary: nil,
+            keywords: keywords,
+            timeout: nil,
+            modeConfig: .prompt(PromptConfig(
+                systemPrompt: "你是\(name)插件",
+                maxIterations: 1,
+                model: nil,
+                autoCopyToClipboard: false
+            )),
+            parameters: nil
+        )
+    }
+
+    // 场景1[det]: tool 候选非空（qr 是 stdin mode）→ debugRoute 走 selectWithTools + 回传 extractedQuery。
+    func test_scenario1_toolCandidates_usesSelectWithTools_withExtractedQuery() async throws {
+        let provider = MockSelectWithToolsProvider()
+        let qr = makeManifest(name: "qr", description: "生成二维码", keywords: ["qr", "二维码"])
+        provider.responses = [
+            .success(makeToolUseResponse(
+                toolName: "qr",
+                input: ["query": AnyCodable("https://example.com")]
+            ))
+        ]
+        let router = makeRouter(provider: provider)
+
+        let result = try await router.debugRoute(query: "生成二维码 https://example.com", candidates: [qr])
+
+        XCTAssertEqual(result.routeMethod, "selectWithTools",
+                       "场景1: tool 候选非空时 debugRoute 必须走 selectWithTools，实际: \(result.routeMethod)")
+        XCTAssertNotEqual(result.routeMethod, "pickWithAI",
+                          "场景1 negate: 不能退回旧 pickWithAI 文本路由")
+        if case .withPlugin(let m) = result.decision {
+            XCTAssertEqual(m.name, "qr",
+                           "场景1: selectWithTools 必须选中 qr，实际: \(m.name)")
+        } else {
+            XCTFail("场景1: decision 必须是 .withPlugin(qr)，实际: \(result.decision)")
+        }
+        XCTAssertEqual(result.extractedQuery, "https://example.com",
+                       "场景1: extractedQuery 必须是 LLM 提取的 URL，实际: \(result.extractedQuery ?? "nil")")
+    }
+
+    // 场景2[det]: 空候选 → directChat，且不调 provider（不浪费 LLM 调用）。
+    func test_scenario2_emptyCandidates_returnsDirectChat_withoutCallingProvider() async throws {
+        let provider = MockSelectWithToolsProvider()
+        let router = makeRouter(provider: provider)
+
+        let result = try await router.debugRoute(query: "随便聊聊", candidates: [])
+
+        XCTAssertEqual(result.routeMethod, "directChat",
+                       "场景2: 空候选时 debugRoute 必须直接 directChat，实际: \(result.routeMethod)")
+        XCTAssertEqual(result.decision, .directChat,
+                       "场景2: decision 必须是 .directChat")
+        XCTAssertNil(result.extractedQuery,
+                     "场景2: directChat 时 extractedQuery 必须为 nil")
+        XCTAssertEqual(provider.callCount, 0,
+                       "场景2: 空候选时绝不能调 provider（不浪费 LLM 调用），实际 callCount: \(provider.callCount)")
+    }
+
+    // 场景3[det]: 全 prompt 候选（无 tool 候选）→ 退回 pickWithAI 文本路由（tools 通道为空）。
+    func test_scenario3_allPromptCandidates_fallsBackToPickWithAI() async throws {
+        let provider = MockSelectWithToolsProvider()
+        let translate = makePromptManifest(name: "translate", description: "翻译", keywords: ["翻译"])
+        provider.responses = [
+            .success(makeTextResponse("translate"))
+        ]
+        let router = makeRouter(provider: provider)
+
+        let result = try await router.debugRoute(query: "翻译 hello", candidates: [translate])
+
+        XCTAssertEqual(result.routeMethod, "pickWithAI",
+                       "场景3: 全 prompt 候选时必须退回 pickWithAI（prompt mode 暂不作 tool），实际: \(result.routeMethod)")
+        XCTAssertNil(result.extractedQuery,
+                     "场景3: pickWithAI 不做参数提取，extractedQuery 必须为 nil")
+        // 关键：pickWithAI 走文本路由，tools 通道必须为空（区别于 selectWithTools 的 tool 声明）
+        XCTAssertEqual(provider.capturedTools.last?.count, 0,
+                       "场景3: pickWithAI 文本路由不传 tools，capturedTools.last 必须为空数组")
+    }
+
+    // 场景4[det]: prompt + tool 混合候选 → 仍走 selectWithTools，且只把 tool 候选（qr）作 tool 声明。
+    func test_scenario4_mixedCandidates_selectsWithTools_onlyToolCandidatesAsTools() async throws {
+        let provider = MockSelectWithToolsProvider()
+        let translate = makePromptManifest(name: "translate", description: "翻译", keywords: ["翻译"])
+        let qr = makeManifest(name: "qr", description: "生成二维码", keywords: ["qr"])
+        provider.responses = [
+            .success(makeToolUseResponse(
+                toolName: "qr",
+                input: ["query": AnyCodable("https://mixed.com")]
+            ))
+        ]
+        let router = makeRouter(provider: provider)
+
+        let result = try await router.debugRoute(query: "生成二维码 https://mixed.com", candidates: [translate, qr])
+
+        XCTAssertEqual(result.routeMethod, "selectWithTools",
+                       "场景4: 混合候选含 tool 候选时必须走 selectWithTools，实际: \(result.routeMethod)")
+        if case .withPlugin(let m) = result.decision {
+            XCTAssertEqual(m.name, "qr",
+                           "场景4: 必须选中 qr，实际: \(m.name)")
+        } else {
+            XCTFail("场景4: decision 必须是 .withPlugin(qr)，实际: \(result.decision)")
+        }
+        XCTAssertEqual(provider.capturedTools.first?.count, 1,
+                       "场景4: selectWithTools 只收 tool 候选作 tool（translate 排除），tools.count 必须为 1")
+        XCTAssertEqual(result.extractedQuery, "https://mixed.com",
+                       "场景4: extractedQuery 必须是 LLM 提取的 URL")
+    }
+}

@@ -191,6 +191,35 @@ final class LauncherRouter {
         return (.withPlugin(matched), extractedQuery)
     }
 
+    /// 第 2 阶段（debug route 入口）：镜像 `LauncherManager.submit` 的路由分支决策。
+    ///
+    /// 把 debug CLI 的路由选择下沉到此（router 层有 mock provider 设施可单测），handler 只调它。
+    /// 分支（与 submit 完全一致）：
+    /// - candidates 空 → `(.directChat, nil, "directChat")`，不调 provider（不浪费 LLM 调用）
+    /// - 全 prompt mode（filter `promptConfig == nil` 后空）→ `pickWithAI` 文本路由，routeMethod `"pickWithAI"`
+    /// - 含 tool 候选 → `selectWithTools`，routeMethod `"selectWithTools"`，回传 extractedQuery
+    ///
+    /// 返回 `(decision, extractedQuery, routeMethod)`。routeMethod 供 debug CLI 透传给用户，
+    /// 让「自然语言→选插件」的 tool-use 路径在 cli 下可观测、可验证（修 e2a65ca 后 debug route
+    /// 仍走旧 pickWithAI 的缺口）。
+    func debugRoute(
+        query: String,
+        candidates: [PluginManifest]
+    ) async throws -> (decision: RouteDecision, extractedQuery: String?, routeMethod: String) {
+        if candidates.isEmpty {
+            return (.directChat, nil, "directChat")
+        }
+        // 与 submit 一致：tool 候选 = 非 prompt mode（stdin/command）
+        let toolCandidates = candidates.filter { $0.promptConfig == nil }
+        if toolCandidates.isEmpty {
+            // 全 prompt mode → 退回文本路由（prompt mode 暂不作 tool，设计文档约定）
+            let decision = try await pickWithAI(query: query, from: candidates)
+            return (decision, nil, "pickWithAI")
+        }
+        let result = try await selectWithTools(query: query, plugins: toolCandidates)
+        return (result.decision, result.extractedQuery, "selectWithTools")
+    }
+
     /// 第 2 阶段：AI 选 1（异步，调一次 provider.send，无 tools）
     ///
     /// system prompt 通过 send 的 system 参数传递，user message 仅包含原始 query。

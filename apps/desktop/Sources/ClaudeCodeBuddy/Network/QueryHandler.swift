@@ -490,6 +490,8 @@ final class QueryHandler {
         }
 
         var decision = "directChat"
+        var routeMethod = "directChat"
+        var extractedQuery: String? = nil
         if !candidates.isEmpty {
             let router = LauncherRouter(
                 pluginManager: PluginManager.shared,
@@ -499,13 +501,18 @@ final class QueryHandler {
             let narrowList = router.narrowCandidates(q)
             if !narrowList.isEmpty {
                 do {
-                    let routeDecision = try await router.pickWithAI(query: q, from: narrowList)
-                    if case .withPlugin(let m) = routeDecision {
+                    // debugRoute 镜像 submit 路由分支：空→directChat / 全 prompt→pickWithAI /
+                    // 含 tool 候选→selectWithTools（e2a65ca 的 tool-use 路径，原 debug route 走旧 pickWithAI）
+                    let routeResult = try await router.debugRoute(query: q, candidates: narrowList)
+                    routeMethod = routeResult.routeMethod
+                    extractedQuery = routeResult.extractedQuery
+                    if case .withPlugin(let m) = routeResult.decision {
                         decision = "withPlugin:\(m.name)"
                     }
                 } catch {
                     // AI select 失败 → 降级为 directChat
                     decision = "directChat (router failed: \(error.localizedDescription))"
+                    routeMethod = "error"
                 }
             }
         }
@@ -528,13 +535,20 @@ final class QueryHandler {
 
         let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
 
-        return okResponse(data: [
+        var data: [String: Any] = [
             "query": q,
             "decision": decision,
             "candidates": candidates,
             "outputText": outputText,
             "durationMs": durationMs,
-        ])
+            // routeMethod 让 cli 透传路由路径（selectWithTools|pickWithAI|directChat|error），
+            // 使「自然语言→选插件」的 tool-use 路径可观测；extractedQuery 是 LLM 从 tool_call 提取的参数。
+            "routeMethod": routeMethod,
+        ]
+        if let eq = extractedQuery {
+            data["extractedQuery"] = eq
+        }
+        return okResponse(data: data)
     }
 
     // MARK: - Response Helpers

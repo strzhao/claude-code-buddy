@@ -76,6 +76,14 @@ final class LauncherManager: ObservableObject {
     /// 当前导航活动区（C2/C5）：决定 ↑↓ 跨区语义与 Enter 派发目标。
     @Published private(set) var activeCandidateZone: CandidateZone = .instant
 
+    /// 锁定的 command 插件（方案 B 两阶段：选中 = 锁定 ≠ 执行，C-LOCK-NOT-EXECUTE）。
+    ///
+    /// 进入：(a) `commandPrefixMatched` 唯一命中 → updateQuery 自动锁（C-UNIQUE-AUTOLOCK）；
+    ///      (b) 多命中 → 用户 ↑↓ + Enter/Tab/点击显式选中锁（C-MULTI-SELECT-LOCK）。
+    /// 退出：esc / 输入框清空 / query 不再以 locked 的 keyword 开头 / 执行完成（C-ESC-EXIT）。
+    /// 锁定后进入「参数输入态」：候选区 + instant 区隐藏，Enter 执行 `submitCommandDirect`（C-EXEC-ON-ENTER）。
+    @Published var lockedCommand: PluginManifest?
+
     /// debounce Task（连续输入时 cancel 旧 Task）
     private var debounceTask: Task<Void, Never>?
 
@@ -211,6 +219,8 @@ final class LauncherManager: ObservableObject {
         commandRouteCandidates = []
         commandRouteSelectedIndex = -1
         activeCandidateZone = .instant
+        // C-ESC-EXIT 复位点：show 时清 lockedCommand（新会话不继承上次锁定）
+        lockedCommand = nil
         debounceTask?.cancel()
         debounceTask = nil
         // 重置 panel 尺寸到初始小高度，避免上次执行后的大尺寸导致 centerOnScreen y 算偏高
@@ -269,20 +279,64 @@ final class LauncherManager: ObservableObject {
             commandRouteCandidates = []
             commandRouteSelectedIndex = -1
             activeCandidateZone = .instant
+            // 清空输入 = esc 语义（C-ESC-EXIT）：退出锁定
+            lockedCommand = nil
             return
         }
-        // 同步 narrow：让 chip 在用户输入命中 keyword 瞬间就显示（不等 submit）
         // I1 seam：pluginsOverride 优先于 PluginManager.shared.list()
         let plugins = pluginsOverride ?? ((try? PluginManager.shared.list()) ?? [])
+
+        // C-LOCK-STICKY（锁定粘性，关键）：lockedCommand 非空时，先查 query 是否仍以 locked 的
+        // keyword 开头（commandPrefixMatched(query, [locked]) 非空）。
+        // - 是 → 保持锁定，候选清空（参数态隐藏候选），instant 不重算（C-PARAM-ISOLATE），return。
+        // - 否 → lockedCommand = nil，落到正常匹配。
+        if let locked = lockedCommand {
+            if !LauncherRouter.commandPrefixMatched(query: query, plugins: [locked]).isEmpty {
+                // 仍以 locked keyword 开头 → 保持锁定
+                commandRouteCandidates = []
+                commandRouteSelectedIndex = -1
+                instantActions = []
+                instantSelectedIndex = -1
+                lastRoutePluginName = locked.name
+                return
+            }
+            // 不再以 locked keyword 开头 → 解锁，落到正常匹配
+            lockedCommand = nil
+        }
+
+        // C-PREFIX-MATCH：command 命中改用 commandPrefixMatched（严格前缀 + 分隔符），禁 contains。
+        // 返回保持 plugins 原序的精确前缀命中集合（非打分）。
+        let commandMatched = LauncherRouter.commandPrefixMatched(query: query, plugins: plugins)
+
+        // narrowed（contains 打分）仍服务 stdin/prompt 路由 + lastRoutePluginName chip 显示。
         let narrowed = LauncherRouter.narrowCandidates(query: query, plugins: plugins)
         lastRoutePluginName = narrowed.first?.name
 
-        // C1/C9：command 路由候选 = narrowed 的 command-mode 子集
-        commandRouteCandidates = narrowed.filter { manifest in
-            if case .command = manifest.modeConfig { return true }
-            return false
+        // C1/C9 + C-UNIQUE-AUTOLOCK / C-MULTI-SELECT-LOCK：
+        // - count==1 → 自动锁定，候选清空
+        // - count>1  → lockedCommand=nil，候选列出，默认选中 0
+        // - count==0 → 候选清空
+        if commandMatched.count == 1 {
+            lockedCommand = commandMatched.first
+            commandRouteCandidates = []
+            commandRouteSelectedIndex = -1
+            lastRoutePluginName = commandMatched.first?.name
+        } else if commandMatched.count > 1 {
+            lockedCommand = nil
+            commandRouteCandidates = commandMatched
+            commandRouteSelectedIndex = 0
+        } else {
+            commandRouteCandidates = []
+            commandRouteSelectedIndex = -1
         }
-        commandRouteSelectedIndex = commandRouteCandidates.isEmpty ? -1 : 0
+
+        // C-PARAM-ISOLATE：参数态（lockedCommand 非空）隐藏 instant 区，专注参数输入。
+        if lockedCommand != nil {
+            instantActions = []
+            instantSelectedIndex = -1
+            activeCandidateZone = .instant
+            return
+        }
 
         let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
         let registry = registryOverride ?? BuiltinPluginRegistry.shared
@@ -292,6 +346,12 @@ final class LauncherManager: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
             }
             guard !Task.isCancelled else { return }
+            // C-PARAM-ISOLATE：debounce 落地前再次校验锁定态（用户可能在等待期间退出锁定）
+            if self.lockedCommand != nil {
+                self.instantActions = []
+                self.instantSelectedIndex = -1
+                return
+            }
             let acts = await registry.actions(for: query)
             guard !Task.isCancelled else { return }
             self.instantActions = acts
@@ -339,6 +399,45 @@ final class LauncherManager: ObservableObject {
     /// 切换当前导航活动区（C2/C5）：LauncherInputView 跨区边界处理时调用。
     func setActiveCandidateZone(_ zone: CandidateZone) {
         activeCandidateZone = zone
+    }
+
+    // MARK: - command 锁定（方案 B 两阶段，C-LOCK-NOT-EXECUTE / C-MULTI-SELECT-LOCK）
+
+    /// 多命中显式选中锁定（C-MULTI-SELECT-LOCK）：用户在候选态按 Enter/Tab/点击候选行 →
+    /// 设 `lockedCommand = commandRouteCandidates[commandRouteSelectedIndex]`，**不执行**。
+    /// 调用方负责先 `setCommandRouteSelectedIndex(_:)` 定位选中项。
+    /// 命中后清候选（参数态隐藏候选，C-PARAM-ISOLATE）。
+    func selectCommandRouteCandidateForLock() {
+        guard commandRouteCandidates.indices.contains(commandRouteSelectedIndex) else { return }
+        lockedCommand = commandRouteCandidates[commandRouteSelectedIndex]
+        // 锁定后进入参数输入态：候选隐藏 + instant 隔离
+        commandRouteCandidates = []
+        commandRouteSelectedIndex = -1
+        instantActions = []
+        instantSelectedIndex = -1
+        if let locked = lockedCommand {
+            lastRoutePluginName = locked.name
+        }
+    }
+
+    /// 退出锁定（C-ESC-EXIT）：esc / 清空输入框时调用，仅清 `lockedCommand`，**不 hide 面板**。
+    /// 注：清空输入框路径由 `updateQuery("")` 空分支自行清 lockedCommand，此方法主要服务 esc 分层。
+    func clearLockedCommand() {
+        lockedCommand = nil
+    }
+
+    /// 测试 seam：镜像 `LauncherInputView.handleEscape` 的退锁分支（C-ESC-EXIT），
+    /// 供验收测试从 LauncherManager 直驱 esc 退锁（不经 UI onExitCommand）。
+    /// lockedCommand 非空 → 仅清锁（不 hide，保留输入框）；空 → no-op（真实 hide 由 UI 层处理）。
+    func handleEscapeForTesting() {
+        if lockedCommand != nil {
+            clearLockedCommand()
+        }
+    }
+
+    /// 执行完成复位（C-EXEC-ON-ENTER 收尾 / .done 分支调用）：清 `lockedCommand`，回到初始候选态。
+    func resetLockedCommandAfterDone() {
+        lockedCommand = nil
     }
 
     /// C5 契约：若有选中的即时 action，执行并返回 true（已消费，不走 AI）；否则返回 false。
@@ -399,8 +498,7 @@ final class LauncherManager: ObservableObject {
             stage = .error
             return Self.errorStream(.networkFailure(error))
         }
-        // provider 可选：command mode（零 LLM）不需 provider；directChat/stdin/prompt 需要。
-        // command 短路在 detached 内独立处理（用户无 LLM provider 也能用 qr 等命令插件）。
+        // provider 可选：directChat/stdin/prompt 需要（command mode 走 submitCommandDirect，零 LLM，不经 submit）。
         let providerConfig = config.activeProvider.isEmpty
             ? nil
             : config.providers[config.activeProvider]
@@ -419,65 +517,12 @@ final class LauncherManager: ObservableObject {
         return AsyncStream { continuation in
             // Task.detached 离开 MainActor，避免阻塞 UI 线程（保留 task 003 结构）
             let task = Task.detached {
-                // command mode 短路（零 LLM，不需 provider）：QR 等确定性命令插件在用户无 LLM provider 时也应可用。
-                // 静态 narrowCandidates 判断唯一/strong 命中 + command mode → 直接执行，bypass provider/router/agent loop。
-                let scored = LauncherRouter.narrowCandidatesScored(
-                    query: query,
-                    plugins: (try? PluginManager.shared.list()) ?? []
-                )
-                let topManifest = scored.first?.manifest
-                let topIsCommand: Bool = {
-                    guard case .command = topManifest?.modeConfig else { return false }
-                    return true
-                }()
-                let isShortCircuit = !scored.isEmpty && (
-                    scored.count == 1 || (scored.first?.score ?? 0) >= LauncherConstants.routerSkipScore
-                )
-                if isShortCircuit && topIsCommand, let manifest = topManifest,
-                   let dir = try? PluginManager.shared.pluginDir(for: manifest) {
-                    BuddyLogger.shared.info("submit: command shortcut hit", subsystem: "launcher", meta: ["plugin": manifest.name])
-                    await MainActor.run {
-                        LauncherManager.shared.lastRouteCandidates = scored.map(\.manifest)
-                        LauncherManager.shared.lastRouteSelectedIndex = 0
-                        LauncherManager.shared.lastRoutePluginName = manifest.name
-                        LauncherManager.shared.stage = .calling
-                    }
-                    let executablePath = dir.appending(path: manifest.cmd)
-                    let trusted = await TrustStore.shared.checkAndPrompt(manifest, executablePath: executablePath)
-                    guard trusted else {
-                        BuddyLogger.shared.warn("submit: command shortcut trust failed", subsystem: "launcher", meta: ["plugin": manifest.name])
-                        continuation.yield(.error(.pluginNotTrusted(manifest.name)))
-                        continuation.finish()
-                        await MainActor.run {
-                            LauncherManager.shared.stage = .idle
-                            LauncherManager.shared.isSubmitting = false
-                        }
-                        return
-                    }
-                    let strippedQuery = Self.stripKeywordPrefix(query, manifest: manifest)
-                    let pluginInput = PluginInput(query: strippedQuery, sessionId: UUID().uuidString, cwd: NSHomeDirectory())
-                    await MainActor.run { LauncherManager.shared.stage = .streaming }
-                    do {
-                        let result = try await PluginDispatcher(stdinExecutor: .shared).execute(manifest, pluginDir: dir, input: pluginInput)
-                        if !result.stdout.isEmpty { continuation.yield(.text(result.stdout)) }
-                        if let imageData = result.image { continuation.yield(.image(imageData)) }
-                        if let candidates = result.candidates { continuation.yield(.candidates(candidates)) }
-                        if result.exitCode != 0 && result.stdout.isEmpty && result.image == nil && result.candidates == nil {
-                            continuation.yield(.text(result.stderr.isEmpty ? "未生成图片" : result.stderr))
-                        }
-                        continuation.yield(.done(reason: "end_turn"))
-                    } catch let err as LauncherError {
-                        continuation.yield(.error(err))
-                    } catch {
-                        continuation.yield(.error(.networkFailure(error)))
-                    }
-                    await MainActor.run {
-                        LauncherManager.shared.stage = .idle
-                        LauncherManager.shared.isSubmitting = false
-                    }
-                    continuation.finish()
-                    return
-                }
+                // command mode 执行统一经 lockedCommand + submitCommandDirect（方案 B 两阶段，
+                // C-LOCK-NOT-EXECUTE / C-EXEC-ON-ENTER）。submit() 仅在落回 AI 流时被调用
+                //（command 已被 lockedCommand 在 LauncherInputView 拦截，不会进 submit）。
+                // 故此处不再做 command 短路——旧短路段走 narrowCandidatesScored(contains) 判断
+                // 唯一/strong 命中直接执行，与新「唯一命中=自动锁定≠执行」语义矛盾，已移除（T2 决策）。
+                // 「无 provider 也能用 command」目标由 lockedCommand 自动锁 + submitCommandDirect（零 LLM）保留。
 
                 // 非 command 短路：需 provider（directChat/aiSelect/stdin/prompt）
                 guard let providerConfig = providerConfig, let store = store else {

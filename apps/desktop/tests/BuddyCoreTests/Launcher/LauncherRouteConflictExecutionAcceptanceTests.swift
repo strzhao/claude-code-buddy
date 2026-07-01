@@ -63,21 +63,21 @@ private final class FailingStdinExecutor: StdinExecutor {
 // MARK: - Helpers
 
 private func makeCommandManifest(name: String, keywords: [String], cmd: String = "./run.sh") throws -> PluginManifest {
-    let json = """
-    {
-      "name": "\(name)",
-      "version": "0.1.0",
-      "description": "command mode fixture",
-      "keywords": \(keywords.map { "\"\($0)\"" }),
-      "mode": "command",
-      "cmd": "\(cmd)",
-      "args": [],
-      "env": null,
-      "requiredPath": null,
-      "timeout": 5
-    }
-    """
-    let data = json.data(using: .utf8) ?? Data()
+    // 用 JSONSerialization 正确编码 keywords（避免字符串插值把 keyword 包成带引号字面量，
+    // 导致 commandPrefixMatched 严格前缀匹配漏命中）。
+    let json: [String: Any] = [
+        "name": name,
+        "version": "0.1.0",
+        "description": "command mode fixture",
+        "keywords": keywords,
+        "mode": "command",
+        "cmd": cmd,
+        "args": [] as [String],
+        "env": NSNull(),
+        "requiredPath": NSNull(),
+        "timeout": 5
+    ]
+    let data = try JSONSerialization.data(withJSONObject: json)
     return try JSONDecoder().decode(PluginManifest.self, from: data)
 }
 
@@ -239,8 +239,10 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
     func test_scenario2_P3_commandDefault_appLauncherNotInvokedWhenCommandZoneActive() async throws {
         let recordingLauncher = RecordingAppLauncher()
         LauncherManager.shared.registryOverride = makeAppLauncherRegistry(launcher: recordingLauncher)
-        let qzh = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
-        LauncherManager.shared.pluginsOverride = [qzh]
+        // 多命中（2 个共享 keyword「qzh」），避免唯一命中自动锁定使候选清空 + instant 隔离。
+        let qzh1 = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
+        let qzh2 = try makeCommandManifest(name: "qzh2", keywords: ["qzh"])
+        LauncherManager.shared.pluginsOverride = [qzh1, qzh2]
 
         // 跳过 debounce，使 updateQuery 后 instantActions 快速落地（与其他测试同模式）
         LauncherManager.shared.instantDebounceMsOverride = 0
@@ -254,8 +256,8 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
         // 诊断：确认 override 注入未丢 + 状态
         XCTAssertNotNil(LauncherManager.shared.registryOverride,
                         "[场景2.P3 诊断] registryOverride 注入必须保留")
-        XCTAssertEqual(LauncherManager.shared.pluginsOverride?.count, 1,
-                       "[场景2.P3 诊断] pluginsOverride 必须含 1 个 manifest")
+        XCTAssertEqual(LauncherManager.shared.pluginsOverride?.count, 2,
+                       "[场景2.P3 诊断] pluginsOverride 必须含 2 个 manifest（多命中）")
 
         // 前提：instant 区含 Qzhddr 候选（否则空判无意义）
         XCTAssertFalse(LauncherManager.shared.instantActions.isEmpty,
@@ -435,14 +437,16 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
     // 单测可达层：不调 submitCommandDirect（避免 PluginManager/TrustStore 阻塞），
     //   验「清空 commandRouteCandidates 后重新 updateQuery 能重新填充 + 选中在界内」（交互链不死的 det-machine 契约）。
     func test_scenario7_P3_reQueryRepoulates_afterClear() async throws {
-        let qzh = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
+        // 多命中（2 个共享 keyword），避免唯一命中自动锁定使候选清空。
+        let qzh1 = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
+        let qzh2 = try makeCommandManifest(name: "qzh2", keywords: ["qzh"])
         LauncherManager.shared.registryOverride = makeEmptyInstantRegistry()
-        LauncherManager.shared.pluginsOverride = [qzh]
+        LauncherManager.shared.pluginsOverride = [qzh1, qzh2]
 
         LauncherManager.shared.show()
         LauncherManager.shared.updateQuery("qzh")
         await waitForQuerySettled()
-        XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "前提：command 命中")
+        XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "前提：多命中 command 候选列出")
 
         // 模拟执行失败后的状态扰动（清空，镜像 B2 prologue 效果）
         LauncherManager.shared.updateQuery("")

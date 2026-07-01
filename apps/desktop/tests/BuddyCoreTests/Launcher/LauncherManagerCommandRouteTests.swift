@@ -40,25 +40,42 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
         try await super.tearDown()
     }
 
-    // MARK: - C1/C9：updateQuery 填充 command-mode 子集
+    // MARK: - C1/C9：updateQuery 多命中填充 command-mode 子集（唯一命中改自动锁定，见 C-UNIQUE-AUTOLOCK 测试）
 
-    /// updateQuery 命中 command 插件时，commandRouteCandidates 含该 command 插件。
-    func test_C1_updateQuery_fillsCommandRouteCandidates_withCommandMode() async {
+    /// updateQuery 多命中 command 插件时，commandRouteCandidates 含这些 command 插件（C-MULTI-SELECT-LOCK）。
+    /// 注：唯一命中已改为「自动锁定 + 候选清空」（C-UNIQUE-AUTOLOCK），多命中才列候选。
+    func test_C1_updateQuery_multiHit_fillsCommandRouteCandidates_withCommandMode() async {
+        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        LauncherManager.shared.pluginsOverride = [qa, qb]
+        LauncherManager.shared.instantDebounceMsOverride = 0
+
+        LauncherManager.shared.updateQuery("q xxx")
+        // 等 sync 部分落地（commandRouteCandidates 是 updateQuery 同步段填充）
+        await Task.yield()
+
+        XCTAssertEqual(LauncherManager.shared.commandRouteCandidates.count, 2,
+            "C1: 多命中 command 插件后 commandRouteCandidates 应含 2 项")
+        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.allSatisfy {
+            if case .command = $0.modeConfig { return true }; return false
+        }, "C9: commandRouteCandidates 必须全部为 command mode")
+        XCTAssertNil(LauncherManager.shared.lockedCommand,
+            "C-MULTI-SELECT-LOCK: 多命中不应自动锁定")
+    }
+
+    /// C-UNIQUE-AUTOLOCK：唯一命中 → 自动锁定，候选清空。
+    func test_C1_updateQuery_uniqueHit_autoLocks() async {
         let qzh = makeCommandManifest(name: "qzh", keywords: ["qzh"])
         LauncherManager.shared.pluginsOverride = [qzh]
         LauncherManager.shared.instantDebounceMsOverride = 0
 
         LauncherManager.shared.updateQuery("qzh")
-        // 等 sync 部分落地（commandRouteCandidates 是 updateQuery 同步段填充）
         await Task.yield()
 
-        XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty,
-            "C1: updateQuery 命中 command 插件后 commandRouteCandidates 必须非空")
-        XCTAssertEqual(LauncherManager.shared.commandRouteCandidates.first?.name, "qzh",
-            "C1: commandRouteCandidates 首项应为 qzh")
-        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.allSatisfy {
-            if case .command = $0.modeConfig { return true }; return false
-        }, "C9: commandRouteCandidates 必须全部为 command mode")
+        XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qzh",
+            "C-UNIQUE-AUTOLOCK: 唯一命中应自动锁定 qzh")
+        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.isEmpty,
+            "C-UNIQUE-AUTOLOCK: 唯一命中锁定后候选应清空")
     }
 
     /// stdin/prompt 插件不进 commandRouteCandidates（C9）。
@@ -74,19 +91,21 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
             "C9: stdin/prompt 插件不应进 commandRouteCandidates")
     }
 
-    // MARK: - C2：activeCandidateZone 默认 + 选中索引
+    // MARK: - C2：activeCandidateZone 默认 + 选中索引（多命中两区并存场景）
 
-    /// 两区并存时默认 activeCandidateZone=.commandRoute + commandRouteSelectedIndex=0 + instant 不预选。
+    /// 两区并存（多命中 command + instant）时默认 activeCandidateZone=.commandRoute + commandRouteSelectedIndex=0 + instant 不预选。
+    /// 注：唯一 command 命中会自动锁定（C-UNIQUE-AUTOLOCK）隔离 instant；此测试用多命中验证两区并存。
     func test_C2_bothZonesPresent_defaultActiveIsCommandRoute() async {
-        let qzh = makeCommandManifest(name: "qzh", keywords: ["qzh"])
-        LauncherManager.shared.pluginsOverride = [qzh]
+        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        LauncherManager.shared.pluginsOverride = [qa, qb]
         let registry = makeRegistryWithFixedActions([
             makeAction(id: "qzhddr-app", title: "Qzhddr")
         ])
         LauncherManager.shared.registryOverride = registry
         LauncherManager.shared.instantDebounceMsOverride = 0
 
-        LauncherManager.shared.updateQuery("qzh")
+        LauncherManager.shared.updateQuery("q xxx")
         try? await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertEqual(LauncherManager.shared.activeCandidateZone, .commandRoute,
@@ -116,8 +135,8 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
             "C10: 仅 instant 命中时 commandRouteCandidates 应空")
     }
 
-    /// 仅 command 命中时 activeCandidateZone=.commandRoute + commandRouteSelectedIndex=0。
-    func test_C10_onlyCommand_activeZoneCommandRoute() async {
+    /// 仅 command 唯一命中 → 自动锁定（C-UNIQUE-AUTOLOCK）：候选清空 + instant 隔离 + activeCandidateZone 不再 commandRoute。
+    func test_C10_onlyCommand_uniqueHit_autoLocks() async {
         let qzh = makeCommandManifest(name: "qzh", keywords: ["qzh"])
         LauncherManager.shared.pluginsOverride = [qzh]
         LauncherManager.shared.instantDebounceMsOverride = 0
@@ -127,12 +146,12 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
         LauncherManager.shared.updateQuery("qzh")
         try? await Task.sleep(nanoseconds: 100_000_000)
 
-        XCTAssertEqual(LauncherManager.shared.activeCandidateZone, .commandRoute,
-            "C10: 仅 command 命中时 activeCandidateZone 应为 .commandRoute")
-        XCTAssertEqual(LauncherManager.shared.commandRouteSelectedIndex, 0,
-            "C10: 仅 command 时 commandRouteSelectedIndex 应为 0")
+        XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qzh",
+            "C-UNIQUE-AUTOLOCK: 唯一命中应自动锁定 qzh")
+        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.isEmpty,
+            "C-UNIQUE-AUTOLOCK: 锁定后候选应清空")
         XCTAssertTrue(LauncherManager.shared.instantActions.isEmpty,
-            "C10: 仅 command 时 instantActions 应空")
+            "C-PARAM-ISOLATE: 锁定后 instantActions 应空")
 
         LauncherManager.shared.registryOverride = nil
     }
@@ -140,11 +159,13 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
     // MARK: - C1 复位点：空 query / show / hide
 
     /// 空 query 清空 commandRouteCandidates + commandRouteSelectedIndex=-1。
+    /// precondition 用多命中（唯一命中会自动锁定使候选清空，无法验证「空 query 清候选」）。
     func test_C1_emptyQuery_clearsCommandRoute() async {
-        let qzh = makeCommandManifest(name: "qzh", keywords: ["qzh"])
-        LauncherManager.shared.pluginsOverride = [qzh]
+        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        LauncherManager.shared.pluginsOverride = [qa, qb]
 
-        LauncherManager.shared.updateQuery("qzh")
+        LauncherManager.shared.updateQuery("q xxx")
         await Task.yield()
         XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "precondition")
 
@@ -155,12 +176,27 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
             "C1: 空 query 应复位 commandRouteSelectedIndex 为 -1")
     }
 
-    /// show() 清空 commandRoute 状态。
-    func test_C1_show_clearsCommandRoute() async {
+    /// C-ESC-EXIT：唯一命中锁定后，空 query 应清 lockedCommand。
+    func test_C1_emptyQuery_clearsLockedCommand() async {
         let qzh = makeCommandManifest(name: "qzh", keywords: ["qzh"])
         LauncherManager.shared.pluginsOverride = [qzh]
 
         LauncherManager.shared.updateQuery("qzh")
+        await Task.yield()
+        XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qzh", "precondition: 已锁定")
+
+        LauncherManager.shared.updateQuery("")
+        XCTAssertNil(LauncherManager.shared.lockedCommand,
+            "C-ESC-EXIT: 空 query 应清 lockedCommand")
+    }
+
+    /// show() 清空 commandRoute 状态 + lockedCommand（C-ESC-EXIT 复位点）。
+    func test_C1_show_clearsCommandRoute() async {
+        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        LauncherManager.shared.pluginsOverride = [qa, qb]
+
+        LauncherManager.shared.updateQuery("q xxx")
         await Task.yield()
         XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "precondition")
 
@@ -169,6 +205,8 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
             "C1: show() 应清空 commandRouteCandidates")
         XCTAssertEqual(LauncherManager.shared.commandRouteSelectedIndex, -1,
             "C1: show() 应复位 commandRouteSelectedIndex 为 -1")
+        XCTAssertNil(LauncherManager.shared.lockedCommand,
+            "C1: show() 应清 lockedCommand")
         LauncherManager.shared.hide()
     }
 
@@ -252,16 +290,18 @@ final class LauncherManagerCommandRouteTests: XCTestCase {
     }
 
     /// C11/B2：submitCommandDirect prologue 清空 commandRouteCandidates + selectedIndex=-1。
+    /// precondition 用多命中（唯一命中会自动锁定使候选清空）。
     func test_C11_submitCommandDirect_prologue_clearsCommandRoute() async {
-        let qzh = makeCommandManifest(name: "qzh-clear", keywords: ["qzh"])
-        LauncherManager.shared.pluginsOverride = [qzh]
+        let qzh = makeCommandManifest(name: "qzh-clear", keywords: ["q"])
+        let other = makeCommandManifest(name: "other-clear", keywords: ["q"])
+        LauncherManager.shared.pluginsOverride = [qzh, other]
         LauncherManager.shared.stdinExecutorOverride = CountingStdinExecutorSpy()
 
-        LauncherManager.shared.updateQuery("qzh")
+        LauncherManager.shared.updateQuery("q xxx")
         await Task.yield()
         XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "precondition")
 
-        let stream = LauncherManager.shared.submitCommandDirect(qzh, query: "qzh")
+        let stream = LauncherManager.shared.submitCommandDirect(qzh, query: "q xxx")
         // 消费流驱动 prologue 落地
         for await _ in stream {}
 

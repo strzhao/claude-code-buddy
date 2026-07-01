@@ -70,6 +70,51 @@ final class LauncherRouter {
         return narrowCandidatesScored(query: query, plugins: plugins).map(\.manifest)
     }
 
+    /// command mode 命中判断（C-PREFIX-MATCH / C-REUSE-STRIP）。
+    ///
+    /// 复用 `LauncherManager.stripKeywordPrefix`（LauncherManager.swift）已验证的
+    /// 「query 前缀完整匹配某 keyword + 严格分隔符（空白/标点/行尾）」逻辑，
+    /// **方向反过来用于命中判断**：遍历 plugins，仅 `.command` mode；该 plugin 的
+    /// `[name] + keywords` 中任一 `kw` 满足 query 以 kw 开头且 kw 后紧跟分隔符/行尾 → 命中。
+    ///
+    /// 与 `narrowCandidatesScored`（contains 反向打分，服务 stdin/prompt 路由）并存：
+    /// command 命中改走本函数（严格前缀，禁 contains）。
+    ///
+    /// - 返回 `[PluginManifest]`（保持 plugins 原序；非打分，是精确前缀匹配集合）。
+    /// - 行为示例：`qr`/`二维码`/`qr https://x` → 命中 qr；`密码`/`qrcode`/`q` → 不命中任何 command。
+    /// - 纯函数：无 IO / 无副作用，同输入恒等输出（场景12 基线）。
+    static func commandPrefixMatched(
+        query: String,
+        plugins: [PluginManifest]
+    ) -> [PluginManifest] {
+        guard !query.isEmpty else { return [] }
+        let queryLower = query.lowercased()
+        return plugins.filter { manifest in
+            // C-SCOPE-COMMAND-ONLY：仅 .command mode
+            guard case .command = manifest.modeConfig else { return false }
+            // C-REUSE-STRIP：候选前缀集合 = [name] + keywords，trim + 去空，长前缀优先
+            let prefixes = ([manifest.name] + manifest.keywords)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+                .sorted { $0.count > $1.count }
+            for prefix in prefixes {
+                let prefixLower = prefix.lowercased()
+                guard queryLower.hasPrefix(prefixLower) else { continue }
+                // 严格分隔：prefix 后必须紧跟空白 / 标点 / 行尾（与 stripKeywordPrefix 同语义）
+                let after = query.index(query.startIndex, offsetBy: prefix.count)
+                if after == query.endIndex {
+                    return true  // query 恰是 keyword 本身（行尾）
+                }
+                let nextChar = query[after]
+                if nextChar.isWhitespace || nextChar.isPunctuation {
+                    return true
+                }
+                // 当前 prefix 不是分隔边界，继续试下一个（长前缀优先已排序）
+            }
+            return false
+        }
+    }
+
     /// 带得分的候选列表（保留排序），供路由短路判断使用
     /// score >= LauncherConstants.routerSkipScore 时直接命中，无需 AI 路由
     static func narrowCandidatesScored(

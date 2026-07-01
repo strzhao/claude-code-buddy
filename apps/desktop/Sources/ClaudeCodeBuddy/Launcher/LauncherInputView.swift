@@ -39,15 +39,19 @@ struct LauncherInputView: View {
 
     /// 内置 App 候选（AppLauncher 用）是否显示：safe period 且无结果展示
     /// 方案 B：外部 command 插件候选行恢复（分区渲染，C3）
+    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）隐藏，专注参数输入。
     private var showInstantCandidates: Bool {
         guard !hasOutput else { return false }
+        guard manager.lockedCommand == nil else { return false }
         return manager.stage == .idle || manager.stage == .narrowing || manager.stage == .routing
     }
 
     /// command 路由候选区是否显示（方案 B，C3）：safe period 且无结果展示且 commandRouteCandidates 非空。
     /// 与 showInstantCandidates 可同时为 true（两区并存渲染）。
+    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）隐藏（候选区整块消失）。
     private var showCommandRouteCandidates: Bool {
         guard !hasOutput else { return false }
+        guard manager.lockedCommand == nil else { return false }
         return (manager.stage == .idle || manager.stage == .narrowing || manager.stage == .routing)
             && !manager.commandRouteCandidates.isEmpty
     }
@@ -76,8 +80,11 @@ struct LauncherInputView: View {
                             manager.updateQuery(new)
                         }
 
-                    // Plugin watermark chip — 显示命中的 plugin 名称
-                    if let pluginName = activePluginName {
+                    // Plugin watermark chip — 显示命中的 plugin 名称；锁定态显示「已锁定」chip（参数态视觉反馈）
+                    if let locked = manager.lockedCommand {
+                        LockedCommandChip(name: locked.name)
+                            .padding(.trailing, 14)
+                    } else if let pluginName = activePluginName {
                         PluginWatermarkChip(name: pluginName)
                             .padding(.trailing, 14)
                     }
@@ -86,7 +93,7 @@ struct LauncherInputView: View {
             .frame(height: LauncherConstants.inputHeight)
 
             // command 路由候选区（方案 B C3/C7，最上层）：用户安装的 command 插件候选行。
-            // 点击行 → onSelect 触发 submitCommandDirect（C11 command 短路执行）。
+            // 点击行 → onSelect 设 lockedCommand（C-LOCK-NOT-EXECUTE：选中 = 锁定，不执行）。
             if showCommandRouteCandidates {
                 LauncherCandidateView(
                     candidates: manager.commandRouteCandidates,
@@ -94,11 +101,12 @@ struct LauncherInputView: View {
                     // 非活动区传 -1（不亮）——保证任意时刻全屏只有一个高亮行（修真机两区同亮 bug）
                     selectedIndex: manager.activeCandidateZone == .commandRoute ? manager.commandRouteSelectedIndex : -1,
                     onSelect: { manifest in
-                        // 点击定位索引后触发 submit（submit 按 activeCandidateZone 派发）
+                        // C-LOCK-NOT-EXECUTE：点击 = 选中锁定，不执行（与 Enter/Tab 选中同义）
                         if let idx = manager.commandRouteCandidates.firstIndex(where: { $0.name == manifest.name }) {
                             manager.setCommandRouteSelectedIndex(idx)
                             manager.setActiveCandidateZone(.commandRoute)
-                            Task { await submit() }
+                            manager.selectCommandRouteCandidateForLock()
+                            focused = true
                         }
                     }
                 )
@@ -282,10 +290,20 @@ struct LauncherInputView: View {
             }
         }
         .onDisappear {}
-        .onExitCommand { manager.hide() }   // Esc → hide（focus 在 view 内时生效）
+        .onExitCommand { handleEscape() }   // Esc：分层（C-ESC-EXIT）—— lockedCommand 非空只清锁，否则 hide
         // 上下箭头键导航候选列表：instant 优先，否则原有 lastRoute 逻辑（C5 契约）
         .onKeyPress(.upArrow) { navigateUp() }
         .onKeyPress(.downArrow) { navigateDown() }
+        // 方案 B 两阶段（C-LOCK-NOT-EXECUTE）：候选态 Tab = 选中锁定（与 Enter 选中同义；Enter 在参数态才执行）。
+        .onKeyPress(.tab) {
+            if manager.activeCandidateZone == .commandRoute,
+               manager.commandRouteCandidates.indices.contains(manager.commandRouteSelectedIndex) {
+                manager.selectCommandRouteCandidateForLock()
+                focused = true
+                return .handled
+            }
+            return .ignored
+        }
         // task 011 交互优化：emacs 键位 Ctrl-N（下）/ Ctrl-P（上）。
         // 用 phases:.down 的 catch-all 读 modifiers/key；非 Ctrl-N/P 一律 .ignored 让普通输入透传到 TextField。
         .onKeyPress(phases: .down) { press in
@@ -298,12 +316,27 @@ struct LauncherInputView: View {
         }
     }
 
+    // MARK: - Esc 分层（C-ESC-EXIT）
+
+    /// Esc 分层处理：lockedCommand 非空 → 拦截只清 lockedCommand（保留输入框供改输）；nil → 维持 hide。
+    private func handleEscape() {
+        if manager.lockedCommand != nil {
+            manager.clearLockedCommand()
+            // 退出锁定后重新匹配当前 query（恢复候选态）
+            manager.updateQuery(query)
+        } else {
+            manager.hide()
+        }
+    }
+
     // MARK: - 候选导航（箭头 / emacs Ctrl-N·P 共用）
 
     /// 向上移动选中：C5 四态矩阵派发。
     /// pluginCandidates 通道(post-exec) 隔离 → commandRoute → instant → aiRoute 兜底。
     /// commandRoute+instant 并存：边界跨区（instant 首↑→commandRoute 末），区内环形。
+    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）候选区空，↑↓ 无效（忽略，让光标在输入框正常编辑）。
     private func navigateUp() -> KeyPress.Result {
+        if manager.lockedCommand != nil { return .ignored }
         // C5：pluginCandidates 通道非空 → 仅区内环形，隔离其他三区（既有短路保留）
         if !pluginCandidates.isEmpty {
             let count = pluginCandidates.count
@@ -343,7 +376,9 @@ struct LauncherInputView: View {
     }
 
     /// 向下移动选中：C5 四态矩阵派发（对称 navigateUp）。
+    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）↑↓ 无效（忽略）。
     private func navigateDown() -> KeyPress.Result {
+        if manager.lockedCommand != nil { return .ignored }
         if !pluginCandidates.isEmpty {
             let count = pluginCandidates.count
             pluginCandidateIndex = (pluginCandidateIndex >= count - 1) ? 0 : pluginCandidateIndex + 1
@@ -439,15 +474,13 @@ struct LauncherInputView: View {
     }
 
     private func submit() async {
-        // 方案 B C4：Enter 优先级按 activeCandidateZone 派发。
-        // commandRoute 优先（用户主动安装的 command 插件）→ instant → pluginCandidates 回调 → AI 路由。
+        // 方案 B 两阶段（C-LOCK-NOT-EXECUTE / C-EXEC-ON-ENTER）：
+        // 候选态选中 command 行 = 设 lockedCommand（不执行）；参数态 Enter = 执行 lockedCommand。
 
-        // C4：commandRoute 区选中 → submitCommandDirect（C11 command 短路，零 provider/零 LLM）→ return。
-        if manager.activeCandidateZone == .commandRoute,
-           manager.commandRouteCandidates.indices.contains(manager.commandRouteSelectedIndex) {
-            let manifest = manager.commandRouteCandidates[manager.commandRouteSelectedIndex]
+        // C-EXEC-ON-ENTER：参数态（lockedCommand != nil）+ Enter → submitCommandDirect 执行。
+        // 必须在候选选中分支之前（参数态候选区已空，不会再命中候选选中分支）。
+        if let locked = manager.lockedCommand {
             let q = query
-            // 回调前清空产物，进入新的结果展示
             await MainActor.run {
                 outputBuffer = ""
                 actions = []
@@ -456,11 +489,20 @@ struct LauncherInputView: View {
                 resultImageData = nil
                 copied = false
             }
-            // 记录原始 query + manifest（候选回调 C5 用：同 query 重入同插件）
             callbackQuery = q
-            callbackManifest = manifest
-            let stream = manager.submitCommandDirect(manifest, query: q)
+            callbackManifest = locked
+            let stream = manager.submitCommandDirect(locked, query: q)
             await consume(stream)
+            return
+        }
+
+        // C-LOCK-NOT-EXECUTE：候选态 .commandRoute 选中（Enter/Tab/点击）→ 设 lockedCommand，**不执行**。
+        // 回填策略：锁定后不回填 name，保持用户原文（唯一命中已输 keyword；多命中输的是共用 keyword）。
+        if manager.activeCandidateZone == .commandRoute,
+           manager.commandRouteCandidates.indices.contains(manager.commandRouteSelectedIndex) {
+            manager.selectCommandRouteCandidateForLock()
+            // 锁定后焦点回输入框（继续输参数），不执行
+            focused = true
             return
         }
 
@@ -562,6 +604,8 @@ struct LauncherInputView: View {
             case .done:
                 await MainActor.run {
                     query = ""
+                    // C-EXEC-ON-ENTER 收尾：执行完成清 lockedCommand，回到初始候选态
+                    manager.resetLockedCommandAfterDone()
                     focused = true   // 流式结束后重新聚焦输入框，方便连续提问
                 }
             case .error(let err):

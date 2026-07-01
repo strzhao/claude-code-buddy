@@ -5,7 +5,7 @@ import AppKit
 // MARK: - 蓝队单元测试：SettingsSection 枚举 + SettingsSidebarViewController 数据驱动
 //
 // 覆盖可自动化验证的契约：
-//   - 契约 3：6 项顺序 [皮肤/插件/热键/通用/关于/AI 配置]
+//   - 契约 3：6 项顺序 [皮肤/插件/热键/AI 配置/通用/关于]
 //   - 契约 2：allCases 单一数据源
 //   - 契约 4：持久化 key `SettingsSelectedCategory` + 默认 .skins
 //   - 契约 7：AX identifier 命名
@@ -23,15 +23,15 @@ final class SettingsSidebarTests: XCTestCase {
                        "sidebar 分类必须恰好 6 项（含 AI 配置）")
     }
 
-    func test_section_order_is_skins_plugins_hotkey_general_about_ai() {
+    func test_section_order_is_skins_plugins_hotkey_ai_general_about() {
         let rawValues = SettingsSection.allCases.map { $0.rawValue }
-        XCTAssertEqual(rawValues, ["skins", "plugins", "hotkey", "general", "about", "ai"],
-                       "sidebar 顺序必须为 [皮肤/插件/热键/通用/关于/AI 配置]")
+        XCTAssertEqual(rawValues, ["skins", "plugins", "hotkey", "ai", "general", "about"],
+                       "sidebar 顺序必须为 [皮肤/插件/热键/AI 配置/通用/关于]")
     }
 
     func test_section_displayTitles_match_order() {
         let titles = SettingsSection.allCases.map { $0.displayTitle }
-        XCTAssertEqual(titles, ["皮肤", "插件", "热键", "通用", "关于", "AI 配置"],
+        XCTAssertEqual(titles, ["皮肤", "插件", "热键", "AI 配置", "通用", "关于"],
                        "displayTitle 必须与 rawValue 顺序一致，中文展示名")
     }
 

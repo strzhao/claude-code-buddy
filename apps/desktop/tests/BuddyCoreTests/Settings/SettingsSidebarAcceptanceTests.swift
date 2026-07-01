@@ -230,19 +230,19 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         // SC-03 真机谓词：AXSplitGroup children==2。单元层通过 NSSplitViewItem 数量断言覆盖。
     }
 
-    // MARK: - SC-04 sidebar 5 项顺序 [皮肤/插件/热键/通用/关于]
+    // MARK: - SC-04 sidebar 6 项顺序 [皮肤/插件/热键/AI 配置/通用/关于]
 
-    /// 契约 3：sidebar 恰好 6 项，顺序 [皮肤,插件,热键,通用,关于,AI 配置]。
+    /// 契约 3：sidebar 恰好 6 项，顺序 [皮肤,插件,热键,AI 配置,通用,关于]。
     /// 契约 2：sidebar 分类来自单一数据源 SettingsSection.allCases。
     func test_SC04_SettingsSection_allCases_isSixInOrder() {
         // SettingsSection.allCases 恰好 6 项
         XCTAssertEqual(SettingsSection.allCases.count, 6,
                        "SettingsSection.allCases 必须恰好 6 项，实际: \(SettingsSection.allCases.count)")
 
-        // 顺序逐字断言：skins, plugins, hotkey, general, about, ai
-        let expected: [SettingsSection] = [.skins, .plugins, .hotkey, .general, .about, .ai]
+        // 顺序逐字断言：skins, plugins, hotkey, ai, general, about
+        let expected: [SettingsSection] = [.skins, .plugins, .hotkey, .ai, .general, .about]
         XCTAssertEqual(SettingsSection.allCases, expected,
-                       "SettingsSection.allCases 顺序必须为 [skins, plugins, hotkey, general, about, ai]")
+                       "SettingsSection.allCases 顺序必须为 [skins, plugins, hotkey, ai, general, about]")
 
         // 各 case rawValue 逐字断言（契约 4 持久化值依赖）
         XCTAssertEqual(SettingsSection.skins.rawValue, "skins")

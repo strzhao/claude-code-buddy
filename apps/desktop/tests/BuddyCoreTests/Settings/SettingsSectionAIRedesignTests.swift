@@ -89,20 +89,18 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
 
     // MARK: - 改动 1：Tab 顺序验证
 
-    /// 验证 SettingsSection.allCases 顺序：skins → plugins → hotkey → general → about → ai。
-    /// ai 必须在 about 之后（末尾）。
-    func test_tabOrder_aiIsAfterAbout() {
+    /// 验证 SettingsSection.allCases 顺序：skins → plugins → hotkey → ai → general → about。
+    /// ai 必须紧随 hotkey 之后（AI 配置在热键下方）。
+    func test_tabOrder_aiIsImmediatelyAfterHotkey() {
         let cases = SettingsSection.allCases
 
-        guard let aboutIndex = cases.firstIndex(of: .about),
+        guard let hotkeyIndex = cases.firstIndex(of: .hotkey),
               let aiIndex = cases.firstIndex(of: .ai) else {
-            return XCTFail("SettingsSection.allCases 必须包含 .about、.ai")
+            return XCTFail("SettingsSection.allCases 必须包含 .hotkey、.ai")
         }
 
-        XCTAssertLessThan(aboutIndex, aiIndex,
-                          "AI 配置 tab 必须在关于之后（末尾），aboutIndex=\(aboutIndex), aiIndex=\(aiIndex)")
-        XCTAssertEqual(aiIndex, cases.count - 1,
-                       "AI 配置 tab 必须是最后一项，aiIndex=\(aiIndex), lastIndex=\(cases.count - 1)")
+        XCTAssertEqual(aiIndex, hotkeyIndex + 1,
+                       "AI 配置 tab 必须紧随热键之后，hotkeyIndex=\(hotkeyIndex), aiIndex=\(aiIndex)")
     }
 
     /// 验证 allCases 完整包含 6 个 case 且顺序正确。
@@ -111,9 +109,9 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
         XCTAssertEqual(cases.count, 6,
                        "SettingsSection.allCases 必须包含 6 个分类，实际: \(cases.count)")
 
-        let expectedOrder: [SettingsSection] = [.skins, .plugins, .hotkey, .general, .about, .ai]
+        let expectedOrder: [SettingsSection] = [.skins, .plugins, .hotkey, .ai, .general, .about]
         XCTAssertEqual(cases, expectedOrder,
-                       "SettingsSection.allCases 顺序必须为 skins→plugins→hotkey→general→about→ai")
+                       "SettingsSection.allCases 顺序必须为 skins→plugins→hotkey→ai→general→about")
     }
 
     /// ai case 的 displayTitle 和 symbolName 正确。

@@ -1,0 +1,87 @@
+.autopilot/knowledge/patterns/2026-07-02-nsscrollview-documentview-autoresizing-width-zero.md
+  75475637de232d16 1-29
+.autopilot/knowledge/index.md
+  75475637de232d16 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6ddf6c3a8ac04f0fdffe4032bd19da0576b15e49",
+  "prompts": {
+    "4005b5e27bc99671": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4e0a95e-7f63-4244-b301-77d1a8110e9d",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/OpenAICompatibleProvider.swift": {
+          "accepted_lines": 24
+        }
+      }
+    },
+    "6a070739c74b29b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9a22bba-8516-4c09-9b68-71a55130f13f",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 497,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "accepted_lines": 6
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "accepted_lines": 433
+        },
+        "homebrew/casks/claude-code-buddy.rb": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "accepted_lines": 21
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "accepted_lines": 36
+        }
+      }
+    },
+    "75475637de232d16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64342537-bd87-4a79-afbe-852e4827ac9b",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 31,
+      "total_deletions": 1,
+      "accepted_lines": 55,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/patterns/2026-07-02-nsscrollview-documentview-autoresizing-width-zero.md": {
+          "additions": 29,
+          "accepted_lines": 29
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/OpenAICompatibleProvider.swift": {
+          "accepted_lines": 24
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

@@ -109,9 +109,10 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
         XCTAssertEqual(cases.count, 6,
                        "SettingsSection.allCases 必须包含 6 个分类，实际: \(cases.count)")
 
-        let expectedOrder: [SettingsSection] = [.skins, .plugins, .hotkey, .ai, .general, .about]
+        // 新顺序（2026-07-02 重排）：plugins → hotkey → ai → skins → general → about
+        let expectedOrder: [SettingsSection] = [.plugins, .hotkey, .ai, .skins, .general, .about]
         XCTAssertEqual(cases, expectedOrder,
-                       "SettingsSection.allCases 顺序必须为 skins→plugins→hotkey→ai→general→about")
+                       "SettingsSection.allCases 顺序必须为 plugins→hotkey→ai→skins→general→about")
     }
 
     /// ai case 的 displayTitle 和 symbolName 正确。
@@ -344,49 +345,51 @@ final class SettingsSectionAIRedesignTests: XCTestCase {
                        + "实际: \(longNonEditable.count)")
     }
 
-    // MARK: - 改动 4：AI 工具组 NSTableView 列表
+    // MARK: - 改动 4：AI 工具组分组列表（T6 重构：弃 NSTableView，改 SettingsGroupView + 只读 ToolItemRow）
 
-    /// AI 工具组必须使用 NSTableView 替换旧硬编码文字展示。
-    /// 验证：ProviderSettingsViewController 的 view 层级中存在 NSTableView。
-    func test_toolsGroup_hasNSTableView_forPluginList() {
+    /// AI 工具组必须含「内置能力」「已装插件」两个 SettingsGroupView（AC-TOOLS-GROUPED）。
+    /// 验证：VC view 层级中存在含对应标题的 SettingsGroupLabel。
+    func test_toolsGroup_hasTwoGroupLabels_builtinAndPlugins() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let tableViews = findAll(NSTableView.self, in: vc.view)
-
-        XCTAssertGreaterThanOrEqual(tableViews.count, 1,
-                                    "AI 工具组必须至少含 1 个 NSTableView（替换硬编码文字），"
-                                    + "实际: \(tableViews.count)")
+        let allTexts = collectAllTexts(in: vc.view)
+        XCTAssertTrue(allTexts.contains("内置能力"),
+                      "AI 工具区必须含「内置能力」分组标题，实际文本: \(allTexts)")
+        // 「已装插件」分组在无插件时整组隐藏，但其 SettingsGroupLabel 仍存在（isHidden=true）
+        // forceLoadView 后 renderToolGroups 已执行，无插件场景下 label.isHidden=true，
+        // 文本仍可在 subviews 中找到（isHidden 不影响 stringValue 收集）
+        XCTAssertTrue(allTexts.contains("已装插件"),
+                      "AI 工具区必须含「已装插件」分组标题（即使无插件也应存在），实际文本: \(allTexts)")
     }
 
-    /// NSTableView 的数据源必须来自 PluginManager（展示已安装插件）。
-    /// 验证：NSTableView 的 dataSource 不为 nil。
-    func test_toolsGroup_tableView_hasDataSource() {
+    /// AI 工具组必须含内置的「朗读回复」和「复制到剪贴板」工具行（人话文案，AC-TOOLS-SUMMARY）。
+    func test_toolsGroup_containsBuiltinSpeakAndCopyRows() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let tableViews = findAll(NSTableView.self, in: vc.view)
-        guard let toolsTable = tableViews.first else {
-            return XCTFail("AI 工具组必须含 NSTableView")
-        }
-
-        // dataSource 必须已设置（来自 PluginManager）
-        XCTAssertNotNil(toolsTable.dataSource,
-                        "NSTableView.dataSource 必须已设置（来自 PluginManager），实际: nil")
+        let allTexts = collectAllTexts(in: vc.view)
+        XCTAssertTrue(allTexts.contains("朗读回复"),
+                      "AI 工具区必须含「朗读回复」内置工具行，实际文本: \(allTexts)")
+        XCTAssertTrue(allTexts.contains("复制到剪贴板"),
+                      "AI 工具区必须含「复制到剪贴板」内置工具行，实际文本: \(allTexts)")
+        XCTAssertTrue(allTexts.contains { $0.contains("读出声") || $0.contains("读出") },
+                      "朗读回复 summary 应含人话说明（把 AI 回复读出声），实际: \(allTexts)")
     }
 
-    /// NSTableView 必须有至少一列（展示插件名称/描述）。
-    func test_toolsGroup_tableView_hasColumns() {
+    /// AC-TOOLS-NO-JARGON：AI 工具区文案不得含 stdin/command/prompt/mode/attach_action 黑话。
+    func test_toolsGroup_noJargonInText() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let tableViews = findAll(NSTableView.self, in: vc.view)
-        guard let toolsTable = tableViews.first else {
-            return XCTFail("AI 工具组必须含 NSTableView")
-        }
-
-        XCTAssertGreaterThanOrEqual(toolsTable.tableColumns.count, 1,
-                                    "NSTableView 必须至少含 1 列，实际: \(toolsTable.tableColumns.count)")
+        let allTexts = collectAllTexts(in: vc.view)
+        // 把所有文本拼成一段做黑话扫描（忽略大小写）
+        let combined = allTexts.joined(separator: " ").lowercased()
+        let forbidden = ["stdin", "stdout", "command", "prompt mode", "attach_action", "chat_template_kwargs"]
+        let hits = forbidden.filter { combined.contains($0) }
+        XCTAssertTrue(hits.isEmpty,
+                      "AC-TOOLS-NO-JARGON 违反：AI 工具区不得含黑话 \(hits)，"
+                      + "实际文本片段: \(allTexts.filter { !$0.isEmpty }.prefix(20))")
     }
 
     // MARK: - B2：CLIProviderConfig 支持 noThinking 字段

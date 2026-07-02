@@ -28,10 +28,14 @@ final class ProviderSettingsViewController: NSViewController {
     /// 本地追踪 noThinking 状态（SettingsToggleRow 不暴露 isOn getter）
     private var noThinkingEnabled = false
 
-    /// AI 工具列表数据
-    private var toolItems: [String] = []
-    private let toolsTableView = NSTableView()
-    private let emptyToolsLabel = NSTextField(labelWithString: "暂无工具")
+    /// AI 工具列表分组数据（T6：弃 NSTableView，改 SettingsGroupView + ToolItemRow）
+    private var toolGroups: [(title: String, items: [AIToolItem])] = []
+    /// 「内置能力」分组容器（setupLayout 创建，renderToolGroups 填充行）
+    private var builtinToolsGroup: SettingsGroupView!
+    /// 「已装插件」分组容器（setupLayout 创建，renderToolGroups 填充行；无插件时整组隐藏）
+    private var pluginsToolsGroup: SettingsGroupView!
+    /// 「已装插件」分组标题（无插件时一并隐藏）
+    private var pluginsToolsLabel: SettingsGroupLabel!
 
     // MARK: - Group 1 「提供者」控件
 
@@ -56,9 +60,15 @@ final class ProviderSettingsViewController: NSViewController {
     private let testButton = NSButton(title: "🔍 测试连接", target: nil, action: nil)
     private let testSpinner = NSProgressIndicator()
     private let testResultLabel = NSTextField(labelWithString: "")
+    /// 测试结果行容器（idle/检测中整行隐藏，SettingsGroupView stackView 自动塌缩不占位）
+    private let testResultRow = NSView()
 
-    /// noThinking toggle 行（仅 openai-compatible 时可见）
-    private let noThinkingToggleRow = SettingsToggleRow(title: "关闭 LLM 思考模式", subtitle: "适用于 Qwen3 等支持 chat_template_kwargs 的推理模型", isOn: false)
+    /// 「关闭思考」SageSwitch（并入模型行，仅 openai-compatible 时可见，C3 不变）
+    private let noThinkingSwitch = SageSwitch(isOn: false)
+    /// 「关闭思考」label（与 SageSwitch 一同显示/隐藏）
+    private let noThinkingLabel = NSTextField(labelWithString: "关闭思考")
+    /// 「关闭思考」容器（label + switch），整组控制 isHidden 等同旧 noThinkingToggleRow.isHidden
+    private let noThinkingContainer = NSStackView()
 
     // JSON 面板控件
     private let jsonTextView = NSTextView()
@@ -90,25 +100,39 @@ final class ProviderSettingsViewController: NSViewController {
         let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 560))
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
-        setupLayout(in: contentView)
-
         scrollView.documentView = contentView
-        // 固定文档宽度等于 clipView 宽度（水平不滚动）
-        contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor).isActive = true
+
+        setupLayout(in: contentView, scrollView: scrollView)
+
+        // C6 内容贴顶核心修法（先例：PluginGalleryViewController.swift:195-197）：
+        // 1. documentView 宽度 = clipView 宽（水平不滚动）
+        // 2. documentView 高度 ≥ clipView 高（内容少时撑满 viewport，顶部对齐，避免大窗内容靠下半截）
+        contentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor).isActive = true
+        // C6 高度 ≥ 可视区，优先级 required（让 container 至少 = viewport；
+        // 配合 tools 钉底 + formStackView distribution=.fill，使 JSON 槽位填满中间剩余空间，
+        // 整页恰好不溢出——不再依赖魔数 offset/multiplier）
+        let c6Height = contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor)
+        c6Height.priority = .required
+        c6Height.isActive = true
 
         self.view = scrollView
+
+        // T6: 在 loadView 末尾渲染工具分组（骨架已就绪），
+        // 让测试仅触发 loadView（`_ = vc.view`）也能看到完整工具行；
+        // viewDidLoad 会再调一次（幂等：renderToolGroups 先清空旧行再重建）。
+        renderToolGroups()
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         loadConfig()
         populateUI()
-        loadToolItems()
+        renderToolGroups()
     }
 
     // MARK: - Layout
 
-    private func setupLayout(in container: NSView) {
+    private func setupLayout(in container: NSView, scrollView: NSScrollView) {
         // ── 分组1「提供者」──
         let providerLabel = SettingsGroupLabel(title: "提供者")
         providerLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -124,7 +148,21 @@ final class ProviderSettingsViewController: NSViewController {
 
         // ── 表单面板 ──
         formPanel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(formPanel)
+        // AC-FORM-WIDTH AX 标识（表单区 AX 入口）
+        formPanel.setAccessibilityIdentifier("settings.ai.formPanel")
+
+        // formPanel + jsonPanel 共用 formStackView 槽位（NSStackView 自动塌缩隐藏项：
+        // form tab 紧凑、JSON tab 可独立拉高，互不重叠/不留隙）。与下方工具列表同宽。
+        let formStackView = NSStackView()
+        formStackView.orientation = .vertical
+        formStackView.alignment = .leading
+        formStackView.distribution = .fill
+        formStackView.spacing = 0
+        formStackView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(formStackView)
+        formStackView.addArrangedSubview(formPanel)
+        formPanel.leadingAnchor.constraint(equalTo: formStackView.leadingAnchor).isActive = true
+        formPanel.trailingAnchor.constraint(equalTo: formStackView.trailingAnchor).isActive = true
 
         let providerGroup = SettingsGroupView()
         providerGroup.translatesAutoresizingMaskIntoConstraints = false
@@ -173,72 +211,120 @@ final class ProviderSettingsViewController: NSViewController {
         testResultLabel.maximumNumberOfLines = 0
         testResultLabel.isHidden = true
 
-        // test row: button + spinner + result 左到右排列
-        let testRow = NSView()
-        testRow.translatesAutoresizingMaskIntoConstraints = false
-        testRow.addSubview(testButton)
-        testRow.addSubview(testSpinner)
-        testRow.addSubview(testResultLabel)
+        // API 地址行 control：水平 stack [baseURLField 撑宽 | 测试连接 button | spinner]
+        // （用户反馈：测试连接与 API 地址同一行；结果文案单起一行可换行长错误）
+        baseURLField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        baseURLField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let urlControlStack = NSStackView()
+        urlControlStack.orientation = .horizontal
+        urlControlStack.spacing = 8
+        urlControlStack.alignment = .centerY
+        urlControlStack.distribution = .fill
+        urlControlStack.translatesAutoresizingMaskIntoConstraints = false
+        urlControlStack.addArrangedSubview(baseURLField)
+        urlControlStack.addArrangedSubview(testButton)
+        urlControlStack.addArrangedSubview(testSpinner)
         NSLayoutConstraint.activate([
-            testRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
-            testButton.leadingAnchor.constraint(equalTo: testRow.leadingAnchor, constant: SettingsTheme.cardContentPadding),
-            testButton.centerYAnchor.constraint(equalTo: testRow.centerYAnchor),
-            testSpinner.leadingAnchor.constraint(equalTo: testButton.trailingAnchor, constant: 8),
-            testSpinner.centerYAnchor.constraint(equalTo: testRow.centerYAnchor),
-            testResultLabel.leadingAnchor.constraint(equalTo: testSpinner.trailingAnchor, constant: 8),
-            testResultLabel.centerYAnchor.constraint(equalTo: testRow.centerYAnchor),
-            testResultLabel.trailingAnchor.constraint(lessThanOrEqualTo: testRow.trailingAnchor, constant: -SettingsTheme.cardContentPadding),
-            testResultLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 280),
+            testSpinner.widthAnchor.constraint(equalToConstant: 16),
+            testSpinner.heightAnchor.constraint(equalToConstant: 16),
+            // baseURLField 保底宽度（用户反馈 round4：默认空字段无宽度看不见）——与 modelField 同思路给 min 宽
+            baseURLField.widthAnchor.constraint(greaterThanOrEqualToConstant: 260),
         ])
+
+        // 测试结果行（结果文案；idle/检测中整行隐藏，stackView 自动塌缩不占位）
+        testResultRow.translatesAutoresizingMaskIntoConstraints = false
+        testResultRow.addSubview(testResultLabel)
+        NSLayoutConstraint.activate([
+            testResultLabel.leadingAnchor.constraint(equalTo: testResultRow.leadingAnchor, constant: SettingsTheme.cardContentPadding),
+            testResultLabel.topAnchor.constraint(equalTo: testResultRow.topAnchor, constant: 6),
+            testResultLabel.trailingAnchor.constraint(lessThanOrEqualTo: testResultRow.trailingAnchor, constant: -SettingsTheme.cardContentPadding),
+            testResultLabel.bottomAnchor.constraint(equalTo: testResultRow.bottomAnchor, constant: -6),
+        ])
+        testResultRow.isHidden = true
 
         // 表单行
         let providerRow = SettingsFormRow(title: "激活提供者", subtitle: nil, control: providerPopup)
         let kindRow = SettingsFormRow(title: "类型", subtitle: nil, control: kindPopup)
-        let modelRow = SettingsFormRow(title: "模型", subtitle: "留空则使用提供者默认模型", control: modelField)
-        let baseURLRow = SettingsFormRow(title: "API 地址", subtitle: "覆盖默认 API 端点", control: baseURLField)
+
+        // 模型行 control：水平 stack [modelField (撑宽) | 关闭思考 label + SageSwitch]
+        // T5 关闭思考并入模型行。modelField 显式 hugging + minWidth 防被 label+switch 挤窄。
+        modelField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        modelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        noThinkingLabel.font = .systemFont(ofSize: 12)
+        noThinkingLabel.textColor = .secondaryLabelColor
+        noThinkingLabel.translatesAutoresizingMaskIntoConstraints = false
+        noThinkingSwitch.translatesAutoresizingMaskIntoConstraints = false
+        noThinkingSwitch.onChange = { [weak self] isOn in
+            self?.noThinkingEnabled = isOn
+            self?.saveCurrentProvider()
+        }
+        let noThinkingStack = noThinkingContainer
+        noThinkingStack.orientation = .horizontal
+        noThinkingStack.spacing = 6
+        noThinkingStack.alignment = .centerY
+        noThinkingStack.translatesAutoresizingMaskIntoConstraints = false
+        noThinkingStack.addArrangedSubview(noThinkingLabel)
+        noThinkingStack.addArrangedSubview(noThinkingSwitch)
+        // 初始隐藏（C3：仅 openai-compatible 显示，populateUI/loadProvider 会按 kind 切换）
+        noThinkingStack.isHidden = true
+
+        let modelControlStack = NSStackView()
+        modelControlStack.orientation = .horizontal
+        modelControlStack.spacing = 12
+        modelControlStack.alignment = .centerY
+        modelControlStack.distribution = .fill
+        modelControlStack.translatesAutoresizingMaskIntoConstraints = false
+        modelControlStack.addArrangedSubview(modelField)
+        modelControlStack.addArrangedSubview(noThinkingStack)
+        // modelField 撑宽：modelControlStack 内 modelField 宽 ≥ 180，stack 整体不被 noThinking 挤窄
+        NSLayoutConstraint.activate([
+            modelField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+            // 给 SageSwitch 固定尺寸（与 SageSwitch 默认 frame 一致 32×20）
+            noThinkingSwitch.widthAnchor.constraint(equalToConstant: 32),
+            noThinkingSwitch.heightAnchor.constraint(equalToConstant: 20),
+        ])
+
+        let modelRow = SettingsFormRow(title: "模型", subtitle: "留空则使用提供者默认模型 · 关闭思考适用于 Qwen3 等推理模型", control: modelControlStack)
+        let baseURLRow = SettingsFormRow(title: "API 地址", subtitle: "覆盖默认 API 端点", control: urlControlStack)
         let apiKeyRow = SettingsFormRow(title: "API 密钥", subtitle: "存储于钥匙串，不落盘", control: apiKeyField)
 
         providerGroup.addRow(providerRow)
         providerGroup.addRow(kindRow)
         providerGroup.addRow(modelRow)
         providerGroup.addRow(baseURLRow)
+        providerGroup.addRow(testResultRow)
         providerGroup.addRow(apiKeyRow)
-        providerGroup.addRow(testRow)
 
         // delegate 绑定（controlTextDidEndEditing 即时保存）
         modelField.delegate = self
         baseURLField.delegate = self
         apiKeyField.delegate = self
 
-        // noThinking toggle（B3：仅 openai-compatible 时可见）
-        noThinkingToggleRow.translatesAutoresizingMaskIntoConstraints = false
-        noThinkingToggleRow.onToggle = { [weak self] isOn in
-            self?.noThinkingEnabled = isOn
-            self?.saveCurrentProvider()
-        }
-        formPanel.addSubview(noThinkingToggleRow)
-
-        // 表单面板约束
+        // 表单面板约束（T5：noThinkingToggleRow 已并入模型行，formPanel 底部直接钉 providerGroup）
         NSLayoutConstraint.activate([
             providerGroup.topAnchor.constraint(equalTo: formPanel.topAnchor),
-            providerGroup.leadingAnchor.constraint(equalTo: formPanel.leadingAnchor, constant: SettingsTheme.contentPadding),
-            providerGroup.trailingAnchor.constraint(equalTo: formPanel.trailingAnchor, constant: -SettingsTheme.contentPadding),
-
-            noThinkingToggleRow.topAnchor.constraint(equalTo: providerGroup.bottomAnchor, constant: 8),
-            noThinkingToggleRow.leadingAnchor.constraint(equalTo: formPanel.leadingAnchor, constant: SettingsTheme.contentPadding),
-            noThinkingToggleRow.trailingAnchor.constraint(equalTo: formPanel.trailingAnchor, constant: -SettingsTheme.contentPadding),
-            noThinkingToggleRow.bottomAnchor.constraint(equalTo: formPanel.bottomAnchor),
+            providerGroup.leadingAnchor.constraint(equalTo: formPanel.leadingAnchor),
+            providerGroup.trailingAnchor.constraint(equalTo: formPanel.trailingAnchor),
+            // bottom 不钉：providerGroup 内容自适应、贴 formPanel 顶。formPanel 在 formStackView
+            // distribution=.fill 撑满槽位时，卡片不被拉高（下方留白而非卡片空胀）。
         ])
 
         // ── JSON 面板 ──
         jsonPanel.translatesAutoresizingMaskIntoConstraints = false
         jsonPanel.isHidden = true
-        container.addSubview(jsonPanel)
+        formStackView.addArrangedSubview(jsonPanel)
+        jsonPanel.leadingAnchor.constraint(equalTo: formStackView.leadingAnchor).isActive = true
+        jsonPanel.trailingAnchor.constraint(equalTo: formStackView.trailingAnchor).isActive = true
 
         // JSON 编辑器（monospaced 12pt，最小高度 200pt）
         jsonScrollView.translatesAutoresizingMaskIntoConstraints = false
         jsonScrollView.hasVerticalScroller = true
-        jsonScrollView.borderType = .bezelBorder
+        // 圆角编辑框（用户反馈：与表单卡片同款圆角）：去 bezel 直角边框，用 layer cornerRadius + masksToBounds。
+        jsonScrollView.borderType = .noBorder
+        jsonScrollView.drawsBackground = false
+        jsonScrollView.wantsLayer = true
+        jsonScrollView.layer?.cornerRadius = SettingsTheme.cardCornerRadius
+        jsonScrollView.layer?.masksToBounds = true
         jsonScrollView.documentView = jsonTextView
         // documentView 用 autoresizing（非约束）：width 跟随 scrollView，否则 textView 宽度保持 0 致内容不可见。
         jsonTextView.autoresizingMask = [.width]
@@ -266,14 +352,17 @@ final class ProviderSettingsViewController: NSViewController {
         prettyPrintButton.action = #selector(prettyPrintJSON(_:))
         jsonPanel.addSubview(prettyPrintButton)
 
+        // JSON 编辑器高度：jsonPanel 在 formStackView（distribution=.fill）撑满中间槽位，
+            // jsonScrollView 顶到 jsonPanel 顶、底到按钮行 → 填满 header/tab/tools 之外的剩余空间，
+            // 既拉满又恰好不溢出（不再用魔数 offset/multiplier）。
         NSLayoutConstraint.activate([
             jsonScrollView.topAnchor.constraint(equalTo: jsonPanel.topAnchor),
-            jsonScrollView.leadingAnchor.constraint(equalTo: jsonPanel.leadingAnchor, constant: SettingsTheme.contentPadding),
-            jsonScrollView.trailingAnchor.constraint(equalTo: jsonPanel.trailingAnchor, constant: -SettingsTheme.contentPadding),
-            jsonScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 200),
+            jsonScrollView.leadingAnchor.constraint(equalTo: jsonPanel.leadingAnchor),
+            jsonScrollView.trailingAnchor.constraint(equalTo: jsonPanel.trailingAnchor),
 
             prettyPrintButton.topAnchor.constraint(equalTo: jsonScrollView.bottomAnchor, constant: 6),
-            prettyPrintButton.leadingAnchor.constraint(equalTo: jsonPanel.leadingAnchor, constant: SettingsTheme.contentPadding),
+            // 格式化按钮左对齐编辑框（用户反馈）：与 jsonScrollView 同 leading
+            prettyPrintButton.leadingAnchor.constraint(equalTo: jsonScrollView.leadingAnchor),
 
             jsonValidationLabel.centerYAnchor.constraint(equalTo: prettyPrintButton.centerYAnchor),
             jsonValidationLabel.leadingAnchor.constraint(equalTo: prettyPrintButton.trailingAnchor, constant: 10),
@@ -281,49 +370,46 @@ final class ProviderSettingsViewController: NSViewController {
             jsonValidationLabel.bottomAnchor.constraint(equalTo: jsonPanel.bottomAnchor),
         ])
 
-        // ── 分组2「AI 工具」──
+        // ── 分组2「AI 工具」（T6 重构：弃 NSTableView，改 SettingsGroupView 分组 + 只读 ToolItemRow）──
         let toolsLabel = SettingsGroupLabel(title: "AI 工具")
         toolsLabel.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(toolsLabel)
 
-        let toolsGroup = SettingsGroupView()
-        toolsGroup.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(toolsGroup)
+        // 引导句（设计要求：分组上方加「AI 会根据输入自动选用」）
+        let toolsIntroLabel = NSTextField(labelWithString: "AI 会根据输入自动选用")
+        toolsIntroLabel.font = SettingsTheme.rowSubtitleFont()
+        toolsIntroLabel.textColor = SettingsTheme.rowSubtitleColor()
+        toolsIntroLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(toolsIntroLabel)
 
-        // 工具列表 TableView（Step 4：Plugin 驱动）
-        toolsTableView.translatesAutoresizingMaskIntoConstraints = false
-        toolsTableView.headerView = nil
-        toolsTableView.selectionHighlightStyle = .none
-        toolsTableView.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("tools")))
-        toolsTableView.rowHeight = 24
-        toolsTableView.intercellSpacing = NSSize(width: 0, height: 4)
-        toolsTableView.backgroundColor = .clear
-        toolsTableView.dataSource = self
-        toolsTableView.delegate = self
-        toolsGroup.addSubview(toolsTableView)
+        // 「内置能力」分组
+        let builtinLabel = SettingsGroupLabel(title: "内置能力")
+        builtinLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(builtinLabel)
 
-        // 空状态占位 label
-        emptyToolsLabel.translatesAutoresizingMaskIntoConstraints = false
-        emptyToolsLabel.font = SettingsTheme.rowSubtitleFont()
-        emptyToolsLabel.textColor = SettingsTheme.rowSubtitleColor()
-        emptyToolsLabel.isHidden = true
-        toolsGroup.addSubview(emptyToolsLabel)
+        let builtinToolsGroup = SettingsGroupView()
+        builtinToolsGroup.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(builtinToolsGroup)
 
-        NSLayoutConstraint.activate([
-            toolsTableView.topAnchor.constraint(equalTo: toolsGroup.topAnchor, constant: 8),
-            toolsTableView.leadingAnchor.constraint(equalTo: toolsGroup.leadingAnchor, constant: SettingsTheme.cardContentPadding),
-            toolsTableView.trailingAnchor.constraint(equalTo: toolsGroup.trailingAnchor, constant: -SettingsTheme.cardContentPadding),
-            toolsTableView.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
+        // 「已装插件」分组
+        let pluginsLabel = SettingsGroupLabel(title: "已装插件")
+        pluginsLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(pluginsLabel)
 
-            emptyToolsLabel.centerXAnchor.constraint(equalTo: toolsGroup.centerXAnchor),
-            emptyToolsLabel.centerYAnchor.constraint(equalTo: toolsTableView.centerYAnchor),
+        let pluginsToolsGroup = SettingsGroupView()
+        pluginsToolsGroup.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(pluginsToolsGroup)
 
-            emptyToolsLabel.bottomAnchor.constraint(equalTo: toolsGroup.bottomAnchor, constant: -12),
-        ])
+        // 保存引用供 renderToolGroups 填充行（属性在下方声明）
+        self.builtinToolsGroup = builtinToolsGroup
+        self.pluginsToolsGroup = pluginsToolsGroup
+        self.pluginsToolsLabel = pluginsLabel
 
         // ── 整体约束 ──
-        let bottomAnchor = toolsGroup.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -SettingsTheme.groupTopInset)
-        bottomAnchor.priority = .defaultLow
+        // tools 钉底（required）：配合 C6(container≥viewport) + formStackView distribution=.fill，
+        // 让 form/JSON 槽位填满"header/tab/tools 之外"的中间剩余空间——JSON 拉满且整页不溢出。
+        let bottomAnchor = pluginsToolsGroup.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -SettingsTheme.groupTopInset)
+        bottomAnchor.priority = .required
 
         NSLayoutConstraint.activate([
             // 提供者标签
@@ -336,24 +422,38 @@ final class ProviderSettingsViewController: NSViewController {
             tabSegmentedControl.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             tabSegmentedControl.widthAnchor.constraint(equalToConstant: 120),
 
-            // 表单面板
-            formPanel.topAnchor.constraint(equalTo: tabSegmentedControl.bottomAnchor, constant: 8),
-            formPanel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 0),
-            formPanel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: 0),
+            // formStackView 槽位（与下方工具列表同宽；form/JSON tab 各自高度，隐藏项自动塌缩）
+            formStackView.topAnchor.constraint(equalTo: tabSegmentedControl.bottomAnchor, constant: 8),
+            formStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            formStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            // JSON 面板（与表单面板共享位置）
-            jsonPanel.topAnchor.constraint(equalTo: formPanel.topAnchor),
-            jsonPanel.leadingAnchor.constraint(equalTo: formPanel.leadingAnchor),
-            jsonPanel.trailingAnchor.constraint(equalTo: formPanel.trailingAnchor),
-
-            // AI 工具
-            toolsLabel.topAnchor.constraint(equalTo: formPanel.bottomAnchor, constant: SettingsTheme.groupSpacing),
+            // AI 工具区（钉 formStackView 底，随可见面板高度走，无重叠/留隙）
+            toolsLabel.topAnchor.constraint(equalTo: formStackView.bottomAnchor, constant: SettingsTheme.groupSpacing),
             toolsLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             toolsLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            toolsGroup.topAnchor.constraint(equalTo: toolsLabel.bottomAnchor, constant: 6),
-            toolsGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
-            toolsGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            // 引导句
+            toolsIntroLabel.topAnchor.constraint(equalTo: toolsLabel.bottomAnchor, constant: 2),
+            toolsIntroLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            toolsIntroLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // 「内置能力」分组
+            builtinLabel.topAnchor.constraint(equalTo: toolsIntroLabel.bottomAnchor, constant: SettingsTheme.groupSpacing),
+            builtinLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            builtinLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            builtinToolsGroup.topAnchor.constraint(equalTo: builtinLabel.bottomAnchor, constant: 6),
+            builtinToolsGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            builtinToolsGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            // 「已装插件」分组
+            pluginsLabel.topAnchor.constraint(equalTo: builtinToolsGroup.bottomAnchor, constant: SettingsTheme.groupSpacing),
+            pluginsLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            pluginsLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+
+            pluginsToolsGroup.topAnchor.constraint(equalTo: pluginsLabel.bottomAnchor, constant: 6),
+            pluginsToolsGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
+            pluginsToolsGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
             bottomAnchor,
         ])
@@ -393,34 +493,87 @@ final class ProviderSettingsViewController: NSViewController {
         syncToJSON()
     }
 
-    /// 加载 AI 工具列表：Plugin 驱动（收集已安装插件的工具）+ 内置 meta tools 兜底
-    private func loadToolItems() {
-        var items: [String] = []
+    /// 加载 AI 工具分组数据（T6：弃旧 toolItems:[String] + NSTableView）。
+    ///
+    /// 内置项固定 2 条（attach_action speak/copy → 人话化），插件项从 PluginManager.list() 收集，
+    /// summary 用 `manifest.displaySummary`（人话降级），source 用 `manifest.name`。
+    /// **移除所有 stdin/command/prompt mode 黑话**（AC-TOOLS-NO-JARGON）。
+    ///
+    /// - Returns: 分组数组 `[(title, [AIToolItem])]`，固定顺序：内置能力 → 已装插件。
+    func loadToolGroups() -> [(title: String, items: [AIToolItem])] {
+        // ── 内置能力 ──
+        let builtin: [AIToolItem] = [
+            AIToolItem(
+                symbol: "🔊",
+                title: "朗读回复",
+                summary: "把 AI 回复读出声",
+                source: "内置"
+            ),
+            AIToolItem(
+                symbol: "📋",
+                title: "复制到剪贴板",
+                summary: "一键复制 AI 回复",
+                source: "内置"
+            ),
+        ]
 
-        // 内置 meta tools（兜底）
-        items.append("attach_action — speak（朗读 TTS）")
-        items.append("attach_action — copy（复制到剪贴板）")
-
-        // 从已安装插件收集工具信息（预留扩展）
+        // ── 已装插件 ──（summary 用 displaySummary 人话降级，禁 mode 黑话）
+        var plugins: [AIToolItem] = []
         do {
             let manifests = try PluginManager.shared.list()
             for m in manifests {
-                switch m.modeConfig {
-                case .stdin:
-                    items.append("\(m.name) — stdin 工具执行")
-                case .command:
-                    items.append("\(m.name) — command 直接产出")
-                case .prompt:
-                    items.append("\(m.name) — prompt LLM 单轮")
-                }
+                plugins.append(AIToolItem(
+                    symbol: "🧩",
+                    title: m.name,
+                    summary: m.displaySummary,
+                    source: m.name
+                ))
             }
         } catch {
             BuddyLogger.shared.warn("provider settings: failed to load plugin manifests for tools list", subsystem: "settings", meta: ["error": "\(error)"])
         }
 
-        toolItems = items
-        toolsTableView.reloadData()
-        emptyToolsLabel.isHidden = !toolItems.isEmpty
+        return [
+            ("内置能力", builtin),
+            ("已装插件", plugins),
+        ]
+    }
+
+    /// 把 loadToolGroups 的数据渲染进对应 SettingsGroupView。
+    /// 无插件的分组（items 为空）整组隐藏（标题 + 容器）。
+    private func renderToolGroups() {
+        toolGroups = loadToolGroups()
+
+        // 清空旧行（用 SettingsGroupView.clearRows，避免误清 stackView 容器本身）
+        builtinToolsGroup.clearRows()
+        pluginsToolsGroup.clearRows()
+
+        for (title, items) in toolGroups {
+            let targetGroup: SettingsGroupView
+            switch title {
+            case "内置能力":
+                targetGroup = builtinToolsGroup
+            case "已装插件":
+                targetGroup = pluginsToolsGroup
+                // 无插件时整组隐藏（标题 + 容器）
+                if items.isEmpty {
+                    pluginsToolsLabel.isHidden = true
+                    pluginsToolsGroup.isHidden = true
+                    continue
+                } else {
+                    pluginsToolsLabel.isHidden = false
+                    pluginsToolsGroup.isHidden = false
+                }
+            default:
+                targetGroup = builtinToolsGroup
+            }
+
+            for item in items {
+                let row = ToolItemRow(item: item)
+                row.translatesAutoresizingMaskIntoConstraints = false
+                targetGroup.addRow(row)
+            }
+        }
     }
 
     private func loadProvider(id: String) {
@@ -454,11 +607,11 @@ final class ProviderSettingsViewController: NSViewController {
             apiKeyField.stringValue = ""
         }
 
-        // noThinking toggle（C5：仅 openai-compatible 可见）
+        // noThinking toggle（C3：仅 openai-compatible 可见，T5 并入模型行）
         let isOpenAICompat = provider.kind == "openai-compatible"
-        noThinkingToggleRow.isHidden = !isOpenAICompat
+        noThinkingContainer.isHidden = !isOpenAICompat
         noThinkingEnabled = provider.noThinking ?? false
-        noThinkingToggleRow.setSwitchState(noThinkingEnabled)
+        noThinkingSwitch.setState(noThinkingEnabled)
     }
 
     private func clearProviderFields() {
@@ -467,9 +620,9 @@ final class ProviderSettingsViewController: NSViewController {
         modelField.stringValue = ""
         baseURLField.stringValue = ""
         apiKeyField.stringValue = ""
-        noThinkingToggleRow.isHidden = true
+        noThinkingContainer.isHidden = true
         noThinkingEnabled = false
-        noThinkingToggleRow.setSwitchState(false)
+        noThinkingSwitch.setState(false)
     }
 
     // MARK: - Actions
@@ -500,14 +653,14 @@ final class ProviderSettingsViewController: NSViewController {
             baseURLField.stringValue = ""
         }
 
-        // C5：noThinking toggle 仅 openai-compatible 可见
+        // C3：noThinking toggle 仅 openai-compatible 可见（T5 并入模型行）
         let isOpenAI = selectedKind == "openai-compatible"
-        noThinkingToggleRow.isHidden = !isOpenAI
+        noThinkingContainer.isHidden = !isOpenAI
         if !isOpenAI {
             noThinkingEnabled = false           // B1: 同步本地状态，避免切回时 UI/存储不一致
-            noThinkingToggleRow.setSwitchState(false)
+            noThinkingSwitch.setState(false)
         } else {
-            noThinkingToggleRow.setSwitchState(noThinkingEnabled)
+            noThinkingSwitch.setState(noThinkingEnabled)
         }
 
         // 即时保存
@@ -548,7 +701,7 @@ final class ProviderSettingsViewController: NSViewController {
         testButton.isEnabled = false
         testSpinner.isHidden = false
         testSpinner.startAnimation(nil)
-        testResultLabel.isHidden = true
+        testResultRow.isHidden = true
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -605,7 +758,7 @@ final class ProviderSettingsViewController: NSViewController {
     private func showTestResult(_ message: String, isError: Bool) {
         testResultLabel.stringValue = message
         testResultLabel.textColor = isError ? .systemRed : .systemGreen
-        testResultLabel.isHidden = false
+        testResultRow.isHidden = false
     }
 
     // MARK: - Tab Switching
@@ -742,8 +895,8 @@ final class ProviderSettingsViewController: NSViewController {
         modelField.stringValue = model
         baseURLField.stringValue = baseURL ?? ""
         noThinkingEnabled = noThinking ?? false
-        noThinkingToggleRow.setSwitchState(noThinkingEnabled)
-        noThinkingToggleRow.isHidden = (kind != "openai-compatible")
+        noThinkingSwitch.setState(noThinkingEnabled)
+        noThinkingContainer.isHidden = (kind != "openai-compatible")
 
         showJSONValidation("✓ 格式正确", isError: false)
     }
@@ -856,43 +1009,6 @@ final class ProviderSettingsViewController: NSViewController {
 extension ProviderSettingsViewController: NSTextFieldDelegate {
     func controlTextDidEndEditing(_ obj: Notification) {
         saveCurrentProvider()
-    }
-}
-
-// MARK: - AI 工具列表 TableView 数据源
-
-extension ProviderSettingsViewController: NSTableViewDataSource, NSTableViewDelegate {
-    func numberOfRows(in tableView: NSTableView) -> Int {
-        return toolItems.count
-    }
-
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard row < toolItems.count else { return nil }
-        let item = toolItems[row]
-
-        let cellIdentifier = NSUserInterfaceItemIdentifier("ToolCell")
-        let cell: NSTableCellView
-        if let existing = tableView.makeView(withIdentifier: cellIdentifier, owner: nil) as? NSTableCellView {
-            cell = existing
-        } else {
-            cell = NSTableCellView()
-            cell.identifier = cellIdentifier
-
-            let textField = NSTextField(labelWithString: "")
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            textField.font = .systemFont(ofSize: 12)
-            textField.textColor = .labelColor
-            cell.addSubview(textField)
-            cell.textField = textField
-
-            NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
-                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                textField.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -8),
-            ])
-        }
-        cell.textField?.stringValue = item
-        return cell
     }
 }
 

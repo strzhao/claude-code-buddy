@@ -6,14 +6,14 @@ import AppKit
 /// **不得**按分类数量 switch/if 硬编码分支。
 enum SettingsSection: String, CaseIterable {
 
-    /// 皮肤市场（SkinGalleryViewController）
-    case skins
     /// 插件市场（PluginGalleryViewController）
     case plugins
     /// 热键录入（KeyboardShortcutsViewController）
     case hotkey
     /// AI 配置（提供者/系统提示词/工具，ProviderSettingsViewController）
     case ai
+    /// 皮肤市场（SkinGalleryViewController）
+    case skins
     /// 通用偏好（音效/标签开关 + 开机自启，GeneralSettingsViewController）
     case general
     /// 关于（版本/反馈/开源，AboutSettingsViewController）

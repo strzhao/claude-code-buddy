@@ -62,6 +62,7 @@ final class ProviderSettingsViewController: NSViewController {
 
     // JSON 面板控件
     private let jsonTextView = NSTextView()
+    private let jsonScrollView = NSScrollView()
     private let jsonValidationLabel = NSTextField(labelWithString: "")
     private let prettyPrintButton = NSButton(title: "格式化", target: nil, action: nil)
 
@@ -235,11 +236,14 @@ final class ProviderSettingsViewController: NSViewController {
         container.addSubview(jsonPanel)
 
         // JSON 编辑器（monospaced 12pt，最小高度 200pt）
-        let jsonScrollView = NSScrollView()
         jsonScrollView.translatesAutoresizingMaskIntoConstraints = false
         jsonScrollView.hasVerticalScroller = true
         jsonScrollView.borderType = .bezelBorder
         jsonScrollView.documentView = jsonTextView
+        // documentView 用 autoresizing（非约束）：width 跟随 scrollView，否则 textView 宽度保持 0 致内容不可见。
+        jsonTextView.autoresizingMask = [.width]
+        jsonTextView.textContainer?.widthTracksTextView = true
+        jsonTextView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
         jsonTextView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         jsonTextView.isEditable = true
         jsonTextView.isSelectable = true
@@ -616,12 +620,15 @@ final class ProviderSettingsViewController: NSViewController {
             jsonPanel.isHidden = true
             formPanel.isHidden = false
         } else {
-            // 切换到 JSON：表单 → JSON 同步
+            // 切换到 JSON：先显示面板再 syncToJSON。
+            // NSScrollView 在 isHidden=true 时不计算 textContainer 布局，隐藏态下 set string
+            // 会导致 containerSize 未刷新，切回可见后内容不可见（视觉空白但 string 有值）。
             saveCurrentProvider()
-            syncToJSON()
-            validateJSON()
             formPanel.isHidden = true
             jsonPanel.isHidden = false
+            syncToJSON()
+            validateJSON()
+            BuddyLogger.shared.debug("provider settings: switch to JSON tab", subsystem: "settings", meta: ["editingProviderID": editingProviderID ?? "nil"])
         }
     }
 
@@ -633,8 +640,19 @@ final class ProviderSettingsViewController: NSViewController {
         isSyncing = true
         defer { isSyncing = false }
 
+        let panelIsHidden = jsonPanel.isHidden
+        BuddyLogger.shared.debug("provider settings: syncToJSON enter", subsystem: "settings", meta: [
+            "editingProviderID": editingProviderID ?? "nil",
+            "panelIsHidden": panelIsHidden,
+            "providersCount": config.providers.count,
+        ])
+
         guard let id = editingProviderID, let provider = config.providers[id] else {
             jsonTextView.string = ""
+            BuddyLogger.shared.warn("provider settings: syncToJSON empty (no provider)", subsystem: "settings", meta: [
+                "editingProviderID": editingProviderID ?? "nil",
+                "providersCount": config.providers.count,
+            ])
             return
         }
 
@@ -653,6 +671,16 @@ final class ProviderSettingsViewController: NSViewController {
         if let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             jsonTextView.string = jsonString
+            // 强制刷新布局：textContainer 在 panel 隐藏期间可能未 layout，
+            // 滚到顶 + needsLayout 确保切回可见时内容立即可见（修复"经常看不到 JSON 内容"）。
+            jsonTextView.scrollRangeToVisible(NSRange(location: 0, length: 0))
+            jsonScrollView.needsLayout = true
+            BuddyLogger.shared.info("provider settings: syncToJSON done", subsystem: "settings", meta: [
+                "providerId": id,
+                "jsonLength": jsonString.count,
+            ])
+        } else {
+            BuddyLogger.shared.warn("provider settings: syncToJSON serialize failed", subsystem: "settings", meta: ["providerId": id])
         }
     }
 

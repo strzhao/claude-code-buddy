@@ -1,0 +1,89 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/ProviderSettingsViewController.swift
+  75475637de232d16 65,243-246,623-625,629-631,643-649,652-655,674-683
+apps/desktop/tests/BuddyCoreTests/Settings/ProviderSettingsAcceptanceTests.swift
+  75475637de232d16 1-311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "6f25ab8fde67976a5302b3bc750b847386b417f9",
+  "prompts": {
+    "4005b5e27bc99671": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4e0a95e-7f63-4244-b301-77d1a8110e9d",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 30,
+      "total_deletions": 6,
+      "accepted_lines": 24,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/OpenAICompatibleProvider.swift": {
+          "additions": 30,
+          "deletions": 6,
+          "accepted_lines": 24
+        }
+      }
+    },
+    "6a070739c74b29b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9a22bba-8516-4c09-9b68-71a55130f13f",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 493,
+      "overriden_lines": 4,
+      "per_file_stats": {
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "accepted_lines": 36
+        },
+        "homebrew/casks/claude-code-buddy.rb": {
+          "overriden_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "accepted_lines": 432,
+          "overriden_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "accepted_lines": 4,
+          "overriden_lines": 2
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "accepted_lines": 21
+        }
+      }
+    },
+    "75475637de232d16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64342537-bd87-4a79-afbe-852e4827ac9b",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 351,
+      "total_deletions": 12,
+      "accepted_lines": 343,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/ProviderSettingsViewController.swift": {
+          "additions": 35,
+          "deletions": 7,
+          "accepted_lines": 32
+        },
+        "apps/desktop/tests/BuddyCoreTests/Settings/ProviderSettingsAcceptanceTests.swift": {
+          "additions": 316,
+          "deletions": 5,
+          "accepted_lines": 311
+        }
+      }
+    }
+  }
+}

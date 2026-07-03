@@ -1,6 +1,15 @@
 {
   "pins" : [
     {
+      "identity" : "capso-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/strzhao/capso-spm",
+      "state" : {
+        "revision" : "dfb25c429fe5b8ccf207b4d1fab7b72135ccbaa6",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "keyboardshortcuts",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sindresorhus/KeyboardShortcuts",

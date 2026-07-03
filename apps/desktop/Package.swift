@@ -14,13 +14,19 @@ let package = Package(
         .package(
             url: "https://github.com/sindresorhus/KeyboardShortcuts",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/strzhao/capso-spm",
+            from: "1.0.0"
         )
     ],
     targets: [
         .target(
             name: "BuddyCore",
             dependencies: [
-                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
+                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
+                .product(name: "CaptureKit", package: "capso-spm"),
+                .product(name: "AnnotationKit", package: "capso-spm")
             ],
             path: "Sources/ClaudeCodeBuddy",
             exclude: ["Resources", "App/main.swift"],

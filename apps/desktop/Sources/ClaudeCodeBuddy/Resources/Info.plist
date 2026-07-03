@@ -37,6 +37,8 @@
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>点击猫咪时需要控制 Ghostty 以切换到对应的终端标签页。</string>
+	<key>NSScreenCaptureDescription</key>
+	<string>截屏功能需要屏幕录制权限来捕获你框选的屏幕区域，仅在你主动截屏时使用，不会录制或上传。</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

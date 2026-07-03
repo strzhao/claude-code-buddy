@@ -97,6 +97,8 @@ final class LauncherRouteConflictAcceptanceTests: XCTestCase {
         LauncherManager.shared.pluginsOverride = nil
         LauncherManager.shared.stdinExecutorOverride = nil
         LauncherManager.shared.lockedCommand = nil
+        // CI 2867 回归：清前序测试残留的 stage/isSubmitting（防 stage 跨测试污染）。
+        LauncherManager.shared.resetSubmittingStateForTesting()
     }
 
     override func tearDown() async throws {

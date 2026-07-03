@@ -58,6 +58,10 @@ final class LauncherLockedCommandStateMachineTests: XCTestCase {
         stdinHello = makeStdinManifestForLock(name: "hello", keywords: ["hello", "示例"])
         // 清理 shared 单例状态（测试隔离）
         await MainActor.run {
+            // CI 2867 回归：清前序测试残留的 stage/isSubmitting（shared 单例跨测试持久，
+            // submit 失败路径留 stage=.error；CI ~/.buddy 不存在→config load 失败→.error，
+            // 本地顺序运气好不触发，但 setUp 必须防御）。
+            LauncherManager.shared.resetSubmittingStateForTesting()
             LauncherManager.shared.lockedCommand = nil
             LauncherManager.shared.clearInstantActions()
             LauncherManager.shared.instantDebounceMsOverride = 0
@@ -209,5 +213,38 @@ final class LauncherLockedCommandStateMachineTests: XCTestCase {
             XCTAssertTrue(LauncherManager.shared.instantActions.isEmpty,
                           "参数态（lockedCommand 非空）应隐藏 instant 候选")
         }
+    }
+
+    // MARK: - 回归 CI 2867（stage 跨测试污染）
+
+    /// 回归守护（CI 2867 / run 28591201109）：submit() 同步把 stage 设成 .narrowing（config load 成功，
+    /// LauncherManager.swift:514）或 .error（config load 失败 :498；CI 上 ~/.buddy/launcher.json 不存在）。
+    /// LauncherManager.shared 是单例，stage 跨测试残留；setUp 必须调 resetSubmittingStateForTesting 清除，
+    /// 否则 stage==.idle 断言被前序测试污染（CI .error / 本地因顺序运气好不触发）。
+    /// 本测试确定性验证 reset 机制（configOverride=.empty 免依赖 ~/.buddy 状态）。
+    func test_回归CI2867_resetSubmittingStateForTesting_清submit残留stage() {
+        LauncherManager.shared.configOverride = .empty
+        defer {
+            LauncherManager.shared.configOverride = nil
+            LauncherManager.shared.resetSubmittingStateForTesting()
+        }
+
+        // 1. 干净起点
+        LauncherManager.shared.resetSubmittingStateForTesting()
+        XCTAssertEqual(LauncherManager.shared.stage, .idle, "前置：reset 后 stage 应 .idle")
+
+        // 2. submit 同步污染 stage（.empty → load 走 override 不抛错 → 同步设 .narrowing @ :514）
+        _ = LauncherManager.shared.submit("pollution trigger")
+        let polluted = LauncherManager.shared.stage
+        XCTAssertNotEqual(polluted, .idle,
+                          "submit 必须残留 stage 非 idle（本地 .narrowing / CI .error）。实际: \(polluted)")
+
+        // 3. reset 必须清回 idle —— setUp 漏调此方法是 CI 2867 根因
+        LauncherManager.shared.resetSubmittingStateForTesting()
+        XCTAssertEqual(LauncherManager.shared.stage, .idle,
+                       "resetSubmittingStateForTesting 必须清 stage=.idle（setUp 应调用）")
+        // isSubmitting 是 private（@testable 不打开），无法从测试断言；
+        // resetSubmittingStateForTesting 内部同步清 isSubmitting=false（:132-135），
+        // 由 stage==.idle 间接守护 + resetSubmittingStateForTesting 既有契约测试覆盖。
     }
 }

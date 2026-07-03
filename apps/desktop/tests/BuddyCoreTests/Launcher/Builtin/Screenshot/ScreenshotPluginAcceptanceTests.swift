@@ -54,8 +54,9 @@ private final class CaptureSpy: ScreenCapturing {
     private var _lastRect: CGRect?
     var callCount: Int { lock.lock(); defer { lock.unlock() }; return _callCount }
     var lastRect: CGRect? { lock.lock(); defer { lock.unlock() }; return _lastRect }
-    /// 固定 PNG（1x1 透明像素签名 + IHDR 占位，足以被 copyImage 字节比对）
-    let stubPNG = Data([
+    /// 固定 PNG 字节。默认仅签名（无法解码为 CGImage → handleConfirm 走「解码失败」降级）。
+    /// 测试 present editor 链路时需改用真实可解码 PNG（见 `makeDecodablePNG(size:)`）。
+    var stubPNG: Data = Data([
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,  // PNG signature
     ])
 
@@ -82,6 +83,50 @@ private func makeIsolatedCopyService() -> (CopyService, NSPasteboard) {
     let pb = NSPasteboard(name: NSPasteboard.Name("ccb-test-screenshot-\(UUID().uuidString)"))
     pb.clearContents()
     return (CopyService(pasteboard: pb), pb)
+}
+
+/// 辅助：构造真实可解码 PNG（cycle 2 handleConfirm 需解码出 CGImage 才能构造 editor）。
+@MainActor
+private func makeDecodablePNG(width: Int = 16, height: Int = 16) -> Data {
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+    guard let ctx = CGContext(
+        data: nil, width: width, height: height,
+        bitsPerComponent: 8, bytesPerRow: width * 4,
+        space: colorSpace, bitmapInfo: bitmapInfo
+    ),
+        let cgImage = ctx.makeImage() else {
+        return Data([0x89, 0x50, 0x4E, 0x47])
+    }
+    let rep = NSBitmapImageRep(cgImage: cgImage)
+    return rep.representation(using: .png, properties: [:]) ?? Data([0x89, 0x50, 0x4E, 0x47])
+}
+
+/// spy mock：记录 editor onConfirm / onCancel 调用（注入 editorFactory 用，避免真 GUI + 程序化驱动）。
+@MainActor
+private final class EditorCallbackSpy {
+    var onConfirmCount = 0
+    var onCancelCount = 0
+    var lastConfirmData: Data?
+    /// 工厂每次构造 editor 时 wire spy 回调 + 记录实例（供测试程序化 _simulateDraw/_simulateConfirm）。
+    var capturedEditor: ScreenshotAnnotationEditor?
+}
+
+/// spied editor 工厂：用真实 editor 但拦截回调计数（present 在测试模式跳 GUI）。
+@MainActor
+private func makeSpiedEditorFactory(spy: EditorCallbackSpy) -> (CGImage) -> ScreenshotAnnotationEditor {
+    return { image in
+        let editor = ScreenshotAnnotationEditor(image: image)
+        editor.onConfirm = { data in
+            spy.onConfirmCount += 1
+            spy.lastConfirmData = data
+        }
+        editor.onCancel = {
+            spy.onCancelCount += 1
+        }
+        spy.capturedEditor = editor
+        return editor
+    }
 }
 
 // MARK: - ACC-SCREENSHOT-1 / C-SCREENSHOT-KEYWORDS：属性契约 + 关键词路由
@@ -363,25 +408,29 @@ final class ScreenshotPluginSeamAcceptanceTests: XCTestCase {
             "C-CAPTURE-SEAM: actions(for:) 不应触发 captureArea（惰性），spy.callCount 应为 0")
     }
 
-    // MARK: ACC-SCREENSHOT-3：perform 流程 — overlay 确认 → capture → copyImage
+    // MARK: ACC-SCREENSHOT-3：perform 流程 — overlay 确认 → capture → present editor（cycle 2 改造）
 
-    /// ACC-SCREENSHOT-3 / SC3': handleConfirm(rect) → captureArea 被调 + copyImage 写 PNG 到隔离 pasteboard
+    /// ACC-SCREENSHOT-3 (cycle 2 改造): handleConfirm(rect) → captureArea 被调 + editor present。
     ///
-    /// **契约修正（auto-fix，原红队测 perform→直驱 capture 是错误契约）**：
-    /// perform 同步只 present overlay（不捕获）；捕获在 overlay.onConfirm → handleConfirm 异步完成。
-    /// 测试直接 `await plugin.handleConfirm(rect)` 确定性验证捕获+复制（不触发 overlay present GUI）。
+    /// **契约修正（cycle 2）**：handleConfirm 不再直接 copy，改为 capture → 解码 CGImage → present editor。
+    /// copy 移到 editor.onConfirm（见下方 test_editorConfirm_rendersAndCopies）。
     ///
     /// Mutation-Survival 自检：
-    /// - handleConfirm no-op mutant → captureArea 未调 + pasteboard 空 → 失败（捕获）
-    /// - 跳过 copyImage mutant → pasteboard 空 → 失败（捕获）
-    /// - 用系统剪贴板 mutant → 隔离 pb 空 → 失败（捕获）
-    func test_ACC3_handleConfirm_callsCaptureAndWritesPNG() async throws {
+    /// - handleConfirm no-op mutant → captureArea 未调 + editorController 空 → 失败（捕获）
+    /// - 跳过 present editor mutant → editorController 空 → 失败（捕获）
+    func test_ACC3_handleConfirm_capturesAndPresentsEditor() async throws {
         let spy = CaptureSpy()
+        spy.stubPNG = makeDecodablePNG(width: 16, height: 16)  // 真实可解码 PNG
         let (copy, pb) = makeIsolatedCopyService()
-        let plugin = ScreenshotPlugin(capture: spy, copy: copy)
+        let editorSpy = EditorCallbackSpy()
+        let plugin = ScreenshotPlugin(
+            capture: spy, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: editorSpy)
+        )
 
-        // handleConfirm 前：seam 未调、pasteboard 空
+        // handleConfirm 前：seam 未调、editorController 空、pasteboard 空
         XCTAssertEqual(spy.callCount, 0)
+        XCTAssertNil(plugin.editorController)
         XCTAssertNil(pb.data(forType: .png))
 
         // 直接 await handleConfirm（overlay.onConfirm 的实现目标，确定性无 GUI）
@@ -394,30 +443,80 @@ final class ScreenshotPluginSeamAcceptanceTests: XCTestCase {
         XCTAssertEqual(spy.lastRect, rect,
             "ACC-SCREENSHOT-3: captureArea 收到的 rect 必须 == handleConfirm 入参")
 
-        // 硬断言 2：pasteboard 含 PNG，且 == seam 返回的 stubPNG（copyImage 被调，数据不变形）
-        let written = pb.data(forType: .png)
-        XCTAssertNotNil(written,
-            "ACC-SCREENSHOT-3 (mutation-killer): handleConfirm 后 pasteboard 必须含 public.png")
-        XCTAssertEqual(written, spy.stubPNG,
-            "ACC-SCREENSHOT-3: pasteboard PNG 必须 == captureArea 返回数据，实际 \(written?.count ?? 0) bytes vs stub \(spy.stubPNG.count) bytes")
+        // 硬断言 2：editorController 被 present（cycle 2 核心改动）
+        XCTAssertNotNil(plugin.editorController,
+            "ACC-SCREENSHOT-3 (cycle 2): handleConfirm 后 editorController 必须 present（不再直接 copy）")
+
+        // 硬断言 3：copy 不在 handleConfirm 了，pasteboard 空（copy 移到 editor.onConfirm）
+        XCTAssertNil(pb.data(forType: .png),
+            "ACC-SCREENSHOT-3 (cycle 2): handleConfirm 不直接 copy，pb 必须仍为空")
     }
 
-    /// C-COPY-SEAM: handleConfirm 不触碰系统剪贴板（隔离验证）
-    func test_COPY_SEAM_doesNotTouchSystemPasteboard() async throws {
-        // 系统剪贴板预埋 sentinel
+    /// C-COPY-SEAM (cycle 2 调整): handleConfirm 用注入隔离 CopyService 不触碰系统剪贴板
+    /// （copy 不在 handleConfirm 了；此测防回归到「直接 copy」旧行为）。
+    func test_COPY_SEAM_doNotTouchSystemPasteboard() async throws {
         let sentinel = "ccb-sentinel-screenshot-\(UUID().uuidString)"
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(sentinel, forType: .string)
 
         let spy = CaptureSpy()
-        let (copy, _) = makeIsolatedCopyService()  // 注入隔离 pb
-        let plugin = ScreenshotPlugin(capture: spy, copy: copy)
+        spy.stubPNG = makeDecodablePNG(width: 8, height: 8)
+        let (copy, _) = makeIsolatedCopyService()
+        let plugin = ScreenshotPlugin(
+            capture: spy, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: EditorCallbackSpy())
+        )
 
         await plugin.handleConfirm(CGRect(x: 0, y: 0, width: 100, height: 100))
 
-        // 系统剪贴板未被改动（注入隔离 CopyService，不污染系统）
+        // 系统剪贴板未被改动（handleConfirm 不再 copy；注入 CopyService 隔离 pb 也不写系统）
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), sentinel,
             "C-COPY-SEAM: handleConfirm 用注入 CopyService 不应触碰系统剪贴板，应仍是 sentinel")
+    }
+
+    /// ACC-SCREENSHOT-3 (cycle 2 核心): editor confirm 渲染合成 + copy 写 PNG。
+    ///
+    /// 链路：handleConfirm(capture→present editor) → _simulateDraw(对象进 document) →
+    /// _simulateConfirm(AnnotationRenderer.render → onConfirm → plugin.copyImage → pb 写 PNG)。
+    ///
+    /// Mutation-Survival 自检：
+    /// - render 跳过 mutant → onConfirm 收到非 PNG 数据 / pb 空 → 失败（捕获）
+    /// - onConfirm 未触发 copy mutant → pb 空 → 失败（捕获）
+    func test_editorConfirm_rendersAndCopies() async throws {
+        let spy = CaptureSpy()
+        spy.stubPNG = makeDecodablePNG(width: 32, height: 32)
+        let (copy, pb) = makeIsolatedCopyService()
+        let editorSpy = EditorCallbackSpy()
+        let plugin = ScreenshotPlugin(
+            capture: spy, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: editorSpy)
+        )
+
+        await plugin.handleConfirm(CGRect(x: 0, y: 0, width: 32, height: 32))
+
+        let editor = try XCTUnwrap(plugin.editorController)
+
+        // 程序化绘制矩形 + 文字（覆盖 cycle 2 核心 5 工具中的 2 个）
+        _ = editor._simulateDraw(
+            tool: .rectangle,
+            from: CGPoint(x: 2, y: 2),
+            to: CGPoint(x: 24, y: 24)
+        )
+        XCTAssertEqual(editor.document.objects.count, 1)
+
+        // confirm → render → onConfirm(plugin 注入的，触发 copyImage)
+        // 注：plugin.handleConfirm 会覆盖 editorFactory 里 wire 的 spy.onConfirm，故此处不依赖
+        // spy.onConfirmCount；改断言 pb 写入（plugin.onConfirm → copyImage 的副作用）。
+        let pngData = await editor._simulateConfirm()
+        XCTAssertNotNil(pngData,
+            "ACC-SCREENSHOT-3 (cycle 2): editor confirm 必须 render 出合成 PNG")
+
+        // pb 含合成 PNG（plugin.onConfirm → copyImage）
+        let written = pb.data(forType: .png)
+        XCTAssertNotNil(written,
+            "ACC-SCREENSHOT-3 (cycle 2 mutation-killer): editor confirm 后 pb 必须含合成 PNG")
+        XCTAssertEqual(written, pngData,
+            "ACC-SCREENSHOT-3 (cycle 2): pb PNG 必须 == editor render 输出")
     }
 }
 
@@ -449,21 +548,26 @@ final class ScreenshotPluginCancelAndPermissionAcceptanceTests: XCTestCase {
             "ACC-SCREENSHOT-5: 仅查询未 perform 时 pasteboard 不应被写")
     }
 
-    /// 权限降级：capture seam 抛权限拒绝 → handleConfirm 不崩、不写剪贴板
+    /// 权限降级：capture seam 抛权限拒绝 → handleConfirm 不崩、不 present editor、不写剪贴板
     ///
     /// ACC-SCREENSHOT-4: 权限未授予时友好降级（不崩、不写剪贴板）
     ///
     /// Mutation-Survival 自检：
-    /// - handleConfirm 吞错但仍写 pasteboard mutant → pb 非空 → 本断言失败（捕获）
+    /// - handleConfirm 吞错但仍 present editor mutant → editorController 非空 → 失败（捕获）
     /// - handleConfirm 未捕获导致 crash → 测试进程 abort（捕获）
     func test_ACC4_permissionDenied_handleConfirmNoCrash_noCopy() async {
         let deniedCapture = PermissionDeniedCapture()
         let (copy, pb) = makeIsolatedCopyService()
-        let plugin = ScreenshotPlugin(capture: deniedCapture, copy: copy)
+        let plugin = ScreenshotPlugin(
+            capture: deniedCapture, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: EditorCallbackSpy())
+        )
 
-        // handleConfirm 在权限拒绝 seam 下不 crash（捕获尝试 → 抛错 → 友好降级，不写剪贴板）
+        // handleConfirm 在权限拒绝 seam 下不 crash（捕获尝试 → 抛错 → 友好降级，不 present editor）
         await plugin.handleConfirm(CGRect(x: 0, y: 0, width: 100, height: 100))
 
+        XCTAssertNil(plugin.editorController,
+            "ACC-SCREENSHOT-4 (cycle 2): 权限拒绝时不应 present editor")
         XCTAssertNil(pb.data(forType: .png),
             "ACC-SCREENSHOT-4: 权限拒绝时 pasteboard 不应被写（降级不复制）")
     }
@@ -589,23 +693,67 @@ final class ScreenshotTier15IntegrationTests: XCTestCase {
         XCTAssertEqual(spy.callCount, 0, "SC-2: 权限拒绝时不捕获")
     }
 
-    /// SC-3：overlay._simulateConfirm → onConfirm → handleConfirm → captureArea + copyImage（生产全链接线）
-    /// 这是 SC-3 真实场景的 CI 等价（程序化 hook 驱动，零 GUI/TCC）；真机 XCUITest 终验完整 overlay 拖框。
-    func test_SC3_overlayConfirm_drivesCaptureAndCopy() async throws {
+    /// SC-3 (cycle 2 改造)：overlay._simulateConfirm → onConfirm → handleConfirm →
+    /// captureArea + present editor（不再直接 copy；copy 在 editor.onConfirm）。
+    /// 真机 XCUITest 终验完整 overlay 拖框 + editor 标注 + 确认。
+    func test_SC3_overlayConfirm_drivesCaptureAndPresentsEditor() async throws {
         let spy = CaptureSpy()
+        spy.stubPNG = makeDecodablePNG(width: 24, height: 24)
         let (copy, pb) = makeIsolatedCopyService()
-        let plugin = ScreenshotPlugin(capture: spy, copy: copy)
+        let editorSpy = EditorCallbackSpy()
+        let plugin = ScreenshotPlugin(
+            capture: spy, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: editorSpy)
+        )
 
         // 驱动 overlay 选区 + 确认（plugin 的 onConfirm 已在 init wire 到 handleConfirm）
         plugin.overlayController._simulateDrag(
             from: CGPoint(x: 100, y: 100), to: CGPoint(x: 300, y: 250))
         _ = try await plugin.overlayController._simulateConfirm()
 
-        // 全链 artifact：overlay.onConfirm → handleConfirm → captureArea → copyImage
+        // 全链 artifact：overlay.onConfirm → handleConfirm → captureArea → present editor
         XCTAssertEqual(spy.callCount, 1,
             "SC-3 (artifact): overlay 确认后 captureArea 必须被调 1 次（全链接通），实际 \(spy.callCount)")
-        XCTAssertEqual(pb.data(forType: .png), spy.stubPNG,
-            "SC-3 (artifact): pasteboard 必须写入 captureArea 返回的 stubPNG")
+        XCTAssertNotNil(plugin.editorController,
+            "SC-3 (artifact cycle 2): overlay 确认后必须 present editor（不再直接 copy）")
+        // copy 不在 handleConfirm；pb 仍空（直到 editor.onConfirm）
+        XCTAssertNil(pb.data(forType: .png),
+            "SC-3 (artifact cycle 2): handleConfirm 不直接 copy，pb 应仍为空（待 editor.onConfirm）")
+    }
+
+    /// SC-3.5 (cycle 2 端到端)：overlay confirm → present editor →
+    /// editor _simulateDraw + _simulateConfirm → onConfirm(plugin.copyImage) → pb 写合成 PNG。
+    func test_SC3_5_overlayToEditorConfirm_endToEndCopy() async throws {
+        let spy = CaptureSpy()
+        spy.stubPNG = makeDecodablePNG(width: 32, height: 32)
+        let (copy, pb) = makeIsolatedCopyService()
+        let editorSpy = EditorCallbackSpy()
+        let plugin = ScreenshotPlugin(
+            capture: spy, copy: copy,
+            editorFactory: makeSpiedEditorFactory(spy: editorSpy)
+        )
+
+        // 1. overlay 选区 + 确认 → handleConfirm → capture + present editor
+        plugin.overlayController._simulateDrag(
+            from: CGPoint(x: 0, y: 0), to: CGPoint(x: 100, y: 80))
+        _ = try await plugin.overlayController._simulateConfirm()
+        let editor = try XCTUnwrap(plugin.editorController,
+            "SC-3.5 precondition: overlay confirm 后 editor 必须 present")
+
+        // 2. editor 程序化绘制 + 确认 → render → plugin.onConfirm(copyImage) → pb
+        _ = editor._simulateDraw(
+            tool: .arrow,
+            from: CGPoint(x: 4, y: 4),
+            to: CGPoint(x: 28, y: 28)
+        )
+        let pngData = await editor._simulateConfirm()
+
+        // 3. 端到端 artifact：合成 PNG 写入 pb
+        // 注：plugin.handleConfirm 覆盖了 editorFactory 的 spy.onConfirm（接 copy），
+        // 故断言 pb 写入（plugin.onConfirm → copyImage 副作用）而非 spy 计数。
+        XCTAssertNotNil(pngData, "SC-3.5: editor confirm 必须 render 出 PNG")
+        XCTAssertEqual(pb.data(forType: .png), pngData,
+            "SC-3.5 (artifact): 端到端链路通，pb 必须 == editor render 输出")
     }
 
     /// SC-5：overlay._simulateCancel → onCancel → 不捕获、不复制

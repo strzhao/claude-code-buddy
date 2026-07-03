@@ -1,12 +1,13 @@
 import AppKit
+import CoreGraphics
 import Foundation
 
 /// 截屏内置插件（C-SCREENSHOT-* 契约）。
 ///
 /// launcher 输「截屏 / screenshot / jietu / 截图」→ Enter → 同步权限检查 → present 全屏 overlay →
-/// 用户拖框选区 → Enter 确认 → 捕获选区 → PNG 写剪贴板（复用 CopyService）。
+/// 用户拖框选区 → Enter 确认 → 捕获选区 → **标注编辑器（cycle 2）** → 确认渲染合成 → PNG 写剪贴板（复用 CopyService）。
 ///
-/// 本轮切片范围：区域选择 + 复制（对标微信截屏核心）。**不做**：标注编辑器、贴图、保存。
+/// 本轮切片范围：区域选择 + 标注编辑器 + 复制（对标微信截屏核心）。**不做**：贴图、保存、select/move。
 ///
 /// **架构（perform → overlay → onConfirm → handleConfirm → capture+copy，无死锁）**：
 /// - perform 闭包（同步）：仅同步权限 preflight + `overlayController.present()`，**不阻塞、不捕获**；
@@ -58,6 +59,13 @@ final class ScreenshotPlugin: BuiltinPlugin {
     /// 全屏 overlay 控制器（生产交互路径）。internal 供测试直接驱动 _simulateDrag/_simulateConfirm hook
     /// 与 `handleConfirm`（捕获+复制实现目标），无需触发 present GUI。
     let overlayController: ScreenshotOverlayController
+    /// 标注编辑器控制器（cycle 2：捕获后 present）。internal 供测试驱动 _simulateDraw/_simulateConfirm hook。
+    /// 单实例（每轮捕获复用同一引用，present 后 wire onConfirm/onCancel）。
+    private(set) var editorController: ScreenshotAnnotationEditor?
+    /// 标注编辑器工厂 seam（可注入，测试用 mock editor 验证 present 链路）。
+    /// 默认 `ScreenshotAnnotationEditor(image:)`（@MainActor init → 用 optional+nil 默认 + init 内 resolve，
+    /// 对齐 patterns/2026-06-19-swift-mainactor-shared-default-param-nonisolated 坑）。
+    private let editorFactory: @MainActor (CGImage) -> ScreenshotAnnotationEditor
     /// 权限 preflight seam（可注入，测试用 `{ true }` 跳过真实 TCC）。默认 `ScreenRecordingPermission.isGrantedSync`。
     private let permissionPreflight: @MainActor () -> Bool
 
@@ -65,20 +73,22 @@ final class ScreenshotPlugin: BuiltinPlugin {
     /// 参数名 `capture:` / `copy:` 与既有 Calculator(copyService:) / SystemCommand(locker:) 同语义。
     ///
     /// **@MainActor 默认参数坑**（对齐 `patterns/2026-06-19-swift-mainactor-shared-default-param-nonisolated`）：
-    /// `SCScreenCapture()` / `ScreenshotOverlayController()` 是 @MainActor 隔离的 init，不能作 nonisolated
-    /// 默认参数表达式。故用 optional + nil 默认，在 @MainActor init 体（本 init 已 @MainActor）内 resolve。
+    /// `SCScreenCapture()` / `ScreenshotOverlayController()` / `editorFactory` 是 @MainActor 隔离的构造，
+    /// 不能作 nonisolated 默认参数表达式。故用 optional + nil 默认，在 @MainActor init 体（本 init 已 @MainActor）内 resolve。
     init(
         capture: ScreenCapturing? = nil,
         copy: CopyService = .shared,
         overlayController: ScreenshotOverlayController? = nil,
+        editorFactory: (@MainActor (CGImage) -> ScreenshotAnnotationEditor)? = nil,
         permissionPreflight: (@MainActor () -> Bool)? = nil
     ) {
         let controller = overlayController ?? ScreenshotOverlayController()
         self.capture = capture ?? SCScreenCapture()
         self.copy = copy
         self.overlayController = controller
+        self.editorFactory = editorFactory ?? { image in ScreenshotAnnotationEditor(image: image) }
         self.permissionPreflight = permissionPreflight ?? ScreenRecordingPermission.isGrantedSync
-        // wire overlay 回调（生产路径：present → 用户拖框 → Enter → onConfirm → 捕获+复制）。
+        // wire overlay 回调（生产路径：present → 用户拖框 → Enter → onConfirm → 捕获 → present editor）。
         // weak self 防插件→控制器→回调→插件 retain cycle。
         controller.onConfirm = { [weak self] rect in
             guard let self else { return }
@@ -161,12 +171,15 @@ final class ScreenshotPlugin: BuiltinPlugin {
         overlayController.present()
     }
 
-    // MARK: - overlay.onConfirm 实现：捕获 + 复制（async，cooperative，不死锁）
+    // MARK: - overlay.onConfirm 实现：捕获 → 解码 CGImage → present 编辑器（async，cooperative，不死锁）
 
-    /// overlay 确认选区后回调的目标实现：`captureArea(rect)` → PNG → `copyImage(data)`。
-    /// 错误友好降级（权限拒绝 / 捕获失败 / 空数据），不崩、不写剪贴板。
+    /// overlay 确认选区后回调的目标实现（cycle 2 改造）：
+    /// `captureArea(rect)` → PNG → 解码 CGImage → present `ScreenshotAnnotationEditor` →
+    /// editor.onConfirm 渲染合成 + 复制；editor.onCancel 仅清理。
     ///
-    /// internal 暴露：测试直接 `await plugin.handleConfirm(rect)` 确定性验证 capture+copy，
+    /// 错误友好降级（权限拒绝 / 捕获失败 / 空数据 / 解码失败），不崩、不 present editor。
+    ///
+    /// internal 暴露：测试直接 `await plugin.handleConfirm(rect)` 确定性验证 capture + present editor，
     /// 无需触发 overlay present（避免 GUI 副作用）。
     @MainActor
     func handleConfirm(_ rect: CGRect) async {
@@ -181,18 +194,63 @@ final class ScreenshotPlugin: BuiltinPlugin {
             data = try await capture.captureArea(rect)
         } catch {
             BuddyLogger.shared.warn(
-                "screenshot 捕获失败（友好降级，不写剪贴板）",
+                "screenshot 捕获失败（友好降级，不 present editor）",
                 subsystem: "builtin",
                 meta: ["error": "\(error)"]
             )
             return
         }
 
-        copy.copyImage(data)
+        // PNG → CGImage
+        guard let cgImage = Self.cgImage(from: data) else {
+            BuddyLogger.shared.warn(
+                "screenshot PNG→CGImage 解码失败（友好降级）",
+                subsystem: "builtin",
+                meta: ["bytes": data.count]
+            )
+            return
+        }
+
+        // 构造 + present 标注编辑器（cycle 2）
+        let editor = editorFactory(cgImage)
+        self.editorController = editor
+
+        // wire editor 回调：onConfirm 渲染合成 → 复制；onCancel 仅清理
+        editor.onConfirm = { [weak self] pngData in
+            guard let self else { return }
+            self.copy.copyImage(pngData)
+            BuddyLogger.shared.info(
+                "screenshot editor 确认 → 已复制合成 PNG 到剪贴板",
+                subsystem: "builtin",
+                meta: ["bytes": pngData.count]
+            )
+        }
+        editor.onCancel = { [weak self] in
+            self?.editorController = nil
+            BuddyLogger.shared.info(
+                "screenshot editor 用户取消（ESC），不复制",
+                subsystem: "builtin"
+            )
+        }
+
         BuddyLogger.shared.info(
-            "screenshot 已复制到剪贴板",
+            "screenshot 捕获成功 → present 标注编辑器",
             subsystem: "builtin",
-            meta: ["bytes": data.count]
+            meta: ["imgW": cgImage.width, "imgH": cgImage.height]
+        )
+        editor.present()
+    }
+
+    // MARK: - Helpers
+
+    /// PNG `Data` → CGImage（用于喂 AnnotationKit 编辑器作 sourceImage）。
+    private static func cgImage(from data: Data) -> CGImage? {
+        guard let provider = CGDataProvider(data: data as CFData) else { return nil }
+        return CGImage(
+            pngDataProviderSource: provider,
+            decode: nil,
+            shouldInterpolate: true,
+            intent: .defaultIntent
         )
     }
 }

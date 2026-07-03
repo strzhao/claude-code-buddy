@@ -4,7 +4,7 @@ import XCTest
 /// Tier 0 红队验收测试 —— 黑盒验证内置插件开关持久化（契约 C3）+ registry 候选过滤（场景 1/2/3）。
 ///
 /// 覆盖验收场景：
-/// - 场景 1.P1: registry 含全部 4 个内置插件 id（system-command/calculator/paste/app-launcher）
+/// - 场景 1.P1: registry 含全部 5 个内置插件 id（system-command/calculator/paste/app-launcher/screenshot）
 /// - 场景 1.P2: 每个 plugin 对象含非空 `summary` 字段（契约 C2）
 /// - 场景 2.P1: registry candidates for "1+2" 返回 calculator 候选（length >= 1）
 /// - 场景 3.P1: calculator disabled 后 candidates 不再返回 calculator 候选
@@ -69,16 +69,16 @@ final class BuiltinPluginToggleAcceptanceTests: XCTestCase {
         BuiltinPluginEnabledStore.shared
     }
 
-    // MARK: - 场景 1.P1 + 1.P2: registry 含 4 个内置插件 id 且每个含非空 summary
+    // MARK: - 场景 1.P1 + 1.P2: registry 含全部内置插件 id（5 个）且每个含非空 summary
 
-    /// 契约 C2 + 场景 1.P1: registry 含全部 4 个内置插件 id。
-    func test_AT01_registryContainsAllFourBuiltinPluginIds() async {
+    /// 契约 C2 + 场景 1.P1: registry 含全部内置插件 id（5 个：system-command/calculator/paste/app-launcher/screenshot）。
+    func test_AT01_registryContainsAllBuiltinPluginIds() async {
         let registry = BuiltinPluginRegistry.shared
         let ids = Set(registry.plugins.map(\.id))
-        // 场景 1.P1 assert: stdout 含全部 4 个 id
-        let expected: Set<String> = ["system-command", "calculator", "paste", "app-launcher"]
+        // 场景 1.P1 assert: registry 含全部 5 个内置插件 id（screenshot 为本轮新增内置插件）
+        let expected: Set<String> = ["system-command", "calculator", "paste", "app-launcher", "screenshot"]
         XCTAssertEqual(ids, expected,
-                       "registry 必须注册全部 4 个内置插件，实际: \(ids.sorted())")
+                       "registry 必须注册全部 5 个内置插件，实际: \(ids.sorted())")
     }
 
     /// 契约 C2 + 场景 1.P2: 每个 plugin 对象含非空 summary。

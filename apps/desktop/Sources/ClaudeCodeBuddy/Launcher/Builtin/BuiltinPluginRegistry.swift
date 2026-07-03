@@ -27,11 +27,12 @@ final class BuiltinPluginRegistry {
         enabledStore: BuiltinPluginEnabledStore = .shared
     ) {
         // 顺序：priority 高 / 解释器型在前
-        // CalculatorPlugin=200 > PastePlugin=150 > SystemCommandPlugin=100 > AppLauncherPlugin=0
+        // CalculatorPlugin=200 > PastePlugin=150 > SystemCommandPlugin=100 > ScreenshotPlugin=90 > AppLauncherPlugin=0
         self.plugins = plugins ?? [
             SystemCommandPlugin.shared,
             CalculatorPlugin.shared,
             PastePlugin.shared,
+            ScreenshotPlugin.shared,
             AppLauncherPlugin.shared,
         ]
         self.enabledStore = enabledStore
@@ -99,6 +100,7 @@ final class BuiltinPluginRegistry {
             SystemCommandPlugin.shared,
             CalculatorPlugin.shared,
             PastePlugin.shared,
+            ScreenshotPlugin.shared,
             AppLauncherPlugin.shared,
         ]
     }

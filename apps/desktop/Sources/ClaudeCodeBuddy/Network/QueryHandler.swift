@@ -491,7 +491,7 @@ final class QueryHandler {
 
         var decision = "directChat"
         var routeMethod = "directChat"
-        var extractedQuery: String? = nil
+        var extractedQuery: String?
         if !candidates.isEmpty {
             let router = LauncherRouter(
                 pluginManager: PluginManager.shared,

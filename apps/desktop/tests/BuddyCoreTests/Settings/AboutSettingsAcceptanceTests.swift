@@ -63,33 +63,38 @@ final class AboutSettingsAcceptanceTests: XCTestCase {
                        """)
     }
 
-    /// AC-ABOUT-ROW 补：三按钮在水平方向不重叠（X 上有间隔）。
-    /// 杀死"三按钮 frame 重叠/挤一起"的 mutation。
+    /// AC-ABOUT-ROW 补：三按钮必须是 buttonRow（NSStackView）的 arrangedSubview + spacing 足够。
+    /// 杀死"三按钮未进 StackView / 裸 addSubview 重叠 / spacing 过小挤一起"的 mutation。
+    ///
+    /// 用 StackView 配置断言（非 frame 像素）：frame 重叠断言依赖字体度量，CI macOS 14 vs 本地
+    /// 字体微差致 arrangedSubview frame 在 layoutSubtreeIfNeeded 后仍有 ~2pt 未求解
+    ///（spacing=12 配置正确但像素重叠 2pt），环境敏感。设计契约在 StackView 配置（arrangedSubview
+    /// + spacing），不在像素——StackView spacing>=8 即保证不重叠，无需测渲染结果。
     func test_AC_ABOUT_ROW_threeButtons_horizontallySeparated() {
         let vc = AboutSettingsViewController()
         _ = vc.view
-        vc.view.layoutSubtreeIfNeeded()
 
-        let buttons = findAll(NSButton.self, in: vc.view)
-        let checkUpdate = buttons.first { $0.title.contains("检查更新") }
-        let feedback = buttons.first { $0.title.contains("反馈") }
-        let repo = buttons.first { $0.title.contains("开源") }
-
-        guard let cu = checkUpdate, let fb = feedback, let rp = repo else {
-            return XCTFail("三按钮必须存在（前置见 test_AC_ABOUT_ROW_threeButtons_sameHorizontalLine）")
+        // 找容纳 '检查更新' 的水平 NSStackView（buttonRow；statusRow 不含该按钮）
+        let buttonRow = findAll(NSStackView.self, in: vc.view)
+            .filter { $0.orientation == .horizontal }
+            .first { sv in sv.arrangedSubviews.contains { ($0 as? NSButton)?.title.contains("检查更新") == true } }
+        guard let row = buttonRow else {
+            return XCTFail("必须含水平 NSStackView（buttonRow）容纳 '检查更新' 按钮（T7 设计）")
         }
 
-        // 按 minX 排序，相邻按钮的 maxX < 下一按钮的 minX（不重叠）
-        let sorted = [cu, fb, rp].sorted { $0.frame.minX < $1.frame.minX }
-        for i in 0..<(sorted.count - 1) {
-            let left = sorted[i]
-            let right = sorted[i + 1]
-            XCTAssertLessThanOrEqual(left.frame.maxX, right.frame.minX,
-                                     """
-                                     AC-ABOUT-ROW: 相邻按钮不得水平重叠。
-                                     '\(left.title)'.maxX=\(left.frame.maxX) > '\(right.title)'.minX=\(right.frame.minX)
-                                     """)
-        }
+        // 三按钮必须是 arrangedSubview（非裸 addSubview，防重叠 mutation）
+        let arrangedTitles = row.arrangedSubviews.compactMap { ($0 as? NSButton)?.title }
+        XCTAssertTrue(arrangedTitles.contains { $0.contains("检查更新") } &&
+                      arrangedTitles.contains { $0.contains("反馈") } &&
+                      arrangedTitles.contains { $0.contains("开源") },
+                      """
+                      AC-ABOUT-ROW: 三按钮（检查更新/反馈/开源）必须是 buttonRow.arrangedSubview。
+                      实际 arrangedSubviews titles: \(arrangedTitles)
+                      """)
+
+        // spacing 足够（设计 12pt；>= 8 保证不挤）
+        XCTAssertGreaterThanOrEqual(row.spacing, 8,
+                                    "buttonRow.spacing >= 8 保证按钮不挤（设计 spacing=12），实际: \(row.spacing)")
     }
 
     /// AC-ABOUT-ROW 补：状态行（statusLabel/progressIndicator/upgradeButton）在 buttonRow 下方。

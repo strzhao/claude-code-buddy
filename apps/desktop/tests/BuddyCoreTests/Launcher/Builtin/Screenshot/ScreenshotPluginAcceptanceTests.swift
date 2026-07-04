@@ -675,12 +675,17 @@ final class ScreenshotTier15IntegrationTests: XCTestCase {
             "SC-2 (artifact): perform 后 overlay 必须 present（isPresented==true），实际 \(plugin.overlayController.isPresented)")
     }
 
-    /// SC-2 补充：权限拒绝时 perform 不 present overlay、不捕获（友好降级）
+    /// SC-2 补充：权限拒绝时 perform 不 present overlay、不捕获（友好降级）。
+    /// 新流程（C-PERMISSION-REQUEST）：preflight 未授权 → 触发系统 request → 用户拒绝 → 引导设置，不 present。
+    /// 用 `permissionRequest: { false }` 确定性模拟「用户拒绝系统授权对话框」（默认 request 落真实
+    /// `CGRequestScreenCaptureAccess`，测试进程继承终端的屏幕录制权限会返回 true，无法稳定复现拒绝）。
     func test_SC2_permissionDenied_doesNotPresent_noCapture() async {
         let spy = CaptureSpy()
         let (copy, _) = makeIsolatedCopyService()
         let plugin = ScreenshotPlugin(
-            capture: spy, copy: copy, permissionPreflight: { false }
+            capture: spy, copy: copy,
+            permissionPreflight: { false },
+            permissionRequest: { false }
         )
 
         let actions = await plugin.actions(for: "截屏")

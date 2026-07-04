@@ -612,15 +612,14 @@ private final class ScreenshotEditorPanel: NSPanel {
         // 子类必须调 designated init（不带 screen 的），再手动 setScreen。
         super.init(
             contentRect: contentRect,
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [],  // borderless：editor 有自己的 toolbar（取消/确认 + ESC），无需系统 title bar；.titled 的 title bar 会遮挡顶部 toolbar 致其点不到
             backing: .buffered,
             defer: false
         )
-        if let screen {
-            setFrame(screen.visibleFrame, display: false)
-            // 居中由调用方算 frame，这里只确保 panel 关联到目标 screen
-            _ = screen
-        }
+        // 不 setFrame(screen.visibleFrame) —— 那会把 panel 撑成全屏，覆盖调用方算好的居中 frame，
+        // 导致 content（image+toolbar）落在全屏 panel 左下角（真机「editor 没居中、难操作」根因）。
+        // panel 保持 contentRect（调用方 present() 算的居中 image-sized frame）；screen 关联由 frame 位置自然决定。
+        _ = screen
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         titleVisibility = .hidden

@@ -68,6 +68,9 @@ final class ScreenshotPlugin: BuiltinPlugin {
     private let editorFactory: @MainActor (CGImage) -> ScreenshotAnnotationEditor
     /// 权限 preflight seam（可注入，测试用 `{ true }` 跳过真实 TCC）。默认 `ScreenRecordingPermission.isGrantedSync`。
     private let permissionPreflight: @MainActor () -> Bool
+    /// 权限 request seam（可注入）。preflight 未授权时调此触发系统授权（`CGRequestScreenCaptureAccess`：
+    /// 把 app 加入 TCC 列表 + 弹系统对话框）。默认 `ScreenRecordingPermission.requestIfNeededSync`。
+    private let permissionRequest: @MainActor () -> Bool
 
     /// 测试注入用 init（对齐 SystemCommandPlugin/CalculatorPlugin 注入风格）。
     /// 参数名 `capture:` / `copy:` 与既有 Calculator(copyService:) / SystemCommand(locker:) 同语义。
@@ -80,7 +83,8 @@ final class ScreenshotPlugin: BuiltinPlugin {
         copy: CopyService = .shared,
         overlayController: ScreenshotOverlayController? = nil,
         editorFactory: (@MainActor (CGImage) -> ScreenshotAnnotationEditor)? = nil,
-        permissionPreflight: (@MainActor () -> Bool)? = nil
+        permissionPreflight: (@MainActor () -> Bool)? = nil,
+        permissionRequest: (@MainActor () -> Bool)? = nil
     ) {
         let controller = overlayController ?? ScreenshotOverlayController()
         self.capture = capture ?? SCScreenCapture()
@@ -88,6 +92,7 @@ final class ScreenshotPlugin: BuiltinPlugin {
         self.overlayController = controller
         self.editorFactory = editorFactory ?? { image in ScreenshotAnnotationEditor(image: image) }
         self.permissionPreflight = permissionPreflight ?? ScreenRecordingPermission.isGrantedSync
+        self.permissionRequest = permissionRequest ?? ScreenRecordingPermission.requestIfNeededSync
         // wire overlay 回调（生产路径：present → 用户拖框 → Enter → onConfirm → 捕获 → present editor）。
         // weak self 防插件→控制器→回调→插件 retain cycle。
         controller.onConfirm = { [weak self] rect in
@@ -128,6 +133,7 @@ final class ScreenshotPlugin: BuiltinPlugin {
 
         let overlay = self.overlayController
         let checkPermission = self.permissionPreflight
+        let requestPermission = self.permissionRequest
 
         let action = LauncherAction(
             id: "screenshot.capture",
@@ -137,38 +143,63 @@ final class ScreenshotPlugin: BuiltinPlugin {
             pluginId: self.id,
             score: bestScore,
             perform: {
-                // 同步：权限 preflight（拒则引导跳设置）→ present overlay。
+                // 同步：权限 preflight → 未授权则触发系统 request（把 app 加入 TCC 列表 + 弹对话框）→ present overlay。
                 // **不在此捕获**（捕获在 overlay.onConfirm → handleConfirm 异步完成，避免 main-thread 阻塞）。
-                Self.startCaptureFlow(overlayController: overlay, permission: checkPermission)
+                Self.startCaptureFlow(
+                    overlayController: overlay,
+                    permission: checkPermission,
+                    request: requestPermission
+                )
             }
         )
         return [action]
     }
 
-    // MARK: - perform 实现：同步权限 preflight + present overlay（不阻塞、不捕获）
+    // MARK: - perform 实现：同步权限 preflight → 未授权触发 request → present overlay（不阻塞、不捕获）
 
-    /// perform 闭包入口：同步权限检查 → present overlay。
+    /// perform 闭包入口：三段权限流程 → present overlay。
     /// 捕获不在 perform（避免 main-thread 阻塞）；由 overlay.onConfirm 异步回调驱动。
+    ///
+    /// **三段权限流程**（修首次运行 app 不在 TCC 列表的 bug —— mock 测不出，真机抓到）：
+    /// 1. `permission()`（preflight，纯查询）：已授权 → 直接 present overlay；
+    /// 2. 未授权 → `request()`（`CGRequestScreenCaptureAccess`）：把 app 加入「屏幕录制」列表 + 弹系统对话框，
+    ///    阻塞至用户响应；授权 → present overlay；
+    /// 3. 被拒 / 已拒 → 引导跳系统设置（用户改主意后再来）。
+    /// **关键**：不能只用 preflight 就跳设置 —— `CGPreflightScreenCaptureAccess` 不登记 app，用户在列表里
+    /// 看不到 app 无从勾选；必须 `CGRequestScreenCaptureAccess` 触发登记。
     @MainActor
     private static func startCaptureFlow(
         overlayController: ScreenshotOverlayController,
-        permission: @MainActor () -> Bool
+        permission: @MainActor () -> Bool,
+        request: @MainActor () -> Bool
     ) {
         BuddyLogger.shared.info(
             "screenshot perform → 权限检查 + present overlay",
             subsystem: "builtin"
         )
 
-        guard permission() else {
-            BuddyLogger.shared.warn(
-                "screenshot 屏幕录制权限未授予，引导跳系统设置（不崩、不捕获）",
-                subsystem: "builtin"
-            )
-            ScreenRecordingPermission.openSystemSettings()
+        // 1. 已授权 → 直接 present overlay
+        if permission() {
+            overlayController.present()
             return
         }
 
-        overlayController.present()
+        // 2. 未授权 → 触发系统授权请求（登记 app + 弹对话框，阻塞至用户响应）
+        BuddyLogger.shared.info(
+            "screenshot preflight 未授权，触发系统授权请求（CGRequestScreenCaptureAccess）",
+            subsystem: "builtin"
+        )
+        if request() {
+            overlayController.present()
+            return
+        }
+
+        // 3. 被拒 / 不可用 → 引导跳系统设置（不崩、不捕获）
+        BuddyLogger.shared.warn(
+            "screenshot 授权被拒 / 不可用，引导跳系统设置",
+            subsystem: "builtin"
+        )
+        ScreenRecordingPermission.openSystemSettings()
     }
 
     // MARK: - overlay.onConfirm 实现：捕获 → 解码 CGImage → present 编辑器（async，cooperative，不死锁）

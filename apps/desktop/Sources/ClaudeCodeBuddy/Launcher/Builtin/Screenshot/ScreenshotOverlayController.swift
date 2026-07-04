@@ -48,6 +48,10 @@ final class ScreenshotOverlayController {
     private var localKeyMonitor: Any?
     /// 失焦监视器（C-OVERLAY-DEFOCUS-ABORT）：overlay 期间 app 失活 → 中止。
     private var deactivationObserver: NSObjectProtocol?
+    /// 失焦中止 arm 时间戳。present 后 0.4s 内的 willResignActive 忽略 —— 避免 present 时的
+    /// 初始激活切换（launcher 窗口隐藏 → app 瞬间 resign active）被误判为"用户切走"立即中止 overlay。
+    /// 真机复现：overlay present 后 25ms 即失焦中止（buddy log 可见）。grace period 让切换尘埃落定后再 arm。
+    private var defocusArmTime: Date = .distantPast
 
     // MARK: - Present / Dismiss
 
@@ -63,6 +67,11 @@ final class ScreenshotOverlayController {
                 "screenshot overlay present (test mode, skip GUI panels)",
                 subsystem: "builtin"
             )
+            // 仍装 deactivation observer + 设 grace period，供 headless 测失焦中止逻辑
+            // （C-OVERLAY-DEFOCUS-ABORT）。不装 key monitor（NSEvent.addLocalMonitorForEvents
+            // 是进程级监听，会吞/干扰其它测试的键盘事件）。
+            installDeactivationObserver()
+            defocusArmTime = Date().addingTimeInterval(0.4)
             return
         }
 
@@ -110,6 +119,8 @@ final class ScreenshotOverlayController {
 
         installKeyMonitor()
         installDeactivationObserver()
+        // grace period：present 后 0.4s 内忽略 willResignActive（launcher 隐藏造成的瞬间 resign 不算用户切走）
+        defocusArmTime = Date().addingTimeInterval(0.4)
     }
 
     /// 关闭 overlay，清理所有资源（取消/确认后统一调用）。
@@ -247,6 +258,14 @@ final class ScreenshotOverlayController {
             // 失焦中止走主线程（observer queue 已指定 .main，但显式 Task 隔离更稳）
             Task { @MainActor in
                 guard let self = self, self.isPresented else { return }
+                // grace period：present 后 0.4s 内忽略（launcher 隐藏造成的瞬间 resign，非用户切走）
+                guard Date() >= self.defocusArmTime else {
+                    BuddyLogger.shared.info(
+                        "screenshot overlay willResignActive 在 grace period 内，忽略（初始激活切换）",
+                        subsystem: "builtin"
+                    )
+                    return
+                }
                 BuddyLogger.shared.info(
                     "screenshot overlay 失焦中止",
                     subsystem: "builtin"
@@ -337,6 +356,12 @@ final class ScreenshotOverlayController {
         if isPresented { dismiss() }
         callback?()
     }
+
+    /// test-only：把 defocusArmTime 设到过去，模拟 grace period 已过（observer 进入 armed 态）。
+    /// 配合 headless defocus 测试（present 在 test 模式装 observer + 设 arm time；此 hook 跳过 0.4s 等待）。
+    func _testForceDefocusArmed() {
+        defocusArmTime = .distantPast
+    }
 }
 
 // MARK: - ScreenshotOverlayPanel（每个显示器一个全屏透明 NSPanel）
@@ -349,13 +374,18 @@ private final class ScreenshotOverlayPanel: NSPanel {
 
     init(contentRect: NSRect, screen: NSScreen, isPrimary: Bool) {
         self.isPrimary = isPrimary
+        // NSPanel 的 init(contentRect:styleMask:backing:defer:screen:) 是 **convenience init**——
+        // 子类 designated init 不能 delegate 到它：运行时 screen 变体会重派 designated（无 screen 变体），
+        // 落到本子类的两阶段 init 违反 → EXC_BREAKPOINT（真机崩；测试因 present() test-aware 跳 GUI 测不出，
+        // 与 SC-3 死锁 / TCC request 同款 mock 盲区）。
+        // 正解：调 designated init（不带 screen），再 setFrame 锚定屏幕（对齐 ScreenshotEditorPanel:611-623 / LauncherWindow:5-9）。
         super.init(
             contentRect: contentRect,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
-            defer: false,
-            screen: screen
+            defer: false
         )
+        setFrame(screen.frame, display: false)  // contentRect 已是 screen.frame；setFrame 锚定到目标屏
         level = .screenSaver  // 盖住一切（含菜单栏 / Dock）
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         backgroundColor = .clear

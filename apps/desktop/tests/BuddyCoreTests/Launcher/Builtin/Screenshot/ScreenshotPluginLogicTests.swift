@@ -328,6 +328,45 @@ final class ScreenshotPluginLogicTests: XCTestCase {
         let result = await registry.actions(for: "截屏")
         XCTAssertTrue(result.contains { $0.pluginId == "screenshot" })
     }
+
+    // MARK: - C-PERMISSION-REQUEST（TCC request 流程：preflight 未授权时触发 CGRequestScreenCaptureAccess 登记 app）
+
+    /// 真机抓到的 bug 修复：preflight 未授权时必须触发 request（CGRequestScreenCaptureAccess 把 app 加进
+    /// TCC 列表 + 弹系统对话框），不能只用 preflight 就跳设置（preflight 纯查询不登记 app，首次用户列表里看不到 app）。
+    func test_perform_notGranted_triggersRequest_andPresentsOverlay() async throws {
+        let (copy, _) = makeIsolatedCopyService()
+        var requestCalled = false
+        let plugin = ScreenshotPlugin(
+            capture: CaptureSpy(), copy: copy,
+            permissionPreflight: { false },                          // 未授权
+            permissionRequest: { requestCalled = true; return true }  // request 成功（用户授权）
+        )
+
+        let actions = await plugin.actions(for: "截屏")
+        XCTAssertEqual(actions.count, 1)
+        XCTAssertFalse(plugin.overlayController.isPresented, "perform 前不应 present")
+
+        try actions.first?.perform()
+
+        XCTAssertTrue(requestCalled, "preflight 未授权时必须触发 request（登记 app + 弹系统对话框）")
+        XCTAssertTrue(plugin.overlayController.isPresented, "request 成功后必须 present overlay")
+    }
+
+    func test_perform_alreadyGranted_skipsRequest_directlyPresents() async throws {
+        let (copy, _) = makeIsolatedCopyService()
+        var requestCalled = false
+        let plugin = ScreenshotPlugin(
+            capture: CaptureSpy(), copy: copy,
+            permissionPreflight: { true },                            // 已授权
+            permissionRequest: { requestCalled = true; return true }
+        )
+
+        let actions = await plugin.actions(for: "截屏")
+        try actions.first?.perform()
+
+        XCTAssertFalse(requestCalled, "preflight 已授权时应跳过 request 直接 present")
+        XCTAssertTrue(plugin.overlayController.isPresented, "已授权时直接 present overlay")
+    }
 }
 
 // MARK: - ScreenshotOverlayController 逻辑测试（C-OVERLAY-TEST-HOOK / C-MIN-SELECTION）
@@ -400,5 +439,40 @@ final class ScreenshotOverlayControllerLogicTests: XCTestCase {
         controller._simulateDrag(from: CGPoint(x: 0, y: 0), to: CGPoint(x: 50, y: 50))
         _ = try await controller._simulateConfirm()  // 不 crash
         controller._simulateCancel()                  // 不 crash
+    }
+
+    // MARK: - C-OVERLAY-DEFOCUS-ABORT grace period（headless：合成 willResignActive 驱动）
+
+    /// grace period 内（present 后 0.4s）的 willResignActive **不应**中止 overlay。
+    /// 真机复现的 bug：present 时 launcher 隐藏造成瞬间 resign，25ms 后 overlay 被误中止。
+    /// inverted expectation：0.6s 内（含 0.4s grace）onCancel 不应触发。
+    func test_defocus_withinGracePeriod_doesNotCancel() async {
+        let controller = ScreenshotOverlayController()
+        let cancelExp = expectation(description: "onCancel 不应触发")
+        cancelExp.isInverted = true
+        controller.onCancel = { cancelExp.fulfill() }
+
+        controller.present()  // test 模式：isPresented=true + observer + grace period active (arm=now+0.4)
+
+        // 立即发 willResignActive（模拟 present 后 25ms 的瞬间激活切换）
+        NotificationCenter.default.post(name: NSApplication.willResignActiveNotification, object: nil)
+
+        await fulfillment(of: [cancelExp], timeout: 0.6)
+        XCTAssertTrue(controller.isPresented, "grace period 内的 willResignActive 不应中止 overlay")
+    }
+
+    /// grace period 后的 willResignActive**应**中止 overlay。
+    func test_defocus_afterGracePeriod_cancels() async {
+        let controller = ScreenshotOverlayController()
+        let cancelExp = expectation(description: "onCancel 触发")
+        controller.onCancel = { cancelExp.fulfill() }
+
+        controller.present()
+        controller._testForceDefocusArmed()  // 模拟 grace period 已过（arm time → 过去，observer armed）
+
+        NotificationCenter.default.post(name: NSApplication.willResignActiveNotification, object: nil)
+
+        await fulfillment(of: [cancelExp], timeout: 1.0)
+        XCTAssertFalse(controller.isPresented, "grace period 后的 willResignActive 应 cancel overlay")
     }
 }

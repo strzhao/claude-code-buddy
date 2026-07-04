@@ -85,12 +85,19 @@ struct SCScreenCapture: ScreenCapturing {
         // 这里把物理像素矩形作为 source rect + destination size 一起设置（源 = 目标，1:1 像素）。
         config.width = Int(physicalRect.width.rounded())
         config.height = Int(physicalRect.height.rounded())
-        // sourceRect 在 display 自身坐标系（display.frame.origin 平移到 0,0），points。
+        // sourceRect 在 display 自身坐标系（display.frame.origin 平移到 0,0），**points**。
+        // ⚠️ 两个坑（均真机抓到，headless 小 rect 测试盲区）：
+        // 1. SCStreamConfiguration.sourceRect 用 points（非 pixels）；config.width/height 才是 pixels（输出尺寸）。
+        //    旧代码误用 physicalRect（pixels）→ 大选区超屏 points 边界 → SCStreamError -3812。
+        // 2. ScreenCaptureKit sourceRect 用 **top-left origin**（CoreGraphics 系）；overlay 选区是 NSScreen
+        //    **bottom-left origin**（Cocoa 系）。Y 必须翻转：sourceRect.y = displayTopY - selection.maxY，
+        //    否则选上方捕到下方（真机「截图偏下很多」）。
+        let displayTopY = display.frame.origin.y + display.frame.height
         let sourceRectInDisplay = CGRect(
-            x: physicalRect.origin.x - display.frame.origin.x * scale,
-            y: physicalRect.origin.y - display.frame.origin.y * scale,
-            width: physicalRect.width,
-            height: physicalRect.height
+            x: rectInPoints.origin.x - display.frame.origin.x,
+            y: displayTopY - rectInPoints.maxY,   // bottom-left 选区 → top-left sourceRect 翻转
+            width: rectInPoints.width,
+            height: rectInPoints.height
         )
         config.sourceRect = sourceRectInDisplay
 

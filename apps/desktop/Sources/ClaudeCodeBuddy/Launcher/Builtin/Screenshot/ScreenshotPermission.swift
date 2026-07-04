@@ -60,6 +60,19 @@ enum ScreenRecordingPermission {
         return false
     }
 
+    /// 同步请求授权（首次会弹系统对话框并**把 app 加入 TCC 列表**；阻塞至用户响应）。
+    /// perform 同步路径用此在 preflight 未授权时触发系统授权 ——
+    /// 关键：`CGPreflightScreenCaptureAccess` 是纯查询**不会登记 app**，必须 `CGRequestScreenCaptureAccess`
+    /// 才能让 app 出现在「系统设置 → 屏幕录制」列表（修首次运行 app 不在列表的 bug）。
+    /// 已授权返回 true；已拒返回 false（不再弹）；未决定则弹系统对话框阻塞至用户响应后返回结果。
+    @MainActor
+    static func requestIfNeededSync() -> Bool {
+        if #available(macOS 14.0, *) {
+            return CGRequestScreenCaptureAccess()
+        }
+        return false
+    }
+
     /// 引导用户跳「系统设置 → 隐私与安全 → 屏幕录制」（macOS 14+ URL scheme）。
     @MainActor
     static func openSystemSettings() {

@@ -43,8 +43,8 @@ if [ -f "$ICON" ]; then
     cp "$ICON" "$DEV_BUNDLE_DIR/Contents/Resources/AppIcon.icns"
 fi
 
-# Ad-hoc sign so macOS can associate TCC permissions with this bundle
-codesign --force --deep --sign - "$DEV_BUNDLE_DIR"
+# 用稳定 dev cert 签名（TCC 跨重打包持久）；无 cert 退回 ad-hoc（详见 sign-bundle.sh）
+bash "$SCRIPT_DIR/sign-bundle.sh" "$DEV_BUNDLE_DIR"
 
 echo "==> Dev bundle signed and ready"
 

@@ -64,9 +64,8 @@ if [ -f "$CLI_EXEC_PATH" ]; then
     echo "==> CLI tool bundled: Contents/MacOS/buddy"
 fi
 
-# Ad-hoc sign so macOS preserves automation permissions across rebuilds
-codesign --force --deep -s - "$BUNDLE_DIR"
-echo "==> Ad-hoc signed"
+# 用稳定 dev cert 签名（TCC 跨重打包持久）；无 cert 退回 ad-hoc（详见 sign-bundle.sh）
+bash "$(dirname "${BASH_SOURCE[0]}")/sign-bundle.sh" "$BUNDLE_DIR"
 
 echo "==> Bundle created: $BUNDLE_DIR"
 echo ""

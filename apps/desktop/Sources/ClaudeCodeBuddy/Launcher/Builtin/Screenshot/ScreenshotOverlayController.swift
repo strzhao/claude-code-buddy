@@ -101,7 +101,7 @@ final class ScreenshotOverlayController {
             overlayView.isPrimary = isMain
             // 主屏 overlay 接管拖框 + 绘制选区框；副屏只画半透遮罩
             overlayView.onSelectionChange = { [weak self] rect in
-                Task { @MainActor in self?.handleSelectionChange(rect) }
+                MainActor.assumeIsolated { self?.handleSelectionChange(rect) }
             }
             panel.contentView = overlayView
             if isMain {
@@ -255,8 +255,10 @@ final class ScreenshotOverlayController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // 失焦中止走主线程（observer queue 已指定 .main，但显式 Task 隔离更稳）
-            Task { @MainActor in
+            // 失焦中止：observer queue=.main 已在主线程，用 MainActor.assumeIsolated 同步执行。
+            // 不用 Task { @MainActor }：Swift 5.9（CI）下 @Sendable Task 捕获 weak self 报
+            // "reference to captured var in concurrently-executing code"（本地 Swift 6 宽容但 CI 挂）。
+            MainActor.assumeIsolated {
                 guard let self = self, self.isPresented else { return }
                 // grace period：present 后 0.4s 内忽略（launcher 隐藏造成的瞬间 resign，非用户切走）
                 guard Date() >= self.defocusArmTime else {

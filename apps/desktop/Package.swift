@@ -17,7 +17,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/strzhao/capso-spm",
-            from: "1.0.0"
+            from: "1.1.0"
         )
     ],
     targets: [

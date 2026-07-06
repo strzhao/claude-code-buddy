@@ -128,11 +128,27 @@ final class AboutSettingsViewController: NSViewController {
         repoButton.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(repoButton)
 
-        // 更新区域顶部约束引用（根据状态切换上锚点）
-        let updateTopAnchor = checkUpdateButton.topAnchor.constraint(
-            equalTo: versionLabel.bottomAnchor,
-            constant: SettingsTheme.groupSpacing + 4
-        )
+        // T7（2026-07-02）：3 按钮同一行（检查更新 / 反馈 / 开源）
+        let buttonRow = NSStackView()
+        buttonRow.orientation = .horizontal
+        buttonRow.alignment = .centerY
+        buttonRow.spacing = 12
+        buttonRow.translatesAutoresizingMaskIntoConstraints = false
+        buttonRow.addArrangedSubview(checkUpdateButton)
+        buttonRow.addArrangedSubview(feedbackButton)
+        buttonRow.addArrangedSubview(repoButton)
+        container.addSubview(buttonRow)
+
+        // 状态行（T7：从垂直堆叠改为 buttonRow 正下方一行；progress + status + upgrade 水平排）
+        let statusRow = NSStackView()
+        statusRow.orientation = .horizontal
+        statusRow.alignment = .centerY
+        statusRow.spacing = 8
+        statusRow.translatesAutoresizingMaskIntoConstraints = false
+        statusRow.addArrangedSubview(progressIndicator)
+        statusRow.addArrangedSubview(statusLabel)
+        statusRow.addArrangedSubview(upgradeButton)
+        container.addSubview(statusRow)
 
         NSLayoutConstraint.activate([
             // 图标：顶部 groupTopInset + 8，居中，96x96
@@ -160,37 +176,27 @@ final class AboutSettingsViewController: NSViewController {
             versionLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
                                                    constant: -SettingsTheme.contentPadding),
 
-            // 更新区域
-            updateTopAnchor,
-            checkUpdateButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            // T7 按钮行：versionLabel 下方 groupSpacing+4，水平居中
+            buttonRow.topAnchor.constraint(equalTo: versionLabel.bottomAnchor,
+                                           constant: SettingsTheme.groupSpacing + 4),
+            buttonRow.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            buttonRow.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+                                               constant: SettingsTheme.contentPadding),
+            buttonRow.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+                                                constant: -SettingsTheme.contentPadding),
 
-            upgradeButton.topAnchor.constraint(equalTo: versionLabel.bottomAnchor,
-                                               constant: SettingsTheme.groupSpacing + 4),
-            upgradeButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            // T7 状态行：buttonRow 下方 rowSpacing，水平居中（progress + status + upgrade 同行）
+            statusRow.topAnchor.constraint(equalTo: buttonRow.bottomAnchor,
+                                           constant: SettingsTheme.rowSpacing),
+            statusRow.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            statusRow.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+                                               constant: SettingsTheme.contentPadding),
+            statusRow.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+                                                constant: -SettingsTheme.contentPadding),
 
-            progressIndicator.topAnchor.constraint(equalTo: versionLabel.bottomAnchor,
-                                                   constant: SettingsTheme.groupSpacing + 4),
-            progressIndicator.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            // progressIndicator 固定尺寸（原约束保留，移到 stackView 内仍生效）
             progressIndicator.widthAnchor.constraint(equalToConstant: 24),
             progressIndicator.heightAnchor.constraint(equalToConstant: 24),
-
-            statusLabel.topAnchor.constraint(equalTo: progressIndicator.bottomAnchor,
-                                             constant: SettingsTheme.rowSpacing),
-            statusLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            statusLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
-                                                 constant: SettingsTheme.contentPadding),
-            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
-                                                  constant: -SettingsTheme.contentPadding),
-
-            // 反馈按钮
-            feedbackButton.topAnchor.constraint(equalTo: checkUpdateButton.bottomAnchor,
-                                                constant: SettingsTheme.groupSpacing + 4),
-            feedbackButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-
-            // 开源按钮
-            repoButton.topAnchor.constraint(equalTo: feedbackButton.bottomAnchor,
-                                            constant: SettingsTheme.rowSpacing),
-            repoButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
         ])
     }
 

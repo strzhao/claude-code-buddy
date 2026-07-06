@@ -8,7 +8,7 @@ import AppKit
 ///
 /// 设计权威源（本测试逐字断言的契约）：
 /// - 窗口：标准 `NSWindow`（非 NSPanel），styleMask `[.titled, .closable, .minimizable, .resizable]`，
-///   无 `.fullSizeContentView`，无 `.floating` level，初始 760×540，minSize 600×420，title "设置"，
+///   无 `.fullSizeContentView`，无 `.floating` level，初始 ~ 屏幕 75%（兜底 1200×800），minSize 800×560，title "设置"，
 ///   `canBecomeKey==true`，失焦不隐藏。
 /// - 骨架：`contentViewController = SettingsSplitViewController`（NSSplitViewController 子类），
 ///   两 NSSplitViewItem：sidebar 项（behavior:.sidebar）→ SettingsSidebarViewController（NSTableView 列分类）；
@@ -173,27 +173,31 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
     // MARK: - SC-02 窗口可调大小
 
-    /// 契约：初始 760×540，minSize 600×420。
-    /// 注：styleMask 含 .resizable（SC-01 已断言），此处补 minSize 与初始尺寸结构性断言。
+    /// 契约（2026-07-02 更新）：初始 ~ NSScreen.main?.visibleFrame 的 75%（兜底 1200×800），
+    /// minSize 800×560。注：styleMask 含 .resizable（SC-01 已断言），此处补 minSize 与初始尺寸结构性断言。
     func test_SC02_window_isResizable_withCorrectMinSize() {
         let wc = SettingsWindowController()
         guard let window = wc.window else {
             return XCTFail("SettingsWindowController.window 必须存在")
         }
 
-        // 初始尺寸 760×540（允许 0.5 浮点容差）
-        let frame = window.frame
-        XCTAssertEqual(frame.width, 760, accuracy: 1.0,
-                       "初始窗口宽度应为 760，实际: \(frame.width)")
-        XCTAssertEqual(frame.height, 540, accuracy: 1.0,
-                       "初始窗口高度应为 540，实际: \(frame.height)")
-
-        // minSize 600×420
+        // minSize 契约：>= 800×560（上调自旧 600×420，避免小窗 tab 被遮挡）
         let minSize = window.minSize
-        XCTAssertGreaterThanOrEqual(minSize.width, 600,
-                                    "minSize.width 不得小于 600，实际: \(minSize.width)")
-        XCTAssertGreaterThanOrEqual(minSize.height, 420,
-                                     "minSize.height 不得小于 420，实际: \(minSize.height)")
+        XCTAssertGreaterThanOrEqual(minSize.width, 800,
+                                    "minSize.width 不得小于 800，实际: \(minSize.width)")
+        XCTAssertGreaterThanOrEqual(minSize.height, 560,
+                                     "minSize.height 不得小于 560，实际: \(minSize.height)")
+
+        // 初始尺寸契约：>= minSize，且 >= 兜底 1200×800（无 NSScreen.main 时也成立）
+        let frame = window.frame
+        XCTAssertGreaterThanOrEqual(frame.width, minSize.width,
+                                    "初始窗口宽度不得小于 minSize.width，实际: \(frame.width)")
+        XCTAssertGreaterThanOrEqual(frame.height, minSize.height,
+                                    "初始窗口高度不得小于 minSize.height，实际: \(frame.height)")
+
+        // 大窗契约 AC-WINDOW：宽度 >= 1000pt（动态 75% 屏幕在主流屏幕下应满足）
+        XCTAssertGreaterThanOrEqual(frame.width, 1000,
+                                    "AC-WINDOW：初始窗口宽度应 >= 1000pt（大窗契约），实际: \(frame.width)")
 
         // REAL_DEVICE: 留 QA Tier 1.5 真机 AX 验证
         // SC-02 真机谓词：resize 后 sidebar width>0，详情区 x>sidebar 右边缘+8。
@@ -232,19 +236,19 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
     // MARK: - SC-04 sidebar 6 项顺序 [皮肤/插件/热键/AI 配置/通用/关于]
 
-    /// 契约 3：sidebar 恰好 6 项，顺序 [皮肤,插件,热键,AI 配置,通用,关于]。
+    /// 契约 3：sidebar 恰好 6 项，顺序 [插件,热键,AI 配置,皮肤,通用,关于]。
     /// 契约 2：sidebar 分类来自单一数据源 SettingsSection.allCases。
     func test_SC04_SettingsSection_allCases_isSixInOrder() {
         // SettingsSection.allCases 恰好 6 项
         XCTAssertEqual(SettingsSection.allCases.count, 6,
                        "SettingsSection.allCases 必须恰好 6 项，实际: \(SettingsSection.allCases.count)")
 
-        // 顺序逐字断言：skins, plugins, hotkey, ai, general, about
-        let expected: [SettingsSection] = [.skins, .plugins, .hotkey, .ai, .general, .about]
+        // 顺序逐字断言（2026-07-02 重排）：plugins, hotkey, ai, skins, general, about
+        let expected: [SettingsSection] = [.plugins, .hotkey, .ai, .skins, .general, .about]
         XCTAssertEqual(SettingsSection.allCases, expected,
-                       "SettingsSection.allCases 顺序必须为 [skins, plugins, hotkey, ai, general, about]")
+                       "SettingsSection.allCases 顺序必须为 [plugins, hotkey, ai, skins, general, about]")
 
-        // 各 case rawValue 逐字断言（契约 4 持久化值依赖）
+        // 各 case rawValue 逐字断言（契约 4 持久化值依赖，reorder 不改 rawValue）
         XCTAssertEqual(SettingsSection.skins.rawValue, "skins")
         XCTAssertEqual(SettingsSection.plugins.rawValue, "plugins")
         XCTAssertEqual(SettingsSection.hotkey.rawValue, "hotkey")
@@ -321,10 +325,11 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
             return XCTFail("sidebar 必须含 NSTableView")
         }
 
-        // 默认选中第 0 行（skins）
+        // 默认选中 .skins 行（2026-07-02 重排后 skins 在 index 3，用 firstIndex 动态查找避免硬编码）
+        let skinsRow = SettingsSection.allCases.firstIndex(of: .skins) ?? 0
         let selectedRow = tableView.selectedRow
-        XCTAssertEqual(selectedRow, 0,
-                       "默认应选中第 0 行（skins），实际 selectedRow: \(selectedRow)")
+        XCTAssertEqual(selectedRow, skinsRow,
+                       "默认应选中 .skins 行（当前 index \(skinsRow)），实际 selectedRow: \(selectedRow)")
 
         // REAL_DEVICE: SC-05 真机谓词「详情区含 AXCollection」留 QA Tier 1.5。
         // 单元层通过 detail child VC 类型 + selectedRow==0 覆盖。
@@ -452,12 +457,13 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }
 
-        // sidebar 选中第 2 行（hotkey，索引 2）
+        // sidebar 选中 .hotkey 行（2026-07-02 重排后 hotkey 在 index 1，用 firstIndex 动态查找避免硬编码）
         let sidebarVC = splitVC.splitViewItems[0].viewController
         forceLoadView(sidebarVC)
         if let tableView = findFirst(NSTableView.self, in: sidebarVC.view) {
-            XCTAssertEqual(tableView.selectedRow, 2,
-                           "预设 SettingsSelectedCategory=hotkey 时，sidebar 应选中第 2 行（hotkey），实际: \(tableView.selectedRow)")
+            let hotkeyRow = SettingsSection.allCases.firstIndex(of: .hotkey) ?? 0
+            XCTAssertEqual(tableView.selectedRow, hotkeyRow,
+                           "预设 SettingsSelectedCategory=hotkey 时，sidebar 应选中 .hotkey 行（当前 index \(hotkeyRow)），实际: \(tableView.selectedRow)")
         }
 
         // detail 是 KeyboardShortcutsViewController

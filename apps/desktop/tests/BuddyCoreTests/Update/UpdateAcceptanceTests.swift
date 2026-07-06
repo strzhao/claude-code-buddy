@@ -335,80 +335,107 @@ final class UpdateAcceptanceTests: XCTestCase {
         XCTAssertEqual(checker.compareVersions("0.14.0", "v0.15.0"), .orderedAscending)
     }
 
-    // MARK: - 10. About 页面更新区域（C5）
+    // MARK: - 10. About 页面更新区域（C5；T7 重构后控件在 NSStackView 内，递归查找）
 
-    /// 契约 C5：About 页面更新区域位于 versionLabel 和 feedbackButton 之间。
-    ///
-    /// 验证 AboutSettingsViewController 的 view 包含更新相关子视图：
-    /// 检查更新按钮、立即升级按钮、进度条（NSProgressIndicator）、状态标签。
+    /// 递归收集所有子视图（含嵌套层级）。
+    private func collectAllSubviews(_ view: NSView) -> [NSView] {
+        var result: [NSView] = [view]
+        for sub in view.subviews {
+            result.append(contentsOf: collectAllSubviews(sub))
+        }
+        return result
+    }
+
+    /// 契约 C5：About 页面包含更新相关子视图（检查更新按钮、立即升级按钮、进度条、状态标签）。
+    /// T7（2026-07-02）重构后控件在 NSStackView（buttonRow / statusRow）内，
+    /// 用递归查找而非 view.subviews 直接遍历。
     func testAboutViewHasUpdateSectionSubviews() {
         let aboutVC = AboutSettingsViewController()
         _ = aboutVC.view  // 触发 loadView
 
-        let subviews = aboutVC.view.subviews
+        let allSubviews = collectAllSubviews(aboutVC.view)
 
         // 检查更新按钮
-        let checkUpdateButton = subviews.first { subview in
+        let checkUpdateButton = allSubviews.first { subview in
             (subview as? NSButton)?.title == "检查更新"
         }
         XCTAssertNotNil(checkUpdateButton, "About 页面应包含「检查更新」按钮")
 
-        // 立即升级按钮
-        let upgradeButton = subviews.first { subview in
+        // 立即升级按钮（初始 isHidden=true，仍在层级中）
+        let upgradeButton = allSubviews.first { subview in
             (subview as? NSButton)?.title == "立即升级"
         }
         XCTAssertNotNil(upgradeButton, "About 页面应包含「立即升级」按钮")
 
         // 进度条（indeterminate NSProgressIndicator）
-        let progressIndicator = subviews.first { subview in
+        let progressIndicator = allSubviews.first { subview in
             subview is NSProgressIndicator
         }
         XCTAssertNotNil(progressIndicator, "About 页面应包含 NSProgressIndicator")
 
-        // 状态标签（可能存在也可能为空状态，验证 view 层级中有 NSTextField 作为状态展示）
-        _ = subviews.first { subview in
+        // 状态标签（可能存在也可能为空状态）
+        _ = allSubviews.first { subview in
             guard let label = subview as? NSTextField else { return false }
             return label.stringValue == "正在检查更新…" || label.stringValue.isEmpty
         }
-        let textFields = subviews.compactMap { $0 as? NSTextField }
+        let textFields = allSubviews.compactMap { $0 as? NSTextField } as [NSTextField]
         XCTAssertGreaterThanOrEqual(textFields.count, 3,
-                                    "About 页面应至少有 3 个 NSTextField（名称、版本、状态）")
+                                    "About 页面应至少有 3 个 NSTextField（名称、版本、状态），实际: \(textFields.count)")
     }
 
-    /// 验证更新区域子视图在反馈按钮之前（契约 C5）。
+    /// 验证 About 页面含反馈按钮 + 检查更新按钮 + 版本标签（T7 后结构断言，不再依赖 index 顺序）。
     func testUpdateSectionIsAboveFeedbackButton() {
         let aboutVC = AboutSettingsViewController()
         _ = aboutVC.view
 
-        let subviews = aboutVC.view.subviews
+        let allSubviews = collectAllSubviews(aboutVC.view)
 
-        // 找到反馈按钮的索引
-        guard let feedbackIndex = subviews.firstIndex(where: { subview in
+        // 反馈按钮存在
+        let feedbackButton = allSubviews.first { subview in
             (subview as? NSButton)?.title == "反馈问题"
-        }) else {
-            XCTFail("应存在「反馈问题」按钮")
-            return
         }
+        XCTAssertNotNil(feedbackButton, "应存在「反馈问题」按钮")
 
-        // 找到版本标签的索引
-        guard let versionIndex = subviews.firstIndex(where: { subview in
+        // 版本标签存在
+        let versionLabel = allSubviews.first { subview in
             (subview as? NSTextField)?.stringValue.hasPrefix("版本") ?? false
-        }) else {
-            XCTFail("应存在版本标签")
-            return
         }
+        XCTAssertNotNil(versionLabel, "应存在版本标签")
 
-        // 更新区域应在版本标签之后、反馈按钮之前
-        let updateSubviews = subviews[versionIndex..<feedbackIndex]
-        let hasUpdateButton = updateSubviews.contains { subview in
+        // 更新区域控件存在（检查更新 / 立即升级 / 进度条至少其一）
+        let hasUpdateButton = allSubviews.contains { subview in
             (subview as? NSButton)?.title == "检查更新" || (subview as? NSButton)?.title == "立即升级"
         }
-        let hasProgressIndicator = updateSubviews.contains { subview in
+        let hasProgressIndicator = allSubviews.contains { subview in
             subview is NSProgressIndicator
         }
-
         XCTAssertTrue(hasUpdateButton || hasProgressIndicator,
-                      "更新区域应在版本标签和反馈按钮之间（契约 C5）")
+                      "更新区域控件应存在（检查更新/立即升级按钮或进度条）")
+    }
+
+    /// AC-ABOUT-ROW（T7）：检查更新 / 反馈 / 开源 3 按钮必须在同一水平 NSStackView 行内。
+    func testAboutThreeButtonsInSameRow() {
+        let aboutVC = AboutSettingsViewController()
+        _ = aboutVC.view
+
+        let allSubviews = collectAllSubviews(aboutVC.view)
+
+        // 找含「检查更新」按钮的 NSStackView（其 arrangedSubviews 同时含 3 按钮）
+        let stackViews = allSubviews.compactMap { $0 as? NSStackView }
+        let buttonRow = stackViews.first { stack in
+            let arranged = stack.arrangedSubviews
+            let titles = arranged.compactMap { ($0 as? NSButton)?.title }
+            return titles.contains("检查更新")
+        }
+        XCTAssertNotNil(buttonRow, "应存在含「检查更新」按钮的 NSStackView 按钮行（buttonRow）")
+
+        if let row = buttonRow {
+            let titles = row.arrangedSubviews.compactMap { ($0 as? NSButton)?.title }
+            XCTAssertTrue(titles.contains("检查更新"), "buttonRow 应含「检查更新」按钮，实际: \(titles)")
+            XCTAssertTrue(titles.contains("反馈问题"), "buttonRow 应含「反馈问题」按钮，实际: \(titles)")
+            XCTAssertTrue(titles.contains("开源地址"), "buttonRow 应含「开源地址」按钮，实际: \(titles)")
+            XCTAssertEqual(row.orientation, .horizontal, "buttonRow 必须为水平方向")
+        }
     }
 
     // MARK: - 11. checkResult Publisher（检查结果事件驱动，修复「检查更新无反馈」）

@@ -3,13 +3,13 @@ import AppKit
 // MARK: - SettingsWindowController
 //
 // macOS 原生系统设置风格：标准 NSWindow + NSSplitViewController
-// 左 sidebar（皮肤/插件/热键/通用/关于）+ 右 detail 容器。
+// 左 sidebar（插件/热键/AI 配置/皮肤/通用/关于）+ 右 detail 容器。
 //
 // 窗口契约（契约 1）：
 //   - 标准 NSWindow（非 NSPanel），canBecomeKey==true（NSWindow 默认即 true）
 //   - styleMask `[.titled, .closable, .minimizable, .resizable]`（无 .fullSizeContentView）
 //   - level != .floating
-//   - 初始 760×540，minSize 600×420，title "设置"
+//   - 初始 ~屏幕可见区 75%（兜底 1200×800），minSize 800×560，title "设置"
 //
 // R1 安全网（暂不删除）：SettingsPanel + sendEvent + SettingsTabClickReceiver
 // 保留作降级；本次窗口改用标准 NSWindow，待 QA SC-08 验证 LSUIElement 下点击
@@ -20,6 +20,24 @@ final class SettingsWindowController: NSWindowController {
     /// 旧 key `BuddyStoreSelectedTab` 废弃（不迁移，读不到→默认 skins）。
     static let selectedCategoryDefaultsKey = "SettingsSelectedCategory"
 
+    /// 窗口最小尺寸（2026-07-02 上调，避免小窗内容/tab 被遮挡）。
+    private static let minWindowSize = NSSize(width: 800, height: 560)
+
+    /// 兜底初始尺寸（无 NSScreen.main 或 visibleFrame 异常时使用）。
+    private static let fallbackInitialSize = NSSize(width: 1200, height: 800)
+
+    /// 计算初始窗口尺寸：~ NSScreen.main?.visibleFrame 的 75%（兜底 1200×800）。
+    /// 同时夹紧到 >= minWindowSize（避免极端小屏算出小于 minSize 的值）。
+    private static func computeInitialSize() -> NSSize {
+        let fallback = fallbackInitialSize
+        guard let visibleFrame = NSScreen.main?.visibleFrame else { return fallback }
+        let width = max(minWindowSize.width, visibleFrame.width * 0.75)
+        let height = max(minWindowSize.height, visibleFrame.height * 0.75)
+        // 兜底：若算出值异常（<=0），回落 fallback
+        guard width > 0, height > 0 else { return fallback }
+        return NSSize(width: width, height: height)
+    }
+
     private(set) var splitViewController: SettingsSplitViewController!
 
     override init(window: NSWindow?) {
@@ -27,15 +45,16 @@ final class SettingsWindowController: NSWindowController {
     }
 
     convenience init() {
+        let initialSize = Self.computeInitialSize()
         let window = SettingsWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 540),
+            contentRect: NSRect(x: 0, y: 0, width: initialSize.width, height: initialSize.height),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: true
         )
         window.title = "设置"
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 600, height: 420)
+        window.minSize = Self.minWindowSize
         // 标准 NSWindow，level 保持默认（.normal），不用 .floating（契约 1）
         // canBecomeKey 标准 NSWindow 默认即 true，无需子类（契约 1）
 
@@ -43,8 +62,8 @@ final class SettingsWindowController: NSWindowController {
         window.contentViewController = splitVC
 
         // NSSplitViewController 作 contentViewController 后会按 fittingSize 调整 window frame，
-        // 需显式 setFrame 锁回契约要求的初始尺寸（760×540，契约 1）。
-        window.setFrame(NSRect(x: 0, y: 0, width: 760, height: 540), display: false)
+        // 需显式 setFrame 锁回契约要求的初始尺寸（动态 ~75% 屏幕，契约 1）。
+        window.setFrame(NSRect(x: 0, y: 0, width: initialSize.width, height: initialSize.height), display: false)
 
         self.init(window: window)
         self.splitViewController = splitVC

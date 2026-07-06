@@ -217,29 +217,26 @@ final class SettingsSectionAITests: XCTestCase {
     }
 
     // MARK: - 场景 4：AI 工具列表展示 speak/copy（P1 + P2 det-machine）
+    // T6 重构（2026-07-02）：弃 NSTableView，改 SettingsGroupView + 只读 ToolItemRow。
 
-    /// P1 [det-machine]: AI 工具列表通过 NSTableView 展示（v0.37.4）。
+    /// P1 [det-machine]: AI 工具区必须含「朗读回复」内置工具行（人话文案）。
     func test_SC04_P1_tools_containsSpeak() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let tableViews = findAll(NSTableView.self, in: vc.view)
-        XCTAssertGreaterThanOrEqual(tableViews.count, 1,
-                      "AI 工具列表必须通过 NSTableView 展示（v0.37.4），实际 NSTableView 数: \(tableViews.count)")
+        let allTexts = collectAllTexts(in: vc.view)
+        XCTAssertTrue(allTexts.contains("朗读回复"),
+                      "AI 工具区必须含「朗读回复」内置工具行（T6 人话化文案），实际文本: \(allTexts)")
     }
 
-    /// P2 [det-machine]: AI 工具 NSTableView 必须至少有一列。
+    /// P2 [det-machine]: AI 工具区必须含「复制到剪贴板」内置工具行。
     func test_SC04_P2_tools_containsCopy() {
         let vc = ProviderSettingsViewController()
         forceLoadView(vc)
 
-        let tableViews = findAll(NSTableView.self, in: vc.view)
-        guard let tableView = tableViews.first else {
-            XCTFail("AI 工具列表必须存在 NSTableView")
-            return
-        }
-        XCTAssertGreaterThanOrEqual(tableView.tableColumns.count, 1,
-                      "AI 工具 NSTableView 必须至少有 1 列，实际列数: \(tableView.tableColumns.count)")
+        let allTexts = collectAllTexts(in: vc.view)
+        XCTAssertTrue(allTexts.contains("复制到剪贴板"),
+                      "AI 工具区必须含「复制到剪贴板」内置工具行（T6 人话化文案），实际文本: \(allTexts)")
     }
 
     /// C4 契约：AI 工具组保留"只读"标签（v0.37.4 提示词组已移除）。

@@ -519,7 +519,7 @@ final class LauncherManager: ObservableObject {
             let task = Task.detached {
                 // command mode 执行统一经 lockedCommand + submitCommandDirect（方案 B 两阶段，
                 // C-LOCK-NOT-EXECUTE / C-EXEC-ON-ENTER）。submit() 仅在落回 AI 流时被调用
-                //（command 已被 lockedCommand 在 LauncherInputView 拦截，不会进 submit）。
+                // （command 已被 lockedCommand 在 LauncherInputView 拦截，不会进 submit）。
                 // 故此处不再做 command 短路——旧短路段走 narrowCandidatesScored(contains) 判断
                 // 唯一/strong 命中直接执行，与新「唯一命中=自动锁定≠执行」语义矛盾，已移除（T2 决策）。
                 // 「无 provider 也能用 command」目标由 lockedCommand 自动锁 + submitCommandDirect（零 LLM）保留。

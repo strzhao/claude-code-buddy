@@ -353,8 +353,8 @@ final class ProviderSettingsViewController: NSViewController {
         jsonPanel.addSubview(prettyPrintButton)
 
         // JSON 编辑器高度：jsonPanel 在 formStackView（distribution=.fill）撑满中间槽位，
-            // jsonScrollView 顶到 jsonPanel 顶、底到按钮行 → 填满 header/tab/tools 之外的剩余空间，
-            // 既拉满又恰好不溢出（不再用魔数 offset/multiplier）。
+        // jsonScrollView 顶到 jsonPanel 顶、底到按钮行 → 填满 header/tab/tools 之外的剩余空间，
+        // 既拉满又恰好不溢出（不再用魔数 offset/multiplier）。
         NSLayoutConstraint.activate([
             jsonScrollView.topAnchor.constraint(equalTo: jsonPanel.topAnchor),
             jsonScrollView.leadingAnchor.constraint(equalTo: jsonPanel.leadingAnchor),

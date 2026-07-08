@@ -68,7 +68,7 @@ final class SnippetsService: ObservableObject {
 
     /// 内存缓存（GUI 直驱读写，对齐 ClipboardHistoryService.items :48）。
     /// @Published：CRUD 后 SwiftUI 视图（SnipPanelView @ObservedObject）自动刷新列表
-    ///（fix qa-reviewer High 2：@State 持 reference type 不观察内部 mutation）。
+    /// （fix qa-reviewer High 2：@State 持 reference type 不观察内部 mutation）。
     @Published private(set) var items: [SnippetItem] = []
 
     // MARK: - init（生产 / 测试 seam）

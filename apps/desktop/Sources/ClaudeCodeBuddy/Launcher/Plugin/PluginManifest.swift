@@ -50,6 +50,22 @@ struct CommandConfig: Codable, Equatable {
     let requiredPath: [String]?
     /// M1（依赖声明）：作者申明的外部依赖列表。与 StdinConfig.deps 同语义。
     let deps: [PluginDep]
+    /// T0 扩展 A（command autoCopy）：command mode 命中后框架自动把 stdout 写系统剪贴板。
+    /// 对称 PromptConfig.autoCopyToClipboard。decodeIfPresent ?? false（向后兼容旧 plugin.json → 行为不变）。
+    /// trustKey 不含此字段（改 autoCopy 不失效旧 trust，期望行为）。
+    let autoCopyToClipboard: Bool
+
+    /// 显式 init：autoCopyToClipboard 默认 false（向后兼容现有 memberwise 调用点）。
+    init(cmd: String, args: [String], env: [String: String]? = nil,
+         requiredPath: [String]? = nil, deps: [PluginDep] = [],
+         autoCopyToClipboard: Bool = false) {
+        self.cmd = cmd
+        self.args = args
+        self.env = env
+        self.requiredPath = requiredPath
+        self.deps = deps
+        self.autoCopyToClipboard = autoCopyToClipboard
+    }
 }
 
 /// M1（依赖声明 schema）：插件作者在 plugin.json 申明的外部依赖。
@@ -145,7 +161,9 @@ extension PluginManifest {
                 env: try c.decodeIfPresent([String: String].self, forKey: .env),
                 requiredPath: try c.decodeIfPresent([String].self, forKey: .requiredPath),
                 // M1：deps 可选（decodeIfPresent ?? []），同 stdin
-                deps: try c.decodeIfPresent([PluginDep].self, forKey: .deps) ?? []
+                deps: try c.decodeIfPresent([PluginDep].self, forKey: .deps) ?? [],
+                // T0 扩展 A：autoCopyToClipboard 可选（对称 prompt mode），向后兼容旧 plugin.json
+                autoCopyToClipboard: try c.decodeIfPresent(Bool.self, forKey: .autoCopyToClipboard) ?? false
             ))
         default:
             throw LauncherError.pluginManifestInvalid("unknown mode: \(mode)")
@@ -185,6 +203,8 @@ extension PluginManifest {
             try c.encodeIfPresent(cfg.requiredPath, forKey: .requiredPath)
             // M1：deps 非空才 encode（同 stdin）
             if !cfg.deps.isEmpty { try c.encode(cfg.deps, forKey: .deps) }
+            // T0 扩展 A：autoCopyToClipboard 非 false 才 encode（保持与 legacy 产物一致；false 省略）
+            if cfg.autoCopyToClipboard { try c.encode(cfg.autoCopyToClipboard, forKey: .autoCopyToClipboard) }
         }
         // P1：parameters 可选，nil 时不序列化（与 legacy 产物一致）
         try c.encodeIfPresent(parameters, forKey: .parameters)
@@ -316,8 +336,11 @@ extension PluginManifest {
         return nil
     }
 
-    /// 便利访问 autoCopyToClipboard（prompt mode only；stdin mode 返回 false）
-    var autoCopyToClipboard: Bool { promptConfig?.autoCopyToClipboard ?? false }
+    /// 便利访问 autoCopyToClipboard（prompt/command mode 返回声明值；stdin mode 返回 false）。
+    /// T0 扩展 A：command mode 也支持 autoCopy（对称 prompt mode）。
+    var autoCopyToClipboard: Bool {
+        promptConfig?.autoCopyToClipboard ?? commandConfig?.autoCopyToClipboard ?? false
+    }
 
     // ⚠️ 现有消费者 back-compat（stdin/command 时正常，prompt 时空值兜底）
     // ⚠️ prompt mode 时 .cmd == "" 是已知临时状态（task 003 修复 inspect/trust 路径前）

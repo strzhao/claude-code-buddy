@@ -77,7 +77,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
         XCTAssertEqual(vc.state, .loading)
     }
 
-    // T2: refresh 成功 + 非空 → .normal
+    // T2: refresh 成功 + 非空 → .normal（含 settingsEntry 虚拟项 + translate）
     func test_refresh_withPlugins_setsNormal() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection(plugins: [
@@ -91,22 +91,32 @@ final class PluginGalleryViewControllerTests: XCTestCase {
             XCTFail("expected .normal, got \(vc.state)")
             return
         }
-        XCTAssertEqual(entries.count, 1)
-        XCTAssertEqual(entries[0].name, "translate")
-        XCTAssertEqual(entries[0].version, "0.1.0")
-        XCTAssertFalse(entries[0].isSideloaded)
-        XCTAssertTrue(entries[0].enabled)
+        // row 0 恒为 settingsEntry（虚拟「插件设置」项，全局区面板入口）
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries[0].name, "插件设置")
+        XCTAssertEqual(entries[0].source, "settings")
+        XCTAssertEqual(entries[1].name, "translate")
+        XCTAssertEqual(entries[1].version, "0.1.0")
+        XCTAssertFalse(entries[1].isSideloaded)
+        XCTAssertTrue(entries[1].enabled)
         XCTAssertEqual(mock.inspectCallCount, 1)
     }
 
-    // T3: refresh 返回空 plugins + 空 sideloaded → .empty
-    func test_refresh_withEmpty_setsEmpty() async {
+    // T3: refresh 返回空 plugins + 空 sideloaded → .normal（仅含 settingsEntry 虚拟项，不再 .empty）
+    // 契约演进：settingsEntry 恒为首行（row 0），全局区面板入口永远可达，故 inspect 空不再落入 .empty
+    func test_refresh_withEmpty_setsNormalWithOnlySettingsEntry() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection())
         let vc = PluginGalleryViewController(marketplace: mock, plugins: MockPluginToggling(), builtinRegistry: BuiltinPluginRegistry(plugins: []))
         _ = vc.view
         await vc.refresh()
-        XCTAssertEqual(vc.state, .empty)
+        guard case .normal(let entries) = vc.state else {
+            XCTFail("expected .normal (settingsEntry only), got \(vc.state)")
+            return
+        }
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries[0].name, "插件设置")
+        XCTAssertEqual(entries[0].source, "settings")
     }
 
     // T4: refresh 抛错 → .error
@@ -127,7 +137,7 @@ final class PluginGalleryViewControllerTests: XCTestCase {
         XCTAssertTrue(msg.contains("boom"), "msg should contain 'boom', got: \(msg)")
     }
 
-    // T5: sideloaded entry 渲染（B1 修复）
+    // T5: sideloaded entry 渲染（B1 修复）—— 列表 row 0 恒为 settingsEntry，sideloaded 排其后
     func test_refresh_includesSideloaded() async {
         let mock = MockMarketplaceInspecting()
         mock.inspectResult = .success(makeInspection(
@@ -141,10 +151,12 @@ final class PluginGalleryViewControllerTests: XCTestCase {
             XCTFail("expected .normal, got \(vc.state)")
             return
         }
-        XCTAssertEqual(entries.count, 1)
-        XCTAssertEqual(entries[0].name, "weather")
-        XCTAssertTrue(entries[0].isSideloaded)
-        XCTAssertEqual(entries[0].version, "—")
+        // row 0 = settingsEntry；row 1 = weather
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries[0].name, "插件设置")
+        XCTAssertEqual(entries[1].name, "weather")
+        XCTAssertTrue(entries[1].isSideloaded)
+        XCTAssertEqual(entries[1].version, "—")
     }
 
     // T6: toggleButtonClicked tag=0 → disable

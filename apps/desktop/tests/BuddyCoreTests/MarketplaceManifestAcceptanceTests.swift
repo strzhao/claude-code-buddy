@@ -162,8 +162,8 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
 
         XCTAssertEqual(manifest.schemaVersion, 1)
         XCTAssertEqual(manifest.name, "buddy-official")
-        // hello/qr/qzh 三个官方插件均在 seed（qzh 随 monorepo 迁移一并加入 bundle seed）
-        XCTAssertEqual(manifest.plugins.count, 3)
+        // hello/qr/qzh/snip 四个官方插件均在 seed（snip 随片段插件加入；qzh 随 monorepo 迁移）
+        XCTAssertEqual(manifest.plugins.count, 4)
 
         let hello = manifest.plugins.first { $0.name == "hello" }
         XCTAssertNotNil(hello)
@@ -174,6 +174,9 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
         let qzh = manifest.plugins.first { $0.name == "qzh" }
         XCTAssertNotNil(qzh, "qzh 插件必须存在于 seed marketplace.json（随 monorepo 迁移）")
         XCTAssertEqual(qzh?.source, .localSubdir(path: "./plugins/qzh"))
+        let snip = manifest.plugins.first { $0.name == "snip" }
+        XCTAssertNotNil(snip, "snip 插件必须存在于 seed marketplace.json（片段取用）")
+        XCTAssertEqual(snip?.source, .localSubdir(path: "./plugins/snip"))
     }
 
     // MARK: - AT07 schemaVersion 缺失抛错

@@ -1004,6 +1004,9 @@ final class LauncherManager: ObservableObject {
         lastRoutePluginName = manifest.name
         stage = .calling
 
+        // 在 MainActor 上捕获 spy seam，避免 detached 跨 actor 访问（对称 submitCommandDirect L1110）
+        let executorOverride = stdinExecutorOverride
+
         return AsyncStream { continuation in
             let task = Task.detached {
                 // 解析插件目录（detached 内独立查，不依赖 submit 的窄结果）
@@ -1043,11 +1046,25 @@ final class LauncherManager: ObservableObject {
                     selection: selection
                 )
                 await MainActor.run { LauncherManager.shared.stage = .streaming }
-                let dispatcher = PluginDispatcher(stdinExecutor: .shared)
+                // C11/I6 spy seam：stdinExecutorOverride 优先于 .shared（对称 submitCommandDirect）
+                let dispatcher = PluginDispatcher(stdinExecutor: executorOverride ?? .shared)
                 do {
                     let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
                     if !result.stdout.isEmpty {
                         continuation.yield(.text(result.stdout))
+                        // T0 扩展 A（command autoCopy）：候选回调路径对称 submitCommandDirect（L1156-1169）。
+                        // result.stdout 非空 + autoCopyToClipboard + 无新候选产物 → 框架代写系统剪贴板。
+                        // 候选场景（result.candidates 非空）由用户后续选中决定，不在此 autoCopy
+                        // （避免列候选时污染剪贴板）。
+                        // 修 snip bug：选中片段候选 → 复制内容（不再删除），此 autoCopy 是复制生效的关键。
+                        if manifest.autoCopyToClipboard && result.candidates == nil {
+                            await MainActor.run {
+                                CopyService.shared.copy(result.stdout)
+                            }
+                            await MainActor.run {
+                                MarketHUD.shared.show(text: "已复制")
+                            }
+                        }
                     }
                     if let imageData = result.image {
                         continuation.yield(.image(imageData))
@@ -1153,6 +1170,20 @@ final class LauncherManager: ObservableObject {
                     let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
                     if !result.stdout.isEmpty {
                         continuation.yield(.text(result.stdout))
+                        // T0 扩展 A（command autoCopy）：command mode + autoCopyToClipboard + stdout 非空
+                        // + 无候选产物 → 框架代写系统剪贴板（对称 prompt mode 的 autoCopy）。
+                        // 候选场景（result.candidates 非空）由用户后续选中决定，不在此 autoCopy
+                        // （避免列候选时污染剪贴板）。
+                        if manifest.autoCopyToClipboard && result.candidates == nil {
+                            await MainActor.run {
+                                CopyService.shared.copy(result.stdout)
+                            }
+                            // AC-SNIPGUI-20 / 契约 C7：autoCopy 成功后显示 toast「已复制」（修 P0-2 零反馈）
+                            // 复用 MarketHUD 右上角 5s 自隐 NSPanel；detached Task 内 MainActor.run 包裹
+                            await MainActor.run {
+                                MarketHUD.shared.show(text: "已复制")
+                            }
+                        }
                     }
                     if let imageData = result.image {
                         continuation.yield(.image(imageData))

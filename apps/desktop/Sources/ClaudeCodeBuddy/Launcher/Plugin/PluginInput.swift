@@ -10,7 +10,8 @@ struct PluginInput: Codable, Equatable {
     /// **安全红线（C5）**：selection 仅标识字符串，禁含命令/路径；执行权留插件。
     let selection: String?
 
-    /// 显式 init：selection 默认 nil，让现有 `PluginInput(query:sessionId:cwd:)` 调用点无需改动（向后兼容）。
+    /// 显式 init：selection 默认 nil，
+    /// 让现有 `PluginInput(query:sessionId:cwd:)` 调用点无需改动（向后兼容）。
     init(query: String, sessionId: String, cwd: String, selection: String? = nil) {
         self.query = query
         self.sessionId = sessionId

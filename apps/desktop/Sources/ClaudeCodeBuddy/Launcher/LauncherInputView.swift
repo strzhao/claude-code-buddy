@@ -314,6 +314,15 @@ struct LauncherInputView: View {
             default: return .ignored
             }
         }
+        // ⌘, 打开设置（macOS 标准语义，调试便利）：launcher 输入框活跃时触发。
+        // LSUIElement 无 mainMenu → 系统不拦截 ⌘, → onKeyPress 能收到。
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.command), press.key == KeyEquivalent(",") else {
+                return .ignored
+            }
+            (NSApp.delegate as? AppDelegate)?.showSettings(source: "launcher")
+            return .handled
+        }
     }
 
     // MARK: - Esc 分层（C-ESC-EXIT）

@@ -1,0 +1,52 @@
+<h2>② "皮肤位置改到通用上边" — 确认意图</h2>
+<p>当前 sidebar 顺序（皮肤已是第 1 位，通用第 5 位）：</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">现状</div>
+    <div class="mockup-body" style="background:#e8e6df;padding:14px;font-size:13px;color:#333;line-height:1.9">
+      <div>① <b>皮肤</b> <span style="color:#888">← 已在最上</span></div>
+      <div>② 插件</div>
+      <div>③ 热键</div>
+      <div>④ AI 配置</div>
+      <div>⑤ <b>通用</b></div>
+      <div>⑥ 关于</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">方案 B：皮肤紧贴通用上方</div>
+    <div class="mockup-body" style="background:#e8e6df;padding:14px;font-size:13px;color:#333;line-height:1.9">
+      <div>① 插件</div>
+      <div>② 热键</div>
+      <div>③ AI 配置</div>
+      <div style="color:#888">— — —</div>
+      <div>④ <b>皮肤</b> <span style="color:#3a7">↑ 紧贴</span></div>
+      <div>⑤ <b>通用</b></div>
+      <div>⑥ 关于</div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:24px">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>维持现状（无需改动）</h3>
+      <p>皮肤本就在最上、通用在下，已满足"皮肤在通用上边"。这条可能你对的是旧版本印象。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>皮肤紧贴通用（分组靠后）</h3>
+      <p>把皮肤移到通用正上方，"外观偏好"两项归到一起，插件/热键/AI 靠前。信息架构上更聚拢。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>其他顺序</h3>
+      <p>你有明确的最终顺序，终端里直接告诉我六项的排列即可。</p>
+    </div>
+  </div>
+</div>

@@ -41,6 +41,8 @@ final class SettingsSidebarViewController: NSViewController {
 
     private func makeTableView() -> NSTableView {
         tableView = NSTableView()
+        // imp-82：设 identifier 让 SettingsWindow.forwardSidebarClick 守卫识别 sidebar 类 table
+        tableView.identifier = NSUserInterfaceItemIdentifier("settings.sidebar")
         tableView.headerView = nil
         tableView.backgroundColor = .clear
         tableView.rowSizeStyle = .default

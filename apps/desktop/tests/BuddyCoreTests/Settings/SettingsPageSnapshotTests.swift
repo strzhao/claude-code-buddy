@@ -98,16 +98,16 @@ final class SettingsPageSnapshotTests: XCTestCase {
     //   现有代码（SettingsSidebarAcceptanceTests.SC13）显示有 init(marketplace:plugins:) 注入构造器。
     //   本测试尝试两种路径：① 无参构造 ② mock 注入。先尝试无参，失败用 mock。
 
-    func test_pluginGallery_light() throws {
+    func test_pluginGallery_light() async throws {
         try XCTSkipIf(isCI, "Snapshot tests skipped on CI (font rendering differs)")
-        let vc = makePluginGalleryVC()
+        let vc = await makePluginGalleryVCReady()
         let view = prepareView(vc, size: pluginSize, appearanceName: .aqua)
         assertSnapshot(of: view, as: .image(size: pluginSize), named: "light")
     }
 
-    func test_pluginGallery_dark() throws {
+    func test_pluginGallery_dark() async throws {
         try XCTSkipIf(isCI, "Snapshot tests skipped on CI (font rendering differs)")
-        let vc = makePluginGalleryVC()
+        let vc = await makePluginGalleryVCReady()
         let view = prepareView(vc, size: pluginSize, appearanceName: .darkAqua)
         assertSnapshot(of: view, as: .image(size: pluginSize), named: "dark")
     }
@@ -136,13 +136,76 @@ final class SettingsPageSnapshotTests: XCTestCase {
         return vc.view
     }
 
-    /// 构造 PluginGalleryViewController：用无参构造器（init(marketplace:plugins:) 有默认参数
-    /// marketplace=MarketplaceManager.shared, plugins=PluginManager.shared）。
-    /// 用注入构造器可避免单例真实网络/磁盘 IO（与 SettingsSidebarAcceptanceTests.SC13 同款 mock）。
-    private func makePluginGalleryVC() -> NSViewController {
+    /// 构造 PluginGalleryViewController 并驱动到「设置面板选中」可视态（快照就绪）。
+    ///
+    /// 契约演进：全局区（autoUpdate/depInstall/docs）从右栏顶部移到「插件设置」虚拟项 panel（row 0）。
+    /// loadView 后 pluginPanelContainer 默认空（无 panel mounted），需 refresh → selectRow(0) 才挂载全局区面板。
+    /// 本 helper 复现真实 viewDidAppear 路径（refresh + 默认选 row 0），让快照捕获「设置面板」可视态。
+    ///
+    /// 用注入构造器避免单例真实网络/磁盘 IO（与 SettingsSidebarAcceptanceTests.SC13 同款 mock）。
+    private func makePluginGalleryVCReady() async -> PluginGalleryViewController {
         let plugins = SnapshotMockPluginToggle()
         let market = SnapshotMockMarketplace()
-        return PluginGalleryViewController(marketplace: market, plugins: plugins)
+        let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
+        _ = vc.view
+        vc.view.frame = NSRect(origin: .zero, size: pluginSize)
+        vc.view.layoutSubtreeIfNeeded()
+        await vc.refresh()
+        // 模拟 viewDidAppear 默认选 row 0（settingsEntry）→ 全局区面板挂载到 pluginPanelContainer。
+        // sidebarTableView private → 递归 view tree 找 AX id `settings.plugins.sidebar.table`（与
+        // SnipGUIInProcessAcceptanceTests.findTableView 同款方式）。
+        if let table = findSidebarTable(in: vc.view), table.selectedRow < 0 {
+            table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        }
+        vc.view.layoutSubtreeIfNeeded()
+        return vc
+    }
+
+    /// 递归遍历 view tree 找 AX id `settings.plugins.sidebar.table` 的 NSTableView。
+    private func findSidebarTable(in root: NSView) -> NSTableView? {
+        if let table = root as? NSTableView,
+           table.accessibilityIdentifier() == "settings.plugins.sidebar.table" {
+            return table
+        }
+        for sub in root.subviews {
+            if let found = findSidebarTable(in: sub) { return found }
+        }
+        return nil
+    }
+
+    // MARK: - 诊断（非验收）：dump「插件设置」面板 view tree，确认 docs cell 改造生效
+    //
+    // analyze_image 对 snapshot 基线的描述（"2 分组 + 裸按钮"）与源码改动（3 分组 + SettingsActionRow）不一致，
+    // 疑似 CDN 边缘缓存旧基线。用运行时 view-tree ground truth 确认真实结构：
+    //   - 3 个 SettingsGroupView（autoUpdate / depInstall / docs）
+    //   - 1 个 SettingsActionRow（docsRow）
+    //   - 无裸「插件开发文档」NSButton（旧 docsButton 应已移除）
+    //   - 各 group frame.height 正常（非异常拉高，<100pt）
+
+    func test_diagnostic_settingsPanelViewTree() async throws {
+        let vc = await makePluginGalleryVCReady()
+        let allViews = flatten(view: vc.view)
+        let groupViews = allViews.filter { $0 is SettingsGroupView }
+        let actionRows = allViews.filter { $0 is SettingsActionRow }
+        let buttons = allViews.compactMap { $0 as? NSButton }
+        let docsButtons = buttons.filter { $0.title == "插件开发文档" }
+
+        XCTAssertEqual(groupViews.count, 3, "期望 3 个 SettingsGroupView（autoUpdate/depInstall/docs）；实际 \(groupViews.count)")
+        XCTAssertEqual(actionRows.count, 1, "期望 1 个 SettingsActionRow（docsRow）；实际 \(actionRows.count)")
+        XCTAssertTrue(docsButtons.isEmpty, "不应存在裸「插件开发文档」NSButton（旧 docsButton 残留）；找到 \(docsButtons.count)")
+
+        for (i, g) in groupViews.enumerated() {
+            XCTAssertLessThan(g.frame.height, 100, "group \(i) 高度异常拉高：\(g.frame.height)")
+            print("  [group \(i)] frame=\(g.frame) height=\(g.frame.height)")
+        }
+    }
+
+    private func flatten(view root: NSView) -> [NSView] {
+        var result: [NSView] = [root]
+        for sub in root.subviews {
+            result.append(contentsOf: flatten(view: sub))
+        }
+        return result
     }
 }
 

@@ -111,6 +111,10 @@ final class SettingsWindow: NSWindow {
             current = v.superview
         }
         guard let tableView = current as? NSTableView else { return }
+        // imp-82 守卫：仅 sidebar 类 table（设置 sidebar / 插件页左栏）触发 selectRowIndexes 兜底；
+        // 排除右栏 SwiftUI List 嵌套的无 identifier NSTableView（避免点 snip 列表误触发左栏选中切换）。
+        guard tableView.identifier?.rawValue == "settings.sidebar"
+            || tableView.identifier?.rawValue == "settings.plugins.sidebar" else { return }
         let point = tableView.convert(location, from: nil)
         let row = tableView.row(at: point)
         guard row >= 0, row < tableView.numberOfRows else { return }

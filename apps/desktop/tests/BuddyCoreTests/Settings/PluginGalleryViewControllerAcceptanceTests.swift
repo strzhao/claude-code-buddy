@@ -205,19 +205,23 @@ final class PluginGalleryViewControllerAcceptanceTests: XCTestCase {
         }
     }
 
-    // MARK: - AT06: mock inspect 返回 plugins=[] + sideloaded=[] → state == .empty
-
-    func test_AT06_emptyInspect_yieldsEmptyState() async {
+    // MARK: - AT06: mock inspect 返回 plugins=[] + sideloaded=[] → state == .normal（仅 settingsEntry）
+    //
+    // 契约演进：settingsEntry（虚拟「插件设置」项）恒为 row 0，全局区面板入口永远可达。
+    // 空 inspect 不再落入 .empty，而是 .normal(plugins: [settingsEntry])（仅含虚拟项）。
+    func test_AT06_emptyInspect_yieldsNormalWithOnlySettingsEntry() async {
         let market = RedMockMarketplaceInspecting(inspectResult: .empty)
         let plugins = RedMockPluginToggling()
         let vc = PluginGalleryViewController(marketplace: market, plugins: plugins, builtinRegistry: BuiltinPluginRegistry(plugins: []))
         forceLoadView(vc)
         await triggerAppearAndDrain(vc)
-        if case .empty = vc.state {
-            // ok
-        } else {
-            XCTFail("空 inspect 应得 state == .empty，实际: \(vc.state)")
+        guard case .normal(let entries) = vc.state else {
+            XCTFail("空 inspect 应得 state == .normal (仅 settingsEntry)，实际: \(vc.state)")
+            return
         }
+        XCTAssertEqual(entries.count, 1, "空 inspect 后应仅含 settingsEntry 虚拟项")
+        XCTAssertEqual(entries[0].name, "插件设置", "唯一项应为 settingsEntry")
+        XCTAssertEqual(entries[0].source, "settings", "settingsEntry.source == 'settings' 标记虚拟项")
         XCTAssertGreaterThanOrEqual(market.inspectCallCount, 1, "inspect 至少被调用一次")
     }
 

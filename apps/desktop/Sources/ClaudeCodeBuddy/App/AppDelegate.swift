@@ -394,8 +394,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: - Settings
 
-    /// source 标识打开来源（menubar/notify/about），用于排查日志。
-    private func showSettings(source: String = "unknown") {
+    /// source 标识打开来源（menubar/notify/about/launcher），用于排查日志。
+    /// internal（非 private）：launcher ⌘, 快捷键跨文件调用。
+    func showSettings(source: String = "unknown") {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }

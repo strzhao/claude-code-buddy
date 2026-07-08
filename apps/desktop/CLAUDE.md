@@ -615,6 +615,36 @@ buddy click --id <session-id>
 
 **autopilot 集成**: 后续 autopilot QA 阶段应包含 `swift test --filter Snapshot` 作为验证步骤之一。
 
+### GUI 自动化测试（det-human 谓词驱动，autopilot QA 必读）
+
+**背景**：LSUIElement accessory app 的窗口/状态栏自动化受 `patterns/2026-06-23` 已知限制 —— osascript click / CGEvent 对非 key 窗口不路由，全局规范禁 osascript 键盘自动化。**禁用「det-human 默认走真机手动」**——det-human 谓词必须用以下两个能力自动驱动，仅纯视觉判断（动画/颜色/像素对齐/布局美感）才 fallback 用户手动。
+
+**能力 1：XCTest in-process UI 驱动**（首选，最可靠）
+- 模式：`@testable import BuddyCore` + 直接调 AppKit API 模拟用户操作 + 读 view 属性断言（**非** XCUITest 外部 AX）
+- 驱动 API：`NSWindow.makeKeyAndOrderFront(nil)` / `NSTableView.selectRowIndexes(_:byExtendingSelection:)` / `NSButton.performClick(nil)` / `NSTextField.stringValue=` / `NSMenu.items[i].target?.perform(action)`
+- 断言：读 view 树（`tableView.selectedRow` / `textField.stringValue` / `view.subviews.count` / `accessibilityIdentifier`）+ 模态 `NSAlert`（`NSApp.modalWindow` / sheet `attachedSheet`）+ NSPopover（`contentViewController`）
+- **为什么不用严格 XCUITest**：XCUITest 是**外部 AX 驱动**，受 LSUIElement 非路由限制（patterns/2026-06-23 同款）；in-process 在 app 进程内直接调 API，绕过 AX，可靠
+- 覆盖：选中切换/表单提交/NSAlert 二次确认/列表刷新/选中态持久化/开关翻转/焦点保持
+- 先例：`SnipGUIAcceptanceTests`（接口层）扩展到 UI 交互（selectRow + performClick + 读右栏 VC），`LauncherRouteConflictExecutionAcceptanceTests`（in-process 驱动）
+
+**能力 2：CLI 驱动**（经 socket 调 app 内部 API，绕过 GUI）
+- 现有：`buddy launcher debug route/candidates/perform/registry/run`（功能调试 + 数据层）
+- **det-human 用例需扩展**（实现：`QueryHandler` 加 action，BuddyCLI `launcher debug` 子命令路由）：
+  - `buddy launcher debug open-settings` → 调 `AppDelegate.showSettings()`
+  - `buddy launcher debug select-plugin <name>` → 调 `PluginGalleryViewController.selectPlugin()`
+  - `buddy launcher debug toggle-plugin <name>` → 翻转开关 + 持久化
+  - `buddy launcher debug get-state` → dump 当前选中插件 + 右栏 VC 类型 + AX identifier（供 CLI 侧断言）
+- 配合：CLI 打开/选中 + `osascript` AX **读**树（AX 读可靠；点击/写不路由 patterns/2026-06-23）+ `jq`/`grep` 验持久化（UserDefaults / launcher.json / snippets.json）
+
+**autopilot QA 阶段铁律（det-human 谓词）**：
+1. **首选能力 1（XCTest in-process）**驱动 + 断言（窗口内交互：选中/表单/NSAlert/列表/开关/焦点）
+2. 能力 1 不覆盖的（窗口打开/全局热键/跨进程/socket 路径）用**能力 2（CLI debug）**驱动 + osascript AX dump 读
+3. 仅**纯视觉**（动画流畅度/颜色/像素对齐/布局美感）fallback `screencapture` 截图 + 用户判断
+4. **禁用** `osascript` keystroke / CGEvent click / `cliclick` 坐标点击（全局规范 + patterns/2026-06-23 非路由）
+5. **禁止**把 det-human 默认标「真机手动 skip」—— 必须先尝试能力 1/2，仅纯视觉类才手动
+
+**scenario-generator / 红队 prompt 要求**：det-human 谓词必须标注「能力 1」或「能力 2」驱动方式 + observe 给具体 in-process API 调用或 CLI 命令（非「真机手动」除非纯视觉）。红队 XCTest acceptance 统一用 in-process UI 驱动模式（selectRow/performClick/stringValue），不用 XCUITest 外部 AX。
+
 ### QA 验证优先级
 
 AI 在 QA 阶段验证 SpriteKit 可视状态时，按以下优先级自主验证，**不要依赖用户手动截图或目视确认**：

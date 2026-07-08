@@ -645,7 +645,8 @@ final class PluginListCellView: NSTableCellView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let summaryLabel = NSTextField(labelWithString: "")
     private let sourceBadge = NSTextField(labelWithString: "")
-    private let toggleSwitch = SageSwitch(isOn: false)
+    // test seam：红队 AS-01/02 通过 @testable import 访问 frame 与触发 mouseDown（C-SWITCH-CLICK-PATH）。
+    internal let toggleSwitch = SageSwitch(isOn: false)
     private var onToggleInternal: ((Bool) -> Void)?
 
     /// toggle 状态变化回调（newState: Bool）。
@@ -706,6 +707,11 @@ final class PluginListCellView: NSTableCellView {
 
             toggleSwitch.centerYAnchor.constraint(equalTo: centerYAnchor),
             toggleSwitch.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            // 显式尺寸约束（契约 C-SWITCH-SIZE）：
+            // SageSwitch init frame 32×20 在 translatesAutoresizingMaskIntoConstraints = false 下被忽略，
+            // 必须给 width=32 + height=20 约束，否则 Auto Layout 解析为 0×0 → CALayer 无绘制区 + hitTest 不命中。
+            toggleSwitch.widthAnchor.constraint(equalToConstant: 32),
+            toggleSwitch.heightAnchor.constraint(equalToConstant: 20),
         ])
     }
 

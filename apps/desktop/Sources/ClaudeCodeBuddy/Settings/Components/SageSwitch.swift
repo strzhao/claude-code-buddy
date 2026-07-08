@@ -73,6 +73,13 @@ final class SageSwitch: NSView {
         setAccessibilityValue(isOn ? 1 : 0)
     }
 
+    /// 固定内在尺寸（契约 C-SWITCH-INTRINSIC）。
+    ///
+    /// `translatesAutoresizingMaskIntoConstraints = true` 的宿主用 intrinsicContentSize 撑开 32×20；
+    /// = false 的宿主（如 PluginListCellView / SettingsToggleRow）需显式 width/height 约束（C-SWITCH-SIZE），
+    /// 但覆盖此属性仍是治本兜底——避免 Auto Layout 解析为 0×0 致 CALayer 无绘制区 + hitTest 不命中。
+    override var intrinsicContentSize: NSSize { NSSize(width: 32, height: 20) }
+
     override func layout() {
         super.layout()
         trackLayer.frame = bounds

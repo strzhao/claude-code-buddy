@@ -429,4 +429,35 @@ final class SettingsThemeTests: XCTestCase {
         }
         return root
     }
+
+    // MARK: - 栅格 token 扩展（stage-0-grid-token，Task 1）
+
+    /// 4 倍数栅格 scale 完整 7 档值正确。
+    func test_spacingScale_isFourMultiples() {
+        XCTAssertEqual(SettingsTheme.spacingXs, 4)
+        XCTAssertEqual(SettingsTheme.spacingSm, 8)
+        XCTAssertEqual(SettingsTheme.spacingMd, 12)
+        XCTAssertEqual(SettingsTheme.spacingLg, 16)
+        XCTAssertEqual(SettingsTheme.spacingXl, 24)
+        XCTAssertEqual(SettingsTheme.spacingXxl, 32)
+        XCTAssertEqual(SettingsTheme.spacingSection, 48)
+    }
+
+    /// 布局常量（限宽/分栏/行高）值正确。
+    func test_layoutConstants() {
+        XCTAssertEqual(SettingsTheme.contentMaxWidth, 780)
+        XCTAssertEqual(SettingsTheme.sidebarWidth, 200)
+        XCTAssertEqual(SettingsTheme.pluginListWidth, 240)
+        XCTAssertEqual(SettingsTheme.minRowHeight, 44)
+        XCTAssertEqual(SettingsTheme.contentTopInset, 48)
+    }
+
+    /// 旧语义 token 收口到 scale（调用方 API 不变，仅值统一到栅格）。
+    func test_legacySemanticTokens_alignedToScale() {
+        XCTAssertEqual(SettingsTheme.contentPadding, SettingsTheme.spacingXl)      // 24
+        XCTAssertEqual(SettingsTheme.cardContentPadding, SettingsTheme.spacingLg)  // 16
+        XCTAssertEqual(SettingsTheme.rowSpacing, SettingsTheme.spacingSm)          // 8
+        XCTAssertEqual(SettingsTheme.groupSpacing, SettingsTheme.spacingXl)        // 20 -> 24
+        XCTAssertEqual(SettingsTheme.groupTopInset, SettingsTheme.spacingXl)       // 20 -> 24
+    }
 }

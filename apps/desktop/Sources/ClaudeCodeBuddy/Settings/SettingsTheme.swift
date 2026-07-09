@@ -81,23 +81,41 @@ enum SettingsTheme {
         .secondaryLabelColor
     }
 
-    // MARK: - Layout Spacing Grid
+    // MARK: - Spacing Scale (4 倍数栅格，所有间距的唯一来源)
 
-    /// 内容左右页边距：24pt（对标系统设置页边距）。
-    static let contentPadding: CGFloat = 24
+    static let spacingXs: CGFloat = 4
+    static let spacingSm: CGFloat = 8
+    static let spacingMd: CGFloat = 12
+    static let spacingLg: CGFloat = 16
+    static let spacingXl: CGFloat = 24
+    static let spacingXxl: CGFloat = 32
+    static let spacingSection: CGFloat = 48
 
-    /// 分组顶部留白：20pt（第一组距页面顶部）。
-    static let groupTopInset: CGFloat = 20
+    // MARK: - Layout Constants
 
-    /// 分组之间的间距：20pt。
-    static let groupSpacing: CGFloat = 20
+    /// 内容列限宽（detail 内容居中最大宽度）。
+    static let contentMaxWidth: CGFloat = 780
+    /// 设置 sidebar 固定宽度。
+    static let sidebarWidth: CGFloat = 200
+    /// 插件 / snip 左列表栏固定宽度。
+    static let pluginListWidth: CGFloat = 240
+    /// 交互行最小行高（HIG）。
+    static let minRowHeight: CGFloat = 44
+    /// 内容顶部留白。
+    static let contentTopInset: CGFloat = 48
 
-    /// 分组卡片内行间距（行间分隔线之外的垂直间距）：8pt。
-    static let rowSpacing: CGFloat = 8
+    // MARK: - Semantic Spacing (引用 scale，保持调用方 API 不变)
 
-    /// 分组卡片内左右内边距：16pt。
-    static let cardContentPadding: CGFloat = 16
-
+    /// 内容左右页边距 = spacingXl(24)。
+    static let contentPadding: CGFloat = spacingXl
+    /// 分组顶部留白 = spacingXl(24)。
+    static let groupTopInset: CGFloat = spacingXl
+    /// 分组之间间距 = spacingXl(24)。
+    static let groupSpacing: CGFloat = spacingXl
+    /// 分组卡片内行间距 = spacingSm(8)。
+    static let rowSpacing: CGFloat = spacingSm
+    /// 分组卡片左右内边距 = spacingLg(16)。
+    static let cardContentPadding: CGFloat = spacingLg
     /// 分组卡片圆角：10pt。
     static let cardCornerRadius: CGFloat = 10
 

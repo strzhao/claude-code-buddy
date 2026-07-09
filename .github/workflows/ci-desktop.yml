@@ -25,6 +25,12 @@ jobs:
         run: swift --version
         working-directory: apps/desktop
 
+      - name: Fetch official plugins
+        # 对齐 release.yml：build/test 前从官方插件 monorepo 拉取 plugins/ 源打进 Marketplace/。
+        # Marketplace/plugins/ 被 .gitignore 排除（build-time 产物），不 fetch 则依赖该产物的
+        # 测试（SnipScriptFunctionTests source snippets.sh / MarketplaceManifest seed）会失败。
+        run: make -C apps/desktop fetch-plugins
+
       - name: Build
         run: make build
         working-directory: apps/desktop

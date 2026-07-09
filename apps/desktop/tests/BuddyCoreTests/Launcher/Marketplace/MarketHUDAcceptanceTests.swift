@@ -183,17 +183,20 @@ final class MarketHUDAcceptanceTests: XCTestCase {
         XCTAssertFalse(hud.isVisible, "0.1s dismissDelay + sleep 0.2s 后应自隐")
     }
 
-    /// AT03 重复 show 重置倒计时：dismissDelay=0.3s → show → sleep(0.2s) → show → sleep(0.2s) → 仍可见
+    /// AT03 重复 show 重置倒计时：dismissDelay=1.0s → show → sleep(0.6s) → show → sleep(0.5s) → 仍可见
+    ///
+    /// 时序余量故意放大（原 0.3/0.2s 末段余量仅 0.1s，CI runner 调度抖动会让 Task.sleep 实际超时，
+    /// 翻转 isVisible 结果 → flaky）。1.0s 倒计时 + 0.5s 末段 sleep 留 0.5s 余量，抗 CI 抖动。
     func test_AT03_repeatedShow_resetsDismissTimer() async throws {
         let hud = MarketHUD()
-        hud.dismissDelay = 0.3
+        hud.dismissDelay = 1.0
         hud.show(text: "first", actions: [])
-        try await Task.sleep(nanoseconds: 200_000_000)  // 0.2s < 0.3s 仍可见
+        try await Task.sleep(nanoseconds: 600_000_000)  // 0.6s < 1.0s 仍可见
         hud.show(text: "second", actions: [])  // 重置倒计时
-        try await Task.sleep(nanoseconds: 200_000_000)  // 累计 0.4s 但新倒计时仅过 0.2s
+        try await Task.sleep(nanoseconds: 500_000_000)  // 累计 1.1s > 1.0s（未重置会 dismiss），新倒计时仅过 0.5s < 1.0s
 
         XCTAssertTrue(hud.isVisible,
-                      "重复 show 应重置倒计时，新倒计时 0.2s < 0.3s 时仍可见")
+                      "重复 show 应重置倒计时，新倒计时 0.5s < 1.0s 时仍可见")
     }
 
     /// AT04 dismiss() → panel.isVisible == false

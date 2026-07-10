@@ -39,7 +39,8 @@ final class EmptyPluginStateVC: NSViewController {
     }
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
+        // 固定初始 frame + autoresize（防 fittingSize 缩 0，patterns/2026-06-16）；实际尺寸由父容器撑满
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 540))
         container.autoresizingMask = [.width, .height]
 
         // 居中竖向栈：图标 + 标题 + 摘要 + 启用徽标
@@ -93,25 +94,26 @@ final class EmptyPluginStateVC: NSViewController {
         container.addSubview(badge)
 
         NSLayoutConstraint.activate([
+            // 图标水平居中 + 垂直居中于容器上半部（响应式，不再固定 96pt top）
             iconView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            iconView.topAnchor.constraint(equalTo: container.topAnchor, constant: 96),
+            iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -SettingsTheme.spacingSection),
 
-            titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 16),
-            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+            titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: SettingsTheme.spacingLg),
+            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: SettingsTheme.spacingXxl),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -SettingsTheme.spacingXxl),
             titleLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            summaryLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            summaryLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
-            summaryLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+            summaryLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
+            summaryLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: SettingsTheme.spacingXxl),
+            summaryLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -SettingsTheme.spacingXxl),
             summaryLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            descLabel.topAnchor.constraint(equalTo: summaryLabel.bottomAnchor, constant: 8),
-            descLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 48),
-            descLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -48),
+            descLabel.topAnchor.constraint(equalTo: summaryLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
+            descLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: SettingsTheme.spacingSection),
+            descLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -SettingsTheme.spacingSection),
             descLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            badge.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: 12),
+            badge.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: SettingsTheme.spacingMd),
             badge.centerXAnchor.constraint(equalTo: container.centerXAnchor),
         ])
 

@@ -91,31 +91,12 @@ final class ProviderSettingsViewController: NSViewController {
     // MARK: - Lifecycle
 
     override func loadView() {
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 580, height: 560))
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
+        // 内容列（限宽居中 + 内置滚动，复用 ContentColumnView）
+        let column = ContentColumnView(frame: NSRect(x: 0, y: 0, width: 760, height: 720))
+        let content = column.contentColumn
+        setupLayout(in: content)
 
-        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 560))
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-
-        scrollView.documentView = contentView
-
-        setupLayout(in: contentView, scrollView: scrollView)
-
-        // C6 内容贴顶核心修法（先例：PluginGalleryViewController.swift:195-197）：
-        // 1. documentView 宽度 = clipView 宽（水平不滚动）
-        // 2. documentView 高度 ≥ clipView 高（内容少时撑满 viewport，顶部对齐，避免大窗内容靠下半截）
-        contentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor).isActive = true
-        // C6 高度 ≥ 可视区，优先级 required（让 container 至少 = viewport；
-        // 配合 tools 钉底 + formStackView distribution=.fill，使 JSON 槽位填满中间剩余空间，
-        // 整页恰好不溢出——不再依赖魔数 offset/multiplier）
-        let c6Height = contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor)
-        c6Height.priority = .required
-        c6Height.isActive = true
-
-        self.view = scrollView
+        self.view = column
 
         // T6: 在 loadView 末尾渲染工具分组（骨架已就绪），
         // 让测试仅触发 loadView（`_ = vc.view`）也能看到完整工具行；
@@ -132,7 +113,7 @@ final class ProviderSettingsViewController: NSViewController {
 
     // MARK: - Layout
 
-    private func setupLayout(in container: NSView, scrollView: NSScrollView) {
+    private func setupLayout(in container: NSView) {
         // ── 分组1「提供者」──
         let providerLabel = SettingsGroupLabel(title: "提供者")
         providerLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -352,20 +333,20 @@ final class ProviderSettingsViewController: NSViewController {
         prettyPrintButton.action = #selector(prettyPrintJSON(_:))
         jsonPanel.addSubview(prettyPrintButton)
 
-        // JSON 编辑器高度：jsonPanel 在 formStackView（distribution=.fill）撑满中间槽位，
-        // jsonScrollView 顶到 jsonPanel 顶、底到按钮行 → 填满 header/tab/tools 之外的剩余空间，
-        // 既拉满又恰好不溢出（不再用魔数 offset/multiplier）。
+        // JSON 编辑器高度：ContentColumnView 负责整体竖滚，jsonScrollView 给固定 min 高度保可用
+        // （原 viewport-fill 拉伸逻辑随自建 scrollView 一并删除）。
         NSLayoutConstraint.activate([
             jsonScrollView.topAnchor.constraint(equalTo: jsonPanel.topAnchor),
             jsonScrollView.leadingAnchor.constraint(equalTo: jsonPanel.leadingAnchor),
             jsonScrollView.trailingAnchor.constraint(equalTo: jsonPanel.trailingAnchor),
+            jsonScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 240),
 
-            prettyPrintButton.topAnchor.constraint(equalTo: jsonScrollView.bottomAnchor, constant: 6),
+            prettyPrintButton.topAnchor.constraint(equalTo: jsonScrollView.bottomAnchor, constant: SettingsTheme.spacingXs),
             // 格式化按钮左对齐编辑框（用户反馈）：与 jsonScrollView 同 leading
             prettyPrintButton.leadingAnchor.constraint(equalTo: jsonScrollView.leadingAnchor),
 
             jsonValidationLabel.centerYAnchor.constraint(equalTo: prettyPrintButton.centerYAnchor),
-            jsonValidationLabel.leadingAnchor.constraint(equalTo: prettyPrintButton.trailingAnchor, constant: 10),
+            jsonValidationLabel.leadingAnchor.constraint(equalTo: prettyPrintButton.trailingAnchor, constant: SettingsTheme.spacingSm),
             jsonValidationLabel.trailingAnchor.constraint(lessThanOrEqualTo: jsonPanel.trailingAnchor, constant: -SettingsTheme.contentPadding),
             jsonValidationLabel.bottomAnchor.constraint(equalTo: jsonPanel.bottomAnchor),
         ])
@@ -406,11 +387,7 @@ final class ProviderSettingsViewController: NSViewController {
         self.pluginsToolsLabel = pluginsLabel
 
         // ── 整体约束 ──
-        // tools 钉底（required）：配合 C6(container≥viewport) + formStackView distribution=.fill，
-        // 让 form/JSON 槽位填满"header/tab/tools 之外"的中间剩余空间——JSON 拉满且整页不溢出。
-        let bottomAnchor = pluginsToolsGroup.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -SettingsTheme.groupTopInset)
-        bottomAnchor.priority = .required
-
+        // ContentColumnView 负责整体竖滚 + 限宽居中，无需 tools 钉底（原 viewport-fill 删除）。
         NSLayoutConstraint.activate([
             // 提供者标签
             providerLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: SettingsTheme.groupTopInset),
@@ -418,22 +395,22 @@ final class ProviderSettingsViewController: NSViewController {
             providerLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
             // Tab 控件
-            tabSegmentedControl.topAnchor.constraint(equalTo: providerLabel.bottomAnchor, constant: 6),
+            tabSegmentedControl.topAnchor.constraint(equalTo: providerLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
             tabSegmentedControl.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             tabSegmentedControl.widthAnchor.constraint(equalToConstant: 120),
 
             // formStackView 槽位（与下方工具列表同宽；form/JSON tab 各自高度，隐藏项自动塌缩）
-            formStackView.topAnchor.constraint(equalTo: tabSegmentedControl.bottomAnchor, constant: 8),
+            formStackView.topAnchor.constraint(equalTo: tabSegmentedControl.bottomAnchor, constant: SettingsTheme.spacingSm),
             formStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             formStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            // AI 工具区（钉 formStackView 底，随可见面板高度走，无重叠/留隙）
+            // AI 工具区
             toolsLabel.topAnchor.constraint(equalTo: formStackView.bottomAnchor, constant: SettingsTheme.groupSpacing),
             toolsLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             toolsLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
             // 引导句
-            toolsIntroLabel.topAnchor.constraint(equalTo: toolsLabel.bottomAnchor, constant: 2),
+            toolsIntroLabel.topAnchor.constraint(equalTo: toolsLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
             toolsIntroLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             toolsIntroLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
@@ -442,7 +419,7 @@ final class ProviderSettingsViewController: NSViewController {
             builtinLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             builtinLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            builtinToolsGroup.topAnchor.constraint(equalTo: builtinLabel.bottomAnchor, constant: 6),
+            builtinToolsGroup.topAnchor.constraint(equalTo: builtinLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
             builtinToolsGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             builtinToolsGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
@@ -451,11 +428,9 @@ final class ProviderSettingsViewController: NSViewController {
             pluginsLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             pluginsLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
 
-            pluginsToolsGroup.topAnchor.constraint(equalTo: pluginsLabel.bottomAnchor, constant: 6),
+            pluginsToolsGroup.topAnchor.constraint(equalTo: pluginsLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
             pluginsToolsGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
             pluginsToolsGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
-
-            bottomAnchor,
         ])
     }
 

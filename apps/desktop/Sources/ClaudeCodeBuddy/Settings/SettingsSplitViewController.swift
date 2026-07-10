@@ -52,8 +52,9 @@ final class SettingsSplitViewController: NSSplitViewController {
 
         self.sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarItem.canCollapse = false
-        sidebarItem.minimumThickness = 180
-        sidebarItem.maximumThickness = 240
+        // 固定宽度（删 180-240 区间），消除拖动跳动
+        sidebarItem.minimumThickness = SettingsTheme.sidebarWidth
+        sidebarItem.maximumThickness = SettingsTheme.sidebarWidth
 
         self.detailItem = NSSplitViewItem(viewController: detailContainer)
 

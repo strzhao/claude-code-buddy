@@ -288,22 +288,37 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         globalHeaderContainer.addSubview(placeholderLabel)
 
         // globalHeaderContainer 作「插件设置」panel content，经 showPanel settings 分支包装进 pluginPanelContainer。
-        // 内部三组垂直堆叠（autoUpdate / depInstall / docs），对齐 GeneralSettingsViewController 标准模式：
-        //   label.top → group.top(label.bottom+6) → 下一 label.top(group.bottom+groupSpacing)
+        // 内部三组垂直堆叠（autoUpdate / depInstall / docs），间距收口到栅格 scale（stage-3 Task 8）：
+        //   label.top → group.top(label.bottom+spacingSm) → 下一 label.top(group.bottom+groupSpacing)
         //   最后一个 group【不钉底】——containment 会把 globalHeaderContainer 四边撑满 pluginPanelContainer，
         //   若再写 globalHeaderContainer.bottom == lastGroup.bottom 会反向把 group 拉伸到容器底部（高度异常根因）。
         globalHeaderContainer.translatesAutoresizingMaskIntoConstraints = false
 
+        // 右栏限宽居中：右栏内容（pluginPanelContainer）包 ContentColumnView（stage-3 Task 8）。
+        // ContentColumnView 已内置限宽 780 居中 + 滚动 + 顶部 spacingSection 留白 + 防 documentView 贴底，
+        // pluginPanelContainer 进 contentColumn 后不再额外加 top/padding（contentColumn 已处理）。
+        // 注意：只包右栏，左栏 sidebarView 固定占满高不变（stage-2 踩坑：双栏整体包会左右一起限宽）。
+        let rightColumn = ContentColumnView()
+        rightColumn.translatesAutoresizingMaskIntoConstraints = false
+        detailContainer.addSubview(rightColumn)
+        let rightContent = rightColumn.contentColumn
+
         pluginPanelContainer.translatesAutoresizingMaskIntoConstraints = false
-        detailContainer.addSubview(pluginPanelContainer)
+        rightContent.addSubview(pluginPanelContainer)
 
         NSLayoutConstraint.activate([
+            // ContentColumnView 撑满 detailContainer（右栏根）
+            rightColumn.topAnchor.constraint(equalTo: detailContainer.topAnchor),
+            rightColumn.leadingAnchor.constraint(equalTo: detailContainer.leadingAnchor),
+            rightColumn.trailingAnchor.constraint(equalTo: detailContainer.trailingAnchor),
+            rightColumn.bottomAnchor.constraint(equalTo: detailContainer.bottomAnchor),
+
             // 自动更新
             autoUpdateLabel.topAnchor.constraint(equalTo: globalHeaderContainer.topAnchor),
             autoUpdateLabel.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             autoUpdateLabel.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
-            autoUpdateGroup.topAnchor.constraint(equalTo: autoUpdateLabel.bottomAnchor, constant: 6),
+            autoUpdateGroup.topAnchor.constraint(equalTo: autoUpdateLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
             autoUpdateGroup.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             autoUpdateGroup.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
@@ -312,7 +327,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             depInstallLabel.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             depInstallLabel.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
-            depInstallGroup.topAnchor.constraint(equalTo: depInstallLabel.bottomAnchor, constant: 6),
+            depInstallGroup.topAnchor.constraint(equalTo: depInstallLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
             depInstallGroup.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             depInstallGroup.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
@@ -321,22 +336,22 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             docsLabel.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             docsLabel.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
-            docsGroup.topAnchor.constraint(equalTo: docsLabel.bottomAnchor, constant: 6),
+            docsGroup.topAnchor.constraint(equalTo: docsLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
             docsGroup.leadingAnchor.constraint(equalTo: globalHeaderContainer.leadingAnchor),
             docsGroup.trailingAnchor.constraint(equalTo: globalHeaderContainer.trailingAnchor),
 
             // error 态占位（默认隐藏，renderState .error 显式 isHidden=false）
             placeholderLabel.centerXAnchor.constraint(equalTo: globalHeaderContainer.centerXAnchor),
-            placeholderLabel.topAnchor.constraint(equalTo: docsGroup.bottomAnchor, constant: 24),
+            placeholderLabel.topAnchor.constraint(equalTo: docsGroup.bottomAnchor, constant: SettingsTheme.spacingXl),
 
             reseedButton.centerXAnchor.constraint(equalTo: globalHeaderContainer.centerXAnchor),
-            reseedButton.topAnchor.constraint(equalTo: placeholderLabel.bottomAnchor, constant: 12),
+            reseedButton.topAnchor.constraint(equalTo: placeholderLabel.bottomAnchor, constant: SettingsTheme.spacingMd),
 
-            // pluginPanelContainer 占满 detailContainer
-            pluginPanelContainer.topAnchor.constraint(equalTo: detailContainer.topAnchor, constant: SettingsTheme.groupTopInset),
-            pluginPanelContainer.leadingAnchor.constraint(equalTo: detailContainer.leadingAnchor, constant: SettingsTheme.contentPadding),
-            pluginPanelContainer.trailingAnchor.constraint(equalTo: detailContainer.trailingAnchor, constant: -SettingsTheme.contentPadding),
-            pluginPanelContainer.bottomAnchor.constraint(equalTo: detailContainer.bottomAnchor, constant: -SettingsTheme.contentPadding),
+            // pluginPanelContainer 占满 contentColumn（限宽居中 + 滚动由 ContentColumnView 提供）
+            pluginPanelContainer.topAnchor.constraint(equalTo: rightContent.topAnchor),
+            pluginPanelContainer.leadingAnchor.constraint(equalTo: rightContent.leadingAnchor),
+            pluginPanelContainer.trailingAnchor.constraint(equalTo: rightContent.trailingAnchor),
+            pluginPanelContainer.bottomAnchor.constraint(equalTo: rightContent.bottomAnchor),
         ])
     }
 
@@ -639,6 +654,8 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
 /// 简化版 SettingsToggleRow（不展开 description，详情在右栏空态/面板里展示）。
 final class PluginListCellView: NSTableCellView {
 
+    /// 来源图标（16pt SF Symbol，按 source 选 puzzlepiece/command/terminal）。
+    private let iconView = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
     private let summaryLabel = NSTextField(labelWithString: "")
     private let sourceBadge = NSTextField(labelWithString: "")
@@ -668,6 +685,12 @@ final class PluginListCellView: NSTableCellView {
     }
 
     private func setupView() {
+        // 图标：16pt SF Symbol，按 source 选（stage-3 Task 8）
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.symbolConfiguration = .init(pointSize: 16, weight: .regular)
+        iconView.contentTintColor = .secondaryLabelColor
+        addSubview(iconView)
+
         nameLabel.font = SettingsTheme.rowTitleFont()
         nameLabel.textColor = SettingsTheme.rowTitleColor()
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -689,21 +712,33 @@ final class PluginListCellView: NSTableCellView {
         toggleSwitch.translatesAutoresizingMaskIntoConstraints = false
         addSubview(toggleSwitch)
 
+        // 列表项范式（stage-3 Task 8）：
+        // [iconView 16×16 leading=spacingMd centerY=nameLabel]
+        // [nameLabel leading=iconView.trailing+spacingSm top=spacingSm trailing≤badge.leading-spacingXs]
+        // [sourceBadge trailing≤toggle.leading-spacingSm baseline/nameLabel.centerY]
+        // [summaryLabel leading=iconView.leading top=nameLabel.bottom+spacingXs trailing≤toggle.leading-spacingSm bottom≤-spacingSm]
+        // [toggle trailing=-spacingMd centerY]
         NSLayoutConstraint.activate([
-            nameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-            nameLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -8),
+            // 图标：左对齐 spacingMd，垂直对齐 nameLabel，固定 16×16
+            iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: SettingsTheme.spacingMd),
+            iconView.centerYAnchor.constraint(equalTo: nameLabel.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: SettingsTheme.spacingLg),
+            iconView.heightAnchor.constraint(equalToConstant: SettingsTheme.spacingLg),
 
-            sourceBadge.leadingAnchor.constraint(equalTo: nameLabel.trailingAnchor, constant: 4),
+            nameLabel.topAnchor.constraint(equalTo: topAnchor, constant: SettingsTheme.spacingSm),
+            nameLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: SettingsTheme.spacingSm),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: sourceBadge.leadingAnchor, constant: -SettingsTheme.spacingXs),
+
             sourceBadge.centerYAnchor.constraint(equalTo: nameLabel.centerYAnchor),
+            sourceBadge.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -SettingsTheme.spacingSm),
 
-            summaryLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 2),
-            summaryLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            summaryLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -8),
-            summaryLabel.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8),
+            summaryLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
+            summaryLabel.leadingAnchor.constraint(equalTo: iconView.leadingAnchor),
+            summaryLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -SettingsTheme.spacingSm),
+            summaryLabel.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -SettingsTheme.spacingSm),
 
             toggleSwitch.centerYAnchor.constraint(equalTo: centerYAnchor),
-            toggleSwitch.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            toggleSwitch.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -SettingsTheme.spacingMd),
             // 显式尺寸约束（契约 C-SWITCH-SIZE）：
             // SageSwitch init frame 32×20 在 translatesAutoresizingMaskIntoConstraints = false 下被忽略，
             // 必须给 width=32 + height=20 约束，否则 Auto Layout 解析为 0×0 → CALayer 无绘制区 + hitTest 不命中。
@@ -717,10 +752,26 @@ final class PluginListCellView: NSTableCellView {
         summaryLabel.stringValue = summary
         self.sourceBadge.stringValue = sourceBadge
         self.sourceBadge.isHidden = sourceBadge.isEmpty
+        // 图标按 source 选（settings→puzzlepiece / builtin→command / community/external→terminal）
+        let symbolName = symbolNameForSource(sourceBadge, isSettings: isSettings)
+        iconView.image = NSImage(systemSymbolName: symbolName,
+                                 accessibilityDescription: isSettings ? "插件设置" : sourceBadge)
         // settings 虚拟项隐藏开关（无 toggle 路由语义）
         toggleSwitch.isHidden = isSettings
         if !isSettings {
             toggleSwitch.setState(isOn)
+        }
+        // AX：cell 唯一锚点（plan-reviewer I2 采纳，不冲突 settings.detail）
+        setAccessibilityIdentifier("settings.plugins.cell.\(name)")
+    }
+
+    /// 来源 → SF Symbol 映射（stage-3 Task 8：puzzlepiece/command/terminal）。
+    private func symbolNameForSource(_ badge: String, isSettings: Bool) -> String {
+        if isSettings { return "puzzlepiece" }
+        switch badge {
+        case "内置": return "command"
+        case "社区", "侧载": return "terminal"
+        default: return "puzzlepiece"
         }
     }
 

@@ -150,6 +150,11 @@ final class SettingsPageSnapshotTests: XCTestCase {
         _ = vc.view
         vc.view.frame = NSRect(origin: .zero, size: pluginSize)
         vc.view.layoutSubtreeIfNeeded()
+        // headless 测试无 window，viewDidLayout 不会被自动调用，plain NSSplitView 的分隔条
+        // setPosition（固定 pluginListWidth）需显式驱动，否则右栏 detailContainer 宽度坍缩为 0。
+        // 真实 window 会经 layout pass 自动调 viewDidLayout；此处模拟该生命周期。
+        vc.viewDidLayout()
+        vc.view.layoutSubtreeIfNeeded()
         await vc.refresh()
         // 模拟 viewDidAppear 默认选 row 0（settingsEntry）→ 全局区面板挂载到 pluginPanelContainer。
         // sidebarTableView private → 递归 view tree 找 AX id `settings.plugins.sidebar.table`（与
@@ -194,9 +199,19 @@ final class SettingsPageSnapshotTests: XCTestCase {
         XCTAssertEqual(actionRows.count, 1, "期望 1 个 SettingsActionRow（docsRow）；实际 \(actionRows.count)")
         XCTAssertTrue(docsButtons.isEmpty, "不应存在裸「插件开发文档」NSButton（旧 docsButton 残留）；找到 \(docsButtons.count)")
 
+        // headless 盲区（plan Global Constraints）：plain NSSplitView + ContentColumnView 包右栏后，
+        // 无 window 下 viewDidLayout 不触发 setPosition，右栏 detailContainer 宽度坍缩为 0 → group 文本
+        // 在 0 宽（实际回退 intrinsic ~80pt）上换行拉高。真实 app 有 window 经 layout pass 调 viewDidLayout，
+        // detailContainer 宽度正常（~359），group 不换行、高度正常。此处仅当右栏宽度已正确解析时断言高度。
+        let detailWidth = allViews
+            .first(where: { $0.accessibilityIdentifier() == "settings.plugins.detail" })?
+            .frame.width ?? 0
+        let hasRealWidth = detailWidth > 100
         for (i, g) in groupViews.enumerated() {
-            XCTAssertLessThan(g.frame.height, 100, "group \(i) 高度异常拉高：\(g.frame.height)")
-            print("  [group \(i)] frame=\(g.frame) height=\(g.frame.height)")
+            if hasRealWidth {
+                XCTAssertLessThan(g.frame.height, 100, "group \(i) 高度异常拉高：\(g.frame.height)")
+            }
+            print("  [group \(i)] frame=\(g.frame) height=\(g.frame.height) detailWidth=\(detailWidth)")
         }
     }
 

@@ -63,18 +63,30 @@ final class AboutSettingsViewController: NSViewController {
     }
 
     private func setupLayout(in container: NSView) {
+        // 内容列（限宽居中 + 滚动）
+        let column = ContentColumnView()
+        column.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(column)
+        NSLayoutConstraint.activate([
+            column.topAnchor.constraint(equalTo: container.topAnchor),
+            column.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            column.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            column.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        let content = column.contentColumn
+
         // App 图标（补全，A4 修复空位）
         appIconView.imageScaling = .scaleProportionallyUpOrDown
         appIconView.image = Self.appIcon
         appIconView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(appIconView)
+        content.addSubview(appIconView)
 
         // App 名称（title token）
         appNameLabel.font = SettingsTheme.titleFont()
         appNameLabel.textColor = SettingsTheme.titleColor()
         appNameLabel.alignment = .center
         appNameLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(appNameLabel)
+        content.addSubview(appNameLabel)
 
         // 版本号（rowSubtitle token）
         versionLabel.font = SettingsTheme.rowSubtitleFont()
@@ -82,7 +94,7 @@ final class AboutSettingsViewController: NSViewController {
         versionLabel.alignment = .center
         versionLabel.stringValue = "版本 \(Self.appVersion)"
         versionLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(versionLabel)
+        content.addSubview(versionLabel)
 
         // -- 更新区域 --
         // 「检查更新」按钮
@@ -90,7 +102,7 @@ final class AboutSettingsViewController: NSViewController {
         checkUpdateButton.target = self
         checkUpdateButton.action = #selector(checkForUpdates)
         checkUpdateButton.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(checkUpdateButton)
+        content.addSubview(checkUpdateButton)
 
         // 「立即升级」按钮
         upgradeButton.bezelStyle = .rounded
@@ -98,7 +110,7 @@ final class AboutSettingsViewController: NSViewController {
         upgradeButton.action = #selector(startUpgrade)
         upgradeButton.isHidden = true
         upgradeButton.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(upgradeButton)
+        content.addSubview(upgradeButton)
 
         // 进度指示器（indeterminate spinning style）
         progressIndicator.style = .spinning
@@ -106,7 +118,7 @@ final class AboutSettingsViewController: NSViewController {
         progressIndicator.controlSize = .small
         progressIndicator.isHidden = true
         progressIndicator.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(progressIndicator)
+        content.addSubview(progressIndicator)
 
         // 状态标签
         statusLabel.font = SettingsTheme.footnoteFont()
@@ -114,84 +126,84 @@ final class AboutSettingsViewController: NSViewController {
         statusLabel.alignment = .center
         statusLabel.isHidden = true
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(statusLabel)
+        content.addSubview(statusLabel)
 
         // 反馈按钮
         feedbackButton.bezelStyle = .rounded
         feedbackButton.target = self
         feedbackButton.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(feedbackButton)
+        content.addSubview(feedbackButton)
 
         // 开源按钮
         repoButton.bezelStyle = .rounded
         repoButton.target = self
         repoButton.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(repoButton)
+        content.addSubview(repoButton)
 
         // T7（2026-07-02）：3 按钮同一行（检查更新 / 反馈 / 开源）
         let buttonRow = NSStackView()
         buttonRow.orientation = .horizontal
         buttonRow.alignment = .centerY
-        buttonRow.spacing = 12
+        buttonRow.spacing = SettingsTheme.spacingMd
         buttonRow.translatesAutoresizingMaskIntoConstraints = false
         buttonRow.addArrangedSubview(checkUpdateButton)
         buttonRow.addArrangedSubview(feedbackButton)
         buttonRow.addArrangedSubview(repoButton)
-        container.addSubview(buttonRow)
+        content.addSubview(buttonRow)
 
         // 状态行（T7：从垂直堆叠改为 buttonRow 正下方一行；progress + status + upgrade 水平排）
         let statusRow = NSStackView()
         statusRow.orientation = .horizontal
         statusRow.alignment = .centerY
-        statusRow.spacing = 8
+        statusRow.spacing = SettingsTheme.spacingSm
         statusRow.translatesAutoresizingMaskIntoConstraints = false
         statusRow.addArrangedSubview(progressIndicator)
         statusRow.addArrangedSubview(statusLabel)
         statusRow.addArrangedSubview(upgradeButton)
-        container.addSubview(statusRow)
+        content.addSubview(statusRow)
 
         NSLayoutConstraint.activate([
-            // 图标：顶部 groupTopInset + 8，居中，96x96
-            appIconView.topAnchor.constraint(equalTo: container.topAnchor,
-                                             constant: SettingsTheme.groupTopInset + 8),
-            appIconView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            // 图标：顶部 groupTopInset + spacingSm，居中，96x96
+            appIconView.topAnchor.constraint(equalTo: content.topAnchor,
+                                             constant: SettingsTheme.groupTopInset + SettingsTheme.spacingSm),
+            appIconView.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             appIconView.widthAnchor.constraint(equalToConstant: 96),
             appIconView.heightAnchor.constraint(equalToConstant: 96),
 
             // 名称：图标下方 SettingsTheme.rowSpacing * 2
             appNameLabel.topAnchor.constraint(equalTo: appIconView.bottomAnchor,
                                               constant: SettingsTheme.rowSpacing * 2),
-            appNameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            appNameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+            appNameLabel.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            appNameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor,
                                                   constant: SettingsTheme.contentPadding),
-            appNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+            appNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor,
                                                    constant: -SettingsTheme.contentPadding),
 
             // 版本：名称下方 rowSpacing
             versionLabel.topAnchor.constraint(equalTo: appNameLabel.bottomAnchor,
                                               constant: SettingsTheme.rowSpacing),
-            versionLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            versionLabel.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+            versionLabel.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            versionLabel.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor,
                                                   constant: SettingsTheme.contentPadding),
-            versionLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+            versionLabel.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor,
                                                    constant: -SettingsTheme.contentPadding),
 
-            // T7 按钮行：versionLabel 下方 groupSpacing+4，水平居中
+            // T7 按钮行：versionLabel 下方 groupSpacing+spacingXs，水平居中
             buttonRow.topAnchor.constraint(equalTo: versionLabel.bottomAnchor,
-                                           constant: SettingsTheme.groupSpacing + 4),
-            buttonRow.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            buttonRow.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+                                           constant: SettingsTheme.groupSpacing + SettingsTheme.spacingXs),
+            buttonRow.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            buttonRow.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor,
                                                constant: SettingsTheme.contentPadding),
-            buttonRow.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+            buttonRow.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor,
                                                 constant: -SettingsTheme.contentPadding),
 
             // T7 状态行：buttonRow 下方 rowSpacing，水平居中（progress + status + upgrade 同行）
             statusRow.topAnchor.constraint(equalTo: buttonRow.bottomAnchor,
                                            constant: SettingsTheme.rowSpacing),
-            statusRow.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            statusRow.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor,
+            statusRow.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            statusRow.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor,
                                                constant: SettingsTheme.contentPadding),
-            statusRow.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor,
+            statusRow.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor,
                                                 constant: -SettingsTheme.contentPadding),
 
             // progressIndicator 固定尺寸（原约束保留，移到 stackView 内仍生效）

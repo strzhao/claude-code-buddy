@@ -68,21 +68,33 @@ final class KeyboardShortcutsViewController: NSViewController {
     // MARK: - Layout
 
     private func setupLayout(in container: NSView) {
+        // 内容列（限宽居中 + 滚动）
+        let column = ContentColumnView()
+        column.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(column)
+        NSLayoutConstraint.activate([
+            column.topAnchor.constraint(equalTo: container.topAnchor),
+            column.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            column.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            column.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        let content = column.contentColumn
+
         titleLabel.font = SettingsTheme.titleFont()
         titleLabel.textColor = SettingsTheme.titleColor()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(titleLabel)
+        content.addSubview(titleLabel)
 
         subtitleLabel.font = SettingsTheme.rowSubtitleFont()
         subtitleLabel.textColor = SettingsTheme.rowSubtitleColor()
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(subtitleLabel)
+        content.addSubview(subtitleLabel)
 
         recorder.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(recorder)
+        content.addSubview(recorder)
 
         resetButton.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(resetButton)
+        content.addSubview(resetButton)
 
         conflictLabel.font = SettingsTheme.footnoteFont()
         conflictLabel.textColor = SettingsTheme.warningColor
@@ -90,34 +102,34 @@ final class KeyboardShortcutsViewController: NSViewController {
         conflictLabel.stringValue = "当前未设置热键，启动器将无法通过快捷键唤起"
         conflictLabel.isHidden = true
         conflictLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(conflictLabel)
+        content.addSubview(conflictLabel)
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor,
+            titleLabel.topAnchor.constraint(equalTo: content.topAnchor,
                                             constant: SettingsTheme.groupTopInset + 20),
-            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+            titleLabel.leadingAnchor.constraint(equalTo: content.leadingAnchor,
                                                 constant: SettingsTheme.contentPadding),
 
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor,
                                                constant: SettingsTheme.rowSpacing),
-            subtitleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+            subtitleLabel.leadingAnchor.constraint(equalTo: content.leadingAnchor,
                                                    constant: SettingsTheme.contentPadding),
 
             recorder.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor,
                                           constant: SettingsTheme.groupSpacing),
-            recorder.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            recorder.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             recorder.widthAnchor.constraint(equalToConstant: 280),
             recorder.heightAnchor.constraint(equalToConstant: 44),
 
             resetButton.topAnchor.constraint(equalTo: recorder.bottomAnchor,
                                              constant: SettingsTheme.groupSpacing),
-            resetButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            resetButton.centerXAnchor.constraint(equalTo: content.centerXAnchor),
 
             conflictLabel.topAnchor.constraint(equalTo: resetButton.bottomAnchor,
                                                constant: SettingsTheme.groupSpacing),
-            conflictLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor,
+            conflictLabel.leadingAnchor.constraint(equalTo: content.leadingAnchor,
                                                    constant: SettingsTheme.contentPadding),
-            conflictLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor,
+            conflictLabel.trailingAnchor.constraint(equalTo: content.trailingAnchor,
                                                     constant: -SettingsTheme.contentPadding),
         ])
     }

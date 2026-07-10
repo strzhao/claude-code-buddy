@@ -47,49 +47,57 @@ final class GeneralSettingsViewController: NSViewController {
             LaunchAtLogin.isEnabled = isOn
         }
 
+        // 内容列（限宽居中 + 滚动）
+        let column = ContentColumnView()
+        column.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(column)
+        NSLayoutConstraint.activate([
+            column.topAnchor.constraint(equalTo: container.topAnchor),
+            column.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            column.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            column.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        let content = column.contentColumn
+
         // 分组标题：通用
         let generalLabel = SettingsGroupLabel(title: "通用")
         generalLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(generalLabel)
+        content.addSubview(generalLabel)
 
         // 分组卡片：通用（音效 + 标签）
         let generalGroup = SettingsGroupView()
         generalGroup.translatesAutoresizingMaskIntoConstraints = false
         generalGroup.addRow(soundRow)
         generalGroup.addRow(alwaysShowLabelRow)
-        container.addSubview(generalGroup)
+        content.addSubview(generalGroup)
 
         // 分组标题：系统
         let systemLabel = SettingsGroupLabel(title: "系统")
         systemLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(systemLabel)
+        content.addSubview(systemLabel)
 
         // 分组卡片：系统（开机自启）
         let systemGroup = SettingsGroupView()
         systemGroup.translatesAutoresizingMaskIntoConstraints = false
         systemGroup.addRow(launchAtLoginRow)
-        container.addSubview(systemGroup)
+        content.addSubview(systemGroup)
 
         NSLayoutConstraint.activate([
-            // 通用标题
-            generalLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: SettingsTheme.groupTopInset),
-            generalLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
-            generalLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            generalLabel.topAnchor.constraint(equalTo: content.topAnchor),
+            generalLabel.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            generalLabel.trailingAnchor.constraint(equalTo: content.trailingAnchor),
 
-            // 通用卡片
-            generalGroup.topAnchor.constraint(equalTo: generalLabel.bottomAnchor, constant: 6),
-            generalGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
-            generalGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            generalGroup.topAnchor.constraint(equalTo: generalLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
+            generalGroup.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            generalGroup.trailingAnchor.constraint(equalTo: content.trailingAnchor),
 
-            // 系统标题
             systemLabel.topAnchor.constraint(equalTo: generalGroup.bottomAnchor, constant: SettingsTheme.groupSpacing),
-            systemLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
-            systemLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            systemLabel.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            systemLabel.trailingAnchor.constraint(equalTo: content.trailingAnchor),
 
-            // 系统卡片
-            systemGroup.topAnchor.constraint(equalTo: systemLabel.bottomAnchor, constant: 6),
-            systemGroup.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: SettingsTheme.contentPadding),
-            systemGroup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SettingsTheme.contentPadding),
+            systemGroup.topAnchor.constraint(equalTo: systemLabel.bottomAnchor, constant: SettingsTheme.spacingSm),
+            systemGroup.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            systemGroup.trailingAnchor.constraint(equalTo: content.trailingAnchor),
         ])
     }
 }

@@ -43,10 +43,10 @@ final class SettingsGroupView: NSView {
         addSubview(stackView)
 
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            stackView.topAnchor.constraint(equalTo: topAnchor, constant: SettingsTheme.spacingXs),
             stackView.leadingAnchor.constraint(equalTo: leadingAnchor),
             stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -SettingsTheme.spacingXs),
         ])
     }
 

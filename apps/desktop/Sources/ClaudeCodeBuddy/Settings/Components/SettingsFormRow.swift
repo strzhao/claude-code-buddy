@@ -87,21 +87,24 @@ final class SettingsFormRow: NSView {
         controlContainer.addSubview(controlView)
 
         NSLayoutConstraint.activate([
-            // 标题：左对齐 cardContentPadding，距顶 10
+            // 最低行高 44pt（HIG）
+            heightAnchor.constraint(greaterThanOrEqualToConstant: SettingsTheme.minRowHeight),
+
+            // 标题：左对齐 cardContentPadding，距顶 spacingMd
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: SettingsTheme.cardContentPadding),
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -12),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: SettingsTheme.spacingMd),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -SettingsTheme.spacingMd),
 
-            // 副标题：标题下方 2pt
+            // 副标题：标题下方 spacingXs
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -12),
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
+            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -SettingsTheme.spacingMd),
 
-            // 错误标签：副标题下方 2pt
+            // 错误标签：副标题下方 spacingXs
             errorLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            errorLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 2),
-            errorLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -12),
-            errorLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            errorLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
+            errorLabel.trailingAnchor.constraint(lessThanOrEqualTo: controlContainer.leadingAnchor, constant: -SettingsTheme.spacingMd),
+            errorLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -SettingsTheme.spacingSm),
 
             // 右侧控件容器：trailing cardContentPadding，垂直居中
             controlContainer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -SettingsTheme.cardContentPadding),

@@ -86,25 +86,28 @@ final class SettingsToggleRow: NSView {
         detailHeightConstraint = detailLabel.heightAnchor.constraint(equalToConstant: 0)
 
         var constraints: [NSLayoutConstraint] = [
-            // 标题：左对齐 cardContentPadding，距顶 10
+            // 最低行高 44（HIG）
+            heightAnchor.constraint(greaterThanOrEqualToConstant: SettingsTheme.minRowHeight),
+
+            // 标题：左对齐 cardContentPadding，距顶 spacingMd
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: SettingsTheme.cardContentPadding),
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: sourceBadgeLabel.leadingAnchor, constant: -8),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: SettingsTheme.spacingMd),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: sourceBadgeLabel.leadingAnchor, constant: -SettingsTheme.spacingSm),
 
             // 来源徽标：标题右侧
             sourceBadgeLabel.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            sourceBadgeLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -8),
+            sourceBadgeLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -SettingsTheme.spacingSm),
 
-            // 副标题：标题下方 2pt
+            // 副标题：标题下方 spacingXs
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -12),
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
+            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -SettingsTheme.spacingMd),
 
-            // 详情：副标题下方 4pt（展开时显示，收起时高度 0 隐藏）
+            // 详情：副标题下方 spacingXs（展开时显示，收起时高度 0 隐藏）
             detailLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            detailLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 4),
-            detailLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -12),
-            detailLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
+            detailLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: SettingsTheme.spacingXs),
+            detailLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleSwitch.leadingAnchor, constant: -SettingsTheme.spacingMd),
+            detailLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -SettingsTheme.spacingMd),
 
             // switch：右对齐 cardContentPadding，垂直居中；自绘开关尺寸 32×20
             toggleSwitch.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -SettingsTheme.cardContentPadding),

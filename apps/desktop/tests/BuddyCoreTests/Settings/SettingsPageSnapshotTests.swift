@@ -143,17 +143,29 @@ final class SettingsPageSnapshotTests: XCTestCase {
     /// 本 helper 复现真实 viewDidAppear 路径（refresh + 默认选 row 0），让快照捕获「设置面板」可视态。
     ///
     /// 用注入构造器避免单例真实网络/磁盘 IO（与 SettingsSidebarAcceptanceTests.SC13 同款 mock）。
+    ///
+    /// ⚠️ stage-3 后必须 host 进真实 NSWindow（headless 盲区，plan Global Constraints）：
+    /// plugin 面板内部 plain NSSplitView（非 NSSplitViewController 子类）无 NSSplitViewItem 抽象，
+    /// 必须有 window 经 layout pass 调 viewDidLayout → setPosition(240) 才能让右栏 detailContainer
+    /// 拿到非零宽度。裸 vc.view + layoutSubtreeIfNeeded（无 window）会让 splitView 两栏坍缩，
+    /// ContentColumnView 包右栏后更阻断内容宽度反推，快照会捕获坍缩的错误布局。
+    /// 临时 NSWindow hosting（不 show）提供 window 上下文让 viewDidLayout 触发，与红队
+    /// PluginGalleryLayoutAcceptanceTests 用 SettingsWindowController 同款真实几何驱动。
     private func makePluginGalleryVCReady() async -> PluginGalleryViewController {
         let plugins = SnapshotMockPluginToggle()
         let market = SnapshotMockMarketplace()
         let vc = PluginGalleryViewController(marketplace: market, plugins: plugins)
         _ = vc.view
         vc.view.frame = NSRect(origin: .zero, size: pluginSize)
-        vc.view.layoutSubtreeIfNeeded()
-        // headless 测试无 window，viewDidLayout 不会被自动调用，plain NSSplitView 的分隔条
-        // setPosition（固定 pluginListWidth）需显式驱动，否则右栏 detailContainer 宽度坍缩为 0。
-        // 真实 window 会经 layout pass 自动调 viewDidLayout；此处模拟该生命周期。
-        vc.viewDidLayout()
+        // host 进临时 window 提供真实几何（viewDidLayout 触发 → setPosition(240) → 两栏正确分开）
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: pluginSize),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = vc.view
+        window.layoutIfNeeded()
         vc.view.layoutSubtreeIfNeeded()
         await vc.refresh()
         // 模拟 viewDidAppear 默认选 row 0（settingsEntry）→ 全局区面板挂载到 pluginPanelContainer。
@@ -162,6 +174,7 @@ final class SettingsPageSnapshotTests: XCTestCase {
         if let table = findSidebarTable(in: vc.view), table.selectedRow < 0 {
             table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         }
+        window.layoutIfNeeded()
         vc.view.layoutSubtreeIfNeeded()
         return vc
     }

@@ -202,17 +202,13 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         splitView.addSubview(sidebarView)
         splitView.addSubview(detailContainer)
 
-        // 设置左右栏 hold（不收缩）+ 左栏宽度约束
-        // NSSplitView 无 NSSplitViewItem 抽象（那是 NSSplitViewController 子类专用），这里用约束控制宽度
-        sidebarView.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
-        sidebarView.widthAnchor.constraint(lessThanOrEqualToConstant: 260).isActive = true
+        // 左栏固定宽度（删 200-260 区间，消除拖动跳动）—— stage-3 pluginListWidth(240)
+        sidebarView.widthAnchor.constraint(equalToConstant: SettingsTheme.pluginListWidth).isActive = true
         // 让 sidebar 优先收缩，detail 撑住
         sidebarView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         sidebarView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         detailContainer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         detailContainer.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-        // 默认比例：左 1/3，右 2/3（setPosition 控制分隔条）
-        // 在 viewDidLayout 中通过 setPosition 调整（避免 frame=0 时 setPosition 失效）
 
         NSLayoutConstraint.activate([
             splitView.topAnchor.constraint(equalTo: container.topAnchor),
@@ -346,10 +342,11 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
 
     override func viewDidLayout() {
         super.viewDidLayout()
-        // 调整分隔条位置（左栏 220pt 或 1/3 视窗宽，取较小）
+        // NSSplitView（plain，非 NSSplitViewController 子类）无 NSSplitViewItem hold/resize 抽象，
+        // 必须显式 setPosition 固定分隔条到 pluginListWidth（替代旧 min(220,width/3) 比例算法）。
+        // 固定宽约束 sidebarView.widthAnchor==240 只约束 sidebar 内部，不驱动 divider 位置。
         if let splitView = self.view as? NSSplitView, splitView.subviews.count == 2 {
-            let targetWidth: CGFloat = min(220, splitView.bounds.width / 3)
-            splitView.setPosition(targetWidth, ofDividerAt: 0)
+            splitView.setPosition(SettingsTheme.pluginListWidth, ofDividerAt: 0)
         }
     }
 

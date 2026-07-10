@@ -8,7 +8,7 @@ import AppKit
 //
 // C1 — AX 红线（SC-SET-03/04，硬红线，重构前后逐字相等）：
 //   - sidebar row AX id 集合 == {`settings.sidebar.skins`, `settings.sidebar.plugins`,
-//     `settings.sidebar.hotkey`, `settings.sidebar.general`, `settings.sidebar.about`}
+//     `settings.sidebar.hotkey`, `settings.sidebar.general`, `settings.sidebar.about`, `settings.sidebar.ai`}
 //     （来自 SettingsSection.rawValue + SettingsSidebarViewController didAdd rowView 设 AX id）
 //   - detail AX id == `settings.detail`（容器 + child root view，切换 5 次常驻）
 //     （来自 SettingsSplitViewController viewDidLoad 设 detailContainer.view AX id +

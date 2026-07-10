@@ -16,7 +16,8 @@ import AppKit
 /// - 数据驱动 sidebar：`SettingsSection` 枚举 `case skins, plugins, hotkey, general, about`，
 ///   `allCases` 单一数据源。
 /// - detail 切换：skins→SkinGalleryViewController，plugins→PluginGalleryViewController，
-///   hotkey→KeyboardShortcutsViewController，general→GeneralSettingsViewController，about→AboutSettingsViewController。
+///   hotkey→KeyboardShortcutsViewController，general→GeneralSettingsViewController，about→AboutSettingsViewController，
+///   ai→ProviderSettingsViewController。
 /// - 持久化：选中分类存 UserDefaults key `SettingsSelectedCategory`（值=SettingsSection.rawValue），默认 `.skins`。
 ///
 /// 工作规则：本文件是 TDD 红灯，对设计的契约断言，不读实现代码、不对实现状态容错。

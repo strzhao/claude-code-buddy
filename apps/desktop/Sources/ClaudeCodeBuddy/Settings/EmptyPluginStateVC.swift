@@ -120,7 +120,7 @@ final class EmptyPluginStateVC: NSViewController {
         // AX：让红队可读「无可配置」文本（AC-SNIPGUI-03/27 断言）
         titleLabel.setAccessibilityIdentifier("empty_plugin.title")
         summaryLabel.setAccessibilityIdentifier("empty_plugin.summary")
-        container.setAccessibilityIdentifier("settings.detail")
+        container.setAccessibilityIdentifier("settings.plugin.empty")
 
         self.view = container
     }

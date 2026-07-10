@@ -72,8 +72,8 @@ final class SettingsSplitViewController: NSSplitViewController {
         addSplitViewItem(sidebarItem)
         addSplitViewItem(detailItem)
 
-        // 契约 7：detail 容器 AX identifier
-        detailContainer.view.setAccessibilityIdentifier("settings.detail")
+        // 契约 7：detail 容器 AX identifier（容器本身，非活动 child）
+        detailContainer.view.setAccessibilityIdentifier("settings.detail.container")
 
         sidebar.onSelectSection = { [weak self] section in
             self?.switchTo(section: section, persist: true)
@@ -168,6 +168,6 @@ final class SettingsDetailContainerViewController: NSViewController {
         currentChild = newChild
 
         // 契约 7：detail 容器 AX identifier（容器本身，不随 child 变）
-        view.setAccessibilityIdentifier("settings.detail")
+        view.setAccessibilityIdentifier("settings.detail.container")
     }
 }

@@ -768,8 +768,8 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
         let detailContainer = splitVC.splitViewItems[1].viewController
         forceLoadView(detailContainer)
 
-        XCTAssertEqual(detailContainer.view.accessibilityIdentifier(), "settings.detail",
-                       "detail 容器 accessibilityIdentifier 必须为 'settings.detail'（契约 7 逐字）")
+        XCTAssertEqual(detailContainer.view.accessibilityIdentifier(), "settings.detail.container",
+                       "detail 容器 accessibilityIdentifier 必须为 'settings.detail.container'（容器层，非活动 child）")
     }
 
     // MARK: - SC-16（补充契约）：CLI 通道与通知名不变

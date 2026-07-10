@@ -45,6 +45,8 @@ final class SettingsAXContractTests: XCTestCase {
     ]
 
     private static let detailAXID = "settings.detail"
+    /// detail 容器 view AX id（容器层，非活动 child；AX 唯一性修订后与 child root view 区分）。
+    private static let detailContainerAXID = "settings.detail.container"
     private static let windowTitle = "设置"
 
     // MARK: - Set up / tear down
@@ -139,8 +141,8 @@ final class SettingsAXContractTests: XCTestCase {
         }
     }
 
-    /// detail 容器 view 与 child root view 都设 `settings.detail`（双锚点，AX 可见层）。
-    /// 设计：容器 view AX id（detailContainer.view）+ child root view AX id（SettingsDetailContainerViewController.transition）。
+    /// detail 容器 view（settings.detail.container）与 child root view（settings.detail）各自持 AX id。
+    /// 设计：AX 唯一性修订后，容器 view 与 child root view 区分（全窗递归 settings.detail 唯一命中活动 child）。
     func test_SC_SET_04_detailContainerAndView_bothHaveSettingsDetailID() {
         let splitVC = SettingsSplitViewController()
         _ = splitVC.view
@@ -152,8 +154,8 @@ final class SettingsAXContractTests: XCTestCase {
         }
         let detailContainer = splitItems[1].viewController
         let containerID = detailContainer.view.accessibilityIdentifier()
-        XCTAssertEqual(containerID, Self.detailAXID,
-                       "detail 容器 view AX id 必须 == '\(Self.detailAXID)'，实际: \(containerID ?? "nil")")
+        XCTAssertEqual(containerID, Self.detailContainerAXID,
+                       "detail 容器 view AX id 必须 == '\(Self.detailContainerAXID)'，实际: \(containerID ?? "nil")")
 
         // child root view AX id（detailChildViewController.view）
         if let child = splitVC.detailChildViewController {

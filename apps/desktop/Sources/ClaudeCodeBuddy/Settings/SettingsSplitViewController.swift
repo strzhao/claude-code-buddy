@@ -57,6 +57,11 @@ final class SettingsSplitViewController: NSSplitViewController {
         sidebarItem.maximumThickness = SettingsTheme.sidebarWidth
 
         self.detailItem = NSSplitViewItem(viewController: detailContainer)
+        // detail 最小宽度：NSSplitViewController 会把 splitViewItem 缩到其 content fittingWidth
+        // （插件画廊 = pluginSidebar 240 + detailContainer 0 = 240，右栏内容被挤成 0 → 空白）。
+        // 给 detailItem.minimumThickness 一个下限，NSSplitViewItem 不再缩到 content fittingWidth 以下，
+        // 画廊右栏（ContentColumnView）拿到宽度正常渲染。值 = minSize宽(800) - sidebar(200) = 600。
+        detailItem.minimumThickness = 600
 
         super.init(nibName: nil, bundle: nil)
     }
@@ -72,12 +77,11 @@ final class SettingsSplitViewController: NSSplitViewController {
         addSplitViewItem(sidebarItem)
         addSplitViewItem(detailItem)
 
-        // fittingSize 下限：NSSplitViewController 作 contentViewController 时会按 splitView fittingSize
-        // 缩窗，且绕过 window.minSize / contentMinSize（真机实测 detail child 切换后窗口缩到 449×48，
-        // 远低于 minSize 800×560，内容不可见）。给 splitView 自身加 ≥ minSize 的尺寸约束，使 fittingSize
-        // 不低于可用尺寸——NSSplitViewController 缩窗时以 fittingSize 为目标，故窗口不会再塌缩到不可用。
-        // 这是「抬高 fittingSize」而非「对抗缩窗」，无 setFrame↔layout 递归（曾用 viewDidLayout 撑回导致递归崩溃）。
-        view.widthAnchor.constraint(greaterThanOrEqualToConstant: 800).isActive = true
+        // 窗口高度下限：NSSplitViewController 作 contentViewController 时会按 splitView fittingSize 缩窗，
+        // 绕过 window.minSize / contentMinSize（真机实测 detail child 切换后窗口高度塌到 48）。
+        // 宽度方向已由 detailItem.minimumThickness（init 里设 600）保证（sidebar 200 + detail 600 = 800）；
+        // 高度方向 splitViewItem 无对应（高度是 cross-axis），故给 splitView 自身加 ≥540 高度约束抬高
+        // fittingHeight。非「对抗缩窗」（无 setFrame↔layout 递归）。
         view.heightAnchor.constraint(greaterThanOrEqualToConstant: 540).isActive = true
 
         // 契约 7：detail 容器 AX identifier（容器本身，非活动 child）

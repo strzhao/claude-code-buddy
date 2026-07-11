@@ -80,13 +80,13 @@ Screenshots + `get-state` JSON land in `/tmp/verifier-settings-evidence/` (overr
     "detailVC": "PluginGalleryViewController",
     "detailAX": "settings.detail",
     "pluginListWidth": 240,                 // plugins section only; expect 240
-    "contentColumnWidth": 0,                // ⚠️ known-imperfect metric, see Gotchas
+    "contentColumnWidth": 359,              // plugins section only; expect >0 and ≤780
     "selectedPlugin": "snip"                // plugins section only
   }
 }
 ```
 
-Assert against: `sidebarWidth == 200`, `pluginListWidth == 240`, `window.width >= 800` (minSize), `isKeyWindow == true`. For content-column width, rely on **window width via osascript** (`≤ ~980 ⇒ content ≤ 780`) + visual screenshot — the in-process `contentColumnWidth` read is unreliable (see Gotchas).
+Assert against: `sidebarWidth == 200`, `pluginListWidth == 240`, `contentColumnWidth > 0` (and `≤ 780`), `window.width >= 800` (minSize), `isKeyWindow == true`.
 
 ## Run (human path)
 
@@ -101,8 +101,9 @@ Useless for headless/automated verification — that's why this skill exists.
 
 - **LSUIElement = no osascript routing.** `osascript -e 'tell process "ClaudeCodeBuddy" to AXPress status item'` returns success but the settings window does **not** open. `osascript` keystroke/click likewise no-ops. Only the `buddy launcher debug` CLI (in-process socket) opens/switches the window. AX **read** (window frame) is reliable and can cross-check `get-state`.
 - **Use the in-bundle `buddy`, not the Homebrew one.** `/opt/homebrew/bin/buddy` is an older release without the `debug open-settings` family. Always invoke `apps/desktop/ClaudeCodeBuddy.app/Contents/MacOS/buddy` after a fresh `make bundle`.
-- **Window sizing: NSSplitViewController shrinks-to-fittingSize on section switch.** This was a real defect (window collapsed to 449×48 / 208×40, below its own minSize). Fixed by flooring the splitView `fittingSize` via a `≥ minSize` constraint in `SettingsSplitViewController.viewDidLoad` (search the file for "fittingSize 下限"). After the fix the window holds at **800×572 (the minSize floor)** after a section switch — usable but not the full 1440×788 initial size. The first `open-settings` opens larger; `select-section` settles to the floor. If you see a sub-minSize window again, that floor constraint regressed.
-- **`contentColumnWidth` in `get-state` reads 0.** It's an in-process bounds read over the socket that lands between layout passes; the panel **does** render (confirm via screenshot). Don't use it as a hard predicate; use window width + visual instead.
+- **Window sizing: NSSplitViewController shrinks items to content fittingSize on section switch.** This was a real defect: the detail `splitViewItem` got sized to its content's `fittingWidth` (the plugins gallery = `pluginSidebar 240 + detailContainer 0 = 240`), which (a) squeezed the gallery's right column / `ContentColumnView` to **0 width → blank right panel**, and (b) collapsed the window below its own minSize. Fixed two ways in `SettingsSplitViewController`: `detailItem.minimumThickness = 600` (init) floors the detail item so the right column renders, and a `view.heightAnchor ≥ 540` constraint (viewDidLoad) floors window height. After the fix the window holds at ~808×572 and `contentColumnWidth` reads ~359. If the plugins right panel goes blank again or the window collapses, `detailItem.minimumThickness` regressed.
+- **`contentColumnWidth` is a usable predicate** (reads ~359 in the plugins section after the above fix). If it reads 0, the right panel is squeezed blank — see the previous bullet.
+- **`osascript` window enumeration is unreliable for non-key windows.** After the settings window loses key focus (~1s after CLI open), `osascript … count windows` drops it (returns only the cat-scene window) even though it's visibly on screen. AX **read of a key window** is reliable; enumeration of a backgrounded one is not. Use in-process `get-state` for the frame, not `osascript`.
 - **Window loses key focus during `screencapture`.** `get-state` may show `isKeyWindow: false` right after a screenshot — re-run `open-settings` if you need it key.
 - **`make build` ≠ `make bundle`.** `make build` compiles to `.build/debug/`; `open ClaudeCodeBuddy.app` runs the **bundled** app. Always `make bundle` so the running app + in-bundle CLI reflect your changes.
 
@@ -111,7 +112,7 @@ Useless for headless/automated verification — that's why this skill exists.
 | Symptom | Fix |
 |---|---|
 | `buddy launcher debug open-settings` → `Buddy app is not running` | `open apps/desktop/ClaudeCodeBuddy.app; sleep 3` (wait for socket) |
-| `open-settings` reports ok but window invisible / sub-minSize | The splitView `fittingSize` floor constraint regressed — re-check `SettingsSplitViewController.viewDidLoad`. |
+| `open-settings` reports ok but window invisible / sub-minSize / plugins right panel blank | `detailItem.minimumThickness` (=600) or the height≥540 constraint regressed — re-check `SettingsSplitViewController`. Blank right panel = `contentColumnWidth` reads 0. |
 | `select-plugin snip` → `plugin not found or gallery not loaded` | Gallery starts `.loading` and refreshes async; the handler awaits `refresh()` before selecting. Retry once; if persistent, check `PluginPanelRegistry` registers `"snip"` (`PluginGalleryViewController.init`). |
 | App vanishes mid-drive | A prior `viewDidLayout`/`setFrame` "fight the shrink" fix recursed and crashed the app. The current fix (fittingSize floor) does **not** recurse — if a crash returns, that approach was reintroduced. |
 | `make bundle` fails on fetch | `SKIP_FETCH_PLUGINS=1 make -C apps/desktop bundle` |

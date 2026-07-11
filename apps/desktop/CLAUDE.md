@@ -637,7 +637,7 @@ buddy click --id <session-id>
   - 未实现：`toggle-plugin`（翻转开关 + 持久化）—— 目前开关仍经 GUI（in-process `performClick`）驱动
 - 配套 verifier-settings skill（`.claude/skills/verifier-settings/`，`driver.sh` 一键 build→launch→sweep→cleanup），驱动 + 截图 + 帧断言。
 - 配合：CLI 打开/选中 + `osascript` AX **读**树（AX 读可靠；点击/写不路由 patterns/2026-06-23）+ `jq`/`grep` 验持久化（UserDefaults / launcher.json / snippets.json）
-- ⚠️ **NSSplitViewController 缩窗坑**（2026-07-11 真机实测）：设置窗口 `contentViewController` 是 `NSSplitViewController`，content 变化（切 section）时按 splitView `fittingSize` 经 `setContentSize` 缩窗，**绕过** `window.minSize`/`contentMinSize`（实测切 section 后塌缩到 449×48 / 208×40，低于 minSize 800×560）。修法：`SettingsSplitViewController.viewDidLoad` 给 splitView 加 `width/height ≥ minSize` 约束抬高 `fittingSize` 下限（非「对抗式」`setFrame`，后者在 `viewDidLayout` 里递归崩溃）。切 section 后窗口落在 800×572（minSize 下限），首开 `open-settings` 仍为 ~75% 屏。
+- ⚠️ **NSSplitViewController 缩 item/缩窗坑**（2026-07-11 真机实测）：设置窗口 `contentViewController` 是 `NSSplitViewController`，它把 detail splitViewItem 缩到其 **content 的 fittingWidth**（插件画廊 = pluginSidebar 240 + detailContainer 0 = 240），导致（a）画廊右栏 ContentColumnView 被挤成 0 宽 → **右栏空白**；（b）窗口随之缩到 449×48，绕过 `window.minSize`/`contentMinSize`。修法（`SettingsSplitViewController`）：`detailItem.minimumThickness = 600`（init，给 splitViewItem 宽度下限，右栏拿到 ~360 宽渲染）+ `view.heightAnchor ≥ 540`（viewDidLoad，高度 cross-axis 由 splitView 自身约束兜底）。非「对抗式」`setFrame`/`viewDidLayout`（会递归崩溃）；也不要用 splitView `width ≥800` 约束（只撑大窗口不改 item 缩放，留空白区）。切 section 后窗口稳在 ~808×572。
 
 **autopilot QA 阶段铁律（det-human 谓词）**：
 1. **首选能力 1（XCTest in-process）**驱动 + 断言（窗口内交互：选中/表单/NSAlert/列表/开关/焦点）

@@ -297,7 +297,8 @@ final class SnipGUIInProcessAcceptanceTests: XCTestCase {
 
     // MARK: - AC-SNIPGUI-13: snip 面板含占位符语法提示 {date}/{time}/{clipboard}
 
-    /// 谓词：selectRow snip → SnipPanelVC → view tree 含 {date}/{time}/{clipboard} 之一
+    /// 谓词：selectRow snip → SnipPanelVC → testHook_startCreate 触发 create 态
+    ///      → view tree 含 {date}/{time}/{clipboard}（AppKit NSTextField 可遍历）
     func test_AC_SNIPGUI_13_snipPanel_containsPlaceholderSyntaxHint() async throws {
         let vc = PluginGalleryViewController(
             marketplace: SnipGUIInProcessMockMarketplace(inspectResult: SnipGUIInProcessFixtures.inspection(plugin: "snip")),
@@ -320,28 +321,24 @@ final class SnipGUIInProcessAcceptanceTests: XCTestCase {
         table.selectRowIndexes(IndexSet(integer: snipRow), byExtendingSelection: false)
         await Task.yield()
 
-        guard let snipPanel = vc.currentPanelChild else {
-            return XCTFail("AC-13: snip 选中后 currentPanelChild 不应为 nil")
+        guard let snipPanel = vc.currentPanelChild as? SnipPanelVC else {
+            return XCTFail("AC-13: snip 应路由到 SnipPanelVC，实际 \(String(describing: type(of: vc.currentPanelChild)))")
         }
-        XCTAssertTrue(snipPanel is SnipPanelVC,
-                      "AC-13: snip 应路由到 SnipPanelVC，实际 \(String(describing: type(of: snipPanel)))")
 
-        // SnipPanelVC 是 NSHostingController<SnipPanelView>：SwiftUI 渲染到 NSHostingView，
-        // Text 节点不展开成 NSTextField 子树（collectStaticTexts 收不到）。
-        // 占位符提示文本 {date}/{time}/{clipboard} 在 SnipPanelView.placeholderHint（:272-285）的 SwiftUI Text 中，
-        // 仅在 createForm/editForm 内渲染（默认空态不渲染 placeholderHint）。
-        // swift test 无窗口环境下 SwiftUI 不完整渲染 AX 子树，无法可靠遍历 SwiftUI Text 节点。
-        // → 强断言：SnipPanelVC 实例化 + view 非 nil（接口契约）+ 类型正确（路由契约）
-        // 占位符文本字面量的可见性由源码 review（SnipPanelView.swift:277）+ 真机 AX dump 覆盖。
-        XCTAssertNotNil(snipPanel.view, "AC-13: SnipPanelVC.view 不应为 nil（SwiftUI 宿主已建立）")
+        // stage-4 迁 AppKit 后占位符提示用 NSTextField（可遍历）。
+        // 占位符提示卡只在 create/edit 态渲染（默认空态不渲染），故先触发 create 态。
+        snipPanel.testHook_startCreate()
+        snipPanel.view.layoutSubtreeIfNeeded()
 
-        throw XCTSkip("AC-SNIPGUI-13: SnipPanelVC 是 NSHostingController<SnipPanelView>，占位符提示 " +
-                      "{{date}}/{{time}}/{{clipboard}} 在 SwiftUI Text（placeholderHint，SnipPanelView.swift:277），" +
-                      "swift test 无窗口环境下 SwiftUI 不展开 Text 为 NSTextField 子树，无法可靠遍历。" +
-                      "已强断言 SnipPanelVC 实例化 + view 非 nil + 类型正确（路由契约）；" +
-                      "占位符文本字面量由源码 review（SnipPanelView.swift:272-285 placeholderHint）验证；" +
-                      "完整可见性走真机 AX dump（det-human QA Tier 1.5）。")
+        let texts = collectStaticTexts(in: snipPanel.view)
+        XCTAssertTrue(texts.contains(where: { $0.contains("{date}") }),
+                      "AC-13: create 态应含 {date} 占位符提示，实际文本：\n\(texts.joined(separator: "\n"))")
+        XCTAssertTrue(texts.contains(where: { $0.contains("{time}") }),
+                      "AC-13: create 态应含 {time} 占位符提示")
+        XCTAssertTrue(texts.contains(where: { $0.contains("{clipboard}") }),
+                      "AC-13: create 态应含 {clipboard} 占位符提示")
     }
+
 
     // MARK: - AC-SNIPGUI-20: autoCopy → MarketHUD 显示「已复制」
 

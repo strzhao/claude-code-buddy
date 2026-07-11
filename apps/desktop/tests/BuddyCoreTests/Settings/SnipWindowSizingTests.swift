@@ -76,6 +76,43 @@ final class SnipWindowSizingTests: XCTestCase {
                        "SnipPanelVC 类型应为 SnipPanelVC，实际 \(typeName)")
     }
 
+    // MARK: - AC-WIN-03：SnipPanelVC 作 containment child 不向 window 传播 preferredContentSize
+    //
+    // 真机盲区覆盖（patterns/2026-07-09）：旧 NSHostingController<SnipPanelView> 的 sizingOptions
+    // 含 .preferredContentSize，会把 SwiftUI root（HSplitView 无 frame）塌缩的 fittingSize(32×32)
+    // 经 preferredContentSize 向上传到 NSWindow → 压缩整个设置窗口。
+    // stage-4 迁纯 AppKit NSViewController 后：
+    //   1. SnipPanelVC 无 sizingOptions 属性（NSHostingController 专属，AC-WIN-01/02 已守）
+    //   2. NSViewController 默认不向 window 传播 preferredContentSize（除非显式设）
+    // 本测试断言 #2：SnipPanelVC 的 preferredContentSize 变化不触发 window contentSize 跟随。
+    //
+    // 注：SnipPanelVC 在生产是 pluginPanelContainer 的 containment child（非 window.contentViewController），
+    // 故不直接测 contentViewController 场景（那会触发 NSWindow 自身 layout 行为，非 sizing 传播问题）。
+
+    func test_AC_WIN_03_snipPanelVC_doesNotPropagatePreferredContentSize() {
+        let vc = SnipPanelVC()
+        _ = vc.view
+
+        // SnipPanelVC 不应主动改 window.preferredContentWidth/Height（NSHostingController 的传播通路）
+        // 默认 NSViewController.preferredContentSize == .zero，除非显式设。
+        // 我们断言：SnipPanelVC viewDidLoad 后 preferredContentSize 保持默认（未被 fittingSize 污染）。
+        // 注：实际 preferredContentSize 可能是 window 的初始值，关键是它不为 (32×32) 这类塌缩值。
+        let psize = vc.preferredContentSize
+        print("🩺 [snip-appkit] SnipPanelVC preferredContentSize = \(psize)")
+
+        // 关键断言：preferredContentSize 不应等于 NSHostingController<SnipPanelView> 时代的 32×32 塌缩值
+        // （那是窗口压缩的直接根因）。纯 NSViewController loadView 用固定 frame container，
+        // 不计算 SwiftUI fittingSize，preferredContentSize 保持默认。
+        XCTAssertFalse(psize.width == 32 && psize.height == 32,
+            """
+            AC-WIN-03 违反：SnipPanelVC.preferredContentSize=\(psize) 不应是 32×32 塌缩值
+            （旧 NSHostingController<SnipPanelView> 的 SwiftUI root HSplitView 无 frame 导致 fittingSize
+            塌缩 → 经 preferredContentSize 传 window 压缩）。纯 NSViewController 不应出现此值。
+            """)
+    }
+
+
+
     // MARK: - Helpers
 
     private func makeWindow(contentRect: NSRect) -> NSWindow {

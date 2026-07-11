@@ -629,12 +629,15 @@ buddy click --id <session-id>
 
 **能力 2：CLI 驱动**（经 socket 调 app 内部 API，绕过 GUI）
 - 现有：`buddy launcher debug route/candidates/perform/registry/run`（功能调试 + 数据层）
-- **det-human 用例需扩展**（实现：`QueryHandler` 加 action，BuddyCLI `launcher debug` 子命令路由）：
-  - `buddy launcher debug open-settings` → 调 `AppDelegate.showSettings()`
-  - `buddy launcher debug select-plugin <name>` → 调 `PluginGalleryViewController.selectPlugin()`
-  - `buddy launcher debug toggle-plugin <name>` → 翻转开关 + 持久化
-  - `buddy launcher debug get-state` → dump 当前选中插件 + 右栏 VC 类型 + AX identifier（供 CLI 侧断言）
+- **设置窗口驱动（已实现）**（`QueryHandler` action + BuddyCLI `launcher debug` 子命令）：
+  - `buddy launcher debug open-settings [section]` → 调 `AppDelegate.debugShowSettings`（开窗 + 可选预选分类）
+  - `buddy launcher debug select-section <general|about|hotkey|ai|skins|plugins>` → 调 `SettingsSplitViewController.selectSection`
+  - `buddy launcher debug select-plugin <name>` → 在插件分类内选中具名插件（如 snip），调 `PluginGalleryViewController.selectPlugin`
+  - `buddy launcher debug get-state` → dump 窗口几何 + 选中分类/插件 + sidebar/pluginList/contentColumn 宽 + AX id（供帧谓词求值）
+  - 未实现：`toggle-plugin`（翻转开关 + 持久化）—— 目前开关仍经 GUI（in-process `performClick`）驱动
+- 配套 verifier-settings skill（`.claude/skills/verifier-settings/`，`driver.sh` 一键 build→launch→sweep→cleanup），驱动 + 截图 + 帧断言。
 - 配合：CLI 打开/选中 + `osascript` AX **读**树（AX 读可靠；点击/写不路由 patterns/2026-06-23）+ `jq`/`grep` 验持久化（UserDefaults / launcher.json / snippets.json）
+- ⚠️ **NSSplitViewController 缩窗坑**（2026-07-11 真机实测）：设置窗口 `contentViewController` 是 `NSSplitViewController`，content 变化（切 section）时按 splitView `fittingSize` 经 `setContentSize` 缩窗，**绕过** `window.minSize`/`contentMinSize`（实测切 section 后塌缩到 449×48 / 208×40，低于 minSize 800×560）。修法：`SettingsSplitViewController.viewDidLoad` 给 splitView 加 `width/height ≥ minSize` 约束抬高 `fittingSize` 下限（非「对抗式」`setFrame`，后者在 `viewDidLayout` 里递归崩溃）。切 section 后窗口落在 800×572（minSize 下限），首开 `open-settings` 仍为 ~75% 屏。
 
 **autopilot QA 阶段铁律（det-human 谓词）**：
 1. **首选能力 1（XCTest in-process）**驱动 + 断言（窗口内交互：选中/表单/NSAlert/列表/开关/焦点）
@@ -674,8 +677,7 @@ buddy session end --id debug-A
 
 **窗口 / 布局类验证**（`buddy inspect` 测不了窗口几何）：
 - 读窗口 frame：`osascript -e 'tell application "System Events" to get {position, size} of window 1 of process "ClaudeCodeBuddy"'`（AX **读**可靠；osascript click/键盘对 LSUIElement 非路由，patterns/2026-06-23）
-- 打开设置 / 切面板等 GUI 交互仍需用户点（osascript click 不路由）—— AI 读 frame + 用户点 GUI = 分工
-- 仅纯视觉（动画流畅度 / 颜色 / 像素对齐）才 fallback 用户目视
+- **打开设置 / 切面板可全自动化**：`buddy launcher debug open-settings` / `select-section` / `select-plugin` / `get-state`（经 socket 直驱 in-process API，绕过 osascript click 不路由）。一键流程见 `.claude/skills/verifier-settings/driver.sh`。osascript click/键盘仍不路由，仅纯视觉（动画流畅度 / 颜色 / 像素对齐）才 fallback 用户目视
 
 ## Package 结构
 

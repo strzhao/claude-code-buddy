@@ -110,4 +110,34 @@ final class SnipPanelVCSnapshotTests: XCTestCase {
         service.delete(keyword: "addr")
         XCTAssertEqual(service.list().map(\.keyword), ["sig"])
     }
+
+    // MARK: - AppKit GUI CRUD 端到端（stage-4，经 testHook 真实 action 链路）
+    //
+    // patterns/2026-07-09 testHook 原则：testHook_fillAndSaveCreate 经 createSaveButton.performClick
+    // 触发 @objc saveCreate（禁直接调私有方法）。SnipPanelVC 用 .shared，测试用唯一 keyword 隔离 + 清理。
+
+    func test_saveCreate_writesToSharedService() throws {
+        let vc = SnipPanelVC()
+        _ = vc.view
+        let kw = "appkit_save_\(UUID().uuidString.prefix(6))"
+        try vc.testHook_fillAndSaveCreate(keyword: kw, content: "hello {date}")
+
+        // 成功保存后 detail 应切回空态
+        XCTAssertEqual(vc.testHook_currentDetailMode, .empty,
+                       "saveCreate 成功后应切回空态，实际 \(vc.testHook_currentDetailMode)")
+        // service.shared 应含该片段
+        XCTAssertTrue(SnippetsService.shared.search(kw).contains(where: { $0.keyword == kw }),
+                      "saveCreate 后 SnippetsService.shared 应含 keyword「\(kw)」")
+        // 清理
+        SnippetsService.shared.delete(keyword: kw)
+    }
+
+    func test_invalidKeyword_showsFieldError_staysInCreateMode() {
+        let vc = SnipPanelVC()
+        _ = vc.view
+        // 含空格非法 keyword → service.add 抛 .invalidKeyword → saveCreate catch 显示字段错误
+        try? vc.testHook_fillAndSaveCreate(keyword: "bad space", content: "x")
+        XCTAssertEqual(vc.testHook_currentDetailMode, .create,
+                       "非法 keyword 应留在 create 态显示字段错误，实际 \(vc.testHook_currentDetailMode)")
+    }
 }

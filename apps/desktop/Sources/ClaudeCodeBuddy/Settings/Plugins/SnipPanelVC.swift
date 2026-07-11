@@ -166,6 +166,27 @@ final class SnipPanelVC: NSViewController, PluginSettingsPanelProvider {
     }
     var testHook_previewItem: SnippetItem? { previewItem }
 
+    /// 经真实 action 链路填表 + 点保存按钮（patterns/2026-07-09 testHook 原则：
+    /// performClick saveButton 触发 @objc saveCreate，禁直接调私有方法）。
+    /// 抛错：字段校验失败时 service.add 抛 SnippetsError，本方法不 catch（让测试断言 throws）。
+    func testHook_fillAndSaveCreate(keyword: String, content: String) throws {
+        testHook_startCreate()
+        createKeywordField?.stringValue = keyword
+        createContentEditor?.string = content
+        guard let button = createSaveButton, let action = button.action else {
+            throw NSError(domain: "SnipPanelVC.testHook", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "createSaveButton 或 action 为 nil"])
+        }
+        // 经真实 target-action 链路（performClick 等价）
+        let target = button.target as? AnyObject
+        _ = target?.perform(action)
+        // 若 service.add 抛错，saveCreate 内部已 catch 显示字段错误（不 rethrow）。
+        // 测试通过观察 testHook_currentDetailMode（成功→.empty，失败→.create）+ service 状态断言。
+    }
+
+    /// 取 create 态 keyword 字段当前值（测试断言用）。
+    var testHook_createKeyword: String? { createKeywordField?.stringValue }
+
     // MARK: - Actions
 
     @objc private func searchChanged() {
@@ -557,13 +578,64 @@ final class SnipPanelVC: NSViewController, PluginSettingsPanelProvider {
     }
 
     @objc private func saveCreate() {
-        // Task 12 实现真实保存逻辑（取 keyword/content → service.add + 校验）
-        cancelEdit()
+        let keyword = createKeywordField?.stringValue ?? ""
+        let content = createContentEditor?.string ?? ""
+        clearCreateFieldErrors()
+        do {
+            try service.add(keyword: keyword, content: content)
+            BuddyLogger.shared.info("snippet added via GUI", subsystem: "snippets",
+                                    meta: ["keyword": keyword])
+            cancelEdit()
+            reloadAndRefresh()
+        } catch let err as SnippetsError {
+            showCreateFieldError(err)
+        } catch {
+            createKeywordRow?.setError("保存失败：\(error.localizedDescription)")
+        }
     }
 
     @objc private func saveEdit() {
-        // Task 12 实现
-        cancelEdit()
+        guard let item = editingItem else { return }
+        let content = editContentEditor?.string ?? ""
+        editContentRow?.clearValidation()
+        do {
+            try service.edit(keyword: item.keyword, content: content)
+            BuddyLogger.shared.info("snippet edited via GUI", subsystem: "snippets",
+                                    meta: ["keyword": item.keyword])
+            cancelEdit()
+            reloadAndRefresh()
+        } catch let err as SnippetsError {
+            showEditFieldError(err)
+        } catch {
+            editContentRow?.setError("保存失败：\(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 字段级错误（AC-SNIPGUI-17/18）
+
+    private func clearCreateFieldErrors() {
+        createKeywordRow?.clearValidation()
+        createContentRow?.clearValidation()
+    }
+
+    /// 按 SnippetsError case 路由到对应 SettingsFormRow 显示错误（keyword 错→keyword 卡，content 错→content 卡）。
+    private func showCreateFieldError(_ err: SnippetsError) {
+        switch err {
+        case .invalidKeyword, .keywordAlreadyExists, .keywordNotFound:
+            createKeywordRow?.setError(err.errorDescription ?? "")
+        case .contentTooLong:
+            createContentRow?.setError(err.errorDescription ?? "")
+        }
+    }
+
+    private func showEditFieldError(_ err: SnippetsError) {
+        switch err {
+        case .invalidKeyword, .keywordAlreadyExists, .keywordNotFound:
+            // edit 态 keyword 只读，错误理论上不会从 edit 触发，兜底显示在 content 卡
+            editContentRow?.setError(err.errorDescription ?? "")
+        case .contentTooLong:
+            editContentRow?.setError(err.errorDescription ?? "")
+        }
     }
 
     @objc private func editCurrentPreview() {

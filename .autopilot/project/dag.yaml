@@ -1,60 +1,40 @@
-project: buddy-plugin-market
-description: Plugin Market 协议 + Buddy Store UI + 离线兜底 + 后台同步；translate 从 builtin 重构为 marketplace 默认预装
-state_file: .autopilot/runtime/sessions/translate/requirements/20260529-新增-market-的概念-1.-做/state.md
+project: settings-plugins-snip-layout-redesign
+description: 设置/插件/snip 三面板布局重构（限宽居中+栅格收口+分栏固定+master-detail 范式统一+snip 迁 AppKit）
+state_file: .autopilot/runtime/requirements/20260710-开始实现，全部都你自/state.md
+plan: docs/superpowers/plans/2026-07-10-settings-plugins-snip-layout-redesign.md
 
 tasks:
-  - id: "001-marketplace-schema-and-bundle-seed"
-    name: "Marketplace schema + bundle seed 迁移"
-    brief: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.md"
-    handoff: ".autopilot/project/tasks/001-marketplace-schema-and-bundle-seed.handoff.md"
-    status: done
+  - id: stage-0-grid-token
+    name: 栅格 token 扩展
+    brief: .autopilot/project/tasks/stage-0-grid-token.md
     depends_on: []
-    summary: 定义 MarketplaceManifest + PluginSourceConfig 多态 enum；迁移 Sources/.../Plugins/{HelloPlugin,TranslatePlugin}/ → Sources/.../Marketplace/plugins/{hello,translate}/；新建 marketplace.json (seed)；plugin.json name 字段同步改为 "hello"/"translate"；Package.swift 加 .copy("Marketplace")，保留旧 .copy("Plugins") 兼容（task 003 删）
-
-  - id: "002-plugin-source-resolver"
-    name: "PluginSourceResolver 多态加载"
-    brief: ".autopilot/project/tasks/002-plugin-source-resolver.md"
-    handoff: ".autopilot/project/tasks/002-plugin-source-resolver.handoff.md"
+    plan_tasks: [1]
     status: done
-    depends_on: ["001"]
-    summary: 实现 4 种 source 类型解析（localSubdir/gitSubdir/gitURL/file）→ 本地插件目录 URL；git 类型复用现有 cmdLauncherAdd 的 /usr/bin/git Process + --depth 1 + 60s timeout；sha 验证
 
-  - id: "003-marketplace-manager-replace-builtin"
-    name: "MarketplaceManager 替换 installBundledPlugins"
-    brief: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.md"
-    handoff: ".autopilot/project/tasks/003-marketplace-manager-replace-builtin.handoff.md"
+  - id: stage-1-content-column
+    name: ContentColumnView 内容容器
+    brief: .autopilot/project/tasks/stage-1-content-column.md
+    depends_on: [stage-0-grid-token]
+    plan_tasks: [2]
     status: done
-    depends_on: ["001", "002"]
-    summary: 新建 MarketplaceManager.{seedFromBundle, syncFromRemote, install, migrateLegacy, reseed, inspect}；LauncherManager.setup 切换调用；删除 PluginManager.installBundledPlugins；migrateLegacy 两阶段（先复制新目录+新 trust 记录、再删旧），幂等；syncFromRemote 1h debounce + lastSyncedAt 持久化 + JSONDecoder 失败 cache 不写
 
-  - id: "004-disable-enable-mechanism"
-    name: "插件禁用/启用机制"
-    brief: ".autopilot/project/tasks/004-disable-enable-mechanism.md"
-    handoff: ".autopilot/project/tasks/004-disable-enable-mechanism.handoff.md"
+  - id: stage-2-settings-main
+    name: 设置主体套地基 + 间距收口
+    brief: .autopilot/project/tasks/stage-2-settings-main.md
+    depends_on: [stage-1-content-column]
+    plan_tasks: [3, 4, 5, 6]
     status: done
-    depends_on: ["003"]
-    summary: PluginManager.list 跳过含 .disabled 文件的目录；加 disable(name)/enable(name) 方法；红队覆盖：禁用后 router 命中 0 候选、启用后恢复
 
-  - id: "005-buddy-store-ui"
-    name: "Buddy Store UI 重构（segmentedControl + PluginGallery 四态）"
-    brief: ".autopilot/project/tasks/005-buddy-store-ui.md"
-    handoff: ".autopilot/project/tasks/005-buddy-store-ui.handoff.md"
+  - id: stage-3-plugin-panel
+    name: 插件面板双栏改造
+    brief: .autopilot/project/tasks/stage-3-plugin-panel.md
+    depends_on: [stage-2-settings-main]
+    plan_tasks: [7, 8, 9]
     status: done
-    depends_on: ["004"]
-    summary: SettingsWindowController title 改 "Buddy Store" + 加顶部 NSSegmentedControl(["皮肤","插件"])；上次选中 tab 持久化 UserDefaults；PluginGalleryViewController 四态 (normal/loading/empty/error)；error 态 [重新初始化] 按钮调 MarketplaceManager.reseed()；列表项 [禁用]/[启用] 按钮
 
-  - id: "006-remote-sync-and-in-app-hud"
-    name: "Market 后台同步 + 自建 in-app HUD"
-    brief: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.md"
-    handoff: ".autopilot/project/tasks/006-remote-sync-and-in-app-hud.handoff.md"
+  - id: stage-4-snip-appkit
+    name: snip 迁 AppKit
+    brief: .autopilot/project/tasks/stage-4-snip-appkit.md
+    depends_on: [stage-3-plugin-panel]
+    plan_tasks: [10, 11, 12, 13]
     status: done
-    depends_on: ["003", "004"]
-    summary: MarketHUD 自建 NSPanel.nonactivatingPanel 浮窗 5s 自隐 (替代 deprecated NSUserNotificationCenter)；syncFromRemote 后调用 MarketHUD.show("translate 已更新到 v0.2.0")；每次同步追加结构化 JSON 行到 ~/.buddy/launcher-sync.log；连续 3 次失败 HUD 提示
-
-  - id: "007-cli-install-disable-enable-reseed"
-    name: "CLI: install/disable/enable/reseed + list --json"
-    brief: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.md"
-    handoff: ".autopilot/project/tasks/007-cli-install-disable-enable-reseed.handoff.md"
-    status: done
-    depends_on: ["004"]
-    summary: 加 buddy launcher install <name> (marketplace 装) / disable <name> / enable <name> / reseed；list 显示 [禁用]；新增 list --json 输出 MarketplaceInspection JSON 供 QA 断言；旧 buddy launcher add user/repo 保留兼容；help 明确 install vs add 区别

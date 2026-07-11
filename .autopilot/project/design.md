@@ -1,104 +1,44 @@
-# Buddy Plugin Market — 官方插件市场 + Buddy Store UI + Marketplace 协议
+# Settings / Plugins / Snip 面板布局重构 — 架构设计
 
-> 把现有"内置插件 + CLI git clone 安装"双轨模型重构为统一 Marketplace 协议（参考 [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official)）。translate 不再是"builtin"而是 marketplace "默认预装"条目；Settings → Buddy Store 加 [皮肤/插件] tab；官方 marketplace 走 GitHub Raw JSON；用户编辑能力推迟到 phase 2。
+> 权威 spec / plan：
+> - `docs/superpowers/specs/2026-07-10-settings-plugins-snip-layout-redesign-design.md`
+> - `docs/superpowers/plans/2026-07-10-settings-plugins-snip-layout-redesign.md`（13 task TDD）
+> Plan 审查：✅ 2 轮通过（初审修 2 blocker + 4 important，重审 PASS）。
 
 ## Context
+设置窗口三面板（设置主体/插件/snip）布局简陋根因：①内容贴边拉满无限宽居中（头号元凶）②间距硬编码混用 ③分栏比例写死且自相矛盾（拖动跳）④三面板范式不齐 + AppKit/SwiftUI 技术栈混杂（snip SwiftUI 挂 sizingOptions hack）。核心是**布局非视觉装饰**。代码层已有设计骨架（SettingsTheme token / 复用组件 / 空态），属"骨架在、观感简陋"，补齐打磨而非推翻。
 
-完整设计：见对应需求 state.md 的 `## 设计文档` 区域：
-`.autopilot/runtime/sessions/translate/requirements/20260529-新增-market-的概念-1.-做/state.md`
+## 整体架构设计
+1. **ContentColumnView 内容容器**（新建）：`NSScrollView → documentView（宽度跟随 clip 只竖滚 + height≥contentView 防贴底盲区 patterns/2026-07-03）→ contentColumn（width≤780 + centerX 居中）`。各面板按需用（单栏整体包 / 双栏只包右栏 / SkinGallery 不用）。
+2. **间距栅格收口**：SettingsTheme 加 4 倍数 scale（xs4/sm8/md12/lg16/xl24/xxl32/section48）+ 布局常量（contentMaxWidth780/sidebarWidth200/pluginListWidth240/minRowHeight44）；硬编码→scale。
+3. **分栏固定**：sidebar 200 / 列表栏 240，删区间 + 比例算法。
+4. **master-detail 范式统一**：左固定宽栏 + 右限宽居中内容列。
+5. **snip 迁 AppKit**：SnipPanelVC 从 NSHostingController<SnipPanelView> 重写为 NSViewController（master-detail），删 SnipPanelView.swift + sizingOptions hack；保留 presentDeleteAlert/handleDeleteResponse test seam；objectWillChange sink 刷新列表。
 
-**核心 UX 决策**（与用户对齐 + plan-reviewer 第 2 轮 PASS）：
+## 任务 DAG（5 阶段线性）
+stage-0 栅格 token → stage-1 ContentColumnView → stage-2 设置主体套地基 → stage-3 插件面板 → stage-4 snip 迁 AppKit。对应 plan Task 1 / 2 / 3-6 / 7-9 / 10-13。
 
-- Settings 重命名 "Buddy Store" + 顶部 NSSegmentedControl 切 [皮肤/插件]
-- 官方 marketplace = GitHub Raw JSON（零运营、PR 入口清晰、不依赖 Vercel）
-- Plugin source 多态支持 4 种：`local-subdir` / `git-subdir` / `git-url` / `file`
-- "内置"概念消失：bundle 内带种子 marketplace.json + plugins/ 作离线 fallback；后台从 GitHub Raw 同步
-- Phase 1 **不做** prompt/触发词编辑（YAGNI），marketplace schema 预留 `editable: bool`
-- 仅可"禁用"（`.disabled` 标记），不做真"卸载"
-- 远程更新静默生效，**自建 in-app HUD**（替代 deprecated NSUserNotificationCenter）+ 状态栏提示
+## 跨任务设计约束（所有阶段硬约束）
+- **数据层零改动**：SnippetsService / SnippetItem / SnippetsError / snippets.json schema / PluginSettingsPanelProvider / PluginPanelRegistry 注册——全程不动。
+- **AX 契约**（AC-AX-01 唯一性）：settings.detail **只在活动 child root view**；阶段 2 修订 3 处（SettingsSplitVC:170→settings.detail.container / EmptyPluginStateVC:121→settings.plugin.empty / :160 child 保持 settings.detail），全窗 ==settings.detail 命中唯一。sidebar row id settings.sidebar.{section}；窗口 title 设置。
+- **栅格单一来源**：阶段 0 后所有间距引用 SettingsTheme.spacing*，禁硬编码。
+- **自定义 NSView 盲区**（patterns/2026-07-09）：新建自定义 NSView 须覆盖 intrinsicContentSize 或宿主显式 width/height 约束，否则 0×0 点不动；禁绕过真实 mouseDown 的 test hook。
+- **NSScrollView 盲区**（patterns/2026-07-03）：documentView 须 height ≥ contentView.height（防贴底空顶），headless 复现不了须真机/osascript。
+- **NSTextView width=0**（patterns/2026-07-02）：作 documentView/子控件须 autoresizingMask=.width + widthTracksTextView。
+- **CALayer 外观**（patterns/2026-06-28）：用 layer 须 viewDidChangeEffectiveAppearance 刷新 cgColor。
+- **日志**：BuddyLogger（subsystem settings/snippets），禁 print/NSLog。
+- **真机 QA（AI 自测，不依赖用户手动 GUI）**：每阶段 SKIP_FETCH_PLUGINS=1 make bundle → pkill+open → AI 用 osascript 读 frame + in-process XCTest 驱动。纯视觉 fallback 用户目视。
+- **testHook 原则**（patterns/2026-07-09）：经真实 action（performClick/selectRowIndexes），禁直接调私有方法。
+- **阶段间快照中间态**：各阶段末只重录该阶段涉及面板快照，阶段间允许半新半旧。
 
-## 整体架构
+## 契约规约（C1-C7）
+- C1 数据层不变：SnippetsService API（add/edit/delete/search/list/expandPlaceholders）/ @MainActor ObservableObject / init(snippetsFile:) seam。
+- C2 schema 不变：SnippetItem Codable（keyword/content/created_at/updated_at，ISO8601，顶级数组）。
+- C3 校验不变：keyword [A-Za-z0-9_-] 1-64 / content ≤10000 / SnippetsError 四 case。
+- C4 AX 不变：settings.detail / settings.sidebar.{section} / 窗口 title。
+- C5 栅格单一来源 + NSView size。
+- C6 SnipPanelVC：类名保留 / makePanelVC()->self / presentDeleteAlert+handleDeleteResponse seam / PluginPanelRegistry 注册不变。
+- C7 ScrollView 稳定：documentView height ≥ contentView height / 限宽 780 居中只竖滚。
 
-### 数据流
-
-```
-App 启动
-  ↓
-1. MarketplaceManager.migrateLegacy()         ← 老用户 builtin-translate → translate 两阶段迁移（幂等）
-  ↓
-2. MarketplaceManager.seedFromBundle()        ← 首启或 ~/.buddy/marketplace.json 缺失时
-     从 BuddyCore.bundle/Marketplace/marketplace.json 拷到 ~/.buddy/marketplace.json
-     遍历 plugins[]，按 source 类型用 PluginSourceResolver 解析 → 拷到 ~/.buddy/launcher-plugins/<name>/
-  ↓
-3. PluginManager.list()                       ← 现有调用方
-     扫 ~/.buddy/launcher-plugins/，跳过含 .disabled 的目录
-  ↓
-4. Task.detached: MarketplaceManager.syncFromRemote()   ← 异步后台（1h debounce）
-     GET https://raw.githubusercontent.com/stringzhao/claude-code-buddy/main/marketplace/marketplace.json
-     检测 schemaVersion 兼容；JSONDecoder 失败时本地 cache 不写
-     diff plugins[] → 新插件/版本升级/移除 → 应用变更（保留 .disabled 标记）
-     diff 非空 → MarketHUD.show("translate 已更新到 v0.2.0", actions:[查看diff, 重置])
-     每次执行追加结构化日志到 ~/.buddy/launcher-sync.log
-```
-
-### 模块拓扑
-
-```
-Sources/ClaudeCodeBuddy/
-├── Launcher/
-│   ├── Marketplace/                          ← 新增目录
-│   │   ├── MarketplaceManifest.swift         (Codable schema + PluginSourceConfig enum)
-│   │   ├── PluginSourceResolver.swift        (4 类 source 解析: local-subdir/git-subdir/git-url/file)
-│   │   ├── MarketplaceManager.swift          (seed/sync/install/migrateLegacy/reseed/inspect)
-│   │   └── MarketHUD.swift                   (in-app NSPanel toast 替代 NSUserNotificationCenter)
-│   ├── Plugin/
-│   │   ├── PluginManager.swift               (改造：list() 加 .disabled 过滤，删 installBundledPlugins)
-│   │   └── ... (其他保留)
-│   └── ...
-├── Settings/
-│   ├── SettingsWindowController.swift        (改造：title → Buddy Store，加 segmentedControl)
-│   ├── PluginGalleryViewController.swift     ← 新增（四态: normal/loading/empty/error）
-│   └── SkinGalleryViewController.swift       (保留不动)
-└── Marketplace/                              ← 新增 bundle 资源根
-    ├── marketplace.json                      (seed，含 translate + hello)
-    └── plugins/
-        ├── translate/plugin.json             (从原 TranslatePlugin/ 迁移，name 改 "translate")
-        └── hello/plugin.json                 (从原 HelloPlugin/ 迁移，name 改 "hello")
-```
-
-## 任务 DAG 概览
-
-7 个任务，分两段：
-
-```
-001 ──→ 002 ──→ 003 ──→ 004 ──┬→ 005 (Buddy Store UI)
-                              ├→ 006 (后台同步 + MarketHUD)
-                              └→ 007 (CLI install/disable/enable/reseed)
-```
-
-- 001-004 串行：核心数据层 + 协议
-- 005/006/007 并行：UI + 同步 + CLI 三独立子系统
-
-详见 `dag.yaml`。
-
-## 跨任务设计约束（执行铁律）
-
-1. **PluginManager 协议不破坏**：list/find/pluginDir 接口保留，上游零改动
-2. **TrustStore 兼容**：prompt-mode trustKey 仅依赖 systemPrompt/maxIter/model，**不依赖 pluginName**
-3. **plugin.json `name` 字段同步迁移**：`builtin-translate` → `translate`，`builtin-hello` → `hello`
-4. **`migrateLegacy()` 两阶段迁移**（crash safe）：先写新（目录 + trust），再删旧；幂等
-5. **离线兜底**：seedFromBundle 必须无网可跑（CI 验证）
-6. **后台同步失败不阻塞**：JSONDecoder 失败本地 cache 不写；连续 3 次失败 HUD 提示
-7. **003/004 改 PluginManager.swift 必须串行**
-8. **手动恢复**：CLI `buddy launcher reseed` 强制重新 seed（保留 .disabled）
-9. **marketplace.json `schemaVersion: 1`**：phase 2 演进基础
-
-## Handoff 策略
-
-每个 task 完成后产出 `tasks/NNN-*.handoff.md`（≤500 字）：实现摘要 + 文件变更 + 下游须知 + 偏差说明。
-
-## 验证方案（项目级集成 QA）
-
-8 个 Tier 1.5 场景，6 个 CLI 自动化 + 2 个 GUI（详见 state.md `## 验证方案`）。
-
-每个 task 自己的 Tier 1.5 在 brief 内定义；项目级集成 QA 在所有 task done 后执行。
+## 验收场景
+29 条预注册谓词（28 det-machine / 1 det-human），见 state.md `## 验收场景`：限宽居中 4 / 分栏固定 5 / snip CRUD 7 / 窗口稳定 5 / AX 可达 4 / 快照回归 4。红队/qa SSOT。

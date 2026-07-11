@@ -95,6 +95,11 @@ enum SettingsTheme {
 
     /// 内容列限宽（detail 内容居中最大宽度）。
     static let contentMaxWidth: CGFloat = 780
+    /// 内容列最小宽（防 NSSplitViewController 把 detail item 缩到 content fittingWidth 致右栏空白，
+    /// 也防 single-column section 窗口被缩窄：NSSplitViewController 按 fittingSize = sidebar(200) +
+    /// content 决定窗口宽，bypass window.minSize；content ≥600 ⇒ fittingSize ≥800 ⇒ 窗口 ≥800）。
+    /// 插件画廊多 240 pluginList，fittingSize ≈ 1040（窗口随 section 略变，可接受）。
+    static let contentMinFloorWidth: CGFloat = 600
     /// 设置 sidebar 固定宽度。
     static let sidebarWidth: CGFloat = 200
     /// 插件 / snip 左列表栏固定宽度。

@@ -83,6 +83,12 @@ final class ContentColumnView: NSView {
             contentColumn.trailingAnchor.constraint(lessThanOrEqualTo: documentView.trailingAnchor,
                                                    constant: -SettingsTheme.spacingXl),
             contentColumn.centerXAnchor.constraint(equalTo: documentView.centerXAnchor),
+
+            // 内容最小宽（防 NSSplitViewController 把 detail item 缩到 content fittingWidth 致右栏空白）：
+            // ContentColumnView 是所有 section 右栏 + 插件画廊右栏的共享组件。给自身加 width≥contentMinWidth
+            // 抬高 detail content fittingWidth，NSSplitViewController 据此 size detail item（不再挤压到 0）。
+            // 320 ≤ 画廊右栏可用宽（window 800 - sidebar 200 - pluginList 240 = 360），不致 unsatisfiable。
+            widthAnchor.constraint(greaterThanOrEqualToConstant: SettingsTheme.contentMinFloorWidth),
         ])
     }
 }

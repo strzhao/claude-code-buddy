@@ -342,6 +342,10 @@ private func printHelp() {
       buddy launcher debug perform <query> [--index N]   执行第 N 个候选并读剪贴板（默认 N=0）
       buddy launcher debug registry             列出已注册内置插件（priority 降序，JSON）
       buddy launcher debug route <query>        AI 路由调试：query → narrow → AI select → LLM 响应（JSON）
+      buddy launcher debug open-settings [section]  打开设置窗口（绕过 LSUIElement osascript 不路由），可选预选分类
+      buddy launcher debug select-section <section> 选中主分类（general/about/hotkey/ai/skins/plugins）
+      buddy launcher debug select-plugin <name>  在插件分类内选中具名插件（如 snip）切右栏面板
+      buddy launcher debug get-state            dump 设置窗口几何 + 选中态（JSON，帧谓词求值用）
 
     Hotkey 参数：
       --key <key>           热键主键（如 space, a, f1, return；字母 a-z / 数字 0-9）
@@ -1057,8 +1061,28 @@ private func main() {
                     exit(2)
                 }
                 cmdLauncherDebugRoute(q)
+            case "open-settings":
+                // 可选 positional：open-settings [section]（general/about/hotkey/ai/skins/plugins）
+                let section = opts.positionalArgs.dropFirst().first
+                cmdSettingsOpen(section: section)
+            case "select-section":
+                let section = opts.positionalArgs.dropFirst().first ?? ""
+                guard !section.isEmpty else {
+                    fputs("Usage: buddy launcher debug select-section <general|about|hotkey|ai|skins|plugins>\n", stderr)
+                    exit(2)
+                }
+                cmdSettingsSelectSection(section)
+            case "select-plugin":
+                let name = opts.positionalArgs.dropFirst().first ?? ""
+                guard !name.isEmpty else {
+                    fputs("Usage: buddy launcher debug select-plugin <name>\n", stderr)
+                    exit(2)
+                }
+                cmdSettingsSelectPlugin(name)
+            case "get-state":
+                cmdSettingsGetState()
             default:
-                fputs("Usage: buddy launcher debug <candidates|perform|registry|route> ...\n", stderr)
+                fputs("Usage: buddy launcher debug <candidates|perform|registry|route|open-settings|select-section|select-plugin|get-state> ...\n", stderr)
                 exit(2)
             }
         default:
@@ -1737,6 +1761,95 @@ private func cmdLauncherDebugRoute(_ query: String) {
     do {
         let data = try sendQuery(queryDict, timeout: 30.0)
         if let str = String(data: data, encoding: .utf8) {
+            print(str)
+        }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+// MARK: - Settings Debug（GUI 自动化：CLI 经 socket 驱动设置窗口，绕过 LSUIElement osascript 不路由）
+//
+// 契约（SOURCE OF TRUTH: Sources/BuddyCLI/main.swift + QueryHandler + AppDelegate）：
+//   LSUIElement accessory app 下 osascript click/AXPress/keystroke 对非 key 窗口不路由（patterns/2026-06-23）。
+//   这些命令经 socket 让 app 进程直驱 in-process API（AppDelegate.showSettings / selectSection /
+//   PluginGalleryViewController.selectPlugin），是唯一可靠的设置窗口自动化打开/切换路径。
+//
+//   命令：
+//     buddy launcher debug open-settings [section]     打开设置窗口，可选预选分类
+//     buddy launcher debug select-section <section>    选中主分类（general/about/hotkey/ai/skins/plugins）
+//     buddy launcher debug select-plugin <name>        在插件分类内选中具名插件（如 snip）
+//     buddy launcher debug get-state                   dump 窗口几何 + 选中态（JSON，供帧谓词求值）
+//   section 取值 = SettingsSection.rawValue（general/about/hotkey/ai/skins/plugins）。
+//   响应：{status:"ok", data:{...}}；失败 {status:"error", message} + CLI exit 非 0。
+
+/// `buddy launcher debug open-settings [section]` → action settings_open
+private func cmdSettingsOpen(section: String?) {
+    var queryDict: [String: Any] = ["action": "settings_open"]
+    if let s = section, !s.isEmpty { queryDict["section"] = s }
+    do {
+        let data = try sendQuery(queryDict)
+        if let str = String(data: data, encoding: .utf8) { print(str) }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+/// `buddy launcher debug select-section <section>` → action settings_select_section
+private func cmdSettingsSelectSection(_ section: String) {
+    let queryDict: [String: Any] = [
+        "action": "settings_select_section",
+        "section": section,
+    ]
+    do {
+        let data = try sendQuery(queryDict)
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let status = obj["status"] as? String else {
+            fputs("invalid response from app\n", stderr)
+            exit(1)
+        }
+        if let str = String(data: data, encoding: .utf8) { print(str) }
+        if status != "ok" { exit(1) }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+/// `buddy launcher debug select-plugin <name>` → action settings_select_plugin
+private func cmdSettingsSelectPlugin(_ name: String) {
+    let queryDict: [String: Any] = [
+        "action": "settings_select_plugin",
+        "name": name,
+    ]
+    do {
+        let data = try sendQuery(queryDict, timeout: 5.0)
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let status = obj["status"] as? String else {
+            fputs("invalid response from app\n", stderr)
+            exit(1)
+        }
+        if let str = String(data: data, encoding: .utf8) { print(str) }
+        if status != "ok" { exit(1) }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+/// `buddy launcher debug get-state` → action settings_get_state（pretty-print JSON）
+private func cmdSettingsGetState() {
+    let queryDict: [String: Any] = ["action": "settings_get_state"]
+    do {
+        let data = try sendQuery(queryDict)
+        // pretty-print 便于人读；保持 jq 友好（sortedKeys）
+        if let obj = try? JSONSerialization.jsonObject(with: data),
+           let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+           let str = String(data: pretty, encoding: .utf8) {
+            print(str)
+        } else if let str = String(data: data, encoding: .utf8) {
             print(str)
         }
     } catch {

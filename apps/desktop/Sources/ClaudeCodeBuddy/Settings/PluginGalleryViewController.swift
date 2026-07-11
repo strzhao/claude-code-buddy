@@ -75,6 +75,10 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
     /// 左栏：插件列表（NSTableView）
     private let sidebarTableView = NSTableView()
     private let sidebarScrollView = NSScrollView()
+    /// 左栏容器（固定宽 pluginListWidth）。存引用供 CLI debug 几何读取。
+    private(set) var pluginSidebarView: NSView?
+    /// 右栏限宽居中列（ContentColumnView）。存引用供 CLI debug 几何读取。
+    private(set) var contentColumnView: ContentColumnView?
     /// 右栏：detail 容器（顶部全局区 + 下方插件面板）
     private let detailContainer = NSView()
     /// 全局区容器（autoUpdate + depInstall + docs button）
@@ -183,6 +187,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         sidebarScrollView.drawsBackground = false
         sidebarScrollView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sidebarScrollView)
+        pluginSidebarView = sidebarView
 
         // 左栏 table identifier 守卫（imp-82：避免 SettingsWindow.forwardSidebarClick
         // 在右栏 SnipPanel SwiftUI List 上误命中）
@@ -301,6 +306,7 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         let rightColumn = ContentColumnView()
         rightColumn.translatesAutoresizingMaskIntoConstraints = false
         detailContainer.addSubview(rightColumn)
+        contentColumnView = rightColumn
         let rightContent = rightColumn.contentColumn
 
         pluginPanelContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -573,8 +579,41 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Programmatic selection (CLI debug / 测试)
 
+    /// 程序化选中具名插件（CLI `buddy launcher debug select-plugin` / 测试用）。
+    /// 选中触发 `tableViewSelectionDidChange` → `showPanel` 路由到对应面板（如 snip）。
+    /// - Returns: 是否命中（gallery 未加载 / 名字不在列表 → false）。
+    @discardableResult
+    func selectPlugin(named name: String) -> Bool {
+        guard case .normal(let plugins) = state else { return false }
+        guard let idx = plugins.firstIndex(where: { $0.name == name }) else { return false }
+        sidebarTableView.selectRowIndexes(IndexSet(integer: idx), byExtendingSelection: false)
+        return true
+    }
+
+    /// 当前选中插件名（左栏 selectedRow → plugins[row].name；无选中 → nil）。
+    var currentSelectedPluginName: String? {
+        guard case .normal(let plugins) = state else { return nil }
+        let row = sidebarTableView.selectedRow
+        guard row >= 0, row < plugins.count else { return nil }
+        return plugins[row].name
+    }
+
+    /// 左栏插件列表列宽（CLI debug 帧谓词：== SettingsTheme.pluginListWidth 240）。
+    /// view 未加载 / 未布局 → -1。
+    var pluginListColumnWidth: CGFloat {
+        pluginSidebarView?.bounds.width ?? -1
+    }
+
+    /// 右栏限宽列实际宽（CLI debug 帧谓词：≤ SettingsTheme.contentMaxWidth 780）。
+    /// 读 ContentColumnView 自身 bounds（限宽列容器，比内嵌 contentColumn 更稳，避免 scrollView 布局时序）。
+    /// view 未加载 / 未布局 → -1。
+    var contentColumnWidth: CGFloat {
+        contentColumnView?.bounds.width ?? -1
+    }
+
+    // MARK: - Actions
     /// 切换插件启用状态（SettingsToggleRow.onToggle 回调）。
     /// C6：开关分派 —— 内置 → C3 EnabledStore；外部 → PluginManager .disabled。
     private func togglePlugin(name: String, source: String, enable: Bool) {

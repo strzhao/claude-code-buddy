@@ -459,6 +459,86 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         settingsWindowController?.splitViewController.selectSection(.about)
     }
 
+    // MARK: - Settings Debug（CLI 驱动，绕过 LSUIElement osascript click 不路由 patterns/2026-06-23）
+    //
+    // `buddy launcher debug open-settings / select-section / select-plugin / get-state` 经 socket
+    // 调这些方法。LSUIElement accessory app 下 osascript click/AXPress/keystroke 对非 key 窗口不路由，
+    // CLI 直驱 in-process API 是唯一可靠的自动化打开/切换路径。
+
+    /// CLI debug: 打开设置窗口，可选预选分类（general/about/hotkey/ai/skins/plugins）。
+    func debugShowSettings(sectionRaw: String?) {
+        showSettings(source: "cli-debug")
+        if let raw = sectionRaw, let section = SettingsSection(rawValue: raw) {
+            settingsWindowController?.splitViewController.selectSection(section)
+        }
+    }
+
+    /// CLI debug: 选中主分类。非法分类 → false；窗口未开则先开。
+    @discardableResult
+    func debugSelectSection(_ raw: String) -> Bool {
+        guard let section = SettingsSection(rawValue: raw) else { return false }
+        if settingsWindowController == nil {
+            showSettings(source: "cli-debug")
+        }
+        settingsWindowController?.splitViewController.selectSection(section)
+        return true
+    }
+
+    /// CLI debug: 在「插件」分类内选中具名插件（如 snip）。强制刷新 gallery 数据后选中。
+    /// - Returns: 是否命中（gallery 未加载 / 名字不在列表 → false）。
+    func debugSelectPlugin(_ name: String) async -> Bool {
+        if settingsWindowController == nil {
+            showSettings(source: "cli-debug")
+        }
+        let splitVC = settingsWindowController?.splitViewController
+        splitVC?.selectSection(.plugins)
+        guard let gallery = splitVC?.detailChildViewController as? PluginGalleryViewController else {
+            return false
+        }
+        // gallery 初始 .loading，viewDidAppear 异步 refresh；显式 await 确保数据就绪再选中。
+        await gallery.refresh()
+        return gallery.selectPlugin(named: name)
+    }
+
+    /// CLI debug: dump 设置窗口几何 + 选中态（供 verifier 帧谓词求值）。
+    /// 返回 window_open=false 表示窗口未开。
+    func debugSettingsState() -> [String: Any] {
+        guard let wc = settingsWindowController, let window = wc.window else {
+            return ["window_open": false]
+        }
+        // 强制 layout 跑完再读 bounds（socket 读可能在 layout 周期之间，bounds 未更新）
+        window.contentView?.layoutSubtreeIfNeeded()
+        let frame = window.frame
+        var state: [String: Any] = [
+            "window_open": true,
+            "window": [
+                "x": frame.minX,
+                "y": frame.minY,
+                "width": frame.width,
+                "height": frame.height,
+                "isKeyWindow": window.isKeyWindow,
+                "title": window.title,
+            ] as [String: Any],
+        ]
+        let splitVC = wc.splitViewController
+        state["selectedSection"] = splitVC?.selectedSection.rawValue ?? ""
+        // sidebar 宽（NSSplitViewController splitViewItems[0]）：契约 sidebarWidth 200
+        let sidebarWidth = splitVC?.splitViewItems.first?.viewController.view.bounds.width ?? -1
+        state["sidebarWidth"] = sidebarWidth
+        if let child = splitVC?.detailChildViewController {
+            state["detailVC"] = String(describing: type(of: child))
+            state["detailAX"] = child.view.accessibilityIdentifier() ?? ""
+        }
+        // 插件分类额外几何：pluginListWidth 240 / contentColumnWidth ≤780
+        if let gallery = splitVC?.detailChildViewController as? PluginGalleryViewController {
+            gallery.view.layoutSubtreeIfNeeded()
+            state["pluginListWidth"] = gallery.pluginListColumnWidth
+            state["contentColumnWidth"] = gallery.contentColumnWidth
+            state["selectedPlugin"] = gallery.currentSelectedPluginName ?? ""
+        }
+        return state
+    }
+
     @objc private func handleBuddyStoreShouldOpen() {
         // 经 socket / buddy CLI open_settings 通知进来。
         showSettings(source: "notify")

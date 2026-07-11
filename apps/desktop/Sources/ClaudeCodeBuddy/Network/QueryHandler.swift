@@ -92,6 +92,14 @@ final class QueryHandler {
         case "open_settings":
             NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
             return okResponse(data: ["opened": "settings"])
+        case "settings_open":
+            return handleSettingsOpen(query: query)
+        case "settings_select_section":
+            return handleSettingsSelectSection(query: query)
+        case "settings_select_plugin":
+            return await handleSettingsSelectPlugin(query: query)
+        case "settings_get_state":
+            return handleSettingsGetState()
         default:
             return errorResponse(message: "unknown action: \(action)")
         }
@@ -549,6 +557,56 @@ final class QueryHandler {
             data["extractedQuery"] = eq
         }
         return okResponse(data: data)
+    }
+
+    // MARK: - Settings Debug（CLI 驱动设置窗口，绕过 LSUIElement osascript click 不路由）
+    //
+    // `buddy launcher debug open-settings / select-section / select-plugin / get-state` 经 socket 调
+    // AppDelegate in-process API。LSUIElement accessory app 下 osascript click/AXPress/keystroke 对非 key
+    // 窗口不路由（patterns/2026-06-23），CLI 直驱是唯一可靠自动化打开/切换路径。
+
+    /// settings_open → AppDelegate.debugShowSettings(section?) → {opened, section}
+    @MainActor
+    private func handleSettingsOpen(query: [String: Any]) -> Data {
+        let section = query["section"] as? String
+        AppDelegate.shared?.debugShowSettings(sectionRaw: section)
+        return okResponse(data: [
+            "opened": true,
+            "section": section ?? "default",
+        ])
+    }
+
+    /// settings_select_section → AppDelegate.debugSelectSection → {section} / error
+    @MainActor
+    private func handleSettingsSelectSection(query: [String: Any]) -> Data {
+        guard let raw = query["section"] as? String, !raw.isEmpty else {
+            return errorResponse(message: "missing 'section'")
+        }
+        let ok = AppDelegate.shared?.debugSelectSection(raw) ?? false
+        guard ok else {
+            return errorResponse(message: "invalid section: \(raw)")
+        }
+        return okResponse(data: ["section": raw])
+    }
+
+    /// settings_select_plugin → AppDelegate.debugSelectPlugin(name) async → {plugin} / error
+    @MainActor
+    private func handleSettingsSelectPlugin(query: [String: Any]) async -> Data {
+        guard let name = query["name"] as? String, !name.isEmpty else {
+            return errorResponse(message: "missing 'name'")
+        }
+        let hit = await (AppDelegate.shared?.debugSelectPlugin(name) ?? false)
+        guard hit else {
+            return errorResponse(message: "plugin not found or gallery not loaded: \(name)")
+        }
+        return okResponse(data: ["plugin": name])
+    }
+
+    /// settings_get_state → AppDelegate.debugSettingsState → {window_open, window, sidebarWidth, ...}
+    @MainActor
+    private func handleSettingsGetState() -> Data {
+        let state = AppDelegate.shared?.debugSettingsState() ?? ["window_open": false]
+        return okResponse(data: state)
     }
 
     // MARK: - Response Helpers

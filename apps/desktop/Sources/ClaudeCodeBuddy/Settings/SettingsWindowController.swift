@@ -55,6 +55,12 @@ final class SettingsWindowController: NSWindowController {
         window.title = "设置"
         window.isReleasedWhenClosed = false
         window.minSize = Self.minWindowSize
+        // ⚠️ contentMinSize 是 NSSplitViewController 缩窗的真正闸门：NSSplitViewController 在每次 layout
+        // 经 window.setContentSize(fittingSize) 把窗口缩到 splitView fittingSize（sidebar 200 + detail 最小宽），
+        // setContentSize 仅尊重 contentMinSize/contentMaxSize（content 级），**不**尊重 minSize/maxSize（frame 级）。
+        // 故只设 minSize 时窗口会被缩到 449×48（plugins）/ 208×40（其他）—— 真机实测。
+        // 设 contentMinSize 后 setContentSize 被夹紧到 ≥ 此值，窗口不再塌缩。
+        window.contentMinSize = Self.minWindowSize
         // 标准 NSWindow，level 保持默认（.normal），不用 .floating（契约 1）
         // canBecomeKey 标准 NSWindow 默认即 true，无需子类（契约 1）
 

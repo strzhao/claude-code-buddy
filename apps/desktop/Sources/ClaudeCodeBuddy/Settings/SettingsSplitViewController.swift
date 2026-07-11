@@ -72,6 +72,14 @@ final class SettingsSplitViewController: NSSplitViewController {
         addSplitViewItem(sidebarItem)
         addSplitViewItem(detailItem)
 
+        // fittingSize 下限：NSSplitViewController 作 contentViewController 时会按 splitView fittingSize
+        // 缩窗，且绕过 window.minSize / contentMinSize（真机实测 detail child 切换后窗口缩到 449×48，
+        // 远低于 minSize 800×560，内容不可见）。给 splitView 自身加 ≥ minSize 的尺寸约束，使 fittingSize
+        // 不低于可用尺寸——NSSplitViewController 缩窗时以 fittingSize 为目标，故窗口不会再塌缩到不可用。
+        // 这是「抬高 fittingSize」而非「对抗缩窗」，无 setFrame↔layout 递归（曾用 viewDidLayout 撑回导致递归崩溃）。
+        view.widthAnchor.constraint(greaterThanOrEqualToConstant: 800).isActive = true
+        view.heightAnchor.constraint(greaterThanOrEqualToConstant: 540).isActive = true
+
         // 契约 7：detail 容器 AX identifier（容器本身，非活动 child）
         detailContainer.view.setAccessibilityIdentifier("settings.detail.container")
 

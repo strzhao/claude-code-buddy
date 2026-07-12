@@ -76,6 +76,13 @@ final class SettingsSplitViewController: NSSplitViewController {
         // 窗口塌到 48px。给 splitView 自身加高度下限抬高 fittingHeight（宽度由 sidebar 200 + detail 内容定）。
         view.heightAnchor.constraint(greaterThanOrEqualToConstant: 540).isActive = true
 
+        // ⚠️ 强制 item 视图填满 splitView 高度：NSSplitViewController 真机实测未把 item cross-axis 拉满
+        // （sidebar H=0、detail H=16，splitView H=540）→ detail 内容只渲染 16px → 整片白屏。显式钉高度。
+        for item in splitViewItems {
+            let iv = item.viewController.view
+            iv.heightAnchor.constraint(equalTo: view.heightAnchor).isActive = true
+        }
+
         // 契约 7：detail 容器 AX identifier（容器本身，非活动 child）
         detailContainer.view.setAccessibilityIdentifier("settings.detail.container")
 
@@ -143,9 +150,10 @@ final class SettingsDetailContainerViewController: NSViewController {
     private(set) var currentChild: NSViewController?
 
     override func loadView() {
-        // 固定初始 frame + 默认 autoresize（防 fittingSize 缩 0）
+        // 固定初始 frame（防 fittingSize 缩 0）。⚠️ 不设 autoresizingMask：NSSplitViewItem 用 autolayout
+        // 管理 item 的 viewController.view，autoresizing 生成的约束会与 NSSplitViewItem 的冲突 → view 被定到
+        // 600×16（高度只剩 16，section VC 内容几乎不可见 → detail 白屏）。让 NSSplitViewItem 全权 autolayout。
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 540))
-        container.autoresizingMask = [.width, .height]
         container.wantsLayer = true
         self.view = container
     }

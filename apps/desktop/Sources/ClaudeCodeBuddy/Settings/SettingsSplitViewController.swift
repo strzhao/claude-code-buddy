@@ -146,7 +146,7 @@ final class SettingsDetailContainerViewController: NSViewController {
         // 固定初始 frame + 默认 autoresize（防 fittingSize 缩 0）
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 540))
         container.autoresizingMask = [.width, .height]
-        container.wantsLayer = true   // 层backed：detail 区右栏白屏排查（sidebar 渲染、detail 不渲染）
+        container.wantsLayer = true
         self.view = container
     }
 

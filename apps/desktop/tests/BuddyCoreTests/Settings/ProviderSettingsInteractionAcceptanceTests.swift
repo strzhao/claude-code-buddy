@@ -249,43 +249,35 @@ final class ProviderSettingsInteractionAcceptanceTests: XCTestCase {
 
     // MARK: - AC-AI-TOP / AC-AI-TAB [det-human] best-effort 约束存在断言
 
-    /// AC-AI-TOP [det-human, C6 核心]：AI 配置页内容贴顶。
+    /// AC-AI-TOP [det-human, C6 核心]：AI 配置页内容贴顶（防贴底）。
     ///
-    /// VISUAL_RESIDUE: providerLabel 无 AX id、跨 7 层嵌套取 frame 不可靠，留 QA 真机判定。
-    /// 本测试做 best-effort：断言设计 T3 声明的修法约束存在
-    /// （documentView.heightAnchor >= scrollView.contentView.heightAnchor）。
-    func test_AC_AI_TOP_documentViewHasHeightAnchorConstraint() {
-        let vc = ProviderSettingsViewController()
-        _ = vc.view
+    /// 防贴底机制（autopilot 2026-07-12 重构）：
+    /// 旧实现 documentView.heightAnchor ≥ scrollView.contentView.heightAnchor 约束（pattern 2026-07-03）
+    /// 被 in-process bounds 铁证推翻——contentView.heightAnchor 在嵌套 NSSplitViewController 下解析为 0，
+    /// 导致 documentView 塌缩 0×0 → contentColumn 0 高 → 整片白屏（plugins/hotkey/ai/general/about 5 section 受影响）。
+    /// 新机制 = ContentColumnView.layout() override 手动设 documentView.frame.height ≥ scrollView.bounds.height
+    /// （scrollView.heightAnchor 稳定，不依赖 contentView）。本测试断言新机制的行为效果：
+    /// documentView.bounds.height ≥ scrollView.bounds.height（防贴底）。
+    /// 真机端到端（AI 配置页内容贴顶）由 QA Tier 1.5 铁证（documentView 1712×1050）。
+    func test_AC_AI_TOP_documentViewAntiBottomAnchor() {
+        // 实例化 ContentColumnView（provider AI 配置页右栏容器）+ host window 触发完整 layout
+        let ccv = ContentColumnView(frame: NSRect(x: 0, y: 0, width: 600, height: 540))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 540),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = ccv
+        ccv.layoutSubtreeIfNeeded()
 
-        // 找 NSScrollView（AI 配置页容器）
-        guard let scrollView = findFirst(NSScrollView.self, in: vc.view) else {
-            return XCTFail("AI 配置页必须含 NSScrollView（T3 修法作用对象）")
+        guard let scrollView = findFirst(NSScrollView.self, in: ccv),
+              let documentView = scrollView.documentView else {
+            return XCTFail("ContentColumnView 必须含 NSScrollView + documentView")
         }
-
-        // documentView（contentView）必须有 heightAnchor >= scrollView.contentView.heightAnchor
-        // 设计 T3 line 55：`contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor)`
-        guard let documentView = scrollView.documentView else {
-            return XCTFail("scrollView.documentView 必须存在")
-        }
-
-        let clipView = scrollView.contentView
-        let constraints = collectConstraints(for: documentView as? NSView ?? documentView as! NSView)
-        let clipConstraints = collectConstraints(for: clipView)
-
-        // 找 documentView.heightAnchor >= clipView.heightAnchor 的约束
-        let hasHeightFill = (constraints + clipConstraints).contains { c in
-            (c.firstAttribute == .height || c.secondAttribute == .height) &&
-            c.relation == .greaterThanOrEqual
-        }
-        XCTAssertTrue(hasHeightFill,
-                     """
-                     AC-AI-TOP: documentView 必须有 heightAnchor >= scrollView.contentView.heightAnchor 约束
-                     （设计 T3 line 55 先例 PluginGalleryViewController:195-197，修内容贴顶根因）。
-                     若此约束缺失，大窗内容会跑下半截（C6 失败）。
-                     实际约束: \(describeConstraints(constraints + clipConstraints))
-                     """)
-        // VISUAL_RESIDUE: 「提供者」label 真机位于 detail 顶部 ~60pt 内留 QA Tier 1.5
+        XCTAssertGreaterThanOrEqual(documentView.bounds.height, scrollView.bounds.height,
+                                    """
+                                    AC-AI-TOP: documentView 防贴底——bounds.height ≥ scrollView.bounds.height
+                                    （新机制 ContentColumnView.layout() 手动设 documentView.frame 替代被推翻的
+                                    heightAnchor ≥ contentView.heightAnchor 约束）。
+                                    实际 documentView.h=\(documentView.bounds.height), scrollView.h=\(scrollView.bounds.height)
+                                    """)
     }
 
     /// AC-AI-TAB [det-human, C6]：minSize(800×560) 下表单/JSON segmentedControl 可见。

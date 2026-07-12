@@ -72,9 +72,14 @@ final class SettingsSplitViewController: NSSplitViewController {
         addSplitViewItem(sidebarItem)
         addSplitViewItem(detailItem)
 
-        // 防塌窗：NSSplitViewController 按 splitView fittingSize 缩窗，section VC 无固有高度→fittingHeight≈0→
-        // 窗口塌到 48px。给 splitView 自身加高度下限抬高 fittingHeight（宽度由 sidebar 200 + detail 内容定）。
-        view.heightAnchor.constraint(greaterThanOrEqualToConstant: 540).isActive = true
+        // 抬高 splitView 自身 fittingSize 到屏幕可见区，让 NSSplitViewController 缩窗目标 = visibleFrame。
+        // NSSplitViewController 作 contentViewController 后按 splitView fittingSize 缩窗（bypass
+        // setContentSize/minSize，patterns/2026-07-11 + CLAUDE.md ⚠️ 自述）；fittingSize ≥ visibleFrame
+        // → 窗口充满可见区。既有 heightAnchor ≥ 常量已证明 NSSplitViewController 尊重此约束抬升 fittingSize
+        // （窗口原高 572 = 540+titlebar），widthAnchor 同理抬升宽度（autopilot 2026-07-12）。
+        let visibleSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1920, height: 1080)
+        view.widthAnchor.constraint(greaterThanOrEqualToConstant: visibleSize.width).isActive = true
+        view.heightAnchor.constraint(greaterThanOrEqualToConstant: visibleSize.height).isActive = true
 
         // ⚠️ 强制 item 视图填满 splitView 高度：NSSplitViewController 真机实测未把 item cross-axis 拉满
         // （sidebar H=0、detail H=16，splitView H=540）→ detail 内容只渲染 16px → 整片白屏。显式钉高度。

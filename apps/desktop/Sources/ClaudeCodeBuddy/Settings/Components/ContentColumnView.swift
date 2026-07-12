@@ -49,7 +49,13 @@ final class ContentColumnView: NSView {
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
-        // documentView 跟随 clip 宽度（只竖滚，横向不滚）
+        // documentView：宽度用 autoresizing 跟随 clipView（NSScrollView 自管）。
+        // ⚠️ 不用 autolayout 钉 contentView.width——会与 NSScrollView 的 documentView 管理机制冲突
+        // → documentView 塌缩 0×0 → contentColumn 0 高 → 整片白屏（patterns/2026-07-02 反模式）。
+        // autopilot 2026-07-12 in-process bounds 真机实测：5 个用 ContentColumnView 的 section 均
+        // documentView 0×0（skins 不用本组件故正常）。
+        documentView.autoresizingMask = [.width]
+        documentView.wantsLayer = true
         scrollView.documentView = documentView
         addSubview(scrollView)
 
@@ -66,13 +72,8 @@ final class ContentColumnView: NSView {
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            // documentView 宽度 = clipView 宽度（横向不滚），高度自适应内容
-            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
-            documentView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
-            // 防 documentView 贴底空顶（patterns/2026-07-03）：内容高度 < clipView 时强制 ≥ clipView 高，顶部对齐
-            documentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor),
-
-            // contentColumn 限宽 + 居中 + 上下/左右留白
+            // contentColumn 限宽 + 居中 + 上下/左右留白（documentView width 由 autoresizingMask 管理，
+            // height 由 layout() override 手动钉 scrollView 可视高——见下方）
             widthC,
             contentColumn.topAnchor.constraint(equalTo: documentView.topAnchor,
                                                constant: SettingsTheme.spacingSection),
@@ -87,5 +88,22 @@ final class ContentColumnView: NSView {
             // 内容最小宽（防 detail 被缩到 content fittingWidth 致右栏空白）
             widthAnchor.constraint(greaterThanOrEqualToConstant: SettingsTheme.contentMinFloorWidth),
         ])
+    }
+
+    /// documentView 手动 frame：NSScrollView documentView 的 autolayout 约束不稳定（autopilot 2026-07-12
+    /// 真机实测：documentView.heightAnchor ≥ scrollView.heightAnchor 无效 → documentView 0 高 → contentColumn
+    /// 0 高 → 整片白屏；width/height/contentView 锚点均试过无效）。改手动钉 frame = scrollView 可视尺寸
+    /// （宽跟 clipView 只竖滚，高 = scrollView 高防贴底）。contentColumn 在 documentView 内 autolayout 布局
+    /// （钉四边 + 限宽居中），其 anchors 反映 documentView.frame，故 contentColumn 随之撑开。
+    /// 已知限制：内容超高时 documentView 不随内容增高（不滚动）；大窗口（充满屏幕 ~1050 高）下设置内容
+    /// 基本不超高，可接受。后续若需滚动，改动态算 documentView.frame.height = max(contentColumn 拟合高, scrollView 高)。
+    override func layout() {
+        super.layout()
+        guard scrollView.bounds.height > 0 else { return }
+        let clipWidth = scrollView.contentView.bounds.width
+        let newFrame = NSRect(x: 0, y: 0, width: clipWidth, height: scrollView.bounds.height)
+        if documentView.frame != newFrame {
+            documentView.frame = newFrame
+        }
     }
 }

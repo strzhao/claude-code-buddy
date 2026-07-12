@@ -31,8 +31,11 @@ final class SettingsWindowController: NSWindowController {
     private static func computeInitialSize() -> NSSize {
         let fallback = fallbackInitialSize
         guard let visibleFrame = NSScreen.main?.visibleFrame else { return fallback }
-        let width = max(minWindowSize.width, visibleFrame.width * 0.75)
-        let height = max(minWindowSize.height, visibleFrame.height * 0.75)
+        // 100% visibleFrame（autopilot 2026-07-12：用户要求窗口充满屏幕）。配合
+        // SettingsSplitViewController 的 splitView fittingSize ≥ visibleFrame 约束，
+        // NSSplitViewController 缩窗目标 = visibleFrame → 窗口充满可见区。
+        let width = max(minWindowSize.width, visibleFrame.width)
+        let height = max(minWindowSize.height, visibleFrame.height)
         // 兜底：若算出值异常（<=0），回落 fallback
         guard width > 0, height > 0 else { return fallback }
         return NSSize(width: width, height: height)

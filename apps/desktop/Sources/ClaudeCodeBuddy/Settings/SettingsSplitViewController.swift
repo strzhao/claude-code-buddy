@@ -72,12 +72,8 @@ final class SettingsSplitViewController: NSSplitViewController {
         addSplitViewItem(sidebarItem)
         addSplitViewItem(detailItem)
 
-        // 窗口高度下限：NSSplitViewController 作 contentViewController 时会按 splitView fittingSize 缩窗，
-        // 绕过 window.minSize / contentMinSize（真机实测 detail child 切换后窗口高度塌到 48）。
-        // 宽度方向由 ContentColumnView 自身 width≥320 约束抬高 detail content fittingWidth（单点修复，
-        // 所有 section 共享 ContentColumnView），NSSplitViewController 据此 size detail/window，不挤压右栏。
-        // 高度方向 splitViewItem 无对应（高度是 cross-axis），故给 splitView 自身加 ≥540 高度约束抬高
-        // fittingHeight。均为「抬高 fittingSize」而非「对抗缩窗」（无 setFrame↔layout 递归、无 unsatisfiable）。
+        // 防塌窗：NSSplitViewController 按 splitView fittingSize 缩窗，section VC 无固有高度→fittingHeight≈0→
+        // 窗口塌到 48px。给 splitView 自身加高度下限抬高 fittingHeight（宽度由 sidebar 200 + detail 内容定）。
         view.heightAnchor.constraint(greaterThanOrEqualToConstant: 540).isActive = true
 
         // 契约 7：detail 容器 AX identifier（容器本身，非活动 child）
@@ -150,6 +146,7 @@ final class SettingsDetailContainerViewController: NSViewController {
         // 固定初始 frame + 默认 autoresize（防 fittingSize 缩 0）
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 540))
         container.autoresizingMask = [.width, .height]
+        container.wantsLayer = true   // 层backed：detail 区右栏白屏排查（sidebar 渲染、detail 不渲染）
         self.view = container
     }
 

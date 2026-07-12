@@ -26,20 +26,16 @@ final class SettingsWindowController: NSWindowController {
     /// 兜底初始尺寸（无 NSScreen.main 或 visibleFrame 异常时使用）。
     private static let fallbackInitialSize = NSSize(width: 1200, height: 800)
 
-    /// 内容区目标尺寸：贴合屏 visibleFrame（窗口 frame = 内容 + 标题栏，故内容高度减标题栏余量，
-    /// 保证整窗落在 visibleFrame 内不溢出/不被菜单栏遮挡）。host.view ≥ 此值 → 窗口恒此大小。
-    static func screenFitContentSize() -> NSSize {
-        let fallback = NSSize(width: 1200, height: 760)
-        guard let vf = NSScreen.main?.visibleFrame else { return fallback }
-        let width = min(vf.width, 2000)
-        let height = min(vf.height - 40, 1160)   // -40：留出标题栏(~28) + 余量，保证整窗不溢出屏幕
+    /// 计算初始窗口尺寸：~ NSScreen.main?.visibleFrame 的 75%（兜底 1200×800）。
+    /// 同时夹紧到 >= minWindowSize（避免极端小屏算出小于 minSize 的值）。
+    private static func computeInitialSize() -> NSSize {
+        let fallback = fallbackInitialSize
+        guard let visibleFrame = NSScreen.main?.visibleFrame else { return fallback }
+        let width = max(minWindowSize.width, visibleFrame.width * 0.75)
+        let height = max(minWindowSize.height, visibleFrame.height * 0.75)
+        // 兜底：若算出值异常（<=0），回落 fallback
         guard width > 0, height > 0 else { return fallback }
         return NSSize(width: width, height: height)
-    }
-
-    /// 计算初始窗口内容尺寸：贴合屏 visibleFrame（见 screenFitContentSize）。
-    private static func computeInitialSize() -> NSSize {
-        screenFitContentSize()
     }
 
     private(set) var splitViewController: SettingsSplitViewController!
@@ -59,17 +55,14 @@ final class SettingsWindowController: NSWindowController {
         window.title = "设置"
         window.isReleasedWhenClosed = false
         window.minSize = Self.minWindowSize
-        window.contentMinSize = Self.minWindowSize
         // 标准 NSWindow，level 保持默认（.normal），不用 .floating（契约 1）
         // canBecomeKey 标准 NSWindow 默认即 true，无需子类（契约 1）
 
-        // splitVC 作 contentViewController（host-VC 方案会导致 NSSplitViewController 作 child 时不渲染——
-        // 真机实测白屏 ~2s+，wantsLayer/layoutSubtreeIfNeeded/display 都救不回）。NSSplitViewController 直接
-        // 作 contentViewController 才可靠渲染。窗口尺寸由 ContentColumnView ≥600 + splitView height≥540
-        // 抬高 fittingSize 决定（NSSplitViewController 按 fittingSize 定窗，bypass minSize）。
         let splitVC = SettingsSplitViewController()
         window.contentViewController = splitVC
 
+        // NSSplitViewController 作 contentViewController 后会按 fittingSize 调整 window frame，
+        // 需显式 setFrame 锁回契约要求的初始尺寸（动态 ~75% 屏幕，契约 1）。
         window.setFrame(NSRect(x: 0, y: 0, width: initialSize.width, height: initialSize.height), display: false)
 
         self.init(window: window)

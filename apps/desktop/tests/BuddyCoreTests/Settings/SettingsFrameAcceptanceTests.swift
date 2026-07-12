@@ -73,15 +73,15 @@ final class SettingsFrameAcceptanceTests: XCTestCase {
     }
 
     /// 从 SettingsWindowController 取 SettingsSplitViewController。
-    /// 走 contentViewController as? SettingsSplitViewController（@testable 可见类型）。
+    /// splitVC 现作 host 的 child（非 contentViewController），经 wc.splitViewController 取。
     private func makeSplitVC() -> SettingsSplitViewController {
         let wc = SettingsWindowController()
-        guard let window = wc.window else {
+        guard wc.window != nil else {
             XCTFail("SettingsWindowController.window 必须存在（实例化即建窗）")
             fatalError("unreachable — XCTFail 已挂")
         }
-        guard let splitVC = window.contentViewController as? SettingsSplitViewController else {
-            XCTFail("contentViewController 必须是 SettingsSplitViewController，实际: \(String(describing: window.contentViewController))")
+        guard let splitVC = wc.splitViewController else {
+            XCTFail("SettingsWindowController.splitViewController 必须存在")
             fatalError("unreachable — XCTFail 已挂")
         }
         return splitVC

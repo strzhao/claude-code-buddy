@@ -139,7 +139,7 @@ final class SettingsSectionAITests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? SettingsSplitViewController else {
+              let splitVC = wc.splitViewController else {
             return XCTFail("无法获取 SettingsSplitViewController")
         }
         guard let splitItems = splitVC.splitViewItems as? [NSSplitViewItem],
@@ -546,7 +546,7 @@ final class SettingsSectionAITests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? SettingsSplitViewController else {
+              let splitVC = wc.splitViewController else {
             return XCTFail("无法获取 SettingsSplitViewController")
         }
 
@@ -593,7 +593,7 @@ final class SettingsSectionAITests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? SettingsSplitViewController else {
+              let splitVC = wc.splitViewController else {
             return XCTFail("无法获取 SettingsSplitViewController")
         }
 

@@ -91,7 +91,7 @@ final class SettingsSectionOrderAcceptanceTests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<1")
         }

@@ -181,7 +181,7 @@ final class SettingsAXContractTests: XCTestCase {
     func test_SC_SET_04_windowTitle_persistsAfterSectionSwitches() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? SettingsSplitViewController else {
+              let splitVC = wc.splitViewController else {
             return XCTFail("无法获取 window / splitVC")
         }
 

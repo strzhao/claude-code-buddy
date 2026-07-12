@@ -215,9 +215,10 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
             return XCTFail("SettingsWindowController.window 必须存在")
         }
 
-        // contentViewController 必须是 NSSplitViewController 子类（设计名 SettingsSplitViewController）
-        guard let splitVC = window.contentViewController as? NSSplitViewController else {
-            return XCTFail("contentViewController 必须是 NSSplitViewController 子类（SettingsSplitViewController），实际: \(String(describing: window.contentViewController))")
+        // splitVC（wc.splitViewController）必须是 NSSplitViewController 子类（设计名 SettingsSplitViewController）。
+        // splitVC 现作 host 的 child（contentViewController 是 host，非 splitVC）。
+        guard let splitVC = wc.splitViewController as? NSSplitViewController else {
+            return XCTFail("wc.splitViewController 必须是 NSSplitViewController 子类（SettingsSplitViewController），实际: \(String(describing: wc.splitViewController))")
         }
 
         // 恰好 2 个 splitViewItem：sidebar + detail
@@ -266,7 +267,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_SC04_sidebarTableView_hasSixRows() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -292,7 +293,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }
@@ -314,7 +315,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_SC05_sidebarFirstRow_selectedByDefault() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -345,7 +346,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }
@@ -369,7 +370,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }
@@ -401,7 +402,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_SC08_sidebarItems_haveAccessibilityIdentifiers_forClickTracking() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -453,7 +454,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }
@@ -485,7 +486,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
 
         // 默认选中 skins（通过 detail VC 类型验证）
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -559,7 +560,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_SC12_sidebarRowCount_matchesAllCases_singleSource() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -582,7 +583,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_SC12_sidebarVC_doesNotHardcodeCategoryArray() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 1 else {
             return XCTFail("无法获取 splitViewController")
         }
@@ -761,7 +762,7 @@ final class SettingsSidebarAcceptanceTests: XCTestCase {
     func test_contract_detailContainer_accessibilityIdentifier() {
         let wc = SettingsWindowController()
         guard let window = wc.window,
-              let splitVC = window.contentViewController as? NSSplitViewController,
+              let splitVC = wc.splitViewController as? NSSplitViewController,
               splitVC.splitViewItems.count >= 2 else {
             return XCTFail("无法获取 splitViewController / splitViewItems<2")
         }

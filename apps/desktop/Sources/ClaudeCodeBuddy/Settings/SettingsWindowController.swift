@@ -26,13 +26,14 @@ final class SettingsWindowController: NSWindowController {
     /// 兜底初始尺寸（无 NSScreen.main 或 visibleFrame 异常时使用）。
     private static let fallbackInitialSize = NSSize(width: 1200, height: 800)
 
-    /// 计算初始窗口尺寸：~ NSScreen.main?.visibleFrame 的 75%（兜底 1200×800）。
-    /// 同时夹紧到 >= minWindowSize（避免极端小屏算出小于 minSize 的值）。
+    /// 计算初始窗口尺寸：与屏幕大小保持一致（visibleFrame），封顶防超大屏。
+    /// 用户要求彻底避免缩放——窗口开到屏大小并由 SettingsWindow.setContentSize 锁定，
+    /// NSSplitViewController 无法再缩到 fittingSize（消除切 tab 的 808↔1049 抖动 + 右栏空白）。
     private static func computeInitialSize() -> NSSize {
         let fallback = fallbackInitialSize
         guard let visibleFrame = NSScreen.main?.visibleFrame else { return fallback }
-        let width = max(minWindowSize.width, visibleFrame.width * 0.75)
-        let height = max(minWindowSize.height, visibleFrame.height * 0.75)
+        let width = min(visibleFrame.width, 2000)
+        let height = min(visibleFrame.height, 1200)
         // 兜底：若算出值异常（<=0），回落 fallback
         guard width > 0, height > 0 else { return fallback }
         return NSSize(width: width, height: height)
@@ -55,20 +56,28 @@ final class SettingsWindowController: NSWindowController {
         window.title = "设置"
         window.isReleasedWhenClosed = false
         window.minSize = Self.minWindowSize
-        // ⚠️ contentMinSize 是 NSSplitViewController 缩窗的真正闸门：NSSplitViewController 在每次 layout
-        // 经 window.setContentSize(fittingSize) 把窗口缩到 splitView fittingSize（sidebar 200 + detail 最小宽），
-        // setContentSize 仅尊重 contentMinSize/contentMaxSize（content 级），**不**尊重 minSize/maxSize（frame 级）。
-        // 故只设 minSize 时窗口会被缩到 449×48（plugins）/ 208×40（其他）—— 真机实测。
-        // 设 contentMinSize 后 setContentSize 被夹紧到 ≥ 此值，窗口不再塌缩。
         window.contentMinSize = Self.minWindowSize
         // 标准 NSWindow，level 保持默认（.normal），不用 .floating（契约 1）
         // canBecomeKey 标准 NSWindow 默认即 true，无需子类（契约 1）
 
+        // ⚠️ 不把 SettingsSplitViewController 直接设为 contentViewController：NSSplitViewController
+        // 作 contentViewController 时会用私有路径按 splitView fittingSize 缩窗（绕过 minSize/contentMinSize/
+        // preferredContentSize/setContentSize override，切 tab 还抖动）—— override 拦不住（真机实测）。
+        // 改用一个 plain host VC 作 contentViewController，其 preferredContentSize 锁屏大小；splitVC 作
+        // host 的 child VC，view 撑满 host。host 非 NSSplitViewController，无私有缩窗逻辑，窗口稳定屏大小。
         let splitVC = SettingsSplitViewController()
-        window.contentViewController = splitVC
+        let host = SettingsHostViewController()
+        window.contentViewController = host
+        host.addChild(splitVC)
+        splitVC.view.translatesAutoresizingMaskIntoConstraints = false
+        host.view.addSubview(splitVC.view)
+        NSLayoutConstraint.activate([
+            splitVC.view.topAnchor.constraint(equalTo: host.view.topAnchor),
+            splitVC.view.leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+            splitVC.view.trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
+            splitVC.view.bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
+        ])
 
-        // NSSplitViewController 作 contentViewController 后会按 fittingSize 调整 window frame，
-        // 需显式 setFrame 锁回契约要求的初始尺寸（动态 ~75% 屏幕，契约 1）。
         window.setFrame(NSRect(x: 0, y: 0, width: initialSize.width, height: initialSize.height), display: false)
 
         self.init(window: window)
@@ -90,6 +99,32 @@ final class SettingsWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+// MARK: - SettingsHostViewController
+//
+// 作 contentViewController 持有 SettingsSplitViewController（child）。关键：preferredContentSize
+// getter 锁屏大小——NSWindow 按 contentViewController.preferredContentSize 定窗口尺寸，host 非
+// NSSplitViewController 故无私有缩窗逻辑，窗口稳定保持屏大小（不缩到 splitView fittingSize、切 tab 不抖动）。
+
+final class SettingsHostViewController: NSViewController {
+
+    override func loadView() {
+        let v = NSView()
+        self.view = v
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // 关键：floor host.view fittingSize 到屏大小。NSWindow 按 contentViewController.view 的 fittingSize
+        // 定窗口尺寸（且随 section 内容变化——skins 内容大→1920、general 小→808，故窗口忽大忽小）。
+        // 给 host.view（plain NSView，无私有缩窗逻辑）加 ≥ 屏大小约束，fittingSize 恒 ≥ 屏大小，窗口恒屏大小，
+        // 切 section 不变。splitVC 是 host 的 child（非 contentViewController），只撑满 host.view，不缩窗。
+        if let vf = NSScreen.main?.visibleFrame {
+            view.widthAnchor.constraint(greaterThanOrEqualToConstant: min(vf.width, 2000)).isActive = true
+            view.heightAnchor.constraint(greaterThanOrEqualToConstant: min(vf.height, 1200)).isActive = true
+        }
     }
 }
 

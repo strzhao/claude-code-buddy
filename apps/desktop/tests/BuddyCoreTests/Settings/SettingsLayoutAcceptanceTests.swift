@@ -63,8 +63,9 @@ final class SettingsLayoutAcceptanceTests: XCTestCase {
 
     private func makeSplitVC() -> SettingsSplitViewController {
         let wc = SettingsWindowController()
-        guard let splitVC = wc.window?.contentViewController as? SettingsSplitViewController else {
-            fatalError("SettingsWindowController.window.contentViewController 必须是 SettingsSplitViewController")
+        // splitVC 现作 host 的 child（非 contentViewController），经 wc.splitViewController 取。
+        guard let splitVC = wc.splitViewController else {
+            fatalError("SettingsWindowController.splitViewController 必须存在")
         }
         return splitVC
     }

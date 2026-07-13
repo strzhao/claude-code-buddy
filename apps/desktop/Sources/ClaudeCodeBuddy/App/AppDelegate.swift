@@ -509,7 +509,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// CLI debug: 展开 snip 面板编辑态（autopilot 2026-07-13：验证 content 编辑器布局）。
     /// mode="create" → 新建表单；"edit" → 展开第一个片段。窗口前台 + layout 后返回 frame 诊断。
     @MainActor
-    func debugSnipExpand(mode: String) -> [String: Any] {
+    func debugSnipExpand(mode: String, row: Int = 0) -> [String: Any] {
         let splitVC = settingsWindowController?.splitViewController
         guard let gallery = splitVC?.detailChildViewController as? PluginGalleryViewController,
               let snipPanel = gallery.currentPanelChild as? SnipPanelVC else {
@@ -517,7 +517,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         snipPanel.view.layoutSubtreeIfNeeded()
         if mode == "edit" {
-            snipPanel.testHook_selectRow(0)
+            snipPanel.testHook_selectRow(row)
         } else {
             snipPanel.testHook_startCreate()
         }
@@ -581,6 +581,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 let expandedVisible = snipPanel.expandedRowIndex != nil
                 state["snip_expanded_visible"] = expandedVisible
                 state["snip_expanded_height"] = snipPanel.expandedRowHeight
+                state["snip_expanded_row"] = snipPanel.expandedRowIndex
             }
         }
         return state

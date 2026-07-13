@@ -609,7 +609,8 @@ final class QueryHandler {
     @MainActor
     private func handleSettingsSnipExpand(query: [String: Any]) -> Data {
         let mode = (query["mode"] as? String) ?? "create"
-        let result = AppDelegate.shared?.debugSnipExpand(mode: mode) ?? ["ok": false]
+        let row = (query["row"] as? Int) ?? 0
+        let result = AppDelegate.shared?.debugSnipExpand(mode: mode, row: row) ?? ["ok": false]
         if let ok = result["ok"] as? Bool, !ok {
             return errorResponse(message: "snip panel not loaded")
         }

@@ -1082,8 +1082,10 @@ private func main() {
             case "get-state":
                 cmdSettingsGetState()
             case "snip-expand":
-                let mode = opts.positionalArgs.dropFirst().first ?? "create"
-                cmdSettingsSnipExpand(mode)
+                let args = opts.positionalArgs.dropFirst()
+                let mode = args.first ?? "create"
+                let row = args.dropFirst().first.flatMap(Int.init) ?? 0
+                cmdSettingsSnipExpand(mode, row: row)
             default:
                 fputs("Usage: buddy launcher debug <candidates|perform|registry|route|open-settings|select-section|select-plugin|snip-expand|get-state> ...\n", stderr)
                 exit(2)
@@ -1844,10 +1846,11 @@ private func cmdSettingsSelectPlugin(_ name: String) {
 
 /// `buddy launcher debug snip-expand <create|edit>` → action settings_snip_expand
 /// autopilot 2026-07-13：驱动 snip 面板编辑态（展开新建/编辑表单），验证 content 编辑器布局。
-private func cmdSettingsSnipExpand(_ mode: String) {
+private func cmdSettingsSnipExpand(_ mode: String, row: Int = 0) {
     let queryDict: [String: Any] = [
         "action": "settings_snip_expand",
         "mode": mode,
+        "row": row,
     ]
     do {
         let data = try sendQuery(queryDict, timeout: 5.0)

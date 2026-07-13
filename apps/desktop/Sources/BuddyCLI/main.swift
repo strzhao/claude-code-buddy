@@ -1081,8 +1081,11 @@ private func main() {
                 cmdSettingsSelectPlugin(name)
             case "get-state":
                 cmdSettingsGetState()
+            case "snip-expand":
+                let mode = opts.positionalArgs.dropFirst().first ?? "create"
+                cmdSettingsSnipExpand(mode)
             default:
-                fputs("Usage: buddy launcher debug <candidates|perform|registry|route|open-settings|select-section|select-plugin|get-state> ...\n", stderr)
+                fputs("Usage: buddy launcher debug <candidates|perform|registry|route|open-settings|select-section|select-plugin|snip-expand|get-state> ...\n", stderr)
                 exit(2)
             }
         default:
@@ -1833,6 +1836,26 @@ private func cmdSettingsSelectPlugin(_ name: String) {
         }
         if let str = String(data: data, encoding: .utf8) { print(str) }
         if status != "ok" { exit(1) }
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+}
+
+/// `buddy launcher debug snip-expand <create|edit>` → action settings_snip_expand
+/// autopilot 2026-07-13：驱动 snip 面板编辑态（展开新建/编辑表单），验证 content 编辑器布局。
+private func cmdSettingsSnipExpand(_ mode: String) {
+    let queryDict: [String: Any] = [
+        "action": "settings_snip_expand",
+        "mode": mode,
+    ]
+    do {
+        let data = try sendQuery(queryDict, timeout: 5.0)
+        if let str = String(data: data, encoding: .utf8) { print(str) }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let status = obj["status"] as? String, status == "ok" else {
+            exit(1)
+        }
     } catch {
         fputs("\(error)\n", stderr)
         exit(1)

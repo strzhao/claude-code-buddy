@@ -63,12 +63,10 @@ final class ProviderSettingsViewController: NSViewController {
     /// 测试结果行容器（idle/检测中整行隐藏，SettingsGroupView stackView 自动塌缩不占位）
     private let testResultRow = NSView()
 
-    /// 「关闭思考」SageSwitch（并入模型行，仅 openai-compatible 时可见，C3 不变）
-    private let noThinkingSwitch = SageSwitch(isOn: false)
-    /// 「关闭思考」label（与 SageSwitch 一同显示/隐藏）
-    private let noThinkingLabel = NSTextField(labelWithString: "关闭思考")
-    /// 「关闭思考」容器（label + switch），整组控制 isHidden 等同旧 noThinkingToggleRow.isHidden
-    private let noThinkingContainer = NSStackView()
+    /// 「关闭思考」独立 toggle 行容器（SettingsToggleRow 形式，仅 openai-compatible 显示，C3 不变）。
+    /// autopilot 2026-07-13：从 modelControlStack 拆出独立行（C-AI-ONE-CONTROL-PER-ROW）。
+    /// SettingsToggleRow 内置 SageSwitch，onToggle/setSwitchState 管理状态。
+    private var noThinkingRow: SettingsToggleRow?
 
     // JSON 面板控件
     private let jsonTextView = NSTextView()
@@ -174,17 +172,7 @@ final class ProviderSettingsViewController: NSViewController {
         apiKeyField.translatesAutoresizingMaskIntoConstraints = false
         apiKeyField.placeholderString = "sk-..."
 
-        // 连接测试行
-        testButton.translatesAutoresizingMaskIntoConstraints = false
-        testButton.bezelStyle = .rounded
-        testButton.target = self
-        testButton.action = #selector(testConnection(_:))
-
-        testSpinner.translatesAutoresizingMaskIntoConstraints = false
-        testSpinner.style = .spinning
-        testSpinner.controlSize = .small
-        testSpinner.isHidden = true
-
+        // 测试结果标签（autopilot 2026-07-13：testButton/testSpinner 配置移至连接测试独立行区域）
         testResultLabel.translatesAutoresizingMaskIntoConstraints = false
         testResultLabel.font = .systemFont(ofSize: 12)
         testResultLabel.textColor = .secondaryLabelColor
@@ -192,23 +180,11 @@ final class ProviderSettingsViewController: NSViewController {
         testResultLabel.maximumNumberOfLines = 0
         testResultLabel.isHidden = true
 
-        // API 地址行 control：水平 stack [baseURLField 撑宽 | 测试连接 button | spinner]
-        // （用户反馈：测试连接与 API 地址同一行；结果文案单起一行可换行长错误）
+        // API 地址行 control：单 baseURLField（autopilot 2026-07-13：测试连接拆出独立行，
+        // C-AI-ONE-CONTROL-PER-ROW）。baseURLField 保底宽度防默认空字段不可见。
         baseURLField.setContentHuggingPriority(.defaultLow, for: .horizontal)
         baseURLField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let urlControlStack = NSStackView()
-        urlControlStack.orientation = .horizontal
-        urlControlStack.spacing = 8
-        urlControlStack.alignment = .centerY
-        urlControlStack.distribution = .fill
-        urlControlStack.translatesAutoresizingMaskIntoConstraints = false
-        urlControlStack.addArrangedSubview(baseURLField)
-        urlControlStack.addArrangedSubview(testButton)
-        urlControlStack.addArrangedSubview(testSpinner)
         NSLayoutConstraint.activate([
-            testSpinner.widthAnchor.constraint(equalToConstant: 16),
-            testSpinner.heightAnchor.constraint(equalToConstant: 16),
-            // baseURLField 保底宽度（用户反馈 round4：默认空字段无宽度看不见）——与 modelField 同思路给 min 宽
             baseURLField.widthAnchor.constraint(greaterThanOrEqualToConstant: 260),
         ])
 
@@ -227,52 +203,69 @@ final class ProviderSettingsViewController: NSViewController {
         let providerRow = SettingsFormRow(title: "激活提供者", subtitle: nil, control: providerPopup)
         let kindRow = SettingsFormRow(title: "类型", subtitle: nil, control: kindPopup)
 
-        // 模型行 control：水平 stack [modelField (撑宽) | 关闭思考 label + SageSwitch]
-        // T5 关闭思考并入模型行。modelField 显式 hugging + minWidth 防被 label+switch 挤窄。
+        // 模型行 control：单 modelField（autopilot 2026-07-13：关闭思考拆出独立 toggle row）。
         modelField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         modelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        noThinkingLabel.font = .systemFont(ofSize: 12)
-        noThinkingLabel.textColor = .secondaryLabelColor
-        noThinkingLabel.translatesAutoresizingMaskIntoConstraints = false
-        noThinkingSwitch.translatesAutoresizingMaskIntoConstraints = false
-        noThinkingSwitch.onChange = { [weak self] isOn in
+        NSLayoutConstraint.activate([
+            modelField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+        ])
+
+        let modelRow = SettingsFormRow(title: "模型", subtitle: "留空则使用提供者默认模型", control: modelField)
+        let baseURLRow = SettingsFormRow(title: "API 地址", subtitle: "覆盖默认 API 端点", control: baseURLField)
+        let apiKeyRow = SettingsFormRow(title: "API 密钥", subtitle: "存储于钥匙串，不落盘", control: apiKeyField)
+
+        // 关闭思考独立 toggle 行（C-AI-ONE-CONTROL-PER-ROW，autopilot 2026-07-13）：
+        // 从 modelControlStack 拆出。仅 openai-compatible 显示（isHidden 切换逻辑迁到此容器）。
+        // SettingsToggleRow 内置 SageSwitch，onToggle/setSwitchState 管理状态。
+        let noThinkingToggle = SettingsToggleRow(
+            title: "关闭思考",
+            subtitle: "适用于 Qwen3 等推理模型",
+            isOn: false
+        )
+        noThinkingToggle.translatesAutoresizingMaskIntoConstraints = false
+        // 替换 SettingsToggleRow 内置 switch 为我们的 noThinkingSwitch（共享 onChange 闭包引用）
+        // 简化：直接用 SettingsToggleRow.setSwitchState 同步状态，onChange 由 SettingsToggleRow 自管
+        noThinkingToggle.onToggle = { [weak self] isOn in
             self?.noThinkingEnabled = isOn
             self?.saveCurrentProvider()
         }
-        let noThinkingStack = noThinkingContainer
-        noThinkingStack.orientation = .horizontal
-        noThinkingStack.spacing = 6
-        noThinkingStack.alignment = .centerY
-        noThinkingStack.translatesAutoresizingMaskIntoConstraints = false
-        noThinkingStack.addArrangedSubview(noThinkingLabel)
-        noThinkingStack.addArrangedSubview(noThinkingSwitch)
-        // 初始隐藏（C3：仅 openai-compatible 显示，populateUI/loadProvider 会按 kind 切换）
-        noThinkingStack.isHidden = true
+        noThinkingToggle.setSwitchState(false)
+        noThinkingToggle.isHidden = true  // 初始隐藏（C3：仅 openai-compatible 显示）
+        noThinkingRow = noThinkingToggle
 
-        let modelControlStack = NSStackView()
-        modelControlStack.orientation = .horizontal
-        modelControlStack.spacing = 12
-        modelControlStack.alignment = .centerY
-        modelControlStack.distribution = .fill
-        modelControlStack.translatesAutoresizingMaskIntoConstraints = false
-        modelControlStack.addArrangedSubview(modelField)
-        modelControlStack.addArrangedSubview(noThinkingStack)
-        // modelField 撑宽：modelControlStack 内 modelField 宽 ≥ 180，stack 整体不被 noThinking 挤窄
+        // 连接测试独立行（C-AI-ONE-CONTROL-PER-ROW）：title + 水平 stack[testButton + spinner]。
+        // 结果文案属同一动作反馈，用 testResultRow 单独行（视觉属同组，允许紧邻）。
+        testButton.translatesAutoresizingMaskIntoConstraints = false
+        testButton.bezelStyle = .rounded
+        testButton.target = self
+        testButton.action = #selector(testConnection(_:))
+
+        testSpinner.translatesAutoresizingMaskIntoConstraints = false
+        testSpinner.style = .spinning
+        testSpinner.controlSize = .small
+        testSpinner.isHidden = true
+
+        let testControlStack = NSStackView()
+        testControlStack.orientation = .horizontal
+        testControlStack.spacing = 8
+        testControlStack.alignment = .centerY
+        testControlStack.distribution = .fill
+        testControlStack.translatesAutoresizingMaskIntoConstraints = false
+        testControlStack.addArrangedSubview(testButton)
+        testControlStack.addArrangedSubview(testSpinner)
         NSLayoutConstraint.activate([
-            modelField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
-            // 给 SageSwitch 固定尺寸（与 SageSwitch 默认 frame 一致 32×20）
-            noThinkingSwitch.widthAnchor.constraint(equalToConstant: 32),
-            noThinkingSwitch.heightAnchor.constraint(equalToConstant: 20),
+            testSpinner.widthAnchor.constraint(equalToConstant: 16),
+            testSpinner.heightAnchor.constraint(equalToConstant: 16),
         ])
 
-        let modelRow = SettingsFormRow(title: "模型", subtitle: "留空则使用提供者默认模型 · 关闭思考适用于 Qwen3 等推理模型", control: modelControlStack)
-        let baseURLRow = SettingsFormRow(title: "API 地址", subtitle: "覆盖默认 API 端点", control: urlControlStack)
-        let apiKeyRow = SettingsFormRow(title: "API 密钥", subtitle: "存储于钥匙串，不落盘", control: apiKeyField)
+        let testConnectionRow = SettingsFormRow(title: "连接测试", subtitle: "验证 API 地址与密钥可访问", control: testControlStack)
 
         providerGroup.addRow(providerRow)
         providerGroup.addRow(kindRow)
         providerGroup.addRow(modelRow)
+        providerGroup.addRow(noThinkingToggle)
         providerGroup.addRow(baseURLRow)
+        providerGroup.addRow(testConnectionRow)
         providerGroup.addRow(testResultRow)
         providerGroup.addRow(apiKeyRow)
 
@@ -281,13 +274,16 @@ final class ProviderSettingsViewController: NSViewController {
         baseURLField.delegate = self
         apiKeyField.delegate = self
 
-        // 表单面板约束（T5：noThinkingToggleRow 已并入模型行，formPanel 底部直接钉 providerGroup）
+        // 表单面板约束：providerGroup 四边钉 formPanel。
+        // autopilot 2026-07-13 真机根因修复：原仅钉 top/leading/trailing，formPanel 是无 intrinsicContentSize
+        // 的普通 NSView → 高度塌缩为 0 → formStackView intrinsicHeight 塌缩 → 下方「AI 工具」分组
+        // toolsLabel.top(=formStackView.bottom) 锚点上移到 tab 下方 → 表单 group 与 AI 工具分组在同一
+        // 垂直区域重叠穿插（用户反馈「字段穿插挤在一起」qwen vision 实测确认）。补 bottom 钉死高度链。
         NSLayoutConstraint.activate([
             providerGroup.topAnchor.constraint(equalTo: formPanel.topAnchor),
             providerGroup.leadingAnchor.constraint(equalTo: formPanel.leadingAnchor),
             providerGroup.trailingAnchor.constraint(equalTo: formPanel.trailingAnchor),
-            // bottom 不钉：providerGroup 内容自适应、贴 formPanel 顶。formPanel 在 formStackView
-            // distribution=.fill 撑满槽位时，卡片不被拉高（下方留白而非卡片空胀）。
+            providerGroup.bottomAnchor.constraint(equalTo: formPanel.bottomAnchor),
         ])
 
         // ── JSON 面板 ──
@@ -582,11 +578,11 @@ final class ProviderSettingsViewController: NSViewController {
             apiKeyField.stringValue = ""
         }
 
-        // noThinking toggle（C3：仅 openai-compatible 可见，T5 并入模型行）
+        // noThinking toggle（C3：仅 openai-compatible 可见；autopilot 2026-07-13 独立 toggle row）
         let isOpenAICompat = provider.kind == "openai-compatible"
-        noThinkingContainer.isHidden = !isOpenAICompat
+        noThinkingRow?.isHidden = !isOpenAICompat
         noThinkingEnabled = provider.noThinking ?? false
-        noThinkingSwitch.setState(noThinkingEnabled)
+        noThinkingRow?.setSwitchState(noThinkingEnabled)
     }
 
     private func clearProviderFields() {
@@ -595,9 +591,9 @@ final class ProviderSettingsViewController: NSViewController {
         modelField.stringValue = ""
         baseURLField.stringValue = ""
         apiKeyField.stringValue = ""
-        noThinkingContainer.isHidden = true
+        noThinkingRow?.isHidden = true
         noThinkingEnabled = false
-        noThinkingSwitch.setState(false)
+        noThinkingRow?.setSwitchState(false)
     }
 
     // MARK: - Actions
@@ -628,14 +624,14 @@ final class ProviderSettingsViewController: NSViewController {
             baseURLField.stringValue = ""
         }
 
-        // C3：noThinking toggle 仅 openai-compatible 可见（T5 并入模型行）
+        // C3：noThinking toggle 仅 openai-compatible 可见（autopilot 2026-07-13 独立 toggle row）
         let isOpenAI = selectedKind == "openai-compatible"
-        noThinkingContainer.isHidden = !isOpenAI
+        noThinkingRow?.isHidden = !isOpenAI
         if !isOpenAI {
             noThinkingEnabled = false           // B1: 同步本地状态，避免切回时 UI/存储不一致
-            noThinkingSwitch.setState(false)
+            noThinkingRow?.setSwitchState(false)
         } else {
-            noThinkingSwitch.setState(noThinkingEnabled)
+            noThinkingRow?.setSwitchState(noThinkingEnabled)
         }
 
         // 即时保存
@@ -870,8 +866,8 @@ final class ProviderSettingsViewController: NSViewController {
         modelField.stringValue = model
         baseURLField.stringValue = baseURL ?? ""
         noThinkingEnabled = noThinking ?? false
-        noThinkingSwitch.setState(noThinkingEnabled)
-        noThinkingContainer.isHidden = (kind != "openai-compatible")
+        noThinkingRow?.setSwitchState(noThinkingEnabled)
+        noThinkingRow?.isHidden = (kind != "openai-compatible")
 
         showJSONValidation("✓ 格式正确", isError: false)
     }

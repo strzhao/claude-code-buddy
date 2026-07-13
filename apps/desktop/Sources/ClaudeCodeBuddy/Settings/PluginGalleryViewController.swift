@@ -135,7 +135,10 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         self.autoUpdateStore = autoUpdateStore ?? .shared
         super.init(nibName: nil, bundle: nil)
 
-        // T2：注册 snip 面板 provider（C3，snip 首个实现）
+        // T2：注册 snip 面板 provider（C3，snip 首个实现）。
+        // 注册的 SnipPanelVC 实例仅作 provider 路由入口（PluginPanelRegistry 查询用），
+        // 实际展示面板由 makePanelVC() 内部新建（C-PANEL-NEW-INSTANCE：每次返回 SnipPanelVC() 新实例，
+        // 禁 return self）。service 用 .shared 单例，新建 VC 数据一致。
         PluginPanelRegistry.shared.register(SnipPanelVC(), for: "snip")
     }
 

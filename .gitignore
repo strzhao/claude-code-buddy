@@ -34,6 +34,11 @@ secrets.json
 # Test artifacts
 test-results/
 
+# record:.all 诊断测试快照（每次 make test 重录无判别力，不入库；本地保留诊断能力。
+# stop-hook 铁律：快照不作 T1.5 oracle；snip 渲染用 qwen vision 真机截图 +
+# det-machine frame dump（debug_contentScrollViewFrame）作独立 oracle）
+apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/SnipPanelRenderDiagnosticTests/
+
 # Sprite processing backup
 Sources/ClaudeCodeBuddy/Assets/Sprites/backup/
 

@@ -497,11 +497,49 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         // gallery 初始 .loading，viewDidAppear 异步 refresh；显式 await 确保数据就绪再选中。
         await gallery.refresh()
-        return gallery.selectPlugin(named: name)
+        let ok = gallery.selectPlugin(named: name)
+        // autopilot 2026-07-13：窗口已开时上面分支不调 showSettings → 不激活，CLI select-plugin 后
+        // 设置窗易失焦被终端/其他 app 遮挡（screencapture 拍到背后 app）。强制激活保证前台可见。
+        let win = settingsWindowController?.window
+        win?.makeKeyAndOrderFront(nil)
+        win?.orderFrontRegardless()
+        return ok
+    }
+
+    /// CLI debug: 展开 snip 面板编辑态（autopilot 2026-07-13：验证 content 编辑器布局）。
+    /// mode="create" → 新建表单；"edit" → 展开第一个片段。窗口前台 + layout 后返回 frame 诊断。
+    @MainActor
+    func debugSnipExpand(mode: String) -> [String: Any] {
+        let splitVC = settingsWindowController?.splitViewController
+        guard let gallery = splitVC?.detailChildViewController as? PluginGalleryViewController,
+              let snipPanel = gallery.currentPanelChild as? SnipPanelVC else {
+            return ["ok": false]
+        }
+        snipPanel.view.layoutSubtreeIfNeeded()
+        if mode == "edit" {
+            snipPanel.testHook_selectRow(0)
+        } else {
+            snipPanel.testHook_startCreate()
+        }
+        snipPanel.view.layoutSubtreeIfNeeded()
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        settingsWindowController?.window?.orderFrontRegardless()
+        // det-machine：dump content editor scrollView frame + cell bounds，
+        // 客观验证 content editor 占满 cell 宽度（非窄 control 区"跑到 keyword 那边"）。
+        let svFrame = snipPanel.debug_contentScrollViewFrame
+        let cellBounds = snipPanel.debug_expandedCellBounds
+        return [
+            "ok": true,
+            "mode": mode,
+            "content_scrollview_x": svFrame?.minX ?? -1,
+            "content_scrollview_width": svFrame?.width ?? -1,
+            "expanded_cell_width": cellBounds?.width ?? -1,
+        ]
     }
 
     /// CLI debug: dump 设置窗口几何 + 选中态（供 verifier 帧谓词求值）。
     /// 返回 window_open=false 表示窗口未开。
+    @MainActor
     func debugSettingsState() -> [String: Any] {
         guard let wc = settingsWindowController, let window = wc.window else {
             return ["window_open": false]
@@ -528,6 +566,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if let child = splitVC?.detailChildViewController {
             state["detailVC"] = String(describing: type(of: child))
             state["detailAX"] = child.view.accessibilityIdentifier() ?? ""
+            // 通用：detail content 高（C-CONTENTCOLUMN-NO-REGRESS 防白屏回归，场景 4.P1）
+            state["detail_content_height"] = child.view.bounds.height
         }
         // 插件分类额外几何：pluginListWidth 240 / contentColumnWidth ≤780
         if let gallery = splitVC?.detailChildViewController as? PluginGalleryViewController {
@@ -535,6 +575,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             state["pluginListWidth"] = gallery.pluginListColumnWidth
             state["contentColumnWidth"] = gallery.contentColumnWidth
             state["selectedPlugin"] = gallery.currentSelectedPluginName ?? ""
+            // snip 展开字段（场景 1.P3）：向下探测 gallery.currentPanelChild as? SnipPanelVC
+            // （currentPanelChild 是 NSViewController?，两跳向下转换）
+            if let snipPanel = gallery.currentPanelChild as? SnipPanelVC {
+                let expandedVisible = snipPanel.expandedRowIndex != nil
+                state["snip_expanded_visible"] = expandedVisible
+                state["snip_expanded_height"] = snipPanel.expandedRowHeight
+            }
         }
         return state
     }

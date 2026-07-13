@@ -98,6 +98,8 @@ final class QueryHandler {
             return handleSettingsSelectSection(query: query)
         case "settings_select_plugin":
             return await handleSettingsSelectPlugin(query: query)
+        case "settings_snip_expand":
+            return handleSettingsSnipExpand(query: query)
         case "settings_get_state":
             return handleSettingsGetState()
         default:
@@ -600,6 +602,18 @@ final class QueryHandler {
             return errorResponse(message: "plugin not found or gallery not loaded: \(name)")
         }
         return okResponse(data: ["plugin": name])
+    }
+
+    /// settings_snip_expand → AppDelegate.debugSnipExpand(mode) → {mode, frame} / error
+    /// autopilot 2026-07-13：驱动 snip 编辑态验证 content 布局，附 det-machine frame 诊断。
+    @MainActor
+    private func handleSettingsSnipExpand(query: [String: Any]) -> Data {
+        let mode = (query["mode"] as? String) ?? "create"
+        let result = AppDelegate.shared?.debugSnipExpand(mode: mode) ?? ["ok": false]
+        if let ok = result["ok"] as? Bool, !ok {
+            return errorResponse(message: "snip panel not loaded")
+        }
+        return okResponse(data: result)
     }
 
     /// settings_get_state → AppDelegate.debugSettingsState → {window_open, window, sidebarWidth, ...}

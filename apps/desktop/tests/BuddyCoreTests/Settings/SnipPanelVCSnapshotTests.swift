@@ -47,7 +47,9 @@ final class SnipPanelVCSnapshotTests: XCTestCase {
     func test_snipPanelVC_isPluginSettingsPanelProvider() {
         let vc = SnipPanelVC()
         let made = vc.makePanelVC()
-        XCTAssertTrue(made === vc, "makePanelVC 应返回 self")
+        // C-PANEL-NEW-INSTANCE（autopilot 2026-07-13）：makePanelVC 每次返回新实例，禁 return self。
+        XCTAssertFalse(made === vc, "makePanelVC 禁返回 self（C-PANEL-NEW-INSTANCE）")
+        XCTAssertTrue(made is SnipPanelVC, "makePanelVC 应返回 SnipPanelVC 实例")
     }
 
     func test_snipPanelVC_viewIsNotNil() {

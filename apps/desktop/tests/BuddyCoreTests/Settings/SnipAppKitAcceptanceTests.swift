@@ -25,7 +25,8 @@ import AppKit
 //   - handleDeleteResponse(.alertFirstButtonReturn, ...)（确认）→ list 不含（删）。
 //   杀死「删除无二次确认 / 确认与取消按钮语义反了 / 取消仍删」回归。
 //
-// - **makePanelVC 契约**（C6）：SnipPanelVC().makePanelVC() === vc（PluginSettingsPanelProvider 自返回）。
+// - **makePanelVC 契约**（C-PANEL-NEW-INSTANCE）：SnipPanelVC().makePanelVC() 每次返回新实例（!== self）。
+//   autopilot 2026-07-13 重构：旧 C6 自返回契约已废弃（单列 accordion 重构 + 防脏状态）。
 //
 // 工作规则：每个谓词至少 1 个硬断言，失败即挂测试。不对实现状态容错。
 
@@ -178,24 +179,26 @@ final class SnipAppKitAcceptanceTests: XCTestCase {
             "AC-WIN-02：SnipPanelVC 必须是 NSViewController（实际: \(typeName)）")
     }
 
-    // MARK: - makePanelVC 契约（C6：自返回）
+    // MARK: - makePanelVC 契约（C-PANEL-NEW-INSTANCE：每次返回新实例）
 
-    /// C6 契约 [make-panel-vc-returns-self]：SnipPanelVC().makePanelVC() === vc。
+    /// C-PANEL-NEW-INSTANCE 契约 [make-panel-vc-returns-new-instance]：
+    /// SnipPanelVC().makePanelVC() 每次返回新实例（!== self）。
     ///
-    /// 设计契约：PluginSettingsPanelProvider 要求 makePanelVC 返回自身（VC 自身即面板主体）。
-    /// 若 !== vc，证明 makePanelVC 返回了包装层 / 新实例（破坏设置页 containment 切换契约）。
-    func test_makePanelVC_returnsSelf() {
+    /// autopilot 2026-07-13 重构：旧 C6 自返回契约（return self）已废弃。新设计单列 accordion
+    /// 下，gallery pluginPanelContainer 每次切 snip 都应拿到全新 SnipPanelVC（避免脏状态）。
+    /// service 用 .shared 单例，新建 VC 数据一致。
+    func test_makePanelVC_returnsNewInstance() {
         let vc = SnipPanelVC()
-        let panelVC = vc.makePanelVC()
-        XCTAssertTrue(panelVC === (vc as AnyObject),
+        let a = vc.makePanelVC()
+        let b = vc.makePanelVC()
+        XCTAssertFalse(a === (vc as AnyObject),
             """
-            C6 契约违反：SnipPanelVC().makePanelVC() 必须 === vc（自返回），
-            实际 panelVC=\(ObjectIdentifier(panelVC)) vc=\(ObjectIdentifier(vc as AnyObject))。
-            makePanelVC 返回了不同实例 → 破坏 PluginSettingsPanelProvider containment 契约。
+            C-PANEL-NEW-INSTANCE 违反：makePanelVC 禁返回 self，
+            实际 a=\(ObjectIdentifier(a)) vc=\(ObjectIdentifier(vc as AnyObject))。
             """)
-        // 类型确认：返回的 panelVC 仍是 SnipPanelVC（非别的 VC 类型）。
-        XCTAssertTrue(panelVC is SnipPanelVC,
-            "C6：makePanelVC 返回的必须是 SnipPanelVC（实际: \(type(of: panelVC))）")
+        XCTAssertFalse(a === b,
+            "C-PANEL-NEW-INSTANCE：makePanelVC 每次应返回不同实例（a=\(ObjectIdentifier(a)) b=\(ObjectIdentifier(b))）")
+        XCTAssertTrue(a is SnipPanelVC, "makePanelVC 返回的必须是 SnipPanelVC（实际: \(type(of: a))）")
     }
 
     // MARK: - AC-CRUD-03：删除二次确认 NSAlert（取消保留 / 确认删除）

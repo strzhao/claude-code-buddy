@@ -289,6 +289,17 @@ final class SnipPanelVC: NSViewController, PluginSettingsPanelProvider {
         activeExpandedCell?.bounds.height ?? 0
     }
 
+    // MARK: - debug 宽度诊断（autopilot 2026-07-14：定位 snip 面板内容未占满 view 宽度）
+    var debug_widths: [String: CGFloat] {
+        [
+            "view": view.bounds.width,
+            "searchField": searchField.bounds.width,
+            "listScrollView": listScrollView.bounds.width,
+            "tableView": tableView.bounds.width,
+            "tableView_col0": tableView.tableColumns.first?.width ?? -1,
+        ]
+    }
+
     // MARK: - Actions
 
     @objc private func searchChanged() {

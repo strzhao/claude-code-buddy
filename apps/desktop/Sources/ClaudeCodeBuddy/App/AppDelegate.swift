@@ -582,6 +582,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 state["snip_expanded_visible"] = expandedVisible
                 state["snip_expanded_height"] = snipPanel.expandedRowHeight
                 state["snip_expanded_row"] = snipPanel.expandedRowIndex
+                state["snip_panel_width"] = snipPanel.view.bounds.width
+                state["snip_panel_height"] = snipPanel.view.bounds.height
+                state["snip_widths"] = snipPanel.debug_widths
             }
         }
         return state

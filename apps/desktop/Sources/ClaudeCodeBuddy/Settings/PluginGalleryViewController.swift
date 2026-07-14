@@ -313,7 +313,10 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
         let rightContent = rightColumn.contentColumn
 
         pluginPanelContainer.translatesAutoresizingMaskIntoConstraints = false
-        rightContent.addSubview(pluginPanelContainer)
+        // autopilot 2026-07-14：pluginPanelContainer 直接撑满 detailContainer（不经 contentColumn 限宽 780）——
+        // snip 列表+编辑表单内容多需铺满可用宽度；市场设置卡片随之铺满（可接受）。rightColumn/contentColumn
+        // 留空被 pluginPanelContainer 盖（z order 后者在上）。其他 section 各自 VC 内部 ContentColumnView 仍 780。
+        detailContainer.addSubview(pluginPanelContainer)
 
         NSLayoutConstraint.activate([
             // ContentColumnView 撑满 detailContainer（右栏根）
@@ -356,11 +359,11 @@ final class PluginGalleryViewController: NSViewController, SettingsTabClickRecei
             reseedButton.centerXAnchor.constraint(equalTo: globalHeaderContainer.centerXAnchor),
             reseedButton.topAnchor.constraint(equalTo: placeholderLabel.bottomAnchor, constant: SettingsTheme.spacingMd),
 
-            // pluginPanelContainer 占满 contentColumn（限宽居中 + 滚动由 ContentColumnView 提供）
-            pluginPanelContainer.topAnchor.constraint(equalTo: rightContent.topAnchor),
-            pluginPanelContainer.leadingAnchor.constraint(equalTo: rightContent.leadingAnchor),
-            pluginPanelContainer.trailingAnchor.constraint(equalTo: rightContent.trailingAnchor),
-            pluginPanelContainer.bottomAnchor.constraint(equalTo: rightContent.bottomAnchor),
+            // pluginPanelContainer 撑满 detailContainer（autopilot 2026-07-14：不经 contentColumn 限宽，snip 列表铺满）
+            pluginPanelContainer.topAnchor.constraint(equalTo: detailContainer.topAnchor),
+            pluginPanelContainer.leadingAnchor.constraint(equalTo: detailContainer.leadingAnchor),
+            pluginPanelContainer.trailingAnchor.constraint(equalTo: detailContainer.trailingAnchor),
+            pluginPanelContainer.bottomAnchor.constraint(equalTo: detailContainer.bottomAnchor),
         ])
     }
 

@@ -97,9 +97,13 @@ struct LauncherInputView: View {
             if showCommandRouteCandidates {
                 LauncherCandidateView(
                     candidates: manager.commandRouteCandidates,
-                    // 单选高亮：只有 activeCandidateZone == .commandRoute 时本区才高亮，
-                    // 非活动区传 -1（不亮）——保证任意时刻全屏只有一个高亮行（修真机两区同亮 bug）
-                    selectedIndex: manager.activeCandidateZone == .commandRoute ? manager.commandRouteSelectedIndex : -1,
+                    // 单选高亮 + 滚动：只有 activeCandidateZone == .commandRoute 时本区才高亮，
+                    // 非活动区 get 返回 -1（不亮、不 scroll）——保证任意时刻全屏只有一个高亮行（修真机两区同亮 bug）。
+                    // C-SCROLL-TO-SELECTION：selectedIndex 用 @Binding（B1 fallback），onChange 可靠触发 scrollTo。
+                    selectedIndex: Binding(
+                        get: { manager.activeCandidateZone == .commandRoute ? manager.commandRouteSelectedIndex : -1 },
+                        set: { manager.setCommandRouteSelectedIndex($0) }
+                    ),
                     onSelect: { manifest in
                         // C-LOCK-NOT-EXECUTE：点击 = 选中锁定，不执行（与 Enter/Tab 选中同义）
                         if let idx = manager.commandRouteCandidates.firstIndex(where: { $0.name == manifest.name }) {
@@ -116,8 +120,12 @@ struct LauncherInputView: View {
             if showInstantCandidates && !manager.instantActions.isEmpty {
                 LauncherInstantCandidateView(
                     actions: manager.instantActions,
-                    // 单选高亮：只有 activeCandidateZone == .instant 时本区才高亮（非活动区传 -1）
-                    selectedIndex: manager.activeCandidateZone == .instant ? manager.instantSelectedIndex : -1
+                    // 单选高亮：只有 activeCandidateZone == .instant 时本区才高亮（非活动区 get 返回 -1）
+                    // C-SCROLL-TO-SELECTION：selectedIndex 用 @Binding（B1 fallback）。
+                    selectedIndex: Binding(
+                        get: { manager.activeCandidateZone == .instant ? manager.instantSelectedIndex : -1 },
+                        set: { manager.setInstantSelectedIndex($0) }
+                    )
                 )
             }
 
@@ -126,7 +134,8 @@ struct LauncherInputView: View {
             if !pluginCandidates.isEmpty {
                 LauncherPluginCandidateView(
                     candidates: pluginCandidates,
-                    selectedIndex: pluginCandidateIndex,
+                    // C-SCROLL-TO-SELECTION：selectedIndex 用 @Binding（B1 fallback），$pluginCandidateIndex。
+                    selectedIndex: $pluginCandidateIndex,
                     onSelect: { candidate in
                         // 点击候选：定位其索引后触发 submit（submit 内检测候选选中走回调）
                         if let idx = pluginCandidates.firstIndex(where: { $0.id == candidate.id }) {
@@ -644,22 +653,25 @@ extension LauncherInputView {
         let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
         let inputH = LauncherConstants.inputHeight   // 64
         // 插件候选列表（C1 通道）单独计高：与 output 互斥展示（候选选中后进入 output 态）
-        let pluginCandidateExtra: CGFloat = CGFloat(min(pluginCandidateCount, 5)) * 44
+        // C-VIEWPORT-THRESHOLD / C-ROW-HEIGHT-CONST：cap candidateVisibleMax(8)，行高用 candidateRowHeight
+        let pluginCandidateExtra: CGFloat = CGFloat(min(pluginCandidateCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
         // C6 output 态：commandRoute/instant 被 hasOutput guard 隐藏不计
         if outputHeight > 0 {
-            return inputH + (hasSelected ? 44 : 0) + min(outputHeight, 400) + pluginCandidateExtra + footerExtra
+            return inputH + (hasSelected ? LauncherConstants.candidateRowHeight : 0) + min(outputHeight, LauncherConstants.outputMaxHeight) + pluginCandidateExtra + footerExtra
         }
         // C6 候选并存态：commandRoute + instant 叠加（非 max）
-        let commandRouteExtra: CGFloat = CGFloat(min(commandRouteCount, 5)) * 44
-        let instantExtra: CGFloat = CGFloat(min(instantCount, 5)) * 44
+        let commandRouteExtra: CGFloat = CGFloat(min(commandRouteCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
+        let instantExtra: CGFloat = CGFloat(min(instantCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
         let combinedExtra = commandRouteExtra + instantExtra
         if combinedExtra > 0 {
             return inputH + combinedExtra + pluginCandidateExtra + footerExtra
         }
-        // C6 仅单区态（C10 回归）+ lastRouteCandidates（candidateCount）兜底
-        let effectiveCount = max(max(pluginCandidateCount, candidateCount), 0)
+        // C6 仅单区态（C10 回归）。
+        // I3：lastRouteCandidates(candidateCount) 不渲染为可见列表，不从 panelHeight 分配高度
+        // （否则 >8 时空白行）。仅 pluginCandidateCount 计高并 cap candidateVisibleMax。
+        let effectiveCount = max(pluginCandidateCount, 0)
         if effectiveCount > 0 {
-            return inputH + CGFloat(min(effectiveCount, 5)) * 44 + footerExtra
+            return inputH + CGFloat(min(effectiveCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight + footerExtra
         }
         // C6 空态
         return inputH + footerExtra

@@ -15,6 +15,12 @@ enum LauncherConstants {
     static let inputPaddingH: CGFloat = 20
     static let inputPaddingV: CGFloat = 16
     static let candidateRowHeight: CGFloat = 44
+    /// 候选可视行数上限（混合阈值 T=8）：≤8 全展示自适应，>8 封顶 8 行 + ScrollViewReader 滚动。
+    /// 语义边界（同值不同义）：candidateVisibleMax=8 是**渲染层**可视行数上限；
+    /// builtinActionsLimit=8 是**数据层**内置插件候选全局截断；
+    /// appSearchLimit=8 是**数据层**单次 App 搜索返回上限。
+    /// 三者恰好都 8，但各自独立定义、互不引用（C-VIEWPORT-THRESHOLD / C-ROW-HEIGHT-CONST）。
+    static let candidateVisibleMax: Int = 8
     static let outputMaxHeight: CGFloat = 400
     static let statusFooterHeight: CGFloat = 22
 

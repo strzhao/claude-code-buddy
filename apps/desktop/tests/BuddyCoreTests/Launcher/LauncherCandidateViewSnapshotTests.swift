@@ -28,7 +28,7 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
 
     // Fixture 1: 空 candidates（不应显示任何内容）
     func test_candidateView_empty_noContent() {
-        let view = LauncherCandidateView(candidates: [], selectedIndex: 0)
+        let view = LauncherCandidateView(candidates: [], selectedIndex: .constant(0))
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 44)
         assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 44)))
@@ -37,7 +37,7 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
     // Fixture 2: 1 个候选，selectedIndex = 0
     func test_candidateView_singleCandidate() {
         let candidates = [makeManifest(name: "translate", description: "Translate text between languages")]
-        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(0))
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 45)
         assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 45)))
@@ -52,7 +52,7 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
             makeManifest(name: "weather", description: "Weather forecast"),
             makeManifest(name: "notes", description: "Take notes")
         ]
-        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 2)
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(2))
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 221)
         assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 221)))
@@ -65,7 +65,7 @@ final class LauncherCandidateViewSnapshotTests: XCTestCase {
             makeManifest(name: "search", description: "Search the web")
         ]
         // selectedIndex = 0，第一行应填充 sage 主色背景
-        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(0))
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 89)
         assertSnapshot(of: hostingController, as: .image(size: CGSize(width: 720, height: 89)))

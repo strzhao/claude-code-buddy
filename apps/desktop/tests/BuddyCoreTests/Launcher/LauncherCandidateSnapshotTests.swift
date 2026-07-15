@@ -12,7 +12,7 @@ import SnapshotTesting
 //       未选中行不应有该指示条。
 //
 // 测试策略：
-//   构造 LauncherCandidateView(candidates: [mockManifest1, mockManifest2], selectedIndex: 0)，
+//   构造 LauncherCandidateView(candidates: [mockManifest1, mockManifest2], selectedIndex: .constant(0))，
 //   用 assertSnapshot(of: view, as: .image(size:)) 与基线比对。
 //   基线由本测试首次运行时自动录制，之后提交到 __Snapshots__/。
 //
@@ -63,7 +63,7 @@ final class LauncherCandidateSnapshotTests: XCTestCase {
             makeManifest(name: "search",    description: "搜索互联网内容")
         ]
         // selectedIndex=0：第一行选中
-        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(0))
         let hostingController = NSHostingController(rootView: view)
         // 两行 × 44pt 行高
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 88)
@@ -84,7 +84,7 @@ final class LauncherCandidateSnapshotTests: XCTestCase {
             makeManifest(name: "search",    description: "搜索互联网内容")
         ]
         // selectedIndex=1：第二行选中，第一行没有指示条
-        let view = LauncherCandidateView(candidates: candidates, selectedIndex: 1)
+        let view = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(1))
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 720, height: 88)
 
@@ -108,12 +108,12 @@ final class LauncherCandidateSnapshotTests: XCTestCase {
         ]
 
         // selectedIndex=0：有指示条
-        let viewSelected = LauncherCandidateView(candidates: candidates, selectedIndex: 0)
+        let viewSelected = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(0))
         let hcSelected = NSHostingController(rootView: viewSelected)
         hcSelected.view.frame = NSRect(x: 0, y: 0, width: 720, height: 88)
 
         // selectedIndex=1：无指示条在第一行
-        let viewUnselected = LauncherCandidateView(candidates: candidates, selectedIndex: 1)
+        let viewUnselected = LauncherCandidateView(candidates: candidates, selectedIndex: .constant(1))
         let hcUnselected = NSHostingController(rootView: viewUnselected)
         hcUnselected.view.frame = NSRect(x: 0, y: 0, width: 720, height: 88)
 

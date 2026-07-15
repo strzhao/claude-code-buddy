@@ -396,6 +396,14 @@ final class LauncherManager: ObservableObject {
         commandRouteSelectedIndex = clamped
     }
 
+    /// 键盘覆盖 instant 候选索引（C5，对称 setCommandRouteSelectedIndex）：clamp 到 [0, count-1]，空 list no-op。
+    /// C-SCROLL-TO-SELECTION：供 LauncherInstantCandidateView 的 @Binding set 调用。
+    func setInstantSelectedIndex(_ index: Int) {
+        guard !instantActions.isEmpty else { return }
+        let clamped = max(0, min(instantActions.count - 1, index))
+        instantSelectedIndex = clamped
+    }
+
     /// 切换当前导航活动区（C2/C5）：LauncherInputView 跨区边界处理时调用。
     func setActiveCandidateZone(_ zone: CandidateZone) {
         activeCandidateZone = zone

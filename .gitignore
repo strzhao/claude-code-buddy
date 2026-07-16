@@ -30,6 +30,8 @@ secrets.json
 .autopilot/runtime/
 # autopilot 活跃任务标记（瞬态状态文件，不入库）
 .autopilot/active
+# autopilot visual companion 运行时状态（server.log/pid/info/events 等，本地跑 server 即重生，不入库）
+.autopilot/**/visual/*/state/
 
 # Test artifacts
 test-results/

@@ -486,6 +486,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     /// CLI debug: 在「插件」分类内选中具名插件（如 snip）。强制刷新 gallery 数据后选中。
     /// - Returns: 是否命中（gallery 未加载 / 名字不在列表 → false）。
+    @MainActor
     func debugSelectPlugin(_ name: String) async -> Bool {
         if settingsWindowController == nil {
             showSettings(source: "cli-debug")

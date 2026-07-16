@@ -71,8 +71,10 @@ final class SnipPanelVC: NSViewController, PluginSettingsPanelProvider {
 
     // MARK: - Init
 
-    init(service: SnippetsService = .shared) {
-        self.service = service
+    init(service: SnippetsService? = nil) {
+        // 默认参数表达式在非隔离上下文求值，不能直接写 .shared（@MainActor 隔离 static，
+        // Swift 6 下为 error）。改 nil 默认，body 内（@MainActor 上下文）取 .shared。
+        self.service = service ?? .shared
         super.init(nibName: nil, bundle: nil)
     }
 

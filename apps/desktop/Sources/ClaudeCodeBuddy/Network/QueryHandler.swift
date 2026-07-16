@@ -89,6 +89,10 @@ final class QueryHandler {
             return await handleLauncherDebugRunPlugin(query: query)
         case "launcher_debug_route":
             return await handleLauncherDebugRoute(query: query)
+        case "launcher_list_tools":
+            return handleLauncherListTools()
+        case "launcher_run_tool":
+            return await handleLauncherRunTool(query: query)
         case "open_settings":
             NotificationCenter.default.post(name: .buddyStoreShouldOpen, object: nil)
             return okResponse(data: ["opened": "settings"])
@@ -391,64 +395,144 @@ final class QueryHandler {
         return okResponse(data: ["plugins": plugins])
     }
 
-    /// C4 launcher_debug_run_plugin → 按 name 找外部插件 manifest → TrustStore.checkAndPrompt（B1）
-    /// → 信任通过则 PluginDispatcher.execute() 直驱 → 返回 {name,stdout,stderr,exit_code,duration_ms}。
-    /// trust 失败返回 {status:"error", message:"not trusted"}。不经候选路由（name→直接 execute）。
+    /// 执行核（D2/D3 重构）：find manifest → TOFU trust check → dispatcher.execute。
+    /// `handleLauncherDebugRunPlugin`（瘦序列化，buddy launcher run 契约不变）与
+    /// `handleLauncherRunTool`（富序列化，buddy run）共用，避免 duplication。
+    ///
+    /// 返回 (manifest, pluginDir, result) 供调用方按各自契约序列化。
+    /// trust 失败抛 `LauncherError.pluginNotTrusted`（调用方转 `{status:error,message:"not trusted"}`）。
+    @MainActor
+    private func runPluginCore(name: String, resolvedQuery: String) async throws -> PluginResult {
+        // 1. 找外部插件 manifest + pluginDir
+        guard let found = try pluginManager.find(name: name) else {
+            throw LauncherError.pluginNotFound(name)
+        }
+        let pluginDir = try pluginManager.pluginDir(for: found)
+        let manifest = found
+
+        // 2. B1：TOFU trust 检查（必须在 PluginDispatcher.execute 前显式调，与 LauncherManager.submit 一致）
+        let executablePath = pluginDir.appending(path: manifest.cmd)
+        let trusted = await trustStore.checkAndPrompt(manifest, executablePath: executablePath)
+        guard trusted else {
+            BuddyLogger.shared.warn("launcher run rejected: not trusted", subsystem: "plugin", meta: ["name": name])
+            throw LauncherError.pluginNotTrusted(name)
+        }
+
+        // 3. 直驱执行（不经候选路由）。resolvedQuery 由调用方按各自 input 契约解析后传入：
+        // - debug_run_plugin（buddy launcher run）：--input 原样字符串（旧契约，C-DEBUG-ISOLATION）
+        // - run_tool（buddy run）：从 --input JSON 提取 .query（C-INPUT-CONTRACT）
+        let input = PluginInput(
+            query: resolvedQuery,
+            sessionId: "launcher-run-\(UUID().uuidString)",
+            cwd: FileManager.default.currentDirectoryPath
+        )
+        do {
+            let result = try await pluginDispatcher.execute(manifest, pluginDir: pluginDir, input: input)
+            return result
+        } catch {
+            BuddyLogger.shared.error("launcher run execute failed", subsystem: "plugin", meta: ["name": name, "error": "\(error)"])
+            throw error
+        }
+    }
+
+    /// C4 launcher_debug_run_plugin → runPluginCore → 瘦序列化 `{name,stdout,stderr,exit_code,duration_ms}`。
+    /// 契约冻结（C-DEBUG-ISOLATION）：`buddy launcher run` 行为零变化，新增 launcher_run_tool 不影响此路径。
     @MainActor
     private func handleLauncherDebugRunPlugin(query: [String: Any]) async -> Data {
         guard let name = query["name"] as? String, !name.isEmpty else {
             return errorResponse(message: "missing 'name'")
         }
-        // 1. 找外部插件 manifest + pluginDir
-        let manifest: PluginManifest
-        let pluginDir: URL
+        // debug 路径（buddy launcher run）：--input 原样字符串（旧契约，C-DEBUG-ISOLATION，行为零变化）
+        let rawInput = (query["input"] as? String) ?? ""
         do {
-            guard let found = try pluginManager.find(name: name) else {
-                return errorResponse(message: "plugin not found: \(name)")
-            }
-            manifest = found
-            pluginDir = try pluginManager.pluginDir(for: found)
-        } catch {
+            let result = try await runPluginCore(name: name, resolvedQuery: rawInput)
+            let data: [String: Any] = [
+                "name": name,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "exit_code": Int(result.exitCode),
+                "duration_ms": result.durationMs,
+            ]
+            BuddyLogger.shared.info("launcher run ok", subsystem: "plugin", meta: [
+                "name": name,
+                "exit_code": Int(result.exitCode),
+                "duration_ms": result.durationMs,
+            ])
+            return okResponse(data: data)
+        } catch LauncherError.pluginNotFound {
             return errorResponse(message: "plugin not found: \(name)")
-        }
-
-        // 2. B1：TOFU trust 检查（必须在 PluginDispatcher.execute 前显式调，与 LauncherManager.submit 一致）
-        // executablePath = pluginDir/cmd（stdin/command）；prompt mode checkAndPrompt 内部按 systemPrompt 处理。
-        let executablePath = pluginDir.appending(path: manifest.cmd)
-        let trusted = await trustStore.checkAndPrompt(manifest, executablePath: executablePath)
-        guard trusted else {
-            BuddyLogger.shared.warn("launcher run rejected: not trusted", subsystem: "plugin", meta: ["name": name])
+        } catch LauncherError.pluginNotTrusted {
             return errorResponse(message: "not trusted")
-        }
-
-        // 3. 直驱执行（不经候选路由）
-        let input = PluginInput(
-            query: (query["input"] as? String) ?? "",
-            sessionId: "launcher-run-\(UUID().uuidString)",
-            cwd: FileManager.default.currentDirectoryPath
-        )
-        let result: PluginResult
-        do {
-            result = try await pluginDispatcher.execute(manifest, pluginDir: pluginDir, input: input)
         } catch {
-            BuddyLogger.shared.error("launcher run execute failed", subsystem: "plugin", meta: ["name": name, "error": "\(error)"])
             return errorResponse(message: "execute failed: \(error.localizedDescription)")
         }
+    }
 
-        // 4. 返回结果 JSON
-        let data: [String: Any] = [
-            "name": name,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "exit_code": Int(result.exitCode),
-            "duration_ms": result.durationMs,
-        ]
-        BuddyLogger.shared.info("launcher run ok", subsystem: "plugin", meta: [
-            "name": name,
-            "exit_code": Int(result.exitCode),
-            "duration_ms": result.durationMs,
+    /// D1 launcher_list_tools → PluginManager.list()（enabled 外部，跳 .disabled）
+    /// → 手构 manifest dict（**camelCase**，非 AgentTool Codable）：
+    /// `{name, summary, description, inputSchema, mode}` 五字段必填非空。
+    /// 收录范围：所有 enabled 外部插件（内置不在 PluginManager.list() 范围，天然排除，C-NO-BUILTIN）。
+    /// 动态：每次 IPC live 计算自 PluginManager.list()，启停自动反映（C-DYNAMIC）。
+    @MainActor
+    private func handleLauncherListTools() -> Data {
+        let plugins = (try? pluginManager.list()) ?? []
+        let tools: [[String: Any]] = plugins.map { manifest in
+            [
+                "name": manifest.name,
+                "summary": manifest.displaySummary,
+                "description": manifest.synthesizeToolDescription(),
+                "inputSchema": anyCodableToJSONAny(manifest.effectiveToolInputSchema()) as Any,
+                "mode": modeString(manifest.modeConfig),
+            ]
+        }
+        return okResponse(data: [
+            "tools": tools,
+            "count": tools.count,
         ])
-        return okResponse(data: data)
+    }
+
+    /// D2 launcher_run_tool → runPluginCore → 富序列化 PluginResult：
+    /// `{name, stdout, stderr, exit_code, duration_ms, stdout_truncated, image?, candidates?}`（C-RUN-RESPONSE）。
+    /// - image = result.image.map { base64(PNG Data) }（仅非 nil 出现）
+    /// - candidates = result.candidates.map { 序列化 [LauncherCandidate] }（仅非 nil 出现，Codable → dict）
+    /// - actions（render-only 按钮）**排除**（UI-only，CLI 不可执行，非 AI 契约）。
+    /// trust 失败 → `{status:error,message:"not trusted"}`（C-TOFU-NOBYPASS）。
+    @MainActor
+    private func handleLauncherRunTool(query: [String: Any]) async -> Data {
+        guard let name = query["name"] as? String, !name.isEmpty else {
+            return errorResponse(message: "missing 'name'")
+        }
+        // C-INPUT-CONTRACT：--input 接受 JSON 对象，提取 .query 填 PluginInput.query。
+        // - 合法 JSON 含 .query → 取 .query；合法 JSON 无 .query → 整串折叠（结构化 parameters，plugin 自解析）
+        // - 非法 JSON → 报错（场景9）；空/缺 input → 兜底空串（R12）。框架不做 schema 校验。
+        let rawInput = (query["input"] as? String) ?? ""
+        let resolvedQuery: String
+        if rawInput.isEmpty {
+            resolvedQuery = ""
+        } else if let data = rawInput.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            resolvedQuery = (obj["query"] as? String) ?? rawInput
+        } else {
+            return errorResponse(message: "invalid input JSON: expected an object, e.g. {\"query\": \"...\"}")
+        }
+        do {
+            let result = try await runPluginCore(name: name, resolvedQuery: resolvedQuery)
+            let data = serializePluginResultRich(name: name, result: result)
+            BuddyLogger.shared.info("launcher run_tool ok", subsystem: "plugin", meta: [
+                "name": name,
+                "exit_code": Int(result.exitCode),
+                "duration_ms": result.durationMs,
+                "has_image": result.image != nil,
+                "has_candidates": result.candidates != nil,
+            ])
+            return okResponse(data: data)
+        } catch LauncherError.pluginNotFound {
+            return errorResponse(message: "plugin not found: \(name)")
+        } catch LauncherError.pluginNotTrusted {
+            return errorResponse(message: "not trusted")
+        } catch {
+            return errorResponse(message: "execute failed: \(error.localizedDescription)")
+        }
     }
 
     /// launcher_debug_route → 提取 query → ProviderFactory 创建 provider → LauncherRouter narrow + AI select
@@ -625,6 +709,65 @@ final class QueryHandler {
     }
 
     // MARK: - Response Helpers
+
+    /// D1：把 PluginModeConfig 派生为对外契约字符串 `"stdin"|"command"|"prompt"`。
+    /// manifest 条目 mode 字段让 AI 区分确定性（stdin/command）vs LLM（prompt）。
+    private func modeString(_ modeConfig: PluginModeConfig) -> String {
+        switch modeConfig {
+        case .stdin: return "stdin"
+        case .command: return "command"
+        case .prompt: return "prompt"
+        }
+    }
+
+    /// D1/T3：递归把 `[String: AnyCodable]`（effectiveToolInputSchema 返回值）转为 JSONSerialization
+    /// 可序列化的 Any（NSObject）。AnyCodable.value 可能是 Bool/Int/Double/String/[Any]/[String:Any]，
+    /// 递归 unwrap 保证嵌套结构（如 properties 里的 query dict）正确转为 NSDictionary/NSArray。
+    /// 顶层强制 `type:object` 由 effectiveToolInputSchema 保证（C-INPUTSCHEMA-CAMELCASE）。
+    private func anyCodableToJSONAny(_ value: Any) -> Any {
+        if let codable = value as? AnyCodable {
+            return anyCodableToJSONAny(codable.value)
+        }
+        if let dict = value as? [String: Any] {
+            return NSDictionary(dictionary: dict.mapValues { anyCodableToJSONAny($0) })
+        }
+        // AnyCodable.value 里 array 元素已是 .value unwrap 后的 [Any]（init(from:) 里 .map(\.value)）
+        if let array = value as? [Any] {
+            return NSArray(array: array.map { anyCodableToJSONAny($0) })
+        }
+        // 基本类型（Bool/Int/Double/String/NSNull）直接桥接 NSNumber/NSString
+        return value
+    }
+
+    /// D2/T3：把 PluginResult 富序列化为对外契约 dict（C-RUN-RESPONSE）。
+    /// 抽成独立可测函数（不依赖 IPC），便于单测覆盖 image→base64、candidates→dict 转换正确性。
+    ///
+    /// 字段：`{name, stdout, stderr, exit_code, duration_ms, stdout_truncated, image?, candidates?}`
+    /// - image：PNG Data → base64 string（仅非 nil 出现，base64 编码可被 AI 解码回 PNG）
+    /// - candidates：[LauncherCandidate] → JSON array（Codable 序列化，仅非 nil 出现）
+    /// - actions（render-only）**排除**（LauncherActionButton 非 AI 契约）
+    private func serializePluginResultRich(name: String, result: PluginResult) -> [String: Any] {
+        var data: [String: Any] = [
+            "name": name,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": Int(result.exitCode),
+            "duration_ms": result.durationMs,
+            "stdout_truncated": result.stdoutTruncated,
+        ]
+        if let image = result.image {
+            data["image"] = image.base64EncodedString()
+        }
+        if let candidates = result.candidates {
+            // LauncherCandidate 是 Codable：JSONEncoder → Data → JSONSerialization 转 [Any]，
+            // 保证字段名（id/title/subtitle/selection）与 Codable CodingKeys 一致。
+            if let encodable = try? JSONEncoder().encode(candidates),
+               let arr = try? JSONSerialization.jsonObject(with: encodable) as? [Any] {
+                data["candidates"] = NSArray(array: arr)
+            }
+        }
+        return data
+    }
 
     private func okResponse(data: [String: Any]) -> Data {
         let response: [String: Any] = ["status": "ok", "data": data]

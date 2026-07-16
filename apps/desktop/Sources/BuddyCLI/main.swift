@@ -162,7 +162,21 @@ private func checkSocket() -> Bool {
 
 /// Sends a query to the Buddy app and reads the JSON response.
 /// Returns the raw response data, or throws SocketError on failure.
-private func sendQuery(_ query: [String: Any], timeout: TimeInterval = 2.0) throws -> Data {
+///
+/// **补强 1（D7 + 场景4）：分两段超时** —— TOFU 首次弹 NSAlert 走 modal runloop，
+/// 原 2s 默认 timeout 必超时（用户来不及看框）。
+/// - `connectTimeout`（默认 2s）：约束 connect + 首字节等待。app 未运行 → connect 即时失败
+///   （本地 socket ENOENT），满足场景5 <10s 快速失败。
+/// - `executeTimeout`（默认 == connectTimeout，向后兼容）：约束完整响应等待。
+///   cmdRun 传长超时（300s）容 TOFU modal + 慢插件执行。
+///
+/// 向后兼容：现有调用点仅传 `timeout:`（→ connectTimeout），executeTimeout 默认等于 connectTimeout，
+/// 行为零变化。新 cmdRun/cmdTools 用 executeTimeout 参数。
+private func sendQuery(
+    _ query: [String: Any],
+    connectTimeout: TimeInterval = 2.0,
+    executeTimeout: TimeInterval = 2.0
+) throws -> Data {
     guard let payloadData = try? JSONSerialization.data(withJSONObject: query) else {
         throw SocketError.sendFailed("Failed to encode query")
     }
@@ -185,6 +199,7 @@ private func sendQuery(_ query: [String: Any], timeout: TimeInterval = 2.0) thro
         memcpy(&addr.sun_path, base, min(pathData.count, MemoryLayout.size(ofValue: addr.sun_path) - 1))
     }
 
+    // 阶段 1：connect（本地 socket，失败即时返回，满足场景5 <10s 快速失败）
     let connectResult = withUnsafePointer(to: &addr) { ptr in
         ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { rebound in
             connect(fd, rebound, socklen_t(MemoryLayout<sockaddr_un>.size))
@@ -203,10 +218,10 @@ private func sendQuery(_ query: [String: Any], timeout: TimeInterval = 2.0) thro
         throw SocketError.sendFailed(String(cString: strerror(errno)))
     }
 
-    // Read response with timeout
+    // 阶段 2：read response（用 executeTimeout —— 容 TOFU modal 等待，补强 1）
     var response = Data()
     var buf = [UInt8](repeating: 0, count: 4096)
-    let deadline = Date().addingTimeInterval(timeout)
+    let deadline = Date().addingTimeInterval(executeTimeout)
 
     while Date() < deadline {
         let n = read(fd, &buf, buf.count)
@@ -305,6 +320,8 @@ private func printHelp() {
       log show [--level L] [--subsystem S] [--since D] [--lines N] [--json]   Filtered lines
       log grep <pattern> [--level L] [-i]   Lines matching pattern in msg
       log clear [--yes]                     Archive current log and start fresh
+      tools [--json]                        List all enabled plugins as AI tool manifest (JSON array)
+      run <name> [--input '<json>'] [--json]  Run a plugin, rich JSON output (image/candidates)
       help                                  Show this help
 
     Events: \(validEvents.joined(separator: ", "))
@@ -1117,6 +1134,18 @@ private func main() {
         }
     case "help", "--help", "-h", "":
         printHelp()
+    case "tools":
+        // 统一 CLI hub（D4）：列出所有启用外部插件的 AI tool manifest。
+        cmdTools(json: opts.flags.contains("--json"))
+    case "run":
+        // 统一 CLI hub（D5）：执行具名插件，返回富 JSON（含 image/candidates）。
+        // name 从 positionalArgs 取（顶层命令，parseArguments default 分支入 positionalArgs）。
+        let name = opts.positionalArgs.first ?? ""
+        cmdRun(
+            name: name,
+            input: opts.launcherRunInput,
+            json: opts.flags.contains("--json")
+        )
     default:
         fputs("Unknown command: \(opts.command)\n\n", stderr)
         printHelp()
@@ -1764,7 +1793,7 @@ private func cmdLauncherDebugRoute(_ query: String) {
         "query": query,
     ]
     do {
-        let data = try sendQuery(queryDict, timeout: 30.0)
+        let data = try sendQuery(queryDict, executeTimeout: 30.0)
         if let str = String(data: data, encoding: .utf8) {
             print(str)
         }
@@ -1830,7 +1859,7 @@ private func cmdSettingsSelectPlugin(_ name: String) {
         "name": name,
     ]
     do {
-        let data = try sendQuery(queryDict, timeout: 5.0)
+        let data = try sendQuery(queryDict, executeTimeout: 5.0)
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let status = obj["status"] as? String else {
             fputs("invalid response from app\n", stderr)
@@ -1853,7 +1882,7 @@ private func cmdSettingsSnipExpand(_ mode: String, row: Int = 0) {
         "row": row,
     ]
     do {
-        let data = try sendQuery(queryDict, timeout: 5.0)
+        let data = try sendQuery(queryDict, executeTimeout: 5.0)
         if let str = String(data: data, encoding: .utf8) { print(str) }
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let status = obj["status"] as? String, status == "ok" else {
@@ -1948,6 +1977,127 @@ private func cmdLauncherRun(name: String, input: String, json: Bool) {
         }
     }
     // 退出码：插件正常退出透传（0=成功）；崩溃/trust 拒绝已在上面 exit(1)
+    exit(Int32(exitCode))
+}
+
+// MARK: - 统一 CLI hub（AI 能力暴露，D4/D5）
+//
+// 顶层 `buddy tools` / `buddy run`：把所有启用外部插件能力暴露给外部 AI 与人类。
+// 经 socket IPC 到常驻 app（action launcher_list_tools / launcher_run_tool），插件零适配。
+// Foundation-only：CLI 不依赖 BuddyCore，manifest 与执行均让 app 算（C-IPC-NO-BUDDYCORE）。
+// 与 `buddy launcher run` 关系：run 是富输出版（含 image/candidates），launcher run 保留作 back-compat（瘦输出）。
+
+/// `buddy tools [--json]` → IPC launcher_list_tools → manifest 数组。
+/// - `--json`：输出完整 `{tools:[...], count:N}` JSON 数组（AI 友好，jq 可解析）。
+/// - 默认：人类可读列表（`name — summary` 每行 + mode 标记）。
+///
+/// 契约 C-MANIFEST-SCHEMA / C-NO-BUILTIN / C-DYNAMIC。app 未运行 → sendQuery throw → exit(1)（<10s，场景5）。
+private func cmdTools(json: Bool) {
+    let queryDict: [String: Any] = ["action": "launcher_list_tools"]
+    let data: Data
+    do {
+        // 补强 1：tools 不触发 TOFU（纯读 manifest，无 execute），用默认短超时即可。
+        data = try sendQuery(queryDict)
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+    guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let status = obj["status"] as? String else {
+        fputs("invalid response from app\n", stderr)
+        exit(1)
+    }
+    if status != "ok" {
+        let message = obj["message"] as? String ?? "tools failed"
+        fputs("\(message)\n", stderr)
+        exit(1)
+    }
+    guard let dataDict = obj["data"] as? [String: Any],
+          let tools = dataDict["tools"] as? [[String: Any]] else {
+        fputs("invalid tools data\n", stderr)
+        exit(1)
+    }
+
+    if json {
+        // --json：输出 tools 数组（场景 1.P1：stdout 合法 JSON 数组）
+        if let out = try? JSONSerialization.data(withJSONObject: tools, options: [.prettyPrinted, .sortedKeys]),
+           let str = String(data: out, encoding: .utf8) {
+            print(str)
+        }
+    } else {
+        // 默认：人类可读列表（name — summary [mode]）
+        if tools.isEmpty {
+            print("(no plugins enabled)")
+        }
+        for tool in tools {
+            let name = tool["name"] as? String ?? "?"
+            let summary = tool["summary"] as? String ?? ""
+            let mode = tool["mode"] as? String ?? "?"
+            print("\(name) — \(summary) [\(mode)]")
+        }
+    }
+    exit(0)
+}
+
+/// `buddy run <name> [--input '<json>'] [--json]` → IPC launcher_run_tool → 富 JSON。
+/// - `--input`：JSON 对象，匹配 tool 的 inputSchema；handler 提取 `query` 填 PluginInput.query（C-INPUT-CONTRACT）。
+/// - `--json`：输出完整富结果（含 image base64 / candidates 数组）。
+/// - 默认：输出插件 stdout（与 launcher run 一致的人类默认）。
+///
+/// 契约 C-RUN-RESPONSE / C-TOFU-NOBYPASS / C-EXIT-CODE。
+/// 补强 1：execute 阶段用长超时（300s）容 TOFU modal 等待（首次未信任插件弹 NSAlert）。
+private func cmdRun(name: String, input: String, json: Bool) {
+    guard !name.isEmpty else {
+        fputs("Usage: buddy run <name> [--input '<json>'] [--json]\n", stderr)
+        exit(2)
+    }
+    let queryDict: [String: Any] = [
+        "action": "launcher_run_tool",
+        "name": name,
+        "input": input,
+    ]
+    let data: Data
+    do {
+        // 补强 1：connectTimeout 默认 2s（app 未运行快速失败）+ executeTimeout 300s（容 TOFU modal + 慢插件）
+        data = try sendQuery(queryDict, connectTimeout: 5.0, executeTimeout: 300.0)
+    } catch {
+        fputs("\(error)\n", stderr)
+        exit(1)
+    }
+    guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let status = obj["status"] as? String else {
+        fputs("invalid response from app\n", stderr)
+        exit(1)
+    }
+    if status != "ok" {
+        let message = obj["message"] as? String ?? "run failed"
+        fputs("\(message)\n", stderr)
+        exit(1)
+    }
+    guard let result = obj["data"] as? [String: Any] else {
+        fputs("invalid run result data\n", stderr)
+        exit(1)
+    }
+    let exitCode = (result["exit_code"] as? Int) ?? 0
+    if json {
+        // --json：输出完整富结果（C-RUN-RESPONSE：含 image?/candidates?）
+        if let out = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]),
+           let str = String(data: out, encoding: .utf8) {
+            print(str)
+        }
+    } else {
+        // 默认：输出插件 stdout（与 launcher run 一致）
+        let stdout = (result["stdout"] as? String) ?? ""
+        if !stdout.isEmpty {
+            print(stdout)
+        }
+        let stderrStr = (result["stderr"] as? String) ?? ""
+        if !stderrStr.isEmpty {
+            fputs(stderrStr, stderr)
+            if !stderrStr.hasSuffix("\n") { fputs("\n", stderr) }
+        }
+    }
+    // 退出码：插件正常退出透传（0=成功）；not found/trust 拒绝/app 未运行已在上面 exit(1)（C-EXIT-CODE）
     exit(Int32(exitCode))
 }
 

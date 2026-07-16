@@ -287,6 +287,70 @@ CLI mirror `cliDisplaySummary` 同语义（C5 双绑，`cliFirstSentence` 与 `f
 - **Paste 关闭语义**：仅阻断候选展示，`ClipboardHistoryService` Timer 仍记录剪贴板（YAGNI，设置页有 tooltip 说明）。
 - 外部插件开关仍走 `.disabled` 文件（`PluginManager.enable/disable`），两套独立。
 
+### 统一 CLI hub（AI 能力暴露，2026-07-16）
+
+**理念**：把所有「启用的外部插件」能力通过**一个 CLI 契约面**暴露给外部 AI 与人类。外部 AI（Claude Code / 任意 agent）只需读 `buddy tools --json` 拿到动态 tool manifest，再 `buddy run <name>` 执行，无需懂 app 内部架构。**不上 MCP**（CLI + JSON manifest 足够，经 socket IPC 到常驻 app）。**插件零适配**（纯读 plugin.json，复用 `toAgentTool()` 的 schema 合成）。**动态反映启停**（每次 IPC live 计算自 `PluginManager.list()`，无需重启）。
+
+**两个顶层命令**：
+
+```bash
+buddy tools [--json]                        # 列出所有启用外部插件的 AI tool manifest
+buddy run <name> [--input '<json>'] [--json]  # 执行具名插件，返回富 JSON（含 image/candidates）
+```
+
+**manifest 契约（C-MANIFEST-SCHEMA，冻结字段）**：`buddy tools --json` → JSON 数组，每元素五字段必填：
+```json
+{
+  "name": "qr",
+  "summary": "把网址或文本生成二维码图片",
+  "description": "<synthesizeToolDescription 合成的枚举锚点>",
+  "inputSchema": { "type": "object", "properties": {...}, "required": [...] },
+  "mode": "stdin | command | prompt"
+}
+```
+- `inputSchema` 用 **camelCase** key（非 AgentTool Codable 的 `input_schema` snake）；顶层强制 `type:object`（复用 `effectiveToolInputSchema`，防 provider 400）；有 `parameters` 用之，无则回退固定 `{query}`。
+- `mode` 让 AI 区分确定性（stdin/command，直接产出）vs LLM（prompt，单轮对话）。
+- **内置插件不入 manifest**（Calculator/Paste/Screenshot/AppLauncher/SystemCommand 不在 `PluginManager.list()` 范围，C-NO-BUILTIN）。
+
+**run 富响应契约（C-RUN-RESPONSE）**：`buddy run --json` → JSON object：
+```json
+{
+  "name": "qr",
+  "stdout": "...",
+  "stderr": "...",
+  "exit_code": 0,
+  "duration_ms": 42,
+  "stdout_truncated": false,
+  "image": "<base64 PNG, 仅当插件产出图片时出现>",
+  "candidates": [{ "id": "...", "title": "...", "subtitle": "...", "selection": "..." }]
+}
+```
+- `image` = `PluginResult.image`（PNG Data）→ base64 string（仅非 nil 出现，AI 可解码回 PNG）。
+- `candidates` = `PluginResult.candidates`（Codable 序列化，仅非 nil 出现）。
+- `actions`（render-only 按钮）**排除**（UI-only，CLI 不可执行，非 AI 契约）。
+
+**执行链路**：CLI（Foundation-only）→ socket IPC `/tmp/claude-buddy.sock` → `QueryHandler` 新增 action：
+- `launcher_list_tools` → `PluginManager.list()` → 手构 manifest dict（camelCase）→ `{tools:[...], count:N}`。
+- `launcher_run_tool` → `runPluginCore`（find + TOFU + execute，与 `launcher_debug_run_plugin` 共享执行核）→ 富序列化。
+- **CLI 不依赖 BuddyCore**（C-IPC-NO-BUDDYCORE）：manifest 与执行均经 IPC 让 app 算，CLI 只转发。
+
+**TOFU 不绕过（C-TOFU-NOBYPASS）**：`buddy run` 经 `runPluginCore` → `TrustStore.checkAndPrompt`。首次跑未信任插件 → app 弹 NSAlert → CLI 阻塞至用户处理 → 拒绝则 `{status:error,message:"not trusted"}` + exit 非 0。
+- **补强 1（TOFU timeout）**：`sendQuery` 分两段超时 —— connect 阶段短（默认 2s，app 未运行快速失败 <10s）；execute 阶段长（`buddy run` 用 300s，容 TOFU modal 等待 + 慢插件执行）。原单一 `timeout:2.0` 会让首次 TOFU 必超时（用户来不及看框）。
+
+**输入契约（C-INPUT-CONTRACT）**：`--input` 接受 JSON 对象，匹配 tool 的 inputSchema；handler 提取 `query` 字段填 `PluginInput.query`（插件经 stdin `jq -r '.query'` 读的通用内容通道）。**框架不做 input schema 校验**（plugin 自解析，YAGNI）。
+
+**退出码（C-EXIT-CODE）**：插件正常退出 → CLI 透传 `exit_code`（0=成功）；not found / trust 拒绝 / app 未运行 / execute failed → 非 0；app 未运行 <10s 退出不挂死。
+
+**与 `buddy launcher run` 关系（C-DEBUG-ISOLATION）**：
+- `buddy launcher run`（瘦输出 `{name,stdout,stderr,exit_code,duration_ms}`）保留作 back-compat，契约零变化。
+- `buddy run`（富输出 + image/candidates）是新的 AI 友好版。
+- 两者共享执行核 `runPluginCore`（find + TOFU + execute），序列化隔离。
+
+**AI 使用流程**（外部 agent 集成指南）：
+1. `buddy tools --json` → 读 manifest，选对 tool（按 description 锚点 + mode）。
+2. 构造 `--input` JSON（匹配 inputSchema；回退 schema 填 `{"query":"<内容>"}`）。
+3. `buddy run <name> --input '<json>' --json` → 解析富响应（image base64 可解码，candidates 可枚举）。
+
 ### 调试（功能调试，不经键盘自动化）
 
 ```bash

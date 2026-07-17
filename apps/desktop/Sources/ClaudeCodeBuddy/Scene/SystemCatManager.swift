@@ -5,11 +5,20 @@ import Combine
 ///
 /// 系统猫使用 sessionId="__system_update__"，不进入 cats 字典、不被 SessionManager 管理。
 /// 点击后 dismissVersion + 隐藏 + 打开设置关于页。
+///
+/// @MainActor（B3.2 加固）：start/showIfNeeded/handleClick 均主线程调用
+/// （start 由 AppDelegate.applicationDidFinishLaunching 主线程触发；
+/// handleClick 经 BuddyScene.simulateClick，调用方 QueryHandler.handle 已 @MainActor）。
+@MainActor
 final class SystemCatManager {
     static let shared = SystemCatManager()
 
     /// 系统猫的固定 sessionId。
-    static let systemCatSessionId = "__system_update__"
+    ///
+    /// `nonisolated`：纯字符串字面量无需 actor 隔离，脱离 @MainActor 类隔离后
+    /// 可被任意 nonisolated 上下文（BuddyScene.catAtPoint / AppDelegate.onClick 等）安全读取，
+    /// 消除潜伏 Swift 6 strict mode 隔离报错（对照 MEMORY swift6-release-ci-masked-by-cache）。
+    nonisolated static let systemCatSessionId = "__system_update__"
 
     private var systemCat: CatSprite?
     private var cancellables = Set<AnyCancellable>()

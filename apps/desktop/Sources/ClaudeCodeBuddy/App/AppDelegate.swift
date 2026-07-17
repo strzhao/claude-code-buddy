@@ -396,6 +396,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     /// source 标识打开来源（menubar/notify/about/launcher），用于排查日志。
     /// internal（非 private）：launcher ⌘, 快捷键跨文件调用。
+    /// @MainActor：建 NSWindow 必须主线程；可被 socket 后台 Task 经
+    /// handleBuddyStoreShouldOpen 间接调用（B3 加固），编译期保证不 SIGABRT。
+    @MainActor
     func showSettings(source: String = "unknown") {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
@@ -454,6 +457,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// 打开设置窗口并切换到「关于」分类（系统猫点击触发）。
+    /// @MainActor：内部调 showSettings（@MainActor），整链主线程。
+    @MainActor
     func openSettingsToAbout() {
         showSettings(source: "about")
         settingsWindowController?.splitViewController.selectSection(.about)
@@ -466,6 +471,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // CLI 直驱 in-process API 是唯一可靠的自动化打开/切换路径。
 
     /// CLI debug: 打开设置窗口，可选预选分类（general/about/hotkey/ai/skins/plugins）。
+    /// @MainActor：内部调 showSettings（@MainActor），整链主线程。
+    @MainActor
     func debugShowSettings(sectionRaw: String?) {
         showSettings(source: "cli-debug")
         if let raw = sectionRaw, let section = SettingsSection(rawValue: raw) {
@@ -474,7 +481,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// CLI debug: 选中主分类。非法分类 → false；窗口未开则先开。
+    /// @MainActor：内部可能调 showSettings（@MainActor），整链主线程。
     @discardableResult
+    @MainActor
     func debugSelectSection(_ raw: String) -> Bool {
         guard let section = SettingsSection(rawValue: raw) else { return false }
         if settingsWindowController == nil {
@@ -591,7 +600,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return state
     }
 
-    @objc private func handleBuddyStoreShouldOpen() {
+    @MainActor @objc private func handleBuddyStoreShouldOpen() {
         // 经 socket / buddy CLI open_settings 通知进来。
         showSettings(source: "notify")
     }
@@ -658,15 +667,23 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func restartApp() {
-        let bundleURL = Bundle.main.bundleURL
-        let config = NSWorkspace.OpenConfiguration()
-        config.activates = true
-
-        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, error in
-            if let error = error {
-                BuddyLogger.shared.error("restart failed", subsystem: "app", meta: ["error": "\(error)"])
-            }
+        let bundlePath = Bundle.main.bundleURL.path
+        // detached /bin/sh 子进程：父 terminate→exit 后由 launchd 收养继续执行。
+        // trap '' HUP 兜底 controlling-terminal 场景；pgrep 轮询等旧实例真正退出；
+        // open -n 强制 LaunchServices 新建实例（-n 等价 createsNewApplicationInstance=true，
+        // 杜绝 bundle id 残存登记时复用旧实例 → launch 0 items）。
+        // 根因：旧实现用 NSWorkspace.openApplication（createsNewApplicationInstance 默认 false）
+        // 启动"还在运行的自己"→ LaunchServices launch 0 items → terminate 杀唯一实例 → app 消失。
+        let script = RestartHelper.buildScript(bundlePath: bundlePath)
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", script]
+        do {
+            try task.run()
+        } catch {
+            BuddyLogger.shared.error("restart spawn helper failed", subsystem: "app", meta: ["error": "\(error)"])
         }
+        BuddyLogger.shared.info("restart: spawned detached helper", subsystem: "app", meta: ["bundle": bundlePath])
         NSApplication.shared.terminate(nil)
     }
 

@@ -854,16 +854,20 @@ extension BuddyScene: SceneControlling {
     }
 
     func simulateClick(sessionId: String) -> Bool {
-        // 系统猫点击：dismiss + 隐藏 + 打开设置关于页
-        if sessionId == SystemCatManager.systemCatSessionId {
-            SystemCatManager.shared.handleClick()
+        // 调用方均 @MainActor（QueryHandler.handle / AppDelegate.onClick 主线程回调），
+        // SystemCatManager B3.2 标 @MainActor 后用 assumeIsolated 桥接 nonisolated 协议签名。
+        MainActor.assumeIsolated {
+            // 系统猫点击：dismiss + 隐藏 + 打开设置关于页
+            if sessionId == SystemCatManager.systemCatSessionId {
+                SystemCatManager.shared.handleClick()
+                return true
+            }
+
+            guard cats[sessionId] != nil else { return false }
+
+            acknowledgePermission(for: sessionId)
+            removePersistentBadge(for: sessionId)
             return true
         }
-
-        guard cats[sessionId] != nil else { return false }
-
-        acknowledgePermission(for: sessionId)
-        removePersistentBadge(for: sessionId)
-        return true
     }
 }

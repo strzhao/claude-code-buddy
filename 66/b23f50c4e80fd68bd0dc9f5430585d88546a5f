@@ -1,0 +1,153 @@
+apps/desktop/Sources/BuddyCLI/main.swift
+  51135fa6f7b0bfa6 10-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "66b23f50c4e80fd68bd0dc9f5430585d88546a5f",
+  "prompts": {
+    "4005b5e27bc99671": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4e0a95e-7f63-4244-b301-77d1a8110e9d",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "51135fa6f7b0bfa6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "932717ed-ce6a-49b9-ace1-4bcf404692d8",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 874,
+      "total_deletions": 311,
+      "accepted_lines": 3558,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 39,
+          "deletions": 14,
+          "accepted_lines": 26
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/settingswindowcontroller.swift": {
+          "additions": 9,
+          "deletions": 2,
+          "accepted_lines": 9
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/OpenAICompatibleProvider.swift": {
+          "deletions": 24
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "additions": 93,
+          "deletions": 122,
+          "accepted_lines": 93
+        },
+        "homebrew/casks/claude-code-buddy.rb": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/sources/claudecodebuddy/network/queryhandler.swift": {
+          "additions": 252,
+          "deletions": 36,
+          "accepted_lines": 252
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/aboutsettingsviewcontroller.swift": {
+          "additions": 43,
+          "deletions": 31,
+          "accepted_lines": 43
+        },
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionorderacceptancetests.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/sources/claudecodebuddy/launcher/launchermanager.swift": {
+          "additions": 40,
+          "deletions": 1,
+          "accepted_lines": 40
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssidebaracceptancetests.swift": {
+          "additions": 19,
+          "deletions": 17,
+          "accepted_lines": 19
+        },
+        "apps/desktop/tests/buddycoretests/settings/providersettingsinteractionacceptancetests.swift": {
+          "additions": 49,
+          "deletions": 50,
+          "accepted_lines": 49
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "additions": 320,
+          "deletions": 6,
+          "accepted_lines": 3017
+        }
+      }
+    },
+    "6a070739c74b29b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9a22bba-8516-4c09-9b68-71a55130f13f",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 355,
+      "overriden_lines": 67,
+      "per_file_stats": {
+        "apps/desktop/sources/claudecodebuddy/resources/info.plist": {
+          "accepted_lines": 4
+        },
+        "apps/desktop/sources/buddycli/main.swift": {
+          "accepted_lines": 21
+        },
+        "apps/desktop/tests/buddycoretests/settings/settingssectionaitests.swift": {
+          "accepted_lines": 24,
+          "overriden_lines": 8
+        },
+        "apps/desktop/sources/claudecodebuddy/settings/providersettingsviewcontroller.swift": {
+          "accepted_lines": 306,
+          "overriden_lines": 59
+        }
+      }
+    },
+    "75475637de232d16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64342537-bd87-4a79-afbe-852e4827ac9b",
+        "model": "glm-5.2-aliyun"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Provider/OpenAICompatibleProvider.swift": {
+          "accepted_lines": 24
+        }
+      }
+    }
+  }
+}

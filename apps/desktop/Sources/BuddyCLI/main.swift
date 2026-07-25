@@ -7,7 +7,32 @@ import IOKit
 
 private let socketPath = "/tmp/claude-buddy.sock"
 private let colorFilePath = "/tmp/claude-buddy-colors.json"
-private let appVersion = "0.6.0"
+// MARK: - App version
+// 从 bundle Info.plist 动态读 CFBundleShortVersionString，与 app 实际版本同源，根治 release 漏改
+// 硬编码常量（曾一直停留在 0.6.0 —— release 只同步 Info.plist + cask，漏改此常量）。
+// buddy 经 symlink /usr/local/bin/buddy 调用时 Bundle.main 解析失败，故用 proc_pidpath（libproc）
+// 拿进程真实可执行路径（原生 resolve symlink，不受 argv[0] 影响），向上找 .app bundle 读版本。
+@_silgen_name("proc_pidpath")
+private func proc_pidpath(_ pid: Int32, _ buffer: UnsafeMutablePointer<CChar>!, _ buffersize: UInt32) -> Int32
+
+private let appVersion: String = {
+    if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !v.isEmpty {
+        return v
+    }
+    let bufSize = 4096 // PROC_PIDPATHINFO_MAXSIZE（4 * PATH_MAX）
+    let buf = UnsafeMutablePointer<CChar>.allocate(capacity: bufSize)
+    defer { buf.deallocate() }
+    guard proc_pidpath(getpid(), buf, UInt32(bufSize)) > 0 else { return "0.0.0" }
+    var url = URL(fileURLWithPath: String(cString: buf))
+    while url.path != "/" {
+        if url.pathExtension == "app",
+           let v = Bundle(url: url)?.infoDictionary?["CFBundleShortVersionString"] as? String {
+            return v
+        }
+        url = url.deletingLastPathComponent()
+    }
+    return "0.0.0"
+}()
 
 // MARK: - Launcher Config Constants (mirror of Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift)
 // ⚠️ SOURCE OF TRUTH: BuddyCore/Launcher/LauncherConstants.swift

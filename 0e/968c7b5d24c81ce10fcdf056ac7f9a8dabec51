@@ -1,0 +1,29 @@
+.autopilot/project/ai-todo-launcher-plugin/brainstorm.md
+  62079047012dae5b 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "0e968c7b5d24c81ce10fcdf056ac7f9a8dabec51",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 94,
+      "total_deletions": 0,
+      "accepted_lines": 94,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/project/ai-todo-launcher-plugin/brainstorm.md": {
+          "additions": 94,
+          "accepted_lines": 94
+        }
+      }
+    }
+  }
+}

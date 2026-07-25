@@ -1,0 +1,69 @@
+apps/web/src/content/plugin-dev-guide.ts
+  62079047012dae5b 68,70,160-213
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginInput.swift
+  62079047012dae5b 13-23,25-29,34
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginInputParametersTests.swift
+  62079047012dae5b 1-74
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerBuildPluginInputTests.swift
+  62079047012dae5b 1-65
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginInputParametersWireAcceptanceTests.swift
+  62079047012dae5b 1-127
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  62079047012dae5b 405,427-428,511,514,517,519-520,525
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  62079047012dae5b 736-738,937-939,1255-1274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "8341665a33f143e440e0c49bc68584ef53fb6b49",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 375,
+      "total_deletions": 14,
+      "accepted_lines": 375,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/web/src/content/plugin-dev-guide.ts": {
+          "additions": 57,
+          "deletions": 1,
+          "accepted_lines": 57
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 9,
+          "deletions": 3,
+          "accepted_lines": 9
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginInputParametersWireAcceptanceTests.swift": {
+          "additions": 127,
+          "accepted_lines": 127
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginInputParametersTests.swift": {
+          "additions": 74,
+          "accepted_lines": 74
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginInput.swift": {
+          "additions": 17,
+          "deletions": 2,
+          "accepted_lines": 17
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerBuildPluginInputTests.swift": {
+          "additions": 65,
+          "accepted_lines": 65
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 26,
+          "deletions": 8,
+          "accepted_lines": 26
+        }
+      }
+    }
+  }
+}

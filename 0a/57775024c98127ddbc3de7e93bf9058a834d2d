@@ -1,0 +1,31 @@
+apps/desktop/tests/BuddyCoreTests/Launcher/SnipFlatAccordionAcceptanceTests.swift
+  62079047012dae5b 363,593
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "0a57775024c98127ddbc3de7e93bf9058a834d2d",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 7,
+      "accepted_lines": 2,
+      "overriden_lines": 1,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/SnipFlatAccordionAcceptanceTests.swift": {
+          "additions": 9,
+          "deletions": 7,
+          "accepted_lines": 2,
+          "overriden_lines": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+.autopilot/knowledge/patterns/2026-07-30-osascript-timeout-guard-hook-portability.md
+  f474d167b9066b90 1-9
+.autopilot/knowledge/index.md
+  f474d167b9066b90 25-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "97b4a1f4081d23864ed7a233f0b12be9ae2bedb4",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "accepted_lines": 1
+        }
+      }
+    },
+    "f474d167b9066b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5427aa09-d92b-4cb4-b113-89ef24ae65be",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 11,
+      "total_deletions": 1,
+      "accepted_lines": 11,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        ".autopilot/knowledge/index.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        ".autopilot/knowledge/patterns/2026-07-30-osascript-timeout-guard-hook-portability.md": {
+          "additions": 9,
+          "accepted_lines": 9
+        }
+      }
+    }
+  }
+}

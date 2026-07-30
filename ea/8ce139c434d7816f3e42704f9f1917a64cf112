@@ -1,0 +1,96 @@
+hooks/buddy-hook.sh
+  f474d167b9066b90 34-45,47,58
+plugin/.claude-plugin/plugin.json
+  f474d167b9066b90 3
+plugin/scripts/buddy-hook.sh
+  f474d167b9066b90 34-45,47,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ea8ce139c434d7816f3e42704f9f1917a64cf112",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 374,
+      "total_deletions": 3,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 7,
+          "deletions": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "additions": 18,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/TodoBoardSelectionAcceptanceTests.swift": {
+          "additions": 341
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift": {
+          "additions": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 5,
+          "deletions": 2
+        }
+      }
+    },
+    "f474d167b9066b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5427aa09-d92b-4cb4-b113-89ef24ae65be",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 412,
+      "accepted_lines": 41,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/TodoBoardSelectionAcceptanceTests.swift": {
+          "deletions": 341
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "deletions": 18
+        },
+        "hooks/buddy-hook.sh": {
+          "additions": 14,
+          "deletions": 2,
+          "accepted_lines": 14
+        },
+        "plugin/.claude-plugin/plugin.json": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift": {
+          "deletions": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 9,
+          "deletions": 33,
+          "accepted_lines": 9
+        },
+        "plugin/scripts/buddy-hook.sh": {
+          "additions": 14,
+          "deletions": 2,
+          "accepted_lines": 14
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 3,
+          "deletions": 12,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}

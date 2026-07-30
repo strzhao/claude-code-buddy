@@ -1,6 +1,6 @@
 {
   "name": "claude-code-buddy-hooks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Claude Code Buddy 的 hooks 插件 —— 将 Claude Code 会话状态发送给 Buddy App，让 Dock 上的猫咪动起来",
   "author": {
     "name": "strzhao"

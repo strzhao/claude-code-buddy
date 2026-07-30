@@ -31,8 +31,20 @@ TERMINAL_ID=""
 if [ -f "$TERMINAL_CACHE" ]; then
     TERMINAL_ID=$(cat "$TERMINAL_CACHE")
 else
+    # Detect a GNU coreutils timeout utility to guard osascript calls (best-effort
+    # terminal_id capture; terminal_id is optional, so a missing timeout never blocks).
+    if [ -z "${_BUDDY_TIMEOUT+x}" ]; then
+        if command -v timeout >/dev/null 2>&1; then
+            _BUDDY_TIMEOUT="timeout 0.5"
+        elif command -v gtimeout >/dev/null 2>&1; then
+            _BUDDY_TIMEOUT="gtimeout 0.5"
+        else
+            _BUDDY_TIMEOUT=""
+        fi
+        export _BUDDY_TIMEOUT
+    fi
     if [ -n "$HOOK_CWD" ]; then
-        TERMINAL_ID=$(osascript -e "
+        TERMINAL_ID=$($_BUDDY_TIMEOUT osascript -e "
           tell application \"Ghostty\"
             repeat with t in terminals of every tab of every window
               if working directory of t is \"$HOOK_CWD\" then
@@ -43,7 +55,7 @@ else
         " 2>/dev/null)
     fi
     if [ -z "$TERMINAL_ID" ]; then
-        TERMINAL_ID=$(osascript -e '
+        TERMINAL_ID=$($_BUDDY_TIMEOUT osascript -e '
           tell application "Ghostty"
             set t to selected tab of front window
             set term to focused terminal of t

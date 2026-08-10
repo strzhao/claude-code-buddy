@@ -105,6 +105,22 @@ event_map = {
 }
 event = event_map.get(hook, "idle")
 
+# Suppress task_complete (sound + cat complete-state) inside an active
+# autopilot session. autopilot drives its phase loop via Stop
+# decision:block, so most Stop events are phase transitions, not real
+# completions. Sound ownership moves to autopilot's notify.sh.
+def _autopilot_active(cwd_):
+    if not cwd_:
+        return False
+    base = os.path.join(cwd_, ".autopilot", "runtime")
+    if os.path.isfile(os.path.join(base, "active.ptr")):
+        return True
+    import glob
+    return any(os.path.isfile(p) for p in glob.glob(os.path.join(base, "sessions", "*", "active.ptr")))
+
+if hook == "Stop" and _autopilot_active(cwd):
+    event = "idle"
+
 msg = {
     "session_id": sid,
     "event": event,

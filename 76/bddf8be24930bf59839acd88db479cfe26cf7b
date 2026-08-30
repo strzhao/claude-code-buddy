@@ -1,0 +1,443 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift
+  6f55f8ef29c22871 54-56,78-82
+.autopilot/knowledge/index.md
+  6f55f8ef29c22871 5,28,51
+apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedRoutePromptFilterAcceptanceTests.swift
+  6f55f8ef29c22871 1-236
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift
+  6f55f8ef29c22871 35-37,70,75,77-80,85-86,88-91,93-94,120-121,123,215,217
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift
+  6f55f8ef29c22871 75
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LockedCommandChip.swift
+  6f55f8ef29c22871 3,5,7
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift
+  6f55f8ef29c22871 100
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherActionRow.swift
+  6f55f8ef29c22871 21,28-37,41-44
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherUnifiedCandidateMixAcceptanceTests.swift
+  6f55f8ef29c22871 1-351
+apps/desktop/tests/BuddyCoreTests/Launcher/LockedCommandStateMachineAcceptanceTests.swift
+  6f55f8ef29c22871 40-41,52,58-61,65,68-69,71-72,75,80-81,90,93,133,136-137,142,146-148,153,156-157,162,164,166-167,169-170,172,180,190,211,214,268,271,292,295,308-309,319-322,346,349
+apps/desktop/tests/BuddyCoreTests/Launcher/InstantActionDispatchAcceptanceTests.swift
+  6f55f8ef29c22871 67,135,137,204,254,282
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInstantCandidateView.swift
+  6f55f8ef29c22871 3-5,10-11,35-41
+apps/desktop/tests/BuddyCoreTests/Launcher/SystemCommandAcceptanceTests.swift
+  6f55f8ef29c22871 60,598,629,663
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugUnifiedCandidatesAcceptanceTests.swift
+  6f55f8ef29c22871 1-241
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift
+  6f55f8ef29c22871 67-69,71-73
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  6f55f8ef29c22871 30-33,43-44,54,332-335,341-345,347-351,361-366
+apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginEnabledStoreTests.swift
+  6f55f8ef29c22871 132
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherUnifiedSourceContractAcceptanceTests.swift
+  6f55f8ef29c22871 1-112
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/UnifiedPluginScorer.swift
+  6f55f8ef29c22871 1,3,5-24,26-31,33-48,51,54,56-59,61,63-71,73,75-90,92-96,99-138,141-144
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift
+  6f55f8ef29c22871 10-13,131,141-142,188-189,282,284-296,298,397-398,404
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginEnterDispatchAcceptanceTests.swift
+  6f55f8ef29c22871 1-555
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginIconManifestContractAcceptanceTests.swift
+  6f55f8ef29c22871 1-186
+apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedPluginScorerAcceptanceTests.swift
+  6f55f8ef29c22871 1-186
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift
+  6f55f8ef29c22871 82-99
+apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinRegistryArbitrationAcceptanceTests.swift
+  6f55f8ef29c22871 58,309
+apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/ContentColumnView.swift
+  6f55f8ef29c22871 83,85
+apps/desktop/tests/BuddyCoreTests/BuiltinPluginToggleAcceptanceTests.swift
+  6f55f8ef29c22871 48
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Screenshot/ScreenshotPlugin.swift
+  6f55f8ef29c22871 143
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift
+  6f55f8ef29c22871 33-34,65,74,78,81,83-98,201,272,275,277,319-320,324,330-331,343,352-353,420,422,435-437,442,467-486,489-490,493,576-577,584,591,595-598,600,607
+apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestIconTests.swift
+  6f55f8ef29c22871 1-115
+.autopilot/knowledge/patterns/2026-06-25-build-time-fetch-gitignore-artifact-compiled-plugin-hotreload.md
+  6f55f8ef29c22871 19
+.autopilot/knowledge/patterns/2026-08-29-upstream-score-recomputed-downstream-zero.md
+  6f55f8ef29c22871 1-12
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherRouteConflictAcceptanceTests.swift
+  b733abd0bbe61a58 7-8,10-14,16-22,56,102,107,113,115-116,119-120,125-131,134-137,141,144-147,150,152-155,158-160,162,165-169,172,174,179,182-185,187,190,192-195,197,201-203,206,208-210,213-215,220-221,224,226-227,232-235,237-239,241,243,246,248-251,255-256,258-266
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugQueryHandlerAcceptanceTests.swift
+  6f55f8ef29c22871 151,161,324,377,431,482,520,560
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/LauncherAction.swift
+  6f55f8ef29c22871 6,9,11,13,15,17-20,22
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherRouterShortCircuitAcceptanceTests.swift
+  6f55f8ef29c22871 157-158,176
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/System/SystemCommandPlugin.swift
+  6f55f8ef29c22871 87
+apps/desktop/CLAUDE.md
+  6f55f8ef29c22871 43,390,427,429,431,433,435,437,439,441,443
+apps/desktop/Package.swift
+  6f55f8ef29c22871 51
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest+ToolDescription.swift
+  6f55f8ef29c22871 33-36
+apps/desktop/tests/BuddyCoreTests/Launcher/LogCoverageAcceptanceTests.swift
+  6f55f8ef29c22871 442
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerInstantTests.swift
+  6f55f8ef29c22871 82,108,221
+apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedPluginScorerTests.swift
+  6f55f8ef29c22871 1-61,105-220
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/marketplace.json
+  6f55f8ef29c22871 12,22,32,42
+.autopilot/knowledge/decisions/2026-08-29-unified-candidate-mix-single-list-unified-score.md
+  6f55f8ef29c22871 1-23
+apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginRegistryTests.swift
+  6f55f8ef29c22871 40
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherLockedCommandStateMachineTests.swift
+  b733abd0bbe61a58 6-7,9-10,74,76,79-80,83,86,93,95,108,114,120,123,134,136,147,153,155,158-163,166,168-173,175,183,190,196,219,225
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppLauncherPlugin.swift
+  6f55f8ef29c22871 41-42,44,55-56,63
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  6f55f8ef29c22871 4-5,7-8,20,55,57,63,66,68-72,80-81,94,238,240-294,296-300,302-303,305,317-319,321,342,346,361,363-371,374-387,390-411,414,422,467-521,949,992,1155,1157-1158,1164,1173
+apps/desktop/Sources/BuddyCLI/main.swift
+  6f55f8ef29c22871 2142-2145,2151-2153,2507-2508
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherCandidatePanelHeightAcceptanceTests.swift
+  6f55f8ef29c22871 74,94,110,129,146,161,165,179,183,200,223,227,264
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerUnifiedCandidatesTests.swift
+  6f55f8ef29c22871 4,6,8-16,19,24-32,36-41,45-92,94,96-100,102-121,124-135,138-151,154-173,176-188,191-196,198-200,203-251,253-264,266-270,273-293,296-308,311-415
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "76bddf8be24930bf59839acd88db479cfe26cf7b",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "accepted_lines": 1
+        }
+      }
+    },
+    "6f55f8ef29c22871": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c42574c2-176f-462e-9edb-143aa4402829",
+        "model": "glm-5.3"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3646,
+      "total_deletions": 2155,
+      "accepted_lines": 3499,
+      "overriden_lines": 1,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/marketplace.json": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInstantCandidateView.swift": {
+          "additions": 22,
+          "deletions": 13,
+          "accepted_lines": 12
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugUnifiedCandidatesAcceptanceTests.swift": {
+          "additions": 243,
+          "deletions": 2,
+          "accepted_lines": 241
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginEnabledStoreTests.swift": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherUnifiedCandidateMixAcceptanceTests.swift": {
+          "additions": 353,
+          "deletions": 2,
+          "accepted_lines": 351
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginRegistryTests.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedPluginScorerAcceptanceTests.swift": {
+          "additions": 188,
+          "deletions": 2,
+          "accepted_lines": 186
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest.swift": {
+          "additions": 28,
+          "deletions": 3,
+          "accepted_lines": 28
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerUnifiedCandidatesTests.swift": {
+          "additions": 416,
+          "accepted_lines": 416
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 224,
+          "deletions": 179,
+          "accepted_lines": 200
+        },
+        ".autopilot/knowledge/patterns/2026-08-29-upstream-score-recomputed-downstream-zero.md": {
+          "additions": 12,
+          "accepted_lines": 12
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateViewSnapshotTests/test_candidateView_fiveCandidates_showsSelected.1.png": {
+          "deletions": 227
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/LauncherAction.swift": {
+          "additions": 10,
+          "deletions": 6,
+          "accepted_lines": 10
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Calculator/CalculatorPlugin.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LogCoverageAcceptanceTests.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherCandidateView.swift": {
+          "deletions": 153
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherRouter.swift": {
+          "additions": 24,
+          "deletions": 88,
+          "accepted_lines": 24
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 9,
+          "deletions": 1,
+          "accepted_lines": 9
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedPluginScorerTests.swift": {
+          "additions": 177,
+          "accepted_lines": 177
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginIconManifestContractAcceptanceTests.swift": {
+          "additions": 186,
+          "accepted_lines": 186
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/System/SystemCommandPlugin.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherUnifiedSourceContractAcceptanceTests.swift": {
+          "additions": 112,
+          "accepted_lines": 112
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateViewSnapshotTests/test_candidateView_singleCandidate.1.png": {
+          "deletions": 76
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherRouterShortCircuitAcceptanceTests.swift": {
+          "additions": 3,
+          "deletions": 2,
+          "accepted_lines": 3
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginManifestIconTests.swift": {
+          "additions": 115,
+          "accepted_lines": 115
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Settings/Components/ContentColumnView.swift": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift": {
+          "additions": 97,
+          "deletions": 166,
+          "accepted_lines": 79
+        },
+        "apps/desktop/Package.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Screenshot/ScreenshotPlugin.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/SystemCommandAcceptanceTests.swift": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift": {
+          "additions": 18,
+          "accepted_lines": 18
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateViewSnapshotTests/test_candidateView_selectedRow_hasSageBackground.1.png": {
+          "deletions": 296
+        },
+        "apps/desktop/tests/buddycoretests/launcher/lockedcommandstatemachineacceptancetests.swift": {
+          "additions": 16,
+          "deletions": 12,
+          "accepted_lines": 16
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/UnifiedPluginScorer.swift": {
+          "additions": 167,
+          "deletions": 21,
+          "accepted_lines": 146
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/UnifiedRoutePromptFilterAcceptanceTests.swift": {
+          "additions": 236,
+          "accepted_lines": 236
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppIndex.swift": {
+          "additions": 8,
+          "deletions": 2,
+          "accepted_lines": 8
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerInstantTests.swift": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherActionRow.swift": {
+          "additions": 17,
+          "deletions": 2,
+          "accepted_lines": 17
+        },
+        ".autopilot/knowledge/decisions/2026-08-29-unified-candidate-mix-single-list-unified-score.md": {
+          "additions": 23,
+          "accepted_lines": 23
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherWatermarkChipAcceptanceTests.swift": {
+          "deletions": 349
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/PluginWatermarkChip.swift": {
+          "additions": 3,
+          "deletions": 22,
+          "accepted_lines": 3
+        },
+        ".autopilot/knowledge/patterns/2026-06-25-build-time-fetch-gitignore-artifact-compiled-plugin-hotreload.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherConstants.swift": {
+          "additions": 6,
+          "deletions": 2,
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateViewSnapshotTests/test_candidateView_empty_noContent.1.png": {
+          "deletions": 9
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Plugin/PluginManifest+ToolDescription.swift": {
+          "additions": 5,
+          "deletions": 3,
+          "accepted_lines": 4
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 11,
+          "deletions": 35,
+          "accepted_lines": 11
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LockedCommandStateMachineAcceptanceTests.swift": {
+          "additions": 53,
+          "deletions": 56,
+          "accepted_lines": 53
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/AppLauncher/AppLauncherPlugin.swift": {
+          "additions": 6,
+          "deletions": 4,
+          "accepted_lines": 6
+        },
+        "apps/desktop/tests/BuddyCoreTests/BuiltinPluginToggleAcceptanceTests.swift": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherCandidatePanelHeightAcceptanceTests.swift": {
+          "additions": 14,
+          "deletions": 19,
+          "accepted_lines": 13,
+          "overriden_lines": 1
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/InstantActionDispatchAcceptanceTests.swift": {
+          "additions": 6,
+          "deletions": 5,
+          "accepted_lines": 6
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LockedCommandChip.swift": {
+          "additions": 31,
+          "deletions": 2,
+          "accepted_lines": 29
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateSnapshotTests/test_C3_selectedRow_hasSageIndicatorBar.C3_selectedRow0_sageIndicator.png": {
+          "deletions": 130
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinRegistryArbitrationAcceptanceTests.swift": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/PluginEnterDispatchAcceptanceTests.swift": {
+          "additions": 557,
+          "deletions": 2,
+          "accepted_lines": 555
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherDebugQueryHandlerAcceptanceTests.swift": {
+          "additions": 56,
+          "deletions": 48,
+          "accepted_lines": 16
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 30,
+          "deletions": 10,
+          "accepted_lines": 29
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestIconTests.swift": {
+          "additions": 136,
+          "deletions": 21,
+          "accepted_lines": 115
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/__Snapshots__/LauncherCandidateSnapshotTests/test_C3_unselectedRow_noIndicatorBar.C3_unselectedRow0_noIndicator.png": {
+          "deletions": 174
+        }
+      }
+    },
+    "b733abd0bbe61a58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b906f9e-c295-4821-af3a-7dca290abaa1",
+        "model": "glm-5.3"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 149,
+      "total_deletions": 413,
+      "accepted_lines": 149,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherRouteConflictAcceptanceTests.swift": {
+          "additions": 109,
+          "deletions": 353,
+          "accepted_lines": 109
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherLockedCommandStateMachineTests.swift": {
+          "additions": 40,
+          "deletions": 60,
+          "accepted_lines": 40
+        }
+      }
+    }
+  }
+}

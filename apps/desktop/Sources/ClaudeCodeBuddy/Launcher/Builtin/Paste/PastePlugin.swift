@@ -97,6 +97,7 @@ final class PastePlugin: BuiltinPlugin {
             title: title,
             subtitle: subtitle,
             icon: icon,
+            iconEmoji: nil,
             pluginId: self.id,
             // score 按 index 降序（snapshot 已按 ts 倒序，越前越新）
             score: max(1000 - index * 10, 0),

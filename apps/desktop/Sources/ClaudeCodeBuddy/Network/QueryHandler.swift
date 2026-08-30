@@ -27,6 +27,10 @@ final class QueryHandler {
     private let trustStore: TrustStore
     /// C4 launcher run：插件执行器（stdin/command 直驱）。测试注入 mock。
     private let pluginDispatcher: PluginDispatcher
+    /// D9 debug candidates：统一混排候选源（LauncherManager.unifiedCandidates）。
+    /// Optional + handler 内 resolve（同 registry pattern，避免 nonisolated 默认参数引用
+    /// @MainActor 的 LauncherManager.shared）。测试经 LauncherManager.shared 的 override seams 注入。
+    private let launcherManager: LauncherManager?
 
     init(
         sessionManager: SessionManager,
@@ -36,7 +40,8 @@ final class QueryHandler {
         pasteboard: NSPasteboard = .general,
         pluginManager: PluginManager = .shared,
         trustStore: TrustStore = .shared,
-        pluginDispatcher: PluginDispatcher = .shared
+        pluginDispatcher: PluginDispatcher = .shared,
+        launcherManager: LauncherManager? = nil
     ) {
         self.sessionManager = sessionManager
         self.scene = scene
@@ -46,6 +51,7 @@ final class QueryHandler {
         self.pluginManager = pluginManager
         self.trustStore = trustStore
         self.pluginDispatcher = pluginDispatcher
+        self.launcherManager = launcherManager
     }
 
     // MARK: - Public
@@ -323,20 +329,26 @@ final class QueryHandler {
         registry ?? BuiltinPluginRegistry.shared
     }
 
-    /// launcher_debug_candidates → registry.actions(for: q) → {query, count, candidates[]}
-    /// 契约：请求字段 query:String（非空）；响应候选字段 pluginId/title/subtitle/score。
+    /// D9：debug candidates → LauncherManager.unifiedCandidates(for:)（统一混排，UI 与 CLI 共用）
+    /// → {query, count, candidates[]}。
+    /// 契约 C-DEBUG-CLI：单一数组，元素含 pluginId/title/subtitle/score/source
+    /// （source ∈ {app, builtin, plugin}），全局按 score 降序。
     @MainActor
     private func handleLauncherDebugCandidates(query: [String: Any]) async -> Data {
         guard let q = query["query"] as? String, !q.isEmpty else {
             return errorResponse(message: "missing 'query'")
         }
-        let acts = await resolvedRegistry().actions(for: q)
-        let candidates: [[String: Any]] = acts.map {
+        let manager = launcherManager ?? LauncherManager.shared
+        // C-DEBUG-CLI：注入链对齐 debug perform 的 resolvedRegistry() 语义——
+        // QueryHandler(registry:) 参数须经统一合并管线生效（manager.registryOverride 优先级更高）
+        let acts = await manager.unifiedCandidates(for: q, externalRegistry: resolvedRegistry())
+        let candidates: [[String: Any]] = acts.map { action in
             [
-                "pluginId": $0.pluginId,
-                "title": $0.title,
-                "subtitle": $0.subtitle ?? "",
-                "score": $0.score,
+                "pluginId": action.pluginId,
+                "title": action.title,
+                "subtitle": action.subtitle ?? "",
+                "score": action.score,
+                "source": Self.unifiedSource(action),
             ]
         }
         return okResponse(data: [
@@ -344,6 +356,14 @@ final class QueryHandler {
             "count": acts.count,
             "candidates": candidates,
         ])
+    }
+
+    /// C-DEBUG-CLI source 判定：插件候选 id 带 "plugin:" 前缀（unifiedCandidates 映射约定）；
+    /// app-launcher 候选 = app；其余 = builtin。
+    private static func unifiedSource(_ action: LauncherAction) -> String {
+        if action.id.hasPrefix("plugin:") { return "plugin" }
+        if action.pluginId == "app-launcher" { return "app" }
+        return "builtin"
     }
 
     /// launcher_debug_perform → registry.actions(for: q)[index].perform() → 读 pasteboard →

@@ -129,7 +129,7 @@ final class BuiltinPluginRegistryEnabledFilterTests: XCTestCase {
         let description = "测试插件详细说明"
         func actions(for query: String) async -> [LauncherAction] {
             guard !query.isEmpty else { return [] }
-            return [LauncherAction(id: "act-\(id)", title: "Act \(id)", subtitle: nil, icon: nil, pluginId: id, score: 500, perform: {})]
+            return [LauncherAction(id: "act-\(id)", title: "Act \(id)", subtitle: nil, icon: nil, iconEmoji: nil, pluginId: id, score: 500, perform: {})]
         }
     }
 

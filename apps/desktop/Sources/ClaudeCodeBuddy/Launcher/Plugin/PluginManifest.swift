@@ -7,6 +7,10 @@ struct PluginManifest: Codable, Equatable {
     /// C1：一句话人话摘要（可选）。展示层经 `displaySummary` 降级，永不拿到空值。
     /// 加载层不拒绝无 summary 的插件（向后兼容，不破坏用户现有插件）。
     let summary: String?
+    /// C-ICON-FIELD：emoji 图标（可选，约定单字符但不强制）。
+    /// 候选行渲染优先级：icon(NSImage) → iconEmoji(Text) → SF Symbol fallback。
+    /// decode `decodeIfPresent ?? nil`，旧 plugin.json 缺字段不导致整体 decode 失败（向后兼容铁律）。
+    let icon: String?
     let keywords: [String]
     let timeout: Int?
     let modeConfig: PluginModeConfig
@@ -124,6 +128,7 @@ extension PluginManifest {
         case systemPrompt, maxIterations, model, autoCopyToClipboard
         case deps
         case parameters
+        case icon
     }
 
     init(from decoder: Decoder) throws {
@@ -133,6 +138,8 @@ extension PluginManifest {
         description = try c.decode(String.self, forKey: .description)
         // C1：summary 可选，缺失返回 nil（向后兼容旧 plugin.json）
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        // C-ICON-FIELD：icon 可选，缺失/null 返回 nil（向后兼容旧 plugin.json，整体 decode 不失败）
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
         keywords = try c.decodeIfPresent([String].self, forKey: .keywords) ?? []
         timeout = try c.decodeIfPresent(Int.self, forKey: .timeout)
 
@@ -178,6 +185,8 @@ extension PluginManifest {
         try c.encode(version, forKey: .version)
         try c.encode(description, forKey: .description)
         try c.encodeIfPresent(summary, forKey: .summary)
+        // C-ICON-FIELD：icon 可选，nil 时不序列化（与 legacy 产物一致）
+        try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(keywords, forKey: .keywords)
         try c.encodeIfPresent(timeout, forKey: .timeout)
         switch modeConfig {
@@ -270,9 +279,23 @@ extension PluginManifest {
     var effectiveTimeout: Int { timeout ?? LauncherConstants.pluginDefaultTimeoutSec }
 }
 
-// MARK: - C1 displaySummary 降级（SOURCE OF TRUTH: PluginManifest.displaySummary）
+// MARK: - D8.2 有效触发词（单字过滤）
 extension PluginManifest {
-    /// 展示用 summary 取值优先级（C1 契约）：
+    /// 有效触发词（D8.2，C-NO-REGRESS ⑥）：长度 ≥2 的 keyword（trim 后）。
+    ///
+    /// 单字 keyword（如 qr 的「码」）不作为任何 LLM 触发锚点——tool description 的触发词列表
+    /// 与路由 system prompt 的 `(keywords: ...)` 拼接一律经此访问器，让「密码」「验证码」
+    /// 不再因单字锚点误导 LLM 选中 qr（修 2026-07-01 已知限制的 AI 流通道）。
+    /// 多字 keyword（「二维码」等）不受影响。
+    var effectiveTriggerKeywords: [String] {
+        keywords
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count >= 2 }
+    }
+}
+
+// MARK: - C1 displaySummary 降级（SOURCE OF TRUTH: PluginManifest.displaySummary）
+extension PluginManifest {    /// 展示用 summary 取值优先级（C1 契约）：
     /// 1. `summary` 非空（trim 后）→ 用 summary
     /// 2. 否则取 `description` 首句（按中文句号 `。` / 英文句号 `.` / 换行切第一段，trim）
     /// 3. 都空 → 用 `name`
@@ -371,12 +394,14 @@ extension PluginManifest {
         requiredPath: [String]? = nil,
         summary: String? = nil,
         deps: [PluginDep] = [],
-        parameters: [String: AnyCodable]? = nil
+        parameters: [String: AnyCodable]? = nil,
+        icon: String? = nil
     ) {
         self.name = name
         self.version = version
         self.description = description
         self.summary = summary
+        self.icon = icon
         self.keywords = keywords
         self.timeout = timeout
         self.parameters = parameters

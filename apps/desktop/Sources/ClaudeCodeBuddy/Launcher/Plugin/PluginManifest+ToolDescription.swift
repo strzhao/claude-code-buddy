@@ -30,8 +30,10 @@ extension PluginManifest {
 
         var parts: [String] = [main]
 
-        // 触发词段（keywords 非空时附加，帮弱模型锚点匹配）
-        let kws = keywords.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        // 触发词段（有效触发词非空时附加，帮弱模型锚点匹配）。
+        // D8.2：经 effectiveTriggerKeywords 过滤单字 keyword——单字「码」不再作为 LLM 触发锚点
+        // （防「密码」被误导路由到 qr，AI 流通道与 UI 档位排除双通道修复）。
+        let kws = effectiveTriggerKeywords
         if !kws.isEmpty {
             parts.append("触发：" + kws.joined(separator: "、"))
         }

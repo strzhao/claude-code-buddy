@@ -51,7 +51,9 @@ final class AppIndex {
 
     /// 纯内存搜索（C4 契约：按分数降序、同分按 name 字典序、过滤分>0、截断到 limit）。
     /// query 为空返回 []。
-    func search(_ query: String, limit: Int) -> [AppEntry] {
+    /// 带分数检索（C-UNIFIED-SCORE）：返回 alias 最高分，供统一混排直接使用——
+    /// 避免「alias 命中（如 wechat→微信）但显示名重打分为 0」导致 app 行 0 分进列表/排序失真。
+    func scoredSearch(_ query: String, limit: Int) -> [(entry: AppEntry, score: Int)] {
         guard !query.isEmpty else { return [] }
 
         // 打分 + 过滤：对每个 entry 取所有别名（显示名 + bundle 英文名/标识符成分）的最高分
@@ -73,7 +75,11 @@ final class AppIndex {
             return lhs.entry.name < rhs.entry.name
         }
 
-        return Array(scored.prefix(limit).map(\.entry))
+        return Array(scored.prefix(limit))
+    }
+
+    func search(_ query: String, limit: Int) -> [AppEntry] {
+        scoredSearch(query, limit: limit).map(\.entry)
     }
 }
 

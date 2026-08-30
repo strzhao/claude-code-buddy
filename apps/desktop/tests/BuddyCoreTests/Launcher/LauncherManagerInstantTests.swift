@@ -79,6 +79,7 @@ final class LauncherManagerInstantTests: XCTestCase {
             title: "Test App",
             subtitle: nil,
             icon: nil,
+            iconEmoji: nil,
             pluginId: "app-launcher",
             score: 100,
             perform: { performed = true }
@@ -104,6 +105,7 @@ final class LauncherManagerInstantTests: XCTestCase {
             title: "Broken App",
             subtitle: nil,
             icon: nil,
+            iconEmoji: nil,
             pluginId: "app-launcher",
             score: 100,
             perform: { throw LauncherError.appLaunchFailed("BrokenApp") }
@@ -216,6 +218,7 @@ final class LauncherManagerInstantTests: XCTestCase {
             title: title,
             subtitle: nil,
             icon: nil,
+            iconEmoji: nil,
             pluginId: "test-plugin",
             score: 100,
             perform: {}

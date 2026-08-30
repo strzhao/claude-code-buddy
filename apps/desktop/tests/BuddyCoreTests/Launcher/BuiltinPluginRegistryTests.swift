@@ -37,6 +37,7 @@ final class BuiltinPluginRegistryTests: XCTestCase {
             title: title,
             subtitle: nil,
             icon: nil,
+            iconEmoji: nil,
             pluginId: pluginId,
             score: score,
             perform: {}

@@ -16,6 +16,7 @@
 - Makefile 资源准备用链式依赖（不靠同行 prerequisite 顺序）；release/bundle 改依赖时保留编译参数。
 - 编译型插件：优先 shell 化（社区友好）；若需编译（零依赖能力如 CoreImage），binary 入库 monorepo（git index `100755`，`.gitattributes` 标记 binary）或 release asset；`ensureStdinChmod` 已兜底 +x。
 - QA 真机验收编译型插件热更新：模拟用户侧（`rm launcher-plugins/<name>` + sync gitSubdir clone）验证 binary 就位 + 可执行。
+- **`git clone`（含 file:// 本地路径）只取 HEAD commit——monorepo 工作区/staged 未 commit 的改动 fetch 拿不到**。改 monorepo 资源后必须先 commit（哪怕不 push）再 fetch，否则 E2E 验证的是旧资源且极易误判为链路 bug。（核对锚点：2026-08-29 源码版本）
 
 ## ✅ 已落地（2026-06-28，社区插件优先闭环）
 

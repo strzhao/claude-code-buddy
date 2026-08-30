@@ -2139,12 +2139,18 @@ private struct CLITrustFile: Codable {
     var records: [CLITrustRecord]
 }
 
-private struct CLIPluginManifestCheck: Codable {
+/// internal（非 private）：C-ICON-FIELD 双绑测试（场景6.P3）经 @testable import `buddy-cli`
+/// 直读此 mirror，断言 CLI decode 与 BuddyCore PluginManifest decode 的 icon 逐字一致。
+/// ⚠️ 仍 Foundation-only，不依赖 BuddyCore。
+struct CLIPluginManifestCheck: Codable {
     let name: String
     let version: String
     let description: String
     /// C1/C5 mirror：与 BuddyCore PluginManifest.summary 同构（可选，降级）。
     let summary: String?
+    /// C-ICON-FIELD mirror：与 BuddyCore PluginManifest.icon 同构（可选 emoji）。
+    /// Optional 属性由编译器合成 decodeIfPresent，缺字段不报错（向后兼容铁律一致）。
+    let icon: String?
     /// C1/C5：keywords 可选（向后兼容无 keywords 的旧 plugin.json，自动合成 decodeIfPresent 容错）
     let keywords: [String]?
     let mode: String?              // nil 默认 "stdin"
@@ -2498,6 +2504,8 @@ private func cmdLauncherInspect(_ name: String) {
         "trust_status": status,
         "install_path": dir.path
     ]
+    // C-ICON-FIELD：icon key 仅在 manifest 声明了 icon 时出现（nil 省略）
+    if let icon = m.icon { out["icon"] = icon }
     switch resolvedMode {
     case "stdin":
         if let cmd = m.cmd { out["cmd"] = cmd }

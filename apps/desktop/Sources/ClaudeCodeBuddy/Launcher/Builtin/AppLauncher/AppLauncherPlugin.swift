@@ -38,9 +38,10 @@ final class AppLauncherPlugin: BuiltinPlugin {
         // 后台刷新（fire-and-forget，不阻塞本次）
         index.refreshIfStale(ttl: LauncherConstants.appIndexTTLSec)
 
-        let entries = index.search(query, limit: LauncherConstants.appSearchLimit)
+        // C-UNIFIED-SCORE：用 alias 最高分（wechat→微信 等 alias 命中不丢分），非显示名重打分
+        let results = index.scoredSearch(query, limit: LauncherConstants.appSearchLimit)
 
-        return entries.map { entry in
+        return results.map { entry, aliasScore in
             let url = entry.url
             let name = entry.name
             let launcher = self.launcher
@@ -51,14 +52,15 @@ final class AppLauncherPlugin: BuiltinPlugin {
             // 图标：NSWorkspace.shared.icon(forFile:)（主线程，cheap）
             let icon = NSWorkspace.shared.icon(forFile: url.path)
 
-            // 打分（用于 Registry 排序）
-            let score = AppMatcher.score(query: query, name: name)
+            // 打分（用于 Registry 排序 + 统一混排跨源可比）
+            let score = aliasScore
 
             return LauncherAction(
                 id: url.path,
                 title: name,
                 subtitle: parentName,
                 icon: icon,
+                iconEmoji: nil,
                 pluginId: self.id,
                 score: score,
                 perform: {

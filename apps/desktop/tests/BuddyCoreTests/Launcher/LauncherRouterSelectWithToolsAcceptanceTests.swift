@@ -499,6 +499,7 @@ final class LauncherRouterDebugRouteAcceptanceTests: XCTestCase {
             version: "1.0.0",
             description: description,
             summary: nil,
+            icon: nil,
             keywords: keywords,
             timeout: nil,
             modeConfig: .prompt(PromptConfig(

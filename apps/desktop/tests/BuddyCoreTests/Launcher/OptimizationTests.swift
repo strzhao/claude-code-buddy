@@ -79,33 +79,26 @@ private func makeManifest(name: String, keywords: [String] = []) -> PluginManife
 
 final class NarrowCandidatesScoredTests: XCTestCase {
 
-    // P0.1 T1: name 完全匹配 → score >= 10（short-circuit 阈值）
+    // P0.1 T1: name 完全匹配 → score == 1030（C-UNIFIED-SCORE 完全档 1000 + name 30）
     func test_p01_nameExactMatch_scoreAtLeast10() {
         let plugins = [makeManifest(name: "translate", keywords: ["翻译", "tr"])]
         let scored = LauncherRouter.narrowCandidatesScored(query: "translate", plugins: plugins)
         XCTAssertEqual(scored.count, 1)
-        // query "translate" lowercased 在 nameLower "translate" 完全匹配
-        // token "translate" → nameLower.contains(token) += 5, haystack.contains(token) += 1
-        // queryLower.contains(nameLower) → += 5
-        // 合计 ≥ 10
-        XCTAssertGreaterThanOrEqual(scored[0].score, LauncherConstants.routerSkipScore,
-            "name 完全匹配 score 应 >= routerSkipScore(\(LauncherConstants.routerSkipScore))")
+        // D8.3 内核替换：UnifiedPluginScorer 统一量纲 —— query == name → 完全档 1000 + name 30
+        XCTAssertEqual(scored[0].score, 1030,
+            "name 完全匹配 score 应为 1030（完全档 1000 + name +30，C-UNIFIED-SCORE）")
     }
 
-    // P0.1 T2: keyword 命中但 name 不命中 → score < 10（不短路）
-    // 选用 name="xyzplugin"，keyword="翻译"，query="翻译文章"
-    // 这样 name 不含 query token，只有 keyword 反向匹配
+    // P0.1 T2: keyword contains 弱命中 → score == 150 < unifiedRouteSkipScore(500)（不短路）
+    // 选用 name="xyzplugin"，keyword="翻译"，query="翻译文章"（反向 contains）
     func test_p01_keywordMatch_scoreLessThan10() {
         let plugins = [makeManifest(name: "xyzplugin", keywords: ["翻译"])]
-        // query = "翻译文章"
-        // token "翻译文章"（中文不分割） → name "xyzplugin" 不含 → 0
-        // keyword 反向：kwsLower "翻译" → queryLower.contains("翻译") += 3
-        // haystack.contains("翻译") += 1
-        // 合计 4 < 10
         let scored = LauncherRouter.narrowCandidatesScored(query: "翻译文章", plugins: plugins)
         XCTAssertEqual(scored.count, 1)
-        XCTAssertLessThan(scored[0].score, LauncherConstants.routerSkipScore,
-            "纯 keyword 反向命中 score 应 < routerSkipScore，不应触发短路")
+        XCTAssertEqual(scored[0].score, UnifiedPluginScorer.scoreContains,
+            "query contains keyword → contains 档 150（C-UNIFIED-SCORE）")
+        XCTAssertLessThan(scored[0].score, LauncherConstants.unifiedRouteSkipScore,
+            "contains 档 150 应 < unifiedRouteSkipScore(500)，不触发短路")
     }
 
     // P0.1 T3: 多 plugin 时 scored 按 score 降序排列
@@ -151,7 +144,7 @@ final class NarrowCandidatesScoredTests: XCTestCase {
         router.pluginsOverride = [plugin]
 
         let (decision, _) = try await router.route(query: "zqtest")
-        // query "zqtest" 精确匹配 name → score >= 10，且只有 1 个候选 → isUnique → 短路
+        // query "zqtest" 精确匹配 name → 完全档 1030，且只有 1 个候选 → isUnique → 短路
         XCTAssertEqual(provider.sendCallCount, 0,
             "唯一候选时应短路，不调用 provider.send")
         if case .withPlugin(let m) = decision {
@@ -161,7 +154,7 @@ final class NarrowCandidatesScoredTests: XCTestCase {
         }
     }
 
-    // P0.1 T6: route 强命中（score >= routerSkipScore）时不调 provider.send
+    // P0.1 T6: route 强命中（score >= unifiedRouteSkipScore）时不调 provider.send
     func test_p01_route_strongMatch_skipProviderCall() async throws {
         let provider = CountingProvider()
         let router = LauncherRouter(
@@ -173,10 +166,10 @@ final class NarrowCandidatesScoredTests: XCTestCase {
         let hello = makeManifest(name: "hello", keywords: ["hi", "hello"])
         router.pluginsOverride = [translate, hello]
 
-        // query = "translate" → translate name 完全匹配，score >= 10 → 短路
+        // query = "translate" → translate name 完全匹配 1030 >= 500 → 短路
         let (decision, _) = try await router.route(query: "translate")
         XCTAssertEqual(provider.sendCallCount, 0,
-            "score >= routerSkipScore 时应短路，不调用 provider.send")
+            "score >= unifiedRouteSkipScore 时应短路，不调用 provider.send")
         if case .withPlugin(let m) = decision {
             XCTAssertEqual(m.name, "translate")
         } else {
@@ -184,8 +177,7 @@ final class NarrowCandidatesScoredTests: XCTestCase {
         }
     }
 
-    // P0.1 T7: route 多候选弱命中时调用 provider.send
-    // 使用中文 keyword 让两个 plugin 都弱命中（score < 10），验证走 AI
+    // P0.1 T7: route 多候选 contains 弱命中（score < unifiedRouteSkipScore）时调用 provider.send
     func test_p01_route_multipleWeakCandidates_callsProvider() async throws {
         let provider = CountingProvider()
         let router = LauncherRouter(
@@ -198,15 +190,16 @@ final class NarrowCandidatesScoredTests: XCTestCase {
         let beta = makeManifest(name: "betaplugin", keywords: ["翻译"])
         router.pluginsOverride = [alpha, beta]
 
-        // query = "翻译" → 两个 plugin 都命中 keyword（score ~4，< 10），不唯一 → 走 AI
-        _ = try await router.route(query: "翻译")
+        // query = "翻译文档" → 两个 plugin 都 contains 命中 keyword（150 < 500），不唯一 → 走 AI
+        _ = try await router.route(query: "翻译文档")
         XCTAssertEqual(provider.sendCallCount, 1,
             "多候选弱命中时应调用 provider.send 做 AI 选择")
     }
 
-    // P0.1 T8: routerSkipScore 常量值为 10
+    // P0.1 T8: 短路阈值常量（D8.3：统一量纲 500；旧 routerSkipScore 存留）
     func test_p01_routerSkipScore_isCorrect() {
         XCTAssertEqual(LauncherConstants.routerSkipScore, 10)
+        XCTAssertEqual(LauncherConstants.unifiedRouteSkipScore, 500)
     }
 }
 

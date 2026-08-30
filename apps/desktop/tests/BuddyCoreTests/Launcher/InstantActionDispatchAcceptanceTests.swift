@@ -64,6 +64,7 @@ private func makeAction(id: String, title: String, score: Int = 100) -> Launcher
         title: title,
         subtitle: nil,
         icon: nil,
+        iconEmoji: nil,
         pluginId: "fixed-test",
         score: score,
         perform: { /* 默认：不执行操作 */ }
@@ -131,9 +132,9 @@ final class InstantActionDispatchAcceptanceTests: XCTestCase {
 
     /// 连续两次 updateQuery（debounce=0），instantActions 最终是最后一次 query 的结果。
     func test_C7_consecutiveUpdateQuery_lastQueryWins() async {
-        let actionA = LauncherAction(id: "a", title: "ActionA", subtitle: nil, icon: nil,
+        let actionA = LauncherAction(id: "a", title: "ActionA", subtitle: nil, icon: nil, iconEmoji: nil,
             pluginId: "test", score: 100, perform: {})
-        let actionB = LauncherAction(id: "b", title: "ActionB", subtitle: nil, icon: nil,
+        let actionB = LauncherAction(id: "b", title: "ActionB", subtitle: nil, icon: nil, iconEmoji: nil,
             pluginId: "test", score: 100, perform: {})
 
         final class TwoQueryPlugin: BuiltinPlugin {
@@ -200,7 +201,7 @@ final class InstantActionDispatchAcceptanceTests: XCTestCase {
     func test_C5_performSelectedInstantAction_withSelection_returnsTrueAndPerforms() async {
         var performed = false
         let action = LauncherAction(
-            id: "act1", title: "TestApp", subtitle: nil, icon: nil,
+            id: "act1", title: "TestApp", subtitle: nil, icon: nil, iconEmoji: nil,
             pluginId: "test", score: 100,
             perform: { performed = true }
         )
@@ -250,7 +251,7 @@ final class InstantActionDispatchAcceptanceTests: XCTestCase {
     func test_C5_performSelectedInstantAction_trueDoesNotTriggerAI() async {
         var performed = false
         let action = LauncherAction(
-            id: "ai-check", title: "AICheck", subtitle: nil, icon: nil,
+            id: "ai-check", title: "AICheck", subtitle: nil, icon: nil, iconEmoji: nil,
             pluginId: "test", score: 100,
             perform: { performed = true }
         )
@@ -278,7 +279,7 @@ final class InstantActionDispatchAcceptanceTests: XCTestCase {
     /// performSelectedInstantAction 捕获错误 → lastInstantError 被设置（不崩溃，不静默吞错）。
     func test_C6C9_scenario11_launchFailure_setsLastInstantError() async {
         let failingAction = LauncherAction(
-            id: "fail-app", title: "FakeApp", subtitle: nil, icon: nil,
+            id: "fail-app", title: "FakeApp", subtitle: nil, icon: nil, iconEmoji: nil,
             pluginId: "test", score: 100,
             perform: { throw LauncherError.appLaunchFailed("FakeApp at /fake/path") }
         )

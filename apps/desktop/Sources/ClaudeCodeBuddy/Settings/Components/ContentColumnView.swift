@@ -80,9 +80,9 @@ final class ContentColumnView: NSView {
             contentColumn.bottomAnchor.constraint(equalTo: documentView.bottomAnchor,
                                                   constant: -SettingsTheme.spacingSection),
             contentColumn.leadingAnchor.constraint(greaterThanOrEqualTo: documentView.leadingAnchor,
-                                                  constant: SettingsTheme.spacingXl),
+                                                   constant: SettingsTheme.spacingXl),
             contentColumn.trailingAnchor.constraint(lessThanOrEqualTo: documentView.trailingAnchor,
-                                                   constant: -SettingsTheme.spacingXl),
+                                                    constant: -SettingsTheme.spacingXl),
             contentColumn.centerXAnchor.constraint(equalTo: documentView.centerXAnchor),
 
             // 内容最小宽（防 detail 被缩到 content fittingWidth 致右栏空白）

@@ -32,7 +32,9 @@ final class LauncherRouter {
         }
         let top = scored[0]
         let isUnique = scored.count == 1
-        let isStrong = top.score >= LauncherConstants.routerSkipScore
+        // D8.3：短路条件对齐统一量纲（C-UNIFIED-SCORE）——词首档及以上（>=500）才可跳过 AI。
+        // contains 档 150 不短路（「密码」类 contains 弱命中不再直接路由到插件）。
+        let isStrong = top.score >= LauncherConstants.unifiedRouteSkipScore
         if isUnique || isStrong {
             BuddyLogger.shared.info("router short-circuit", subsystem: "launcher", meta: [
                 "query": query, "plugin": top.manifest.name, "score": top.score,
@@ -65,99 +67,31 @@ final class LauncherRouter {
     }
 
     /// 第 1 阶段（内部重载）：接受外部 plugins 列表，供测试注入
-    /// 静态化：不用 self，供其他模块（LauncherManager.updateQuery）直接调
+    /// 静态化：不用 self，供其他模块（LauncherManager.submit AI 流）直接调
     static func narrowCandidates(query: String, plugins: [PluginManifest]) -> [PluginManifest] {
         return narrowCandidatesScored(query: query, plugins: plugins).map(\.manifest)
     }
 
-    /// command mode 命中判断（C-PREFIX-MATCH / C-REUSE-STRIP）。
+    /// 带得分的候选列表（保留排序），供路由短路判断使用。
     ///
-    /// 复用 `LauncherManager.stripKeywordPrefix`（LauncherManager.swift）已验证的
-    /// 「query 前缀完整匹配某 keyword + 严格分隔符（空白/标点/行尾）」逻辑，
-    /// **方向反过来用于命中判断**：遍历 plugins，仅 `.command` mode；该 plugin 的
-    /// `[name] + keywords` 中任一 `kw` 满足 query 以 kw 开头且 kw 后紧跟分隔符/行尾 → 命中。
-    ///
-    /// 与 `narrowCandidatesScored`（contains 反向打分，服务 stdin/prompt 路由）并存：
-    /// command 命中改走本函数（严格前缀，禁 contains）。
-    ///
-    /// - 返回 `[PluginManifest]`（保持 plugins 原序；非打分，是精确前缀匹配集合）。
-    /// - 行为示例：`qr`/`二维码`/`qr https://x` → 命中 qr；`密码`/`qrcode`/`q` → 不命中任何 command。
-    /// - 纯函数：无 IO / 无副作用，同输入恒等输出（场景12 基线）。
-    static func commandPrefixMatched(
-        query: String,
-        plugins: [PluginManifest]
-    ) -> [PluginManifest] {
-        guard !query.isEmpty else { return [] }
-        let queryLower = query.lowercased()
-        return plugins.filter { manifest in
-            // C-SCOPE-COMMAND-ONLY：仅 .command mode
-            guard case .command = manifest.modeConfig else { return false }
-            // C-REUSE-STRIP：候选前缀集合 = [name] + keywords，trim + 去空，长前缀优先
-            let prefixes = ([manifest.name] + manifest.keywords)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-                .sorted { $0.count > $1.count }
-            for prefix in prefixes {
-                let prefixLower = prefix.lowercased()
-                guard queryLower.hasPrefix(prefixLower) else { continue }
-                // 严格分隔：prefix 后必须紧跟空白 / 标点 / 行尾（与 stripKeywordPrefix 同语义）
-                let after = query.index(query.startIndex, offsetBy: prefix.count)
-                if after == query.endIndex {
-                    return true  // query 恰是 keyword 本身（行尾）
-                }
-                let nextChar = query[after]
-                if nextChar.isWhitespace || nextChar.isPunctuation {
-                    return true
-                }
-                // 当前 prefix 不是分隔边界，继续试下一个（长前缀优先已排序）
-            }
-            return false
-        }
-    }
-
-    /// 带得分的候选列表（保留排序），供路由短路判断使用
-    /// score >= LauncherConstants.routerSkipScore 时直接命中，无需 AI 路由
+    /// D8.3：打分内核替换为 `UnifiedPluginScorer`（C-UNIFIED-SCORE 统一量纲：
+    /// 完全 1000 / 前缀 800 / 词首 500 / contains 150，name +30），
+    /// 使 debug route 输出的 candidates 分数与 typing 期 unifiedCandidates 一致。
+    /// score >= LauncherConstants.unifiedRouteSkipScore（500）时直接命中，无需 AI 路由。
     static func narrowCandidatesScored(
         query: String,
         plugins: [PluginManifest]
     ) -> [(manifest: PluginManifest, score: Int)] {
-        // 按 ASCII 标点分割；unicode > 127（中文/CJK 等）不作分隔符，整段保留
-        let queryTokens = query.lowercased()
-            .split(whereSeparator: { c in
-                let isAsciiPunct = !c.isLetter && !c.isNumber
-                let isHighUnicode = c.unicodeScalars.first.map { $0.value > 127 } ?? false
-                return isAsciiPunct && !isHighUnicode
-            })
-            .map(String.init).filter { !$0.isEmpty }
-        guard !queryTokens.isEmpty else { return [] }
-
-        let queryLower = query.lowercased()
-
-        let scored: [(PluginManifest, Int)] = plugins.map { plugin in
-            var score = 0
-            let nameLower = plugin.name.lowercased()
-            let descLower = plugin.description.lowercased()
-            let kwsLower = plugin.keywords.map { $0.lowercased() }
-
-            // 1. token（query 分词）在 name/desc/kw 中的命中
-            for token in queryTokens {
-                let haystack = ([nameLower, descLower] + kwsLower).joined(separator: " ")
-                if haystack.contains(token) { score += 1 }
-                if nameLower.contains(token) { score += 5 }
-                if kwsLower.contains(where: { $0.contains(token) }) { score += 3 }
-            }
-
-            // 2. 反向检查：plugin 的 keywords 是否被 query 包含（中文整词匹配）
-            //    例：query="请翻译这段"，keyword="翻译" → query.contains(kw) 命中
-            for kw in kwsLower where queryLower.contains(kw) { score += 3 }
-            if queryLower.contains(nameLower) { score += 5 }
-
-            return (plugin, score)
+        return plugins.map { plugin in
+            (manifest: plugin, score: UnifiedPluginScorer.score(query: query, manifest: plugin))
         }
-        return scored.filter { $0.1 > 0 }
-            .sorted { $0.1 > $1.1 }
-            .prefix(LauncherConstants.routerMaxCandidates)
-            .map { (manifest: $0.0, score: $0.1) }
+        .filter { $0.score > 0 }
+        .sorted { lhs, rhs in
+            if lhs.score != rhs.score { return lhs.score > rhs.score }
+            return lhs.manifest.name < rhs.manifest.name   // 同分 title 字典序稳定排序
+        }
+        .prefix(LauncherConstants.routerMaxCandidates)
+        .map { $0 }
     }
 
     /// 第 2 阶段（公开接口）：AI 选 1（C3 契约）
@@ -183,9 +117,10 @@ final class LauncherRouter {
         // 构造 tools：所有 plugins 作 tool（select pass 不执行，仅声明）
         let tools = plugins.map { $0.toAgentTool() }
 
-        // system prompt：路由指令 + 原始 query（user message）
+        // system prompt：路由指令 + 原始 query（user message）。
+        // D8.2：keywords 用 effectiveTriggerKeywords（过滤单字）——「码」类单字锚点不进 LLM 上下文。
         let candidateLines = plugins.map { p in
-            "- \(p.name): \(p.description) (keywords: \(p.keywords.joined(separator: ", ")))"
+            "- \(p.name): \(p.description) (keywords: \(p.effectiveTriggerKeywords.joined(separator: ", ")))"
         }.joined(separator: "\n")
         let systemPrompt = """
         You are a router. Given a user query, decide which plugin to use (or none for direct chat).
@@ -277,8 +212,9 @@ final class LauncherRouter {
     /// system prompt 通过 send 的 system 参数传递，user message 仅包含原始 query。
     func aiSelect(query: String, candidates: [PluginManifest]) async throws -> RouteDecision {
         guard !candidates.isEmpty else { return .directChat }
+        // D8.2：keywords 用 effectiveTriggerKeywords（过滤单字，与 selectWithTools 同构）
         let candidateLines = candidates.map { p in
-            "- \(p.name): \(p.description) (keywords: \(p.keywords.joined(separator: ", ")))"
+            "- \(p.name): \(p.description) (keywords: \(p.effectiveTriggerKeywords.joined(separator: ", ")))"
         }.joined(separator: "\n")
         let systemPrompt = """
         You are a router. Given a user query, decide which plugin to use (or none for direct chat).

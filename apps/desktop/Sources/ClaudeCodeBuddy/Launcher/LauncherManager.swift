@@ -280,8 +280,31 @@ final class LauncherManager: ObservableObject {
         // 2. 内置候选（sourceRank = plugin priority；app = AppLauncher priority 0）
         let registry = registryOverride ?? externalRegistry ?? BuiltinPluginRegistry.shared
         let builtin = await registry.scoredActions(for: query)
+        // D1（C-BUILTIN-NO-DUP）：记录已有具体候选的 pluginId——这些插件不再产聚合行（零重复）
+        let pluginIdsWithCandidates = Set(builtin.map(\.action.pluginId))
         for pair in builtin {
             merged.append((action: pair.action, sourceRank: pair.priority))
+        }
+
+        // 2.5 内置插件聚合行（D1，C-BUILTIN-FUZZY-ROW）：模糊可命中插件中「无具体候选」者
+        // 跑统一 scorer（name=plugin.id，keywords=pluginKeywords），命中 >0 产聚合行——
+        // 部分词（pas/剪）也能发现内置插件；完整触发词时条目直显不重复霸屏。
+        // perform 空闭包：分流层 builtin: 前缀拦截（submitInstantSelection），perform 通路不可达。
+        for (plugin, keywords) in registry.fuzzyMatchablePlugins()
+        where !pluginIdsWithCandidates.contains(plugin.id) {
+            let s = UnifiedPluginScorer.score(query: query, name: plugin.id, keywords: keywords)
+            guard s > 0 else { continue }
+            let row = LauncherAction(
+                id: "builtin:\(plugin.id)",
+                title: plugin.id,
+                subtitle: plugin.summary,
+                icon: nil,
+                iconEmoji: nil,
+                pluginId: plugin.id,
+                score: s,
+                perform: {}
+            )
+            merged.append((action: row, sourceRank: plugin.priority))
         }
 
         // 3. D2 排序键 + 截断
@@ -377,6 +400,9 @@ final class LauncherManager: ObservableObject {
     func handleTabLock() -> Bool {
         guard instantActions.indices.contains(instantSelectedIndex) else { return false }
         let action = instantActions[instantSelectedIndex]
+        // 内置插件聚合行：Tab 忽略（内置无参数语义；不加固守则重名场景下
+        // resolvePluginCandidate 命中社区插件会误锁定，C-BUILTIN-TAB-NOLOCK）
+        if action.id.hasPrefix("builtin:") { return false }
         guard let manifest = resolvePluginCandidate(pluginId: action.pluginId) else { return false }
         lockPluginCandidate(manifest)
         return true
@@ -466,14 +492,17 @@ final class LauncherManager: ObservableObject {
 
     // MARK: - D4 Enter 分流（C-ENTER-EXEC，可测分流主体）
 
-    /// instant 区选中行 Enter 的分流结果（D4）：
+    /// instant 区选中行 Enter 的分流结果（D4/D5）：
     /// - `.performed`：app/内置行 → `performSelectedInstantAction()` 已执行（含 hide）。
     /// - `.stream`：插件行 → 按 mode 分发得到的执行流（command 零 LLM / stdin·prompt 走 LLM），
     ///   View 层消费该流并记录 callback（候选回调 C5 用）。manifest 供 callback 记录。
+    /// - `.expandBuiltin(trigger)`：内置插件聚合行（`builtin:` 前缀）→ View 填触发词
+    ///   （query = trigger）展开该插件具体候选（C-BUILTIN-EXPAND）。
     /// - `.notInstant`：无选中行（落 fallback AI 流）。
     enum InstantSelectionRoute {
         case performed
         case stream(AsyncStream<AgentEvent>, manifest: PluginManifest)
+        case expandBuiltin(trigger: String)
         case notInstant
     }
 
@@ -503,9 +532,23 @@ final class LauncherManager: ObservableObject {
     ///      trust 检查在 withPlugin 分支已有）
     /// 2. 非插件（app/内置）→ `performSelectedInstantAction()` → `.performed`。
     /// 3. 无选中 → `.notInstant`（View 层落 fallback AI 流）。
-    func submitInstantSelection(query: String) -> InstantSelectionRoute {
+    func submitInstantSelection(
+        query: String,
+        externalRegistry: BuiltinPluginRegistry? = nil
+    ) -> InstantSelectionRoute {
         guard instantActions.indices.contains(instantSelectedIndex) else { return .notInstant }
         let action = instantActions[instantSelectedIndex]
+
+        // 内置插件聚合行（`builtin:` 前缀）守卫：优先级最高——防社区插件重名（如 paste）时
+        // resolvePluginCandidate 误分流到子进程插件（C-BUILTIN-EXPAND）。
+        if action.id.hasPrefix("builtin:") {
+            guard let match = builtinFuzzyPlugin(pluginId: action.pluginId, externalRegistry: externalRegistry),
+                  let trigger = Self.bestTriggerWord(keywords: match.keywords, query: query) else {
+                // 防御：找不到插件 / keywords 全空（D1 保证非空才可命中，此分支不可达）
+                return .notInstant
+            }
+            return .expandBuiltin(trigger: trigger)
+        }
 
         // 插件行判定：pluginId == manifest.name（unifiedCandidates 映射约定，D1）
         guard let plugin = resolvePluginCandidate(pluginId: action.pluginId) else {
@@ -517,6 +560,36 @@ final class LauncherManager: ObservableObject {
         // C-ENTER-EXEC：mode 分发统一经 executePluginCandidate（command → 零 LLM 直执行；
         // stdin/prompt → submitWithPlugin），与插件行 perform / 锁定态 Enter 同源
         return .stream(executePluginCandidate(plugin, query: query), manifest: plugin)
+    }
+
+    /// D5：builtin: 行 pluginId → 内置插件解析。解析链与 unifiedCandidates 逐字一致
+    /// （registryOverride ?? externalRegistry ?? shared，QA Important 2 对齐——仅注入
+    /// externalRegistry 的测试通路不再错落到 shared registry）。
+    private func builtinFuzzyPlugin(
+        pluginId: String,
+        externalRegistry: BuiltinPluginRegistry?
+    ) -> (plugin: any BuiltinPlugin, keywords: [String])? {
+        let registry = registryOverride ?? externalRegistry ?? BuiltinPluginRegistry.shared
+        return registry.fuzzyMatchablePlugins().first { $0.plugin.id == pluginId }
+    }
+
+    /// D5（C-BUILTIN-EXPAND）：内置插件展开触发词选择——对 query 档位分最高的 keyword
+    /// （D2 scorer 逐 keyword 打分，keyword 通道无 name +30），同分取最短（贴合输入意图：
+    /// pas → paste 而非 clipboard、剪 → 剪贴板）。纯函数；全不命中 → nil。
+    static func bestTriggerWord(keywords: [String], query: String) -> String? {
+        var best: (word: String, score: Int)?
+        for kw in keywords {
+            let s = UnifiedPluginScorer.score(query: query, name: "", keywords: [kw])
+            guard s > 0 else { continue }
+            if let b = best {
+                if s > b.score || (s == b.score && kw.count < b.word.count) {
+                    best = (kw, s)
+                }
+            } else {
+                best = (kw, s)
+            }
+        }
+        return best?.word
     }
 
     /// 清空即时候选（submit 落回 AI 流前调用，C5 契约）

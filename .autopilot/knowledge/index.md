@@ -1,7 +1,8 @@
 # Knowledge Index
 
-## Decisions (18)
+## Decisions (19)
 
+- [2026-08-30] 内置插件接入统一混排：pluginKeywords 协议扩展（extension 默认 []，仅 PastePlugin 配置）+ scorer 内核唯一入口（manifest 版逐字委托 C-SCORER-DELEGATION）+ builtin: 前缀聚合行（无具体候选才产行防重复）+ 展开=填触发词（bestTriggerWord 同分取最短，否决直接替换列表：状态不一致+onChange 清列表）+ 前缀守卫优先分流/Tab（防社区插件重名误分流）+ CLI source 四值闭集（builtin-plugin）；QA 真机 defaults 翻转开关必须带 bundle domain（缺 domain 静默写错，plan-reviewer 实测抓出） | tags: launcher, builtin-plugin, unified-score, fuzzy-row, pluginkeywords, expand-builtin, tab-nolock, cli-source-quad, prefix-guard, dedup | → decisions/2026-08-30-builtin-fuzzy-row-pluginkeywords-unified-score.md
 - [2026-08-29] 插件候选一等公民统一混排：统一分数档位纯函数 scorer（完全1000/双向前缀800/词首500/contains150+name30+单字<2仅完全档）三处同源消费（typing/AI流内核/短路阈值500）+ 插件桥接通用 Action 模型（iconEmoji）进 app/内置单列表同行渲染器 + Enter 直接执行（参数剥触发词）+ Tab 锁定保留 + 自动锁定/watermark chip/commandRoute 分区/跨区导航四块退役净删码；否决桥接归一层（双分数体系并存）与 CandidateProvider 流式（无流式需求 YAGNI） | tags: launcher, unified-score, single-list, candidate, plugin, app-search, tab-lock, enter-exec, c-unified-score | → decisions/2026-08-29-unified-candidate-mix-single-list-unified-score.md
 - [2026-08-10] autopilot session 抑制过渡 Stop 完成音：buddy-hook 检测 active.ptr（isfile+worktree glob）命中则 Stop→idle（不响、猫不进完成态），非 autopilot 不变；声音触发源迁移到 notify.sh 智能化（auto-chain/project-qa 静默，complete/审批/error 发声）；否决短去抖（过渡后 11-61s）+全静音 | tags: hook, buddy-hook, autopilot, sound, stop, notify, active-ptr, idle, worktree | → decisions/2026-08-10-buddy-hook-autopilot-sound-suppression.md
 - [2026-07-16] 统一 CLI hub 暴露插件能力给外部 AI（buddy tools/run + JSON manifest）：顶层 buddy tools（manifest 复用 toAgentTool，camelCase 手构非 AgentTool Codable）+ buddy run（富 JSON image base64/candidates），经 socket IPC 到常驻 app（CLI Foundation-only 不调 BuddyCore→manifest 让 app 算）；新 2 IPC action（launcher_list_tools/run_tool）与 debug 隔离（C-DEBUG-ISOLATION）；抽 runPluginCore 共享执行核；内置不入 manifest（0 高必要）；不上 MCP（用户选 CLI+JSON） | tags: launcher, cli, plugin, manifest, ipc, toagentool, socket, buddy-cli, foundation-only, no-mcp, camelcase, contract, dynamic, tofu | → decisions/2026-07-16-plugin-cli-hub-buddy-tools-run-ai-manifest.md
@@ -24,7 +25,9 @@
 
 - [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
 
-## Patterns (119)
+## Patterns (120)
+
+- [2026-08-31] SwiftUI onChange(of:) 赋相同值不触发：launcher「展开=填触发词」方案在空剪贴板历史死角（完整触发词仍出聚合行→Enter→query 赋同值→onChange 不 fire→updateQuery 不执行→列表不动永无反馈）——16 验收谓词全假设历史非空抓不到，qa-reviewer 代码审查路径抓出；编程式状态驱动不能依赖 onChange 副作用，赋值处补直调幂等方法（updateQuery 内部 cancel debounce 重启，双触发无害）；验收谓词设计须对前置条件做反例审计（[[2026-07-15-swiftui-scrollviewreader-onchange-let-binding-center-half-cell]] 同族：onChange 触发条件误解高频坑） | tags: swiftui, onchange, equatable, same-value, no-fire, idempotent, updatequery, launcher, builtin-expand, empty-history, dead-angle | → patterns/2026-08-31-swiftui-onchange-same-value-no-fire.md
 - [2026-08-29] 上游算好分数返回时丢弃、下游用另一字段（显示名）重打分 → alias 命中行 0 分混入统一排序列表 + 别名锚点真实链路失效；分数谁算谁携带到底，多源统一排序验收必含真实打分链路（mock 固分只能验证排序机制验不了分数来源） | tags: scoring, alias, appindex, unified-score, re-scoring, score-drop, search | → patterns/2026-08-29-upstream-score-recomputed-downstream-zero.md
 - [2026-08-10] stop-hook §5.7 谓词 artifact 两格式坑：①路径禁 markdown 反引号包裹（awk gsub 只 strip 空白不 strip 反引号→路径含反引号 -f 失败→PRED-ARTIFACT-MISSING，错误回显路径带反引号即定位）；②多谓词禁复制同内容（MD5 相同→PRED-ARTIFACT-DUP），须各谓词独立驱动生成独立 artifact | tags: stop-hook, predicate, artifact, backtick, dup, md5, pred-artifact-missing, pred-artifact-dup, autopilot, qa | → patterns/2026-08-10-stop-hook-predicate-artifact-backtick-dup.md
 - [2026-07-30] osascript 阻塞时 timeout 守护：SIGTERM 延迟生效 + `-k` 无改善但裸 timeout 仍 <hook 总超时够用（不必加 -k 保险）；发版 shell 脚本不假设 coreutils 用 command -v timeout 检测 + gtimeout 回退 + 裸跑降级（空变量前缀 `$_VAR cmd` 展开为 `$(cmd)` 等价裸跑）；hook 可选字段 best-effort 捕获 + 缺失降级不阻塞主路径 | tags: osascript, timeout, hook, ghostty, portability, coreutils, best-effort, sigterm | → patterns/2026-07-30-osascript-timeout-guard-hook-portability.md

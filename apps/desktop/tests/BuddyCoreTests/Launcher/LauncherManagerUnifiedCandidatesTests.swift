@@ -288,6 +288,8 @@ final class LauncherManagerUnifiedCandidatesTests: XCTestCase {
             XCTAssertEqual(manifest.name, "stdinx", "D4: stdin 插件行 → 分发该 manifest")
         case .performed:
             XCTFail("D4: 插件行不得走 performSelectedInstantAction")
+        case .expandBuiltin:
+            XCTFail("D4: 社区插件行不得走内置展开（builtin: 行专属）")
         case .notInstant:
             XCTFail("D4: 选中插件行应返回 .stream")
         }

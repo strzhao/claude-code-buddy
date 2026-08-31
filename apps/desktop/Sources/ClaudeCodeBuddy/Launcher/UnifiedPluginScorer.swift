@@ -30,18 +30,20 @@ enum UnifiedPluginScorer {
     /// 同档内 name 命中 > keyword 命中的加成
     static let bonusNameHit: Int = 30
 
-    /// 计算 query 对插件 manifest 的统一分数。0 = 无命中。
-    static func score(query: String, manifest: PluginManifest) -> Int {
+    /// 计算 query 对「name + keywords 组合」的统一分数。0 = 无命中。
+    /// 打分内核唯一入口（C-SCORER-DELEGATION）：manifest 版与内置插件聚合行
+    /// （D1，name=plugin.id / keywords=pluginKeywords）共用，manifest 版逐字委托本函数。
+    static func score(query: String, name: String, keywords: [String]) -> Int {
         let q = query.lowercased()
         guard !q.isEmpty else { return 0 }
 
         // name 侧（命中 +30）
-        let nameScore = tierScore(query: q, target: manifest.name)
+        let nameScore = tierScore(query: q, target: name)
             ?? 0
 
         // keyword 侧（多 keyword 取最高；无 name +30）
         var kwBest = 0
-        for kw in manifest.keywords {
+        for kw in keywords {
             let trimmed = kw.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
             let kwScore = keywordScore(query: q, keyword: trimmed) ?? 0
@@ -49,6 +51,11 @@ enum UnifiedPluginScorer {
         }
 
         return max(nameScore, kwBest)
+    }
+
+    /// 计算 query 对插件 manifest 的统一分数。0 = 无命中。
+    static func score(query: String, manifest: PluginManifest) -> Int {
+        score(query: query, name: manifest.name, keywords: manifest.keywords)
     }
 
     // MARK: - name 侧（含 +30）

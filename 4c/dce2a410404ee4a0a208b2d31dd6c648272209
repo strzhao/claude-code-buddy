@@ -1,0 +1,165 @@
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift
+  8d34536b4a690f3c 283-284,289-307,403-405,495,499-500,505,535-538,542-552,565-592
+apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerUnifiedCandidatesTests.swift
+  8d34536b4a690f3c 291-292
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift
+  8d34536b4a690f3c 85-86,89-92,478-488
+apps/desktop/CLAUDE.md
+  8d34536b4a690f3c 431,435-436,445
+apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginFuzzyRowTests.swift
+  8d34536b4a690f3c 1-461
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift
+  8d34536b4a690f3c 26-29
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift
+  8d34536b4a690f3c 100-114
+.autopilot/knowledge/decisions/2026-08-30-builtin-fuzzy-row-pluginkeywords-unified-score.md
+  8d34536b4a690f3c 1-22
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/UnifiedPluginScorer.swift
+  8d34536b4a690f3c 33-36,41,46,56-58
+.autopilot/knowledge/patterns/2026-08-31-swiftui-onchange-same-value-no-fire.md
+  8d34536b4a690f3c 1-16
+apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/marketplace.json
+  8d34536b4a690f3c 12,22,32,42
+apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPlugin.swift
+  8d34536b4a690f3c 22-26,34,36,40
+apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift
+  8d34536b4a690f3c 335,361-362,364
+apps/desktop/Sources/BuddyCLI/main.swift
+  8d34536b4a690f3c 1762-1765
+.autopilot/knowledge/index.md
+  8d34536b4a690f3c 3,5,28-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "4cdce2a410404ee4a0a208b2d31dd6c648272209",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "accepted_lines": 1
+        }
+      }
+    },
+    "6f55f8ef29c22871": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c42574c2-176f-462e-9edb-143aa4402829",
+        "model": "glm-5.3"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 160,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/buddycoretests/launcher/lockedcommandstatemachineacceptancetests.swift": {
+          "accepted_lines": 16
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestIconTests.swift": {
+          "accepted_lines": 115
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LockedCommandChip.swift": {
+          "accepted_lines": 29
+        }
+      }
+    },
+    "8d34536b4a690f3c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c09c95af-73bf-497e-9189-3ac6c30ba890",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 659,
+      "total_deletions": 29,
+      "accepted_lines": 652,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/Paste/PastePlugin.swift": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        ".autopilot/knowledge/index.md": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 5
+        },
+        ".autopilot/knowledge/patterns/2026-08-31-swiftui-onchange-same-value-no-fire.md": {
+          "additions": 16,
+          "accepted_lines": 16
+        },
+        "apps/desktop/CLAUDE.md": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/BuddyCLI/main.swift": {
+          "additions": 4,
+          "deletions": 1,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Network/QueryHandler.swift": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 4
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherInputView.swift": {
+          "additions": 19,
+          "deletions": 4,
+          "accepted_lines": 17
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/BuiltinPluginFuzzyRowTests.swift": {
+          "additions": 462,
+          "deletions": 1,
+          "accepted_lines": 461
+        },
+        "apps/desktop/tests/BuddyCoreTests/Launcher/LauncherManagerUnifiedCandidatesTests.swift": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/marketplace.json": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        ".autopilot/knowledge/decisions/2026-08-30-builtin-fuzzy-row-pluginkeywords-unified-score.md": {
+          "additions": 22,
+          "accepted_lines": 22
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LauncherManager.swift": {
+          "additions": 79,
+          "deletions": 6,
+          "accepted_lines": 75
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/UnifiedPluginScorer.swift": {
+          "additions": 11,
+          "deletions": 4,
+          "accepted_lines": 11
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPlugin.swift": {
+          "additions": 8,
+          "deletions": 2,
+          "accepted_lines": 8
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Builtin/BuiltinPluginRegistry.swift": {
+          "additions": 15,
+          "accepted_lines": 15
+        }
+      }
+    }
+  }
+}

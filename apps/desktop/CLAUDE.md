@@ -428,9 +428,11 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 
 **演进**：方案 B 分区渲染（command 路由区 + instant 区两区并存、唯一命中自动锁定）已退役。现为**单一统一混排列表**：所有已启用社区插件（不分 mode）按关键词模糊命中进 `instantActions`，与 app/内置候选按统一分数档位混排；插件行视觉与 app 行同等（emoji 图标 + 标题 + 副标题 + pill 选中态）；选中插件行 Enter 直接执行；Tab 锁定保留；「keyword+空格自动锁定」「唯一命中自动锁定」「PluginWatermarkChip」已移除（C-TAB-LOCK：源码 grep 0 匹配）。
 
-**统一打分器**（`Launcher/UnifiedPluginScorer.swift`，C-UNIFIED-SCORE）：全源候选统一量纲——完全 1000（query==name/keyword）/ 前缀 800（query 是 name/keyword 前缀）/ 词首 500（camelCase/空格边界词首连续段）/ contains 150（双向）；name 命中同档 +30；多 keyword 取最高档；**单字 keyword（长度 <2，如 qr 的「码」）仅参与完全档**（前缀/词首/contains 排除——「密码」「验证码」不再误命中 qr）。排序键 `(score desc, 来源序[内置 priority > 插件 50 > app 0], title)`，合并列表截 8。`narrowCandidatesScored`（AI 流缩候选）内核同源替换，route 短路阈值改为 `unifiedRouteSkipScore=500`（contains 150 不短路）。
+**统一打分器**（`Launcher/UnifiedPluginScorer.swift`，C-UNIFIED-SCORE）：全源候选统一量纲——完全 1000（query==name/keyword）/ 前缀 800（query 是 name/keyword 前缀）/ 词首 500（camelCase/空格边界词首连续段）/ contains 150（双向）；name 命中同档 +30；多 keyword 取最高档；**单字 keyword（长度 <2，如 qr 的「码」）仅参与完全档**（前缀/词首/contains 排除——「密码」「验证码」不再误命中 qr；单字防线只作用 keyword 侧，query 侧无长度限制）。排序键 `(score desc, 来源序[内置 priority > 插件 50 > app 0], title)`，合并列表截 8。打分内核唯一入口 `score(query:name:keywords:)`，manifest 版逐字委托（C-SCORER-DELEGATION，内置插件聚合行共用）。`narrowCandidatesScored`（AI 流缩候选）内核同源替换，route 短路阈值改为 `unifiedRouteSkipScore=500`（contains 150 不短路）。
 
 **候选管线**（`LauncherManager.unifiedCandidates(for:)`，D3/D9）：typing 期 debounce 落地后插件打分映射 `LauncherAction`（id=`plugin:<name>`、subtitle=displaySummary、iconEmoji=manifest.icon）+ registry 无截断 fan-out（`BuiltinPluginRegistry.scoredActions(for:)`）→ 合并排序截断 → `instantActions`。UI（`LauncherInstantCandidateView` 单列表）与 CLI（`buddy launcher debug candidates`）共用。
+
+**内置插件行**（D1，C-BUILTIN-FUZZY-ROW，2026-08-30）：内置插件接入模糊混排——`BuiltinPlugin` 协议加 `pluginKeywords`（extension 默认 `[]`，未配置即不参与；当前仅 PastePlugin 配置 = 触发词闭集）。`BuiltinPluginRegistry.fuzzyMatchablePlugins()` 返回 enabled 且 keywords 非空的插件；`unifiedCandidates` 中**无具体候选**者跑统一 scorer（name=plugin.id、keywords=pluginKeywords），命中 >0 产聚合行 `id="builtin:<id>"`（title=plugin.id、subtitle=plugin.summary、icon/iconEmoji=nil 走 SF Symbol fallback、sourceRank=plugin.priority）——输入 `pas`/`剪` 也能发现剪贴板插件。已有具体候选则不产行（C-BUILTIN-NO-DUP，条目直显零重复）。分流：选中 `builtin:` 行 Enter/点击 → `.expandBuiltin(trigger)`（`bestTriggerWord` 取对 query 档位分最高的 keyword，同分取最短：pas→paste、剪→剪贴板）→ View 填触发词（非清空）→ 既有 debounce 管线刷出该插件具体候选；`builtin:` 行 Tab 忽略、前缀守卫优先于社区插件解析（防重名误分流/误锁定）。
 
 **Tab 锁定**（D5，C-TAB-LOCK）：统一列表选中插件行 Tab/点击 → `lockPluginCandidate(manifest)` 进入参数输入态（不执行；「锁定 = 锁定 ≠ 执行」语义保留）；app/内置行 Tab 忽略。锁定粘性由 `lockedPrefixStillMatched(query:manifest:)`（原 commandPrefixMatched 的单 manifest 语义）判定；Esc / 清空输入 / 执行完成退出锁定（C-ESC-EXIT）。
 
@@ -440,7 +442,7 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 
 **AI 流对齐**（D8，修 2026-07-01 已知限制）：① 单字 keyword 档位排除（UI 通道）；② `effectiveTriggerKeywords`（长度 ≥2）统一过滤——`synthesizeToolDescription` 触发词段 + `selectWithTools`/`aiSelect` 路由 system prompt 的 keywords 拼接两处共用（AI 流锚点通道），单字「码」不再进任何 LLM 上下文；③ `narrowCandidatesScored` 内核换统一量纲（debug route 分数与 UI 一致）；④ `stripKeywordPrefix` 不动。
 
-**debug CLI**（C-DEBUG-CLI）：`buddy launcher debug candidates <query>`（位置参数）输出统一混排列表，信封 `{status,data:{query,count,candidates[]}}`，元素含 `pluginId/title/subtitle/score/source`（source ∈ {app,builtin,plugin}，插件行以 `plugin:` id 前缀判定），全局 score 降序。
+**debug CLI**（C-DEBUG-CLI）：`buddy launcher debug candidates <query>`（位置参数）输出统一混排列表，信封 `{status,data:{query,count,candidates[]}}`，元素含 `pluginId/title/subtitle/score/source`（source ∈ {app,builtin,builtin-plugin,plugin} 四值闭集：app-launcher 条目=app、其余内置条目=builtin、内置插件聚合行（`builtin:` id 前缀）=builtin-plugin、社区插件行（`plugin:` id 前缀）=plugin），全局 score 降序。
 
 
 

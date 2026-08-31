@@ -332,7 +332,7 @@ final class QueryHandler {
     /// D9：debug candidates → LauncherManager.unifiedCandidates(for:)（统一混排，UI 与 CLI 共用）
     /// → {query, count, candidates[]}。
     /// 契约 C-DEBUG-CLI：单一数组，元素含 pluginId/title/subtitle/score/source
-    /// （source ∈ {app, builtin, plugin}），全局按 score 降序。
+    /// （source ∈ {app, builtin, builtin-plugin, plugin} 四值闭集），全局按 score 降序。
     @MainActor
     private func handleLauncherDebugCandidates(query: [String: Any]) async -> Data {
         guard let q = query["query"] as? String, !q.isEmpty else {
@@ -358,9 +358,10 @@ final class QueryHandler {
         ])
     }
 
-    /// C-DEBUG-CLI source 判定：插件候选 id 带 "plugin:" 前缀（unifiedCandidates 映射约定）；
-    /// app-launcher 候选 = app；其余 = builtin。
+    /// C-DEBUG-CLI source 判定（四值闭集）：内置插件聚合行 id 带 "builtin:" 前缀 = builtin-plugin；
+    /// 社区插件行 id 带 "plugin:" 前缀 = plugin；app-launcher 候选 = app；其余 = builtin。
     private static func unifiedSource(_ action: LauncherAction) -> String {
+        if action.id.hasPrefix("builtin:") { return "builtin-plugin" }
         if action.id.hasPrefix("plugin:") { return "plugin" }
         if action.pluginId == "app-launcher" { return "app" }
         return "builtin"

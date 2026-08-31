@@ -1759,7 +1759,10 @@ private func cmdLauncherHotkeyClear() {
 //   请求 action ∈ {launcher_debug_candidates, launcher_debug_perform, launcher_debug_registry}
 //     - candidates/perform 请求字段：query:String（非空）；perform 另含 index:Int（默认 0）
 //   响应：
-//     - candidates → {status:"ok", data:{query, count, candidates[{pluginId,title,subtitle,score}]}}
+//     - candidates → {status:"ok", data:{query, count, candidates[{pluginId,title,subtitle,score,source}]}}
+//       （source ∈ {app, builtin, builtin-plugin, plugin} 四值闭集：app-launcher 条目=app；
+//        其余内置条目=builtin；内置插件聚合行（id 带 "builtin:" 前缀）=builtin-plugin；
+//        社区插件行（id 带 "plugin:" 前缀）=plugin）
 //     - perform    → {status:"ok", data:{pluginId, performed:true, copied?}}（copied 仅当 perform 后 pasteboard 非空）
 //     - registry   → {status:"ok", data:{plugins[{id,priority,sectionTitle}]}}（priority 降序）
 

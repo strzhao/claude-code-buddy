@@ -19,6 +19,11 @@ protocol BuiltinPlugin {
     /// C2：详细说明（设置页详情展开看）。面向用户的人话描述。
     var description: String { get }
 
+    /// D1（内置插件模糊接入统一混排）：参与 `UnifiedPluginScorer` 模糊命中的关键词。
+    /// 非空者在「无具体候选」时于统一列表产聚合行（`builtin:<id>`，见 unifiedCandidates）。
+    /// 空 = 不参与（等价未配置）。
+    var pluginKeywords: [String] { get }
+
     /// 给定 query 返回已按本 plugin 内部 score 降序排序的候选动作。空/无匹配 query 返回 []。
     /// async 仅为未来插件（如剪贴板/网络）预留；AppLauncherPlugin 实现是内存级即时返回。
     func actions(for query: String) async -> [LauncherAction]
@@ -26,10 +31,11 @@ protocol BuiltinPlugin {
 
 // MARK: - C2 默认实现（测试 mock 兼容）
 //
-// 协议声明 `summary`/`description` 为 required，但通过 extension 提供默认值，
+// 协议声明 `summary`/`description`/`pluginKeywords` 为 required，但通过 extension 提供默认值，
 // 避免破坏既有测试 mock（17 处实现 BuiltinPlugin 的测试桩无需逐个补字段）。
-// 生产 4 个实现各自覆盖为真实人话文案。
+// 生产 4 个实现各自覆盖为真实人话文案（pluginKeywords 仅 PastePlugin 配置，D1）。
 extension BuiltinPlugin {
     var summary: String { "" }
     var description: String { "" }
+    var pluginKeywords: [String] { [] }
 }

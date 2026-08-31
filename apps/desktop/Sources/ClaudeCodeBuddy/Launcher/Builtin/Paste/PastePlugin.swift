@@ -23,6 +23,10 @@ final class PastePlugin: BuiltinPlugin {
     let summary = "剪贴板历史：输入「cb」查看并粘贴近期复制内容"
     let description = "持续记录你复制过的文本、图片、文件和富文本，输入「cb」即可翻找历史并快速粘贴回剪贴板。"
 
+    // D1：模糊命中关键词 = 触发词闭集（全部长度 ≥2，天然满足 scorer 单字 keyword 防线）。
+    // 输入部分词（pas/剪）时统一列表产 builtin:paste 聚合行，Enter 展开具体历史。
+    var pluginKeywords: [String] { Self.triggers }
+
     // MARK: - 执行 seam（可注入，用于测试）
 
     private let copyService: CopyService

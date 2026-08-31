@@ -82,10 +82,14 @@ struct LauncherInputView: View {
                         set: { manager.setInstantSelectedIndex($0) }
                     ),
                     onRowTap: { action in
-                        // D5/D6：点击行分流——插件行 = 锁定（≠ 执行，C-TAB-LOCK）；app/内置行 = 执行
+                        // D5/D6：点击行分流——内置插件聚合行 = 展开填触发词（C-BUILTIN-EXPAND）；
+                        // 社区插件行 = 锁定（≠ 执行，C-TAB-LOCK）；app/内置行 = 执行
                         guard let idx = manager.instantActions.firstIndex(where: { $0.id == action.id }) else { return }
                         manager.setInstantSelectedIndex(idx)
-                        if manager.resolvePluginCandidate(pluginId: action.pluginId) != nil {
+                        if action.id.hasPrefix("builtin:") {
+                            // 内置插件行：点击 = 与 Enter 同义（submit 走 .expandBuiltin 填触发词展开）
+                            Task { await submit() }
+                        } else if manager.resolvePluginCandidate(pluginId: action.pluginId) != nil {
                             // 插件行：点击 = Tab 锁定语义
                             if let manifest = manager.resolvePluginCandidate(pluginId: action.pluginId) {
                                 manager.lockPluginCandidate(manifest)
@@ -470,6 +474,17 @@ struct LauncherInputView: View {
         switch manager.submitInstantSelection(query: query) {
         case .performed:
             await MainActor.run { query = "" }
+            return
+        case .expandBuiltin(let trigger):
+            // D5/C-BUILTIN-EXPAND：内置插件行展开 = 填触发词（非清空——清空会 updateQuery("")
+            // 清掉列表）→ onChange 触发 updateQuery → 既有 debounce 管线刷出该插件具体候选。
+            // onChange 是 Equatable 变化才触发：query 已 == trigger 时不触发（如空剪贴板历史时
+            // 完整触发词仍出 builtin: 行，Enter 后赋同值）→ 手动直调 updateQuery 幂等驱动
+            // （内部 cancel 旧 debounce 重启），防空历史 Enter 无反馈死角（QA Important 1）。
+            await MainActor.run {
+                query = trigger
+                manager.updateQuery(trigger)
+            }
             return
         case .stream(let stream, let manifest):
             let q = query

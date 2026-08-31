@@ -1,0 +1,79 @@
+homebrew/Casks/claude-code-buddy.rb
+  8d34536b4a690f3c 2
+apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist
+  8d34536b4a690f3c 18,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "1af1f715403600b7a25dcb850e2448e32b339d88",
+  "prompts": {
+    "62079047012dae5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e791206-771f-4c6f-921d-05de7d5fcb6b",
+        "model": "glm-5.2"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/Agent/LauncherAgent.swift": {
+          "accepted_lines": 1
+        }
+      }
+    },
+    "6f55f8ef29c22871": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c42574c2-176f-462e-9edb-143aa4402829",
+        "model": "glm-5.3"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 160,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/tests/buddycoretests/launcher/lockedcommandstatemachineacceptancetests.swift": {
+          "accepted_lines": 16
+        },
+        "apps/desktop/Tests/BuddyCoreTests/Launcher/PluginManifestIconTests.swift": {
+          "accepted_lines": 115
+        },
+        "apps/desktop/Sources/ClaudeCodeBuddy/Launcher/LockedCommandChip.swift": {
+          "accepted_lines": 29
+        }
+      }
+    },
+    "8d34536b4a690f3c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c09c95af-73bf-497e-9189-3ac6c30ba890",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "赵桂雄",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 3,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/desktop/Sources/ClaudeCodeBuddy/Resources/Info.plist": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "homebrew/Casks/claude-code-buddy.rb": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

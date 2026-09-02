@@ -15,10 +15,9 @@ let package = Package(
             url: "https://github.com/sindresorhus/KeyboardShortcuts",
             from: "2.0.0"
         ),
-        .package(
-            url: "https://github.com/strzhao/capso-spm",
-            from: "1.1.0"
-        )
+        // capso-spm 已收编进本仓（仓库根 capso-spm/，BSL 1.1），
+        // path 依赖不进 Package.resolved，跟随仓内源码即时生效
+        .package(path: "../../capso-spm")
     ],
     targets: [
         .target(

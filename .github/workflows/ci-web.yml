@@ -65,7 +65,15 @@ jobs:
         run: pnpm --filter @stringzhao/web exec lhci autorun
 
       - name: Security audit
-        run: pnpm audit --audit-level=high
+        # GHSA-jmr9-qjv8-65gv（extract-zip ≤2.0.1，lighthouse/@lhci dev 工具链）官方无补丁版本，
+        # pnpm auditConfig.ignoreGhsa 在 workspace 下不生效 —— 显式白名单豁免；
+        # 其余 high/critical 依旧硬门禁。
+        run: |
+          pnpm audit --json > /tmp/audit.json || true
+          jq -e '[.advisories[]
+                  | select(.severity == "high" or .severity == "critical")
+                  | select(.github_advisory_id != "GHSA-jmr9-qjv8-65gv")]
+                 | length == 0' /tmp/audit.json
 
   e2e:
     runs-on: ubuntu-latest

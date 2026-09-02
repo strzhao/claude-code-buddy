@@ -5,7 +5,7 @@
 # 把 SC1-SC11 编码为硬断言。任一失败 → exit≠0 并打印 "SCx FAIL: <原因>"；全过 → "ALL PASS" + exit 0。
 #
 # 前置：brew install qrencode jq；monorepo 已 push 到 main
-# （fetch-plugins-local / fetch-plugins 会从 ~/workspace/buddy-official-plugins clone/pull）
+# （2026-09-02 起官方插件源在本仓 plugins/，fetch-plugins 同仓拷贝）
 #
 # 覆盖契约规约：C1-C7
 #   C1 release.yml fetch-plugins 步骤在 swift build 前
@@ -70,7 +70,7 @@ check_SC1() {
 }
 
 # ─── SC2: monorepo qr/qr-gen.sh 存在，qr-gen binary 与 qr-gen.swift 不存在 ───
-# 谓词：~/workspace/buddy-official-plugins/plugins/qr/qr-gen.sh 存在 且 qr-gen/qr-gen.swift 不存在
+# 谓词：本仓 plugins/qr/qr-gen.sh 存在 且 qr-gen/qr-gen.swift 不存在
 check_SC2() {
     local qr_dir="$MONO_REPO/qr"
     if [ ! -d "$qr_dir" ]; then

@@ -1,9 +1,10 @@
-# buddy-official-plugins
+# Buddy 官方插件源（plugins/）
 
-Claude Code Buddy 官方插件 monorepo（单一真源）。
+官方插件单一真源。2026-09-02 自 strzhao/buddy-official-plugins（已 archive）subtree 收编进
+[claude-code-buddy](https://github.com/strzhao/claude-code-buddy) 本仓目录 `plugins/`，
+插件仍不编进 app，运行时 fetch/sync 机制不变。
 
-app（[claude-code-buddy](https://github.com/stringzhao/claude-code-buddy)）编译时通过
-`apps/desktop/Scripts/fetch-plugins.sh` 从本仓库 `git clone` 拉取 `plugins/` 下所有插件源，
+app 编译时通过 `apps/desktop/Scripts/fetch-plugins.sh` 从**本仓** `plugins/` 拷贝所有插件源
 经 SPM `.copy("Marketplace")` 打进 `.app` bundle。
 
 ## 插件
@@ -34,9 +35,8 @@ app 运行时 `MarketplaceManager.syncFromRemote`（1h debounce）从 GitHub Raw
 ## 本地开发
 
 ```bash
-git clone https://github.com/stringzhao/buddy-official-plugins
-cd buddy-official-plugins
-# 改插件源 → bump version in marketplace.json + plugins/<name>/plugin.json → commit → push
+# 直接改本目录（本仓 plugins/<name>/）→ bump version in marketplace.json + plugins/<name>/plugin.json → commit → push
+# app 端生效：cd apps/desktop && make fetch-plugins（同仓拷贝，零网络）
 ```
 
 app 端 `BUDDY_MARKETPLACE_URL` 环境变量可指向本地 `file://` URL 测试。

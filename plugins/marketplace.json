@@ -17,7 +17,7 @@
       },
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/strzhao/buddy-official-plugins",
+        "url": "https://github.com/strzhao/claude-code-buddy",
         "path": "plugins/hello",
         "ref": "main"
       }
@@ -32,7 +32,7 @@
       },
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/strzhao/buddy-official-plugins",
+        "url": "https://github.com/strzhao/claude-code-buddy",
         "path": "plugins/qr",
         "ref": "main"
       }
@@ -47,7 +47,7 @@
       },
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/strzhao/buddy-official-plugins",
+        "url": "https://github.com/strzhao/claude-code-buddy",
         "path": "plugins/qzh",
         "ref": "main"
       }
@@ -62,7 +62,7 @@
       },
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/strzhao/buddy-official-plugins",
+        "url": "https://github.com/strzhao/claude-code-buddy",
         "path": "plugins/snip",
         "ref": "main"
       }

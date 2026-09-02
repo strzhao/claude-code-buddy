@@ -39,11 +39,12 @@ enum LauncherConstants {
     // Plugin 运行时（task 004 追加）
     static let launcherPluginsDir: URL = buddyDir.appendingPathComponent("launcher-plugins")
 
-    // 官方插件 monorepo（C1：单一真源，build-time fetch + sync 自动更新的 git URL）
-    // 真实 GitHub 仓库：https://github.com/strzhao/buddy-official-plugins
-    static let officialPluginsRepoURL = "https://github.com/strzhao/buddy-official-plugins"
+    // 官方插件源（C1：单一真源，sync 自动更新）。2026-09-02 起插件已 subtree 收编进本仓
+    // plugins/，运行时 sync/install 直接指向本仓（git-subdir source，manifest sha 可选）。
+    // 旧 strzhao/buddy-official-plugins 已 archive，历史安装的旧版本 app 继续读它（冻结）。
+    static let officialPluginsRepoURL = "https://github.com/strzhao/claude-code-buddy"
     /// 远程 marketplace.json（sync 用，GitHub Raw，gitSubdir source 不填 sha）
-    static let officialMarketplaceRawURL = "https://raw.githubusercontent.com/strzhao/buddy-official-plugins/main/marketplace.json"
+    static let officialMarketplaceRawURL = "https://raw.githubusercontent.com/strzhao/claude-code-buddy/main/plugins/marketplace.json"
     static let pluginDefaultTimeoutSec: Int = 30
     static let pluginMaxTimeoutSec: Int = 120
     static let pluginMaxStdoutBytes: Int = 1024 * 1024         // 1 MiB

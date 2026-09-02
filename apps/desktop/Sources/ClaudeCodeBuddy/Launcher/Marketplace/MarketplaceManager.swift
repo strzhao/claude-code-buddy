@@ -127,9 +127,10 @@ final class MarketplaceManager {
     /// 1 小时 debounce 间隔。
     private static let syncDebounceSeconds: TimeInterval = 3600
 
-    /// 默认 GitHub Raw URL（C10：指向官方插件 monorepo 的 marketplace.json）。
-    /// 从旧 claude-code-buddy 仓库 marketplace/marketplace.json 迁移至 buddy-official-plugins 根。
-    /// internal 供测试断言（C10 契约：必须含 buddy-official-plugins）。
+    /// 默认 GitHub Raw URL（C10：指向本仓 plugins/ 的 marketplace.json）。
+    /// 历史：marketplace 在旧 claude-code-buddy 根 → 拆仓 buddy-official-plugins（2026-06-28）
+    /// → subtree 收编回本仓 plugins/（2026-09-02）。
+    /// internal 供测试断言（C10 契约：必须含 /claude-code-buddy/）。
     static let productionRemoteURLString = LauncherConstants.officialMarketplaceRawURL
 
     /// 默认远程 URL：读 env `BUDDY_MARKETPLACE_URL` 或 GitHub Raw 生产 fallback。

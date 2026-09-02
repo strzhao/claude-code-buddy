@@ -148,14 +148,14 @@ final class LauncherRouterShortCircuitAcceptanceTests: XCTestCase {
                        "name 完全命中（score≥10）时 provider.send 必须是 0 次（短路跳过 AI），实际: \(mockProvider.sendCallCount)")
     }
 
-    // MARK: - Case C: 多 plugin 命中但分数都 < 10 → 走 aiSelect，send=1
+    // MARK: - Case C: 多 plugin 命中但分数都 < unifiedRouteSkipScore(500) → 走 aiSelect，send=1
 
-    /// 多个 plugin 都命中（仅 keyword 匹配，score≤6），走 aiSelect，send 调用 = 1
+    /// 多个 plugin 都 contains 弱命中（score=150 < 500），走 aiSelect，send 调用 = 1。
+    /// D8.3 量纲更新：打分内核换 UnifiedPluginScorer 后，弱命中档 = contains 150；
+    /// description 不再参与打分（内核只用 name/keywords）。
     func test_shortCircuit_caseC_multipleMatchesBelowThreshold_callsAISelect() async throws {
-        // 构造两个 plugin：
-        //   - conv-tool: keywords=["convert"] → query token "convert" 精确命中 keyword +3，haystack +1 = 4
-        //   - text-util: description="convert text" → token 命中 haystack +1 = 1（低于 10）
-        // 注意：name 不含 "convert"，所以 name 命中加分为 0
+        // 构造两个 plugin：keywords 都含 "convert"，query "xxconvert pdf" 无边界 contains → 各 150
+        // （D2 双向前缀档：query 以 keyword 开头+分隔（"convert pdf"）现在是 800 档会短路，不再适用本用例）
         let convTool = makeTestManifest(
             name: "conv-tool",
             description: "General converter",
@@ -164,7 +164,7 @@ final class LauncherRouterShortCircuitAcceptanceTests: XCTestCase {
         let textUtil = makeTestManifest(
             name: "text-util",
             description: "convert text utility",
-            keywords: []
+            keywords: ["convert"]
         )
         router.pluginsOverride = [convTool, textUtil]
 
@@ -173,16 +173,16 @@ final class LauncherRouterShortCircuitAcceptanceTests: XCTestCase {
             AgentResponse(content: [.text("conv-tool")], stopReason: "end_turn", usage: nil)
         ]
 
-        let (decision, candidates) = try await router.route(query: "convert pdf")
+        let (decision, candidates) = try await router.route(query: "xxconvert pdf")
 
-        // 断言：有候选
-        XCTAssertGreaterThanOrEqual(candidates.count, 1,
-                                    "keyword 命中时 candidates 必须至少 1 个")
+        // 断言：有候选（两个 contains 命中）
+        XCTAssertGreaterThanOrEqual(candidates.count, 2,
+                                    "keyword contains 命中时 candidates 必须至少 2 个")
 
         // 断言：走了 aiSelect（send 调用 = 1）
-        // 注意：这里验证"不短路"的场景，分数都 <10，必须调 AI
+        // 注意：这里验证"不短路"的场景，多候选且 top 分 150 < 500，必须调 AI
         XCTAssertGreaterThanOrEqual(mockProvider.sendCallCount, 1,
-                                    "多候选且分数都 <10 时必须调 provider.send（走 aiSelect），实际: \(mockProvider.sendCallCount)")
+                                    "多候选且分数都 <500 时必须调 provider.send（走 aiSelect），实际: \(mockProvider.sendCallCount)")
 
         // 若 AI 返回了有效答案，decision 也应正确
         if mockProvider.sendCallCount >= 1 {

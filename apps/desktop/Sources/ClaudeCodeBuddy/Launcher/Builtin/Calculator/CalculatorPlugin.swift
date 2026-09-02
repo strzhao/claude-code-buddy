@@ -72,6 +72,7 @@ final class CalculatorPlugin: BuiltinPlugin {
             title: displayTitle,
             subtitle: "\(normalized) · 回车复制",
             icon: NSImage(systemSymbolName: "function", accessibilityDescription: "计算"),
+            iconEmoji: nil,
             pluginId: self.id,
             score: 1000,
             perform: {

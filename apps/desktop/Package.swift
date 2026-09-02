@@ -47,6 +47,7 @@ let package = Package(
             name: "BuddyCoreTests",
             dependencies: [
                 "BuddyCore",
+                "buddy-cli",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
             path: "Tests/BuddyCoreTests"

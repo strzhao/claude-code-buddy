@@ -57,6 +57,7 @@ private func makeAppAction(id: String, title: String) -> LauncherAction {
         title: title,
         subtitle: nil,
         icon: nil,
+        iconEmoji: nil,
         pluginId: "app-launcher",
         score: 50,
         perform: {}
@@ -594,7 +595,7 @@ final class SystemCommandPluginRegistryArbitrationAcceptanceTests: XCTestCase {
             priority: 0,
             sectionTitle: "应用",
             actions: [
-                LauncherAction(id: "app-lock", title: "LockApp", subtitle: nil, icon: nil,
+                LauncherAction(id: "app-lock", title: "LockApp", subtitle: nil, icon: nil, iconEmoji: nil,
                                pluginId: "app-launcher", score: 1000, perform: {})
             ]
         )
@@ -625,7 +626,7 @@ final class SystemCommandPluginRegistryArbitrationAcceptanceTests: XCTestCase {
             priority: 0,
             sectionTitle: "应用",
             actions: [
-                LauncherAction(id: "app1", title: "Lock Screen Simulator", subtitle: nil, icon: nil,
+                LauncherAction(id: "app1", title: "Lock Screen Simulator", subtitle: nil, icon: nil, iconEmoji: nil,
                                pluginId: "app-launcher", score: 500, perform: {})
             ]
         )
@@ -659,7 +660,7 @@ final class SystemCommandPluginRegistryArbitrationAcceptanceTests: XCTestCase {
             priority: 0,
             sectionTitle: "应用",
             actions: [
-                LauncherAction(id: "app-lock", title: "MockApp", subtitle: nil, icon: nil,
+                LauncherAction(id: "app-lock", title: "MockApp", subtitle: nil, icon: nil, iconEmoji: nil,
                                pluginId: "app-launcher", score: 999, perform: {})
             ]
         )

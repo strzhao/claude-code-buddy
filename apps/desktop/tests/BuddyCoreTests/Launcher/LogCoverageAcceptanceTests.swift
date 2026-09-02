@@ -439,6 +439,7 @@ final class LogCoverageAcceptanceTests: XCTestCase {
                     title: "候选 A",
                     subtitle: "来自 debug-route-test",
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "debug-route-test",
                     score: 1000,
                     perform: {}

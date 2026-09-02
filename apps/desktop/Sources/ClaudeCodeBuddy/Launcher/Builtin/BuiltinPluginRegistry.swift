@@ -79,6 +79,39 @@ final class BuiltinPluginRegistry {
         return Array(allActions.prefix(limit).map(\.action))
     }
 
+    /// 统一混排用（D2/D3，C-UNIFIED-SCORE）：actions(for:) 的**无截断**变体，
+    /// 返回 (action, 来源 plugin priority) 对——launcher 侧做全局统一排序时需要来源优先级
+    /// （内置 priority 降序；社区插件视为 50；app/launcher=0）。
+    /// C3：同样跳过 disabled 插件。C10 actions(for:) 行为零变化（本方法仅新增）。
+    func scoredActions(for query: String) async -> [(action: LauncherAction, priority: Int)] {
+        guard !query.isEmpty else { return [] }
+        let sortedPlugins = plugins.sorted { $0.priority > $1.priority }
+        var result: [(action: LauncherAction, priority: Int)] = []
+        for plugin in sortedPlugins {
+            guard enabledStore.isEnabled(id: plugin.id) else { continue }
+            let acts = await plugin.actions(for: query)
+            for action in acts {
+                result.append((action: action, priority: plugin.priority))
+            }
+        }
+        return result
+    }
+
+    /// D1（内置插件模糊接入统一混排）：返回参与 `UnifiedPluginScorer` 模糊命中的内置插件
+    /// —— pluginKeywords 非空 ∧ `enabledStore.isEnabled==true`。遍历 plugins 既有次序。
+    /// 消费方：`LauncherManager.unifiedCandidates`（无具体候选时产 `builtin:<id>` 聚合行）
+    /// 与 `submitInstantSelection`（builtin: 行 pluginId → 插件解析，C-BUILTIN-EXPAND）。
+    func fuzzyMatchablePlugins() -> [(plugin: any BuiltinPlugin, keywords: [String])] {
+        plugins.compactMap { plugin in
+            // C3：关闭态插件不参与（无行无条目，C-BUILTIN-DISABLED）
+            guard enabledStore.isEnabled(id: plugin.id) else { return nil }
+            let keywords = plugin.pluginKeywords
+            // pluginKeywords 空 = 未配置，不产行（等价未接入）
+            guard !keywords.isEmpty else { return nil }
+            return (plugin, keywords)
+        }
+    }
+
     // MARK: - C3 enabled / summary 查询（debug registry / 设置页数据源）
 
     /// 返回插件是否启用（透传 enabledStore）。

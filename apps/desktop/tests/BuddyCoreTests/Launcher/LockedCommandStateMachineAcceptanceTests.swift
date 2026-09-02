@@ -37,6 +37,8 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.pluginsOverride = nil
         LauncherManager.shared.stdinExecutorOverride = nil
         LauncherManager.shared.clearInstantActions()
+        // C-TAB-LOCK：类内显式锁定路径（lockPluginCandidate）会残留 lockedCommand，逐测试清理
+        LauncherManager.shared.clearLockedCommand()
         if LauncherManager.shared.isVisible {
             LauncherManager.shared.hide()
         }
@@ -47,35 +49,36 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.stdinExecutorOverride = nil
         LauncherManager.shared.registryOverride = nil
         LauncherManager.shared.clearInstantActions()
+        LauncherManager.shared.clearLockedCommand()
         try await super.tearDown()
     }
 
     // MARK: - 场景4（P1·Happy·唯一自动锁定一步执行）
 
-    /// 场景4.P1 [det-machine]：命中数==1 → 自动锁定且不立即执行
-    /// assert: commandPrefixMatched("qr ").count==1 && lockedCommand=="qr"
-    ///   - 先断言前置不变式（commandPrefixMatched 唯一命中），再断言 updateQuery 自动锁。
-    func test_scenario4_P1_uniqueMatch_autoLocks_lockedQr() async {
+    /// 场景4.P1 [det-machine]：候选列出后 Tab 锁定 → 进入锁定态且不立即执行
+    /// assert: lockedCommand=="qr"
+    ///   - 统一混排语义（C-TAB-LOCK）：命中不再自动锁定；Tab 锁定是唯一入口。
+    func test_scenario4_P1_tabLock_lockedQr() async {
         let qr = makeQrCommandManifest()
         LauncherManager.shared.pluginsOverride = [qr]
 
-        // 前置：commandPrefixMatched 唯一命中（C-PREFIX-MATCH 纯函数不变式）
-        let matched = LauncherRouter.commandPrefixMatched(query: "qr ", plugins: [qr])
-        XCTAssertEqual(matched.count, 1,
-            "场景4.P1 前置: commandPrefixMatched(\"qr \") 必须唯一命中 count==1，实际=\(matched.count)")
-
-        // 驱动 updateQuery（唯一命中 → C-UNIQUE-AUTOLOCK 自动锁）
+        // 驱动 updateQuery（候选列出，不自动锁）
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        XCTAssertNil(LauncherManager.shared.lockedCommand,
+            "场景4.P1 前置: typing 期不得自动锁定（C-TAB-LOCK）")
+
+        // Tab 锁定（View 层 onKeyPress(.tab) 等价路径）
+        LauncherManager.shared.lockPluginCandidate(qr)
 
         XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qr",
-            "场景4.P1: 唯一命中时 updateQuery 必须自动设 lockedCommand==\"qr\"（C-UNIQUE-AUTOLOCK）")
+            "场景4.P1: Tab 锁定必须设 lockedCommand==\"qr\"（C-TAB-LOCK）")
     }
 
     /// 场景4.P1.negate [real-process]：锁定后 Enter 前不拉起子进程
     /// assert: spawnedCommandSubprocesses.contains("qr")==false
-    ///   - 锁定态本身不执行（C-LOCK-NOT-EXECUTE 的自动锁变体）。spy 不得被调用。
-    ///   - Mutation 5 问：若 updateQuery 自动锁后顺带 submit，spy.executeCallCount 会 >0 → 断言失败。
+    ///   - 锁定态本身不执行（C-LOCK-NOT-EXECUTE）。spy 不得被调用。
+    ///   - Mutation 5 问：若锁定后顺带 submit，spy.executeCallCount 会 >0 → 断言失败。
     func test_scenario4_P1_negate_autoLock_noSpawnBeforeEnter() async {
         let qr = makeQrCommandManifest()
         let spy = RecordingStdinExecutorSpy()
@@ -84,9 +87,10 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
 
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        LauncherManager.shared.lockPluginCandidate(qr)
 
         XCTAssertEqual(spy.executeCallCount, 0,
-            "场景4.P1.negate: 自动锁定后 Enter 前不得拉起子进程（spy.executeCallCount==0），实际=\(spy.executeCallCount)")
+            "场景4.P1.negate: 锁定后 Enter 前不得拉起子进程（spy.executeCallCount==0），实际=\(spy.executeCallCount)")
         XCTAssertNil(spy.lastInput,
             "场景4.P1.negate: Enter 前不得构造 PluginInput")
     }
@@ -126,53 +130,46 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
 
     // MARK: - 场景5（P1·Happy·多命中显式选中）
 
-    /// 场景5.P1 [det-machine]：命中数>=2 → 列候选不锁定不执行
+    /// 场景5.P1 [det-machine]：多命中 → 统一列表列出，不锁定不执行
     /// assert: lockedCommand==nil && spawnedCommandSubprocesses==[]
-    ///   - 用两 command 插件共享 keyword "q"（合成多命中，参考场景5 描述）。
     func test_scenario5_P1_multiMatch_listCandidates_noLock_noSpawn() async {
-        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
-        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        let qa = makeCommandManifest(name: "qa", keywords: ["qwk"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["qwk"])
         LauncherManager.shared.pluginsOverride = [qa, qb]
         let spy = RecordingStdinExecutorSpy()
         LauncherManager.shared.stdinExecutorOverride = spy
 
-        LauncherManager.shared.updateQuery("q arg")
+        LauncherManager.shared.updateQuery("qwk arg")
         await Task.yield()
 
         XCTAssertNil(LauncherManager.shared.lockedCommand,
-            "场景5.P1: 多命中时 lockedCommand 必须为 nil（C-MULTI-SELECT-LOCK），实际=\(String(describing: LauncherManager.shared.lockedCommand?.name))")
-        XCTAssertGreaterThanOrEqual(LauncherManager.shared.commandRouteCandidates.count, 2,
-            "场景5.P1: 多命中时 commandRouteCandidates 必须列出 ≥2 项（候选列出供选择）")
+            "场景5.P1: 多命中时 lockedCommand 必须为 nil（C-TAB-LOCK），实际=\(String(describing: LauncherManager.shared.lockedCommand?.name))")
+        XCTAssertGreaterThanOrEqual(LauncherManager.shared.instantActions.count, 2,
+            "场景5.P1: 多命中时统一列表必须列出 ≥2 项（候选列出供选择）")
         XCTAssertEqual(spy.executeCallCount, 0,
             "场景5.P1: 多命中未选中时不得执行（spawnedCommandSubprocesses==[]），实际=\(spy.executeCallCount)")
     }
 
-    /// 场景5.P2 [det-machine]：多命中 ↓+Enter/Tab/点击 → 仅锁定不执行
+    /// 场景5.P2 [det-machine]：多命中 Tab 锁定 → 仅锁定不执行
     /// assert: lockedCommand==selected && spawnedCommandSubprocesses==[]
-    ///   - 模拟选中：moveCommandRouteSelection 选中第一项 + 显式选中动作设 lockedCommand。
-    ///     蓝队 T3 实现的「选中=锁定」分支在 LauncherInputView.submit，此处直驱等价路径：
-    ///     moveCommandRouteSelection(up:) 选中后，断言选中索引正确（选中语义前置），
-    ///     再断言执行未发生（C-LOCK-NOT-EXECUTE）。
     func test_scenario5_P2_multiMatch_selectLocks_noExecute() async {
-        let qa = makeCommandManifest(name: "qa", keywords: ["q"])
-        let qb = makeCommandManifest(name: "qb", keywords: ["q"])
+        let qa = makeCommandManifest(name: "qa", keywords: ["qwk"])
+        let qb = makeCommandManifest(name: "qb", keywords: ["qwk"])
         LauncherManager.shared.pluginsOverride = [qa, qb]
         let spy = RecordingStdinExecutorSpy()
         LauncherManager.shared.stdinExecutorOverride = spy
 
-        LauncherManager.shared.updateQuery("q arg")
+        LauncherManager.shared.updateQuery("qwk arg")
         await Task.yield()
-        XCTAssertEqual(LauncherManager.shared.commandRouteCandidates.count, 2, "precondition")
-        XCTAssertNil(LauncherManager.shared.lockedCommand, "precondition: 未选中前 lockedCommand==nil")
+        XCTAssertNil(LauncherManager.shared.lockedCommand, "precondition: 未锁定前 lockedCommand==nil")
 
-        // 模拟 ↓ 选中第二项（多命中显式选中）
-        LauncherManager.shared.moveCommandRouteSelection(up: false)
+        // 模拟 Tab 锁定第二项（View 层 Tab 对选中行调 lockPluginCandidate）
+        LauncherManager.shared.lockPluginCandidate(qb)
 
-        // 选中后 lockedCommand 应被设为选中项（C-MULTI-SELECT-LOCK）
-        // 注：选中=锁定的绑定在 LauncherInputView.submit 的 .commandRoute 分支（蓝队 T3）；
-        //     此处断言选中索引正确 + 选中不执行（C-LOCK-NOT-EXECUTE 核心契约）。
+        XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qb",
+            "场景5.P2: 显式锁定应设 lockedCommand==选中项（C-TAB-LOCK）")
         XCTAssertEqual(spy.executeCallCount, 0,
-            "场景5.P2: 多命中显式选中不得立即执行（spawnedCommandSubprocesses==[]），实际=\(spy.executeCallCount)")
+            "场景5.P2: 显式锁定不得立即执行（spawnedCommandSubprocesses==[]），实际=\(spy.executeCallCount)")
     }
 
     /// 场景5.P3 [real-process]：已锁 + 参数 + Enter → 执行被锁 command
@@ -180,7 +177,7 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
     ///   - 用 submitCommandDirect 模拟锁定 qa 后 Enter 执行：spy.executeCallCount>=1 + input.query 为参数。
     func test_scenario5_P3_lockedSelected_enter_executesSelected() async throws {
         let dirName = "qa-scn5-\(UUID().uuidString.prefix(8))"
-        let pluginDir = try makeCommandPluginInRoot(name: "qa", dirName: String(dirName), keywords: ["q"])
+        let pluginDir = try makeCommandPluginInRoot(name: "qa", dirName: String(dirName), keywords: ["qwk"])
         defer { try? FileManager.default.removeItem(at: pluginDir) }
         let selected = try loadManifest(from: pluginDir)
         let executablePath = pluginDir.appendingPathComponent("run.sh")
@@ -190,7 +187,7 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.resetSubmittingStateForTesting()
 
         // 直驱：已锁 qa + 参数 + Enter（submitCommandDirect 执行段）
-        let stream = LauncherManager.shared.submitCommandDirect(selected, query: "q hello")
+        let stream = LauncherManager.shared.submitCommandDirect(selected, query: "qwk hello")
         for await _ in stream {}
 
         XCTAssertGreaterThanOrEqual(spy.executeCallCount, 1,
@@ -211,9 +208,10 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.pluginsOverride = [qr]
         LauncherManager.shared.stdinExecutorOverride = spy
 
-        // 唯一命中 → 自动锁（场景4 路径）
+        // Tab 锁定（场景4 路径，C-TAB-LOCK）
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        LauncherManager.shared.lockPluginCandidate(qr)
         XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qr",
             "场景6 precondition: 必须先锁定 qr")
 
@@ -267,9 +265,10 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.pluginsOverride = [qr]
         LauncherManager.shared.stdinExecutorOverride = spy
 
-        // 先锁定（唯一自动锁）
+        // 先锁定（Tab 锁定，C-TAB-LOCK）
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        LauncherManager.shared.lockPluginCandidate(qr)
         XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qr", "场景8 precondition: 必须先锁定 qr")
 
         // esc 处理（C-ESC-EXIT：lockedCommand!=nil 时仅清锁）
@@ -290,9 +289,10 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         let qr = makeQrCommandManifest()
         LauncherManager.shared.pluginsOverride = [qr]
 
-        // 先锁定
+        // 先锁定（Tab 锁定）
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        LauncherManager.shared.lockPluginCandidate(qr)
         XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qr", "场景9 precondition: 必须先锁定 qr")
 
         // 清空输入框（updateQuery("")）
@@ -305,25 +305,21 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
 
     // MARK: - 场景10（P2·Integration·stdin/prompt 不受影响）
 
-    /// 场景10.P1 [det-machine]：prompt/stdin 插件输入走原 narrowCandidatesScored+AI 路由，不经 command 锁定
-    /// assert: lockedCommand 对 prompt 输入==nil
-    ///   - C-SCOPE-COMMAND-ONLY：stdin/prompt mode 命中与路由不动。
-    ///   - hello（prompt mode）输入「hello」→ lockedCommand 必须为 nil（command 锁定只对 command mode 生效）。
+    /// 场景10.P1 [det-machine]：prompt 插件输入 typing 期不锁定（C-TAB-LOCK：锁定仅 Tab/点击）
+    /// assert: lockedCommand==nil 且 prompt 插件进统一列表（D3.3 不分 mode）
     func test_scenario10_P1_promptInput_notLocked() async {
         let hello = makePromptManifest(name: "hello", keywords: ["hello"])
         let translate = makePromptManifest(name: "translate", keywords: ["translate", "tr", "翻译"])
         LauncherManager.shared.pluginsOverride = [hello, translate]
 
-        // prompt 插件输入 → 不进 command 锁定
         LauncherManager.shared.updateQuery("hello")
         await Task.yield()
 
         XCTAssertNil(LauncherManager.shared.lockedCommand,
-            "场景10.P1: prompt 插件输入不得触发 command 锁定（C-SCOPE-COMMAND-ONLY），实际=\(String(describing: LauncherManager.shared.lockedCommand?.name))")
-        // stdin/prompt 走原路由（narrowCandidatesScored），commandRouteCandidates 不含 prompt 插件
-        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.allSatisfy {
-            if case .command = $0.modeConfig { return true }; return false
-        }, "场景10.P1: commandRouteCandidates 不得混入 prompt/stdin 插件")
+            "场景10.P1: prompt 插件输入不得自动锁定（C-TAB-LOCK），实际=\(String(describing: LauncherManager.shared.lockedCommand?.name))")
+        // D3.3：prompt 插件候选进统一列表（不分 mode）
+        XCTAssertTrue(LauncherManager.shared.instantActions.contains { $0.pluginId == "hello" },
+            "场景10.P1: prompt 插件进统一列表（D3.3）")
     }
 
     // MARK: - 场景11（P2·Integration·参数态隔离）
@@ -347,9 +343,10 @@ final class LockedCommandStateMachineAcceptanceTests: XCTestCase {
         LauncherManager.shared.pluginsOverride = [qr, translate]
         LauncherManager.shared.resetSubmittingStateForTesting()
 
-        // 前置：锁定 qr（C-LOCK-STICKY 保持）
+        // 前置：锁定 qr（Tab 锁定，C-TAB-LOCK）
         LauncherManager.shared.updateQuery("qr ")
         await Task.yield()
+        LauncherManager.shared.lockPluginCandidate(qr)
         XCTAssertEqual(LauncherManager.shared.lockedCommand?.name, "qr",
             "场景11 precondition: 必须先锁定 qr")
 

@@ -1,12 +1,11 @@
 import AppKit
 import Combine
 
-/// 候选导航活动区（方案 B 分区渲染，C2/C5）。
-/// 决定 ↑↓ 跨区语义与 Enter 派发目标（submit 按 activeCandidateZone 分流）。
+/// 候选导航活动区（D3/D6 统一混排后简化：typing 期恒 .instant）。
+/// 决定 ↑↓ 跨区语义与 Enter 派发目标。
 enum CandidateZone: Equatable {
-    case pluginCandidates   // post-exec 候选输出通道区（隔离其他三区）
-    case commandRoute       // command 路由候选区（typing 阶段填充，用户安装的 command 插件）
-    case instant            // 内置即时候选区（AppLauncher/Calculator/SystemCommand 等）
+    case pluginCandidates   // post-exec 候选输出通道区（隔离其他区）
+    case instant            // 统一混排候选区（app/内置/社区插件单一列表）
     case aiRoute            // AI 路由候选兜底（lastRouteCandidates）
 }
 
@@ -18,16 +17,12 @@ final class LauncherManager: ObservableObject {
     /// 执行阶段（task 008 追加）
     @Published private(set) var stage: LauncherStage = .idle
 
-    /// 最近一次路由的候选列表（task 005 追加，供 LauncherCandidateView 显示）
+    /// 最近一次路由的候选列表（AI 流 submit 期填充，候选回调 C5 查找用）
     @Published private(set) var lastRouteCandidates: [PluginManifest] = []
     /// 最近一次路由选中的候选索引（task 008 改为哨兵 -1）
     @Published private(set) var lastRouteSelectedIndex: Int = -1
     /// 当前 calling/streaming 阶段使用的插件名（供 LauncherStatusFooter 显示）
     @Published private(set) var lastRoutePluginName: String?
-
-    /// 当前激活的插件名（chip 水印显示用）：仅在 calling/streaming 阶段非 nil
-    /// 派生自 stage + lastRoutePluginName（chip 测试通过此属性观察）
-    @Published private(set) var activePluginName: String?
 
     private lazy var launcherWindow: LauncherWindow = makeWindow()
     private var hostingController: LauncherHostingController?
@@ -57,31 +52,24 @@ final class LauncherManager: ObservableObject {
     /// 红队/蓝队共同约定注入点，用于 SC-13/SC-14 mock candidates
     var routerFactoryOverride: ((PluginManager, LauncherProvider, String) -> LauncherRouter)?
 
-    // MARK: - 即时候选管线（task 011 内置插件）
+    // MARK: - 即时候选管线（task 011 内置插件 → D3 统一混排）
 
-    /// 即时候选列表（live 阶段：边输入边搜索）
+    /// 统一混排候选列表（live 阶段：边输入边搜索；app + 内置 + 社区插件单一列表，C-UNIFIED-SCORE）
     @Published private(set) var instantActions: [LauncherAction] = []
     /// 即时候选选中索引（哨兵 -1；有候选时置 0）
     @Published private(set) var instantSelectedIndex: Int = -1
     /// 启动失败错误（呈现中文文案，修复 SUGGESTION-2）
     @Published private(set) var lastInstantError: LauncherError?
-
-    // MARK: - command 路由候选状态（方案 B 分区渲染，C1/C2/C5）
-
-    /// command 路由候选列表（typing 阶段填充的 command-mode 子集，C1）。
-    /// 与 submit 期填充的 lastRouteCandidates 解耦，避免污染路由决策。
-    @Published private(set) var commandRouteCandidates: [PluginManifest] = []
-    /// command 路由候选选中索引（哨兵 -1；非空时默认 0，C2 command 优先）。
-    @Published private(set) var commandRouteSelectedIndex: Int = -1
-    /// 当前导航活动区（C2/C5）：决定 ↑↓ 跨区语义与 Enter 派发目标。
+    /// 当前导航活动区（typing 期恒 .instant，D3.5）
     @Published private(set) var activeCandidateZone: CandidateZone = .instant
 
-    /// 锁定的 command 插件（方案 B 两阶段：选中 = 锁定 ≠ 执行，C-LOCK-NOT-EXECUTE）。
+    /// 锁定的插件（两阶段：Tab/点击锁定 = 锁定 ≠ 执行，C-TAB-LOCK）。
     ///
-    /// 进入：(a) `commandPrefixMatched` 唯一命中 → updateQuery 自动锁（C-UNIQUE-AUTOLOCK）；
-    ///      (b) 多命中 → 用户 ↑↓ + Enter/Tab/点击显式选中锁（C-MULTI-SELECT-LOCK）。
-    /// 退出：esc / 输入框清空 / query 不再以 locked 的 keyword 开头 / 执行完成（C-ESC-EXIT）。
-    /// 锁定后进入「参数输入态」：候选区 + instant 区隐藏，Enter 执行 `submitCommandDirect`（C-EXEC-ON-ENTER）。
+    /// 进入：候选列表中插件行 Tab/点击显式锁定（D5 `lockPluginCandidate`）。
+    /// 退出：esc / 输入框清空 / query 不再以 locked 的 name/keyword 开头 / 执行完成（C-ESC-EXIT）。
+    /// 锁定后进入「参数输入态」：候选区隐藏，Enter 执行 `submitCommandDirect`（command mode）
+    /// 或 `submitWithPlugin`（stdin/prompt mode，D4）。
+    /// 「keyword+空格自动锁定」「唯一命中自动锁定」已退役（C-TAB-LOCK：不存在）。
     @Published var lockedCommand: PluginManifest?
 
     /// debounce Task（连续输入时 cancel 旧 Task）
@@ -89,6 +77,8 @@ final class LauncherManager: ObservableObject {
 
     /// 测试注入点（SUGGESTION-1）：覆盖 Registry
     var registryOverride: BuiltinPluginRegistry?
+    /// 最近一次 updateQuery 的原始输入（D1 插件行 perform 程序化执行入口用，与 Enter 分流同源）
+    private(set) var currentQuery = ""
     /// 测试注入点（SUGGESTION-1）：覆盖 debounce 毫秒数（测试置 0 跳过等待）
     var instantDebounceMsOverride: Int?
     /// 测试注入点（I1）：覆盖 updateQuery 读取的 plugins 源（优先于 PluginManager.shared.list()）。
@@ -101,19 +91,7 @@ final class LauncherManager: ObservableObject {
     /// 单测可注入指向 tmpDir 的 PluginManager，不依赖 ~/.buddy/launcher-plugins 目录存在。
     var pluginManagerOverride: PluginManager?
 
-    /// Combine 订阅持有（activePluginName 自动同步）
-    private var syncCancellables = Set<AnyCancellable>()
-
-    private init() {
-        // 自动同步 activePluginName：stage 或 lastRoutePluginName 变化时重算
-        Publishers.CombineLatest($stage, $lastRoutePluginName)
-            .map { stage, name -> String? in
-                guard stage == .calling || stage == .streaming else { return nil }
-                return name
-            }
-            .assign(to: \.activePluginName, on: self)
-            .store(in: &syncCancellables)
-    }
+    private init() {}
 
     #if DEBUG
     /// Test seam: 直接驱动 chip / 候选行隐藏路径所需的派生状态。
@@ -215,9 +193,6 @@ final class LauncherManager: ObservableObject {
         instantActions = []
         instantSelectedIndex = -1
         lastInstantError = nil
-        // 清空 command 路由候选状态（C1 复位点）
-        commandRouteCandidates = []
-        commandRouteSelectedIndex = -1
         activeCandidateZone = .instant
         // C-ESC-EXIT 复位点：show 时清 lockedCommand（新会话不继承上次锁定）
         lockedCommand = nil
@@ -242,9 +217,6 @@ final class LauncherManager: ObservableObject {
         instantActions = []
         instantSelectedIndex = -1
         lastInstantError = nil
-        // 清空 command 路由候选状态（C1 复位点）
-        commandRouteCandidates = []
-        commandRouteSelectedIndex = -1
         activeCandidateZone = .instant
         debounceTask?.cancel()
         debounceTask = nil
@@ -263,83 +235,121 @@ final class LauncherManager: ObservableObject {
         if isVisible { hide() } else { show() }
     }
 
-    // MARK: - 即时候选管线方法（task 011）
+    // MARK: - 统一混排候选管线（D2/D3，C-UNIFIED-SCORE）
 
-    /// C7 契约：非空 query → debounce 后更新 instantActions；空 query → 立即清空。
+    /// 统一混排候选（UI typing 期与 CLI debug candidates 共用，D9）：
+    /// 1. 插件候选：全部已启用社区插件（**不分 mode**）→ `UnifiedPluginScorer` 打分 >0 者
+    ///    → 映射 `LauncherAction`（id="plugin:<name>"，subtitle=displaySummary，iconEmoji=manifest.icon）。
+    /// 2. 内置候选：registry 各插件 fan-out（无截断，含来源 priority）。
+    /// 3. 合并 → D2 排序键（score desc, 来源稳定序 desc, title 字典序）→ 截 8。
+    ///
+    /// 来源稳定序（D2）：内置插件按既有 priority 降序（Calculator 200/Paste 150/System 100/Screenshot 90），
+    /// 社区插件视为 50，app（AppLauncher 候选，priority=0）视为 0 —— 同分时内置 > 社区插件 > app。
+    func unifiedCandidates(
+        for query: String,
+        externalRegistry: BuiltinPluginRegistry? = nil
+    ) async -> [LauncherAction] {
+        guard !query.isEmpty else { return [] }
+
+        var merged: [(action: LauncherAction, sourceRank: Int)] = []
+
+        // 1. 社区插件候选（sourceRank = 50）
+        let plugins = pluginsOverride ?? ((try? PluginManager.shared.list()) ?? [])
+        for manifest in plugins {
+            let s = UnifiedPluginScorer.score(query: query, manifest: manifest)
+            guard s > 0 else { continue }
+            let action = LauncherAction(
+                id: "plugin:\(manifest.name)",
+                title: manifest.name,
+                subtitle: manifest.displaySummary,
+                icon: nil,
+                iconEmoji: manifest.icon,
+                pluginId: manifest.name,
+                score: s,
+                perform: { [weak self] in
+                    // D1：插件行 perform = 发起执行（与 Enter 分流同源；程序化/测试入口，
+                    // 内部 consume 推进流，真实 UI 输出渲染走 View Enter 分流的 consume）
+                    guard let self else { return }
+                    let stream = self.executePluginCandidate(manifest, query: self.currentQuery)
+                    Task { for await _ in stream {} }
+                }
+            )
+            merged.append((action: action, sourceRank: Self.communityPluginSourceRank))
+        }
+
+        // 2. 内置候选（sourceRank = plugin priority；app = AppLauncher priority 0）
+        let registry = registryOverride ?? externalRegistry ?? BuiltinPluginRegistry.shared
+        let builtin = await registry.scoredActions(for: query)
+        // D1（C-BUILTIN-NO-DUP）：记录已有具体候选的 pluginId——这些插件不再产聚合行（零重复）
+        let pluginIdsWithCandidates = Set(builtin.map(\.action.pluginId))
+        for pair in builtin {
+            merged.append((action: pair.action, sourceRank: pair.priority))
+        }
+
+        // 2.5 内置插件聚合行（D1，C-BUILTIN-FUZZY-ROW）：模糊可命中插件中「无具体候选」者
+        // 跑统一 scorer（name=plugin.id，keywords=pluginKeywords），命中 >0 产聚合行——
+        // 部分词（pas/剪）也能发现内置插件；完整触发词时条目直显不重复霸屏。
+        // perform 空闭包：分流层 builtin: 前缀拦截（submitInstantSelection），perform 通路不可达。
+        for (plugin, keywords) in registry.fuzzyMatchablePlugins()
+        where !pluginIdsWithCandidates.contains(plugin.id) {
+            let s = UnifiedPluginScorer.score(query: query, name: plugin.id, keywords: keywords)
+            guard s > 0 else { continue }
+            let row = LauncherAction(
+                id: "builtin:\(plugin.id)",
+                title: plugin.id,
+                subtitle: plugin.summary,
+                icon: nil,
+                iconEmoji: nil,
+                pluginId: plugin.id,
+                score: s,
+                perform: {}
+            )
+            merged.append((action: row, sourceRank: plugin.priority))
+        }
+
+        // 3. D2 排序键 + 截断
+        merged.sort { lhs, rhs in
+            if lhs.action.score != rhs.action.score { return lhs.action.score > rhs.action.score }
+            if lhs.sourceRank != rhs.sourceRank { return lhs.sourceRank > rhs.sourceRank }
+            return lhs.action.title < rhs.action.title
+        }
+        return Array(merged.prefix(LauncherConstants.builtinActionsLimit).map(\.action))
+    }
+
+    /// 社区插件的来源稳定序（D2：priority 视为 50，低于内置 Calculator/Paste/System/Screenshot，
+    /// 高于 app/launcher 0）
+    nonisolated static let communityPluginSourceRank: Int = 50
+
+    /// C7 契约：非空 query → debounce 后更新 instantActions（统一混排）；空 query → 立即清空。
     /// 连续输入时 cancel 旧 debounceTask，只有最后一次落地。
-    /// 方案 B（C1/C2）：同时填 command 路由候选（command-mode 子集），command 优先选中。
+    /// D3：typing 期恒 .instant 单列表；「唯一命中自动锁定」「keyword+空格自动锁定」已退役
+    /// （C-TAB-LOCK：仅 Tab/点击显式锁定）。
     func updateQuery(_ query: String) {
+        currentQuery = query
         debounceTask?.cancel()
         guard !query.isEmpty else {
             instantActions = []
             instantSelectedIndex = -1
-            // 清空输入 → chip 立即消失
             lastRoutePluginName = nil
-            // 清空 command 路由候选状态（C1 复位点）
-            commandRouteCandidates = []
-            commandRouteSelectedIndex = -1
             activeCandidateZone = .instant
             // 清空输入 = esc 语义（C-ESC-EXIT）：退出锁定
             lockedCommand = nil
             return
         }
-        // I1 seam：pluginsOverride 优先于 PluginManager.shared.list()
-        let plugins = pluginsOverride ?? ((try? PluginManager.shared.list()) ?? [])
 
-        // C-LOCK-STICKY（锁定粘性，关键）：lockedCommand 非空时，先查 query 是否仍以 locked 的
-        // keyword 开头（commandPrefixMatched(query, [locked]) 非空）。
-        // - 是 → 保持锁定，候选清空（参数态隐藏候选），instant 不重算（C-PARAM-ISOLATE），return。
-        // - 否 → lockedCommand = nil，落到正常匹配。
+        // C-LOCK-STICKY（Tab 锁定粘性）：lockedCommand 非空时，query 仍以 locked 的
+        // name/keyword 前缀开头（lockedPrefixStillMatched）→ 保持锁定，候选清空（参数态隔离），return；
+        // 否则解锁落到正常匹配。
         if let locked = lockedCommand {
-            if !LauncherRouter.commandPrefixMatched(query: query, plugins: [locked]).isEmpty {
-                // 仍以 locked keyword 开头 → 保持锁定
-                commandRouteCandidates = []
-                commandRouteSelectedIndex = -1
+            if lockedPrefixStillMatched(query: query, manifest: locked) {
                 instantActions = []
                 instantSelectedIndex = -1
-                lastRoutePluginName = locked.name
                 return
             }
-            // 不再以 locked keyword 开头 → 解锁，落到正常匹配
             lockedCommand = nil
-        }
-
-        // C-PREFIX-MATCH：command 命中改用 commandPrefixMatched（严格前缀 + 分隔符），禁 contains。
-        // 返回保持 plugins 原序的精确前缀命中集合（非打分）。
-        let commandMatched = LauncherRouter.commandPrefixMatched(query: query, plugins: plugins)
-
-        // narrowed（contains 打分）仍服务 stdin/prompt 路由 + lastRoutePluginName chip 显示。
-        let narrowed = LauncherRouter.narrowCandidates(query: query, plugins: plugins)
-        lastRoutePluginName = narrowed.first?.name
-
-        // C1/C9 + C-UNIQUE-AUTOLOCK / C-MULTI-SELECT-LOCK：
-        // - count==1 → 自动锁定，候选清空
-        // - count>1  → lockedCommand=nil，候选列出，默认选中 0
-        // - count==0 → 候选清空
-        if commandMatched.count == 1 {
-            lockedCommand = commandMatched.first
-            commandRouteCandidates = []
-            commandRouteSelectedIndex = -1
-            lastRoutePluginName = commandMatched.first?.name
-        } else if commandMatched.count > 1 {
-            lockedCommand = nil
-            commandRouteCandidates = commandMatched
-            commandRouteSelectedIndex = 0
-        } else {
-            commandRouteCandidates = []
-            commandRouteSelectedIndex = -1
-        }
-
-        // C-PARAM-ISOLATE：参数态（lockedCommand 非空）隐藏 instant 区，专注参数输入。
-        if lockedCommand != nil {
-            instantActions = []
-            instantSelectedIndex = -1
-            activeCandidateZone = .instant
-            return
         }
 
         let delayMs = instantDebounceMsOverride ?? LauncherConstants.instantDebounceMs
-        let registry = registryOverride ?? BuiltinPluginRegistry.shared
         debounceTask = Task { @MainActor [weak self] in
             guard let self else { return }
             if delayMs > 0 {
@@ -352,16 +362,11 @@ final class LauncherManager: ObservableObject {
                 self.instantSelectedIndex = -1
                 return
             }
-            let acts = await registry.actions(for: query)
+            let acts = await self.unifiedCandidates(for: query)
             guard !Task.isCancelled else { return }
             self.instantActions = acts
-            // C2/I5：不再用 -1 钉死 instantSelectedIndex。
-            // command 区非空时 command 优先选中（activeCandidateZone=.commandRoute），
-            // instant 区可见但不预选（instantSelectedIndex 仍按候选存在性置 0，
-            // 由 activeCandidateZone 决定 Enter 实际派发目标，避免跨区 off-by-one）。
             self.instantSelectedIndex = acts.isEmpty ? -1 : 0
-            // C2：默认活动区 = command 优先（非空）否则 instant
-            self.activeCandidateZone = self.commandRouteCandidates.isEmpty ? .instant : .commandRoute
+            self.activeCandidateZone = .instant
         }
     }
 
@@ -376,27 +381,63 @@ final class LauncherManager: ObservableObject {
         }
     }
 
-    // MARK: - command 路由候选导航（C5 四态矩阵）
+    // MARK: - 插件锁定（D5，C-TAB-LOCK）
 
-    /// command 路由候选区内环形导航（C5：单区内环形，跨区由 LauncherInputView 边界处理）。
-    func moveCommandRouteSelection(up: Bool) {
-        guard !commandRouteCandidates.isEmpty else { return }
-        let count = commandRouteCandidates.count
-        if up {
-            commandRouteSelectedIndex = commandRouteSelectedIndex <= 0 ? count - 1 : commandRouteSelectedIndex - 1
-        } else {
-            commandRouteSelectedIndex = commandRouteSelectedIndex >= count - 1 ? 0 : commandRouteSelectedIndex + 1
+    /// Tab/点击锁定插件候选（D5，C-TAB-LOCK）：对 unified 列表中的插件行显式锁定该 manifest，
+    /// 进入参数输入态（**不执行**）。复用原 selectCommandRouteCandidateForLock 语义：
+    /// lockedCommand = manifest，候选隐藏 + instant 隔离。
+    /// 仅插件行可锁；app/内置行 Tab 忽略（View 层保证只对插件行调用）。
+    func lockPluginCandidate(_ manifest: PluginManifest) {
+        lockedCommand = manifest
+        instantActions = []
+        instantSelectedIndex = -1
+        activeCandidateZone = .instant
+    }
+
+    /// Tab 锁定核心（D5，C-TAB-LOCK）：统一列表选中行是插件行 → 锁定该 manifest，返回 true；
+    /// app/内置行或无有效选中 → false（View 层 Tab 忽略）。View 的 .onKeyPress(.tab) 与测试共用此入口。
+    @discardableResult
+    func handleTabLock() -> Bool {
+        guard instantActions.indices.contains(instantSelectedIndex) else { return false }
+        let action = instantActions[instantSelectedIndex]
+        // 内置插件聚合行：Tab 忽略（内置无参数语义；不加固守则重名场景下
+        // resolvePluginCandidate 命中社区插件会误锁定，C-BUILTIN-TAB-NOLOCK）
+        if action.id.hasPrefix("builtin:") { return false }
+        guard let manifest = resolvePluginCandidate(pluginId: action.pluginId) else { return false }
+        lockPluginCandidate(manifest)
+        return true
+    }
+
+    /// Tab 锁定的测试入口（对齐 handleEscapeForTesting 惯例）。
+    func handleTabForTesting() {
+        _ = handleTabLock()
+    }
+
+    /// 锁定粘性判定（D3.6）：query 是否仍以 locked manifest 的 name/keyword 前缀开头
+    /// （严格分隔：前缀后必须紧跟空白/标点/行尾；与 stripKeywordPrefix 同语义）。
+    /// 空 query 不经此函数（updateQuery 空分支直接清锁，C-ESC-EXIT）。
+    func lockedPrefixStillMatched(query: String, manifest: PluginManifest) -> Bool {
+        let queryLower = query.lowercased()
+        let prefixes = ([manifest.name] + manifest.keywords)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .sorted { $0.count > $1.count }
+        for prefix in prefixes {
+            let prefixLower = prefix.lowercased()
+            guard queryLower.hasPrefix(prefixLower) else { continue }
+            let after = query.index(query.startIndex, offsetBy: prefix.count)
+            if after == query.endIndex {
+                return true  // query 恰是 keyword 本身（行尾）
+            }
+            let nextChar = query[after]
+            if nextChar.isWhitespace || nextChar.isPunctuation {
+                return true
+            }
         }
+        return false
     }
 
-    /// 键盘覆盖 command 路由候选索引（C5）：clamp 到 [0, count-1]，空 list no-op。
-    func setCommandRouteSelectedIndex(_ index: Int) {
-        guard !commandRouteCandidates.isEmpty else { return }
-        let clamped = max(0, min(commandRouteCandidates.count - 1, index))
-        commandRouteSelectedIndex = clamped
-    }
-
-    /// 键盘覆盖 instant 候选索引（C5，对称 setCommandRouteSelectedIndex）：clamp 到 [0, count-1]，空 list no-op。
+    /// 键盘覆盖 instant 候选索引（C5）：clamp 到 [0, count-1]，空 list no-op。
     /// C-SCROLL-TO-SELECTION：供 LauncherInstantCandidateView 的 @Binding set 调用。
     func setInstantSelectedIndex(_ index: Int) {
         guard !instantActions.isEmpty else { return }
@@ -404,28 +445,9 @@ final class LauncherManager: ObservableObject {
         instantSelectedIndex = clamped
     }
 
-    /// 切换当前导航活动区（C2/C5）：LauncherInputView 跨区边界处理时调用。
+    /// 切换当前导航活动区：pluginCandidates 通道 / aiRoute 兜底切换时调用。
     func setActiveCandidateZone(_ zone: CandidateZone) {
         activeCandidateZone = zone
-    }
-
-    // MARK: - command 锁定（方案 B 两阶段，C-LOCK-NOT-EXECUTE / C-MULTI-SELECT-LOCK）
-
-    /// 多命中显式选中锁定（C-MULTI-SELECT-LOCK）：用户在候选态按 Enter/Tab/点击候选行 →
-    /// 设 `lockedCommand = commandRouteCandidates[commandRouteSelectedIndex]`，**不执行**。
-    /// 调用方负责先 `setCommandRouteSelectedIndex(_:)` 定位选中项。
-    /// 命中后清候选（参数态隐藏候选，C-PARAM-ISOLATE）。
-    func selectCommandRouteCandidateForLock() {
-        guard commandRouteCandidates.indices.contains(commandRouteSelectedIndex) else { return }
-        lockedCommand = commandRouteCandidates[commandRouteSelectedIndex]
-        // 锁定后进入参数输入态：候选隐藏 + instant 隔离
-        commandRouteCandidates = []
-        commandRouteSelectedIndex = -1
-        instantActions = []
-        instantSelectedIndex = -1
-        if let locked = lockedCommand {
-            lastRoutePluginName = locked.name
-        }
     }
 
     /// 退出锁定（C-ESC-EXIT）：esc / 清空输入框时调用，仅清 `lockedCommand`，**不 hide 面板**。
@@ -468,15 +490,114 @@ final class LauncherManager: ObservableObject {
         return true
     }
 
+    // MARK: - D4 Enter 分流（C-ENTER-EXEC，可测分流主体）
+
+    /// instant 区选中行 Enter 的分流结果（D4/D5）：
+    /// - `.performed`：app/内置行 → `performSelectedInstantAction()` 已执行（含 hide）。
+    /// - `.stream`：插件行 → 按 mode 分发得到的执行流（command 零 LLM / stdin·prompt 走 LLM），
+    ///   View 层消费该流并记录 callback（候选回调 C5 用）。manifest 供 callback 记录。
+    /// - `.expandBuiltin(trigger)`：内置插件聚合行（`builtin:` 前缀）→ View 填触发词
+    ///   （query = trigger）展开该插件具体候选（C-BUILTIN-EXPAND）。
+    /// - `.notInstant`：无选中行（落 fallback AI 流）。
+    enum InstantSelectionRoute {
+        case performed
+        case stream(AsyncStream<AgentEvent>, manifest: PluginManifest)
+        case expandBuiltin(trigger: String)
+        case notInstant
+    }
+
+    /// D5/D4 共用：pluginId → 已装社区插件 manifest 解析（pluginsOverride 优先，测试缝）。
+    func resolvePluginCandidate(pluginId: String) -> PluginManifest? {
+        if let override = pluginsOverride {
+            return override.first { $0.name == pluginId }
+        }
+        let manager = pluginManagerOverride ?? PluginManager.shared
+        return (try? manager.find(name: pluginId)) ?? nil
+    }
+
+    /// D1/D4 插件行统一执行入口（manifest 直达版）：command → submitCommandDirect（零 LLM）；
+    /// stdin/prompt → submitWithPlugin。Enter 分流（submitInstantSelection）与插件行 perform 共用。
+    func executePluginCandidate(_ manifest: PluginManifest, query: String) -> AsyncStream<AgentEvent> {
+        if case .command = manifest.modeConfig {
+            return submitCommandDirect(manifest, query: query)
+        }
+        return submitWithPlugin(manifest, query: query)
+    }
+
+    /// D4 分流主体（可测 seam；View 层 submit 只传 query 与消费结果）：
+    /// instant 区选中行：
+    /// 1. `pluginId` 命中某已装社区插件 manifest → 按 mode 分发：
+    ///    - `.command` → `submitCommandDirect(manifest, query:)`（零 LLM、不经 provider 检查，C-ENTER-EXEC）
+    ///    - `.stdin`/`.prompt` → `submitWithPlugin(manifest, query:)`（provider + LLM agent loop，
+    ///      trust 检查在 withPlugin 分支已有）
+    /// 2. 非插件（app/内置）→ `performSelectedInstantAction()` → `.performed`。
+    /// 3. 无选中 → `.notInstant`（View 层落 fallback AI 流）。
+    func submitInstantSelection(
+        query: String,
+        externalRegistry: BuiltinPluginRegistry? = nil
+    ) -> InstantSelectionRoute {
+        guard instantActions.indices.contains(instantSelectedIndex) else { return .notInstant }
+        let action = instantActions[instantSelectedIndex]
+
+        // 内置插件聚合行（`builtin:` 前缀）守卫：优先级最高——防社区插件重名（如 paste）时
+        // resolvePluginCandidate 误分流到子进程插件（C-BUILTIN-EXPAND）。
+        if action.id.hasPrefix("builtin:") {
+            guard let match = builtinFuzzyPlugin(pluginId: action.pluginId, externalRegistry: externalRegistry),
+                  let trigger = Self.bestTriggerWord(keywords: match.keywords, query: query) else {
+                // 防御：找不到插件 / keywords 全空（D1 保证非空才可命中，此分支不可达）
+                return .notInstant
+            }
+            return .expandBuiltin(trigger: trigger)
+        }
+
+        // 插件行判定：pluginId == manifest.name（unifiedCandidates 映射约定，D1）
+        guard let plugin = resolvePluginCandidate(pluginId: action.pluginId) else {
+            // app/内置行：perform 执行（C5 既有契约）
+            return performSelectedInstantAction() ? .performed : .notInstant
+        }
+
+        clearInstantActions()
+        // C-ENTER-EXEC：mode 分发统一经 executePluginCandidate（command → 零 LLM 直执行；
+        // stdin/prompt → submitWithPlugin），与插件行 perform / 锁定态 Enter 同源
+        return .stream(executePluginCandidate(plugin, query: query), manifest: plugin)
+    }
+
+    /// D5：builtin: 行 pluginId → 内置插件解析。解析链与 unifiedCandidates 逐字一致
+    /// （registryOverride ?? externalRegistry ?? shared，QA Important 2 对齐——仅注入
+    /// externalRegistry 的测试通路不再错落到 shared registry）。
+    private func builtinFuzzyPlugin(
+        pluginId: String,
+        externalRegistry: BuiltinPluginRegistry?
+    ) -> (plugin: any BuiltinPlugin, keywords: [String])? {
+        let registry = registryOverride ?? externalRegistry ?? BuiltinPluginRegistry.shared
+        return registry.fuzzyMatchablePlugins().first { $0.plugin.id == pluginId }
+    }
+
+    /// D5（C-BUILTIN-EXPAND）：内置插件展开触发词选择——对 query 档位分最高的 keyword
+    /// （D2 scorer 逐 keyword 打分，keyword 通道无 name +30），同分取最短（贴合输入意图：
+    /// pas → paste 而非 clipboard、剪 → 剪贴板）。纯函数；全不命中 → nil。
+    static func bestTriggerWord(keywords: [String], query: String) -> String? {
+        var best: (word: String, score: Int)?
+        for kw in keywords {
+            let s = UnifiedPluginScorer.score(query: query, name: "", keywords: [kw])
+            guard s > 0 else { continue }
+            if let b = best {
+                if s > b.score || (s == b.score && kw.count < b.word.count) {
+                    best = (kw, s)
+                }
+            } else {
+                best = (kw, s)
+            }
+        }
+        return best?.word
+    }
+
     /// 清空即时候选（submit 落回 AI 流前调用，C5 契约）
-    /// 方案 B（C1 复位点）：同时清 command 路由候选状态。
     func clearInstantActions() {
         debounceTask?.cancel()
         debounceTask = nil
         instantActions = []
         instantSelectedIndex = -1
-        commandRouteCandidates = []
-        commandRouteSelectedIndex = -1
         activeCandidateZone = .instant
     }
 
@@ -898,6 +1019,7 @@ final class LauncherManager: ObservableObject {
             return Self.errorStream(.secretStoreUnavailable)
         }
         let factoryOverride = providerFactoryOverride
+        let executorOverride = stdinExecutorOverride
 
         // 直接进入 calling 阶段（跳过 narrowing/routing），记录 plugin 名
         lastRoutePluginName = manifest.name
@@ -940,7 +1062,7 @@ final class LauncherManager: ObservableObject {
                         sessionId: UUID().uuidString,
                         cwd: NSHomeDirectory()
                     )
-                    let result = try await PluginDispatcher.shared.execute(
+                    let result = try await PluginDispatcher(stdinExecutor: executorOverride ?? .shared).execute(
                         manifest,
                         pluginDir: dir,
                         input: pluginInput
@@ -1103,18 +1225,16 @@ final class LauncherManager: ObservableObject {
         }
     }
 
-    /// command 短路直接执行入口（方案 B §1.5，C11）。
+    /// command 短路直接执行入口（C11 / D4 C-ENTER-EXEC）。
     ///
-    /// 镜像 `submit()` 内 `.command` case（L559-594）+ 顶层 command 短路（L347-388）的执行段：
-    /// `guard case .command`（非 command → errorStream(.pluginCrash)）→ prologue（清 commandRouteCandidates/
-    /// commandRouteSelectedIndex=-1 + stage=.calling + lastRoutePluginName）→ detached: trust checkAndPrompt
+    /// `guard case .command`（非 command → errorStream(.pluginCrash)）→ prologue（stage=.calling +
+    /// lastRoutePluginName）→ detached: trust checkAndPrompt
     /// → `PluginDispatcher(stdinExecutor: stdinExecutorOverride ?? .shared).execute` →
     /// yield `.text`/`.image`/`.candidates`/`.done` → stage streaming→idle。
     ///
     /// **零 provider / 零 LLM**（与 submitWithPlugin 区别：后者强制 provider + LLM agent loop，见 B1）。
-    /// 对称 submitWithCandidate（command 回调入口）。
     ///
-    /// 用途：用户在 command 路由候选区按 Enter / 点行（C4）→ 经此入口触发 command 短路执行，
+    /// 用途（D4）：统一列表中选中 command 插件行 Enter → 经此入口直接执行（不经 AI 流），
     /// 子进程经 BUDDY_OUTPUT_CANDIDATES 回吐子候选 → pluginCandidates 通道。
     func submitCommandDirect(_ manifest: PluginManifest, query: String) -> AsyncStream<AgentEvent> {
         // C11：guard case .command（非 command → errorStream）
@@ -1123,9 +1243,7 @@ final class LauncherManager: ObservableObject {
             return Self.errorStream(.pluginCrash(-1, "submitCommandDirect 仅支持 command mode 插件"))
         }
 
-        // prologue（MainActor 同步段，B2：清 commandRouteCandidates 避免子候选回吐后双重渲染/计高）
-        commandRouteCandidates = []
-        commandRouteSelectedIndex = -1
+        // prologue（MainActor 同步段）
         lastRoutePluginName = manifest.name
         // C5 回调查找：填 lastRouteCandidates，让"选中子候选（如关闭监控）"时 submit() 能按 name 找到 manifest。
         // 镜像 submit() command 短路 L350 的赋值；不填则回调路径 manifest=nil → 落 AI 流 → 执行失败。

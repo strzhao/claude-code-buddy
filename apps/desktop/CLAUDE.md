@@ -40,7 +40,7 @@ Sources/
 │   │   ├── Plugin/     # PluginManager(扫描~/.buddy/launcher-plugins/) + StdinExecutor(Process子进程) + PluginDispatcher(mode分发) + PluginManifest(Codable schema)
 │   │   │               # + PluginManifest+AgentTool.swift (toAgentTool() extension，inputSchema 含顶层 type:object)
 │   │   ├── LauncherRouter.swift          # keyword 缩候选(routerMaxCandidates=5) + aiSelect 选 1 → RouteDecision
-│   │   ├── LauncherCandidateView.swift   # SwiftUI 候选列表展示（嵌入 LauncherInputView）
+│   │   ├── LauncherInstantCandidateView.swift # 统一混排候选列表（app+内置+插件单一列表）
 │   │   └── Builtin/                      # 内置插件体系（task 011）
 │   │       ├── BuiltinPlugin.swift        # 协议：id/priority/sectionTitle/actions(for:) async
 │   │       ├── BuiltinPluginRegistry.swift # 仲裁：fan-out 并发 + 跨插件归并 + score 降序 + 截断
@@ -386,7 +386,7 @@ buddy log show --subsystem plugin                  # 看插件子系统日志
 
 - **stdin**：子进程 stdout 经 toolExecutor 回灌 LLM（agent loop），适合「LLM 调用工具」语义。
 - **prompt**：bypass agent loop，直接调 PromptExecutor（LLM 单轮），结果映射为 `.text` + render-only `.action` 按钮。
-- **command**（新增）：零 LLM、bypass agent loop，子进程直接产出。执行入口 = `LauncherManager.submitCommandDirect`（不走 `submit`），不构造 LauncherAgent、不发 LLM 请求。**两阶段交互**（方案 B 改造，见下方「command 路由候选分区」）：typing 阶段命中 → 候选/锁定；Enter 在锁定态才执行。适合确定性子进程产物（二维码、截图等）。「无 LLM provider 也能用 command」由 `lockedCommand` 自动锁 + `submitCommandDirect`（零 LLM）保留。
+- **command**（新增）：零 LLM、bypass agent loop，子进程直接产出。执行入口 = `LauncherManager.submitCommandDirect`（不走 `submit`），不构造 LauncherAgent、不发 LLM 请求。**统一混排交互**（见下方「插件候选一等公民：统一混排」）：typing 阶段命中 → 候选行；Tab/点击锁定 → 参数态；Enter 在锁定态才执行。适合确定性子进程产物（二维码、截图等）。「无 LLM provider 也能用 command」由 Tab 锁定 + `submitCommandDirect`（零 LLM）保留。
 
 **通用图片通道**（stdin + command 共享）：`StdinExecutor` 注入环境变量 `BUDDY_OUTPUT_IMAGE=/tmp/buddy-plugin-<uuid>.png`，子进程写 PNG，框架读文件成 `Data` 填 `PluginResult.image`。stdout 保持纯文本不被污染。
 
@@ -423,47 +423,25 @@ UI：`AgentEvent.image(Data)` → `NSImage(data:)` → 居中白底 200pt 卡片
 - sudo 免密：`setup.sh` 一次性写 `/etc/sudoers.d/qzhddr-launcher`，`%admin ALL=(root) NOPASSWD: launchctl bootout/bootstrap ...` 精确匹配（非绝对路径 `launchctl` 放行，无通配 / 无任意 label / 无任意参数），写入前 `visudo -c` 语法校验
 - 可逆：bootout 只卸载不删 plist，bootstrap 可重新拉起
 
-### command 路由候选分区（方案 B，2026-06-20）
+### 插件候选一等公民：统一混排（D2/D3，2026-08-29，取代方案 B 分区）
 
-**背景**：qzh command 插件落地后发现路由冲突——输入 `qzh` 时内置 instant 候选（AppLauncher 匹配 Qzhddr.app）与 router 命中的外部 command 插件（qzh）**互斥且 instant 抢占**，command 插件既不显示为候选行，Enter 又被 instant 优先执行（打开 app），用户主动安装的 command 插件**完全不可达**。
+**演进**：方案 B 分区渲染（command 路由区 + instant 区两区并存、唯一命中自动锁定）已退役。现为**单一统一混排列表**：所有已启用社区插件（不分 mode）按关键词模糊命中进 `instantActions`，与 app/内置候选按统一分数档位混排；插件行视觉与 app 行同等（emoji 图标 + 标题 + 副标题 + pill 选中态）；选中插件行 Enter 直接执行；Tab 锁定保留；「keyword+空格自动锁定」「唯一命中自动锁定」「PluginWatermarkChip」已移除（C-TAB-LOCK：源码 grep 0 匹配）。
 
-**方案 B 分区渲染**：恢复 command 路由候选为候选行，与 instant 候选**分区同时展示**，command 区在上、Enter 优先。改动聚焦展示层 + Enter 选择 + 导航，**不动** submit 管线核心 / StdinExecutor / 候选输出通道 / TOFU。
+**统一打分器**（`Launcher/UnifiedPluginScorer.swift`，C-UNIFIED-SCORE）：全源候选统一量纲——完全 1000（query==name/keyword）/ 前缀 800（query 是 name/keyword 前缀）/ 词首 500（camelCase/空格边界词首连续段）/ contains 150（双向）；name 命中同档 +30；多 keyword 取最高档；**单字 keyword（长度 <2，如 qr 的「码」）仅参与完全档**（前缀/词首/contains 排除——「密码」「验证码」不再误命中 qr；单字防线只作用 keyword 侧，query 侧无长度限制）。排序键 `(score desc, 来源序[内置 priority > 插件 50 > app 0], title)`，合并列表截 8。打分内核唯一入口 `score(query:name:keywords:)`，manifest 版逐字委托（C-SCORER-DELEGATION，内置插件聚合行共用）。`narrowCandidatesScored`（AI 流缩候选）内核同源替换，route 短路阈值改为 `unifiedRouteSkipScore=500`（contains 150 不短路）。
 
-**数据层**（`LauncherManager`）：
-- `@Published commandRouteCandidates: [PluginManifest]` —— typing 阶段多命中时填充的 command-mode 候选（`updateQuery` 由 `LauncherRouter.commandPrefixMatched` 算出，唯一命中自动锁定使候选清空）
-- `@Published commandRouteSelectedIndex: Int` —— 多命中默认 0（command 优先选中），空时 -1
-- `@Published activeCandidateZone: CandidateZone` —— 导航活动区枚举 {.pluginCandidates, .commandRoute, .instant, .aiRoute}，决定 ↑↓ 跨区语义与 Enter 派发
-- `@Published lockedCommand: PluginManifest?` —— **锁定的 command 插件**（两阶段核心，见下）。锁定 = 选中 ≠ 执行；参数态候选/instant 隔离，Enter 才执行
-- 测试 seam：`pluginsOverride: [PluginManifest]?`（注入 plugins 源，I1）/ `stdinExecutorOverride: StdinExecutor?`（submitCommandDirect spy，I6）
-- 复位点：空 query / show / hide / clearInstantActions / command 执行开始（stage→calling）/ `.done`（执行完成回初始候选态）清空 lockedCommand + commandRouteCandidates
+**候选管线**（`LauncherManager.unifiedCandidates(for:)`，D3/D9）：typing 期 debounce 落地后插件打分映射 `LauncherAction`（id=`plugin:<name>`、subtitle=displaySummary、iconEmoji=manifest.icon）+ registry 无截断 fan-out（`BuiltinPluginRegistry.scoredActions(for:)`）→ 合并排序截断 → `instantActions`。UI（`LauncherInstantCandidateView` 单列表）与 CLI（`buddy launcher debug candidates`）共用。
 
-**command 命中函数**（`LauncherRouter.commandPrefixMatched(query:plugins:)`，C-PREFIX-MATCH）：复用 `stripKeywordPrefix` 的「前缀 + 严格分隔符（空白/标点/行尾）」逻辑反过来做命中判断。遍历 plugins，仅 `.command` mode；`[name] + keywords` 任一 kw 满足 query 以 kw 开头且 kw 后紧跟分隔符/行尾 → 命中。返回 `[PluginManifest]`（保持 plugins 原序；非打分，纯前缀集合）。**消除单字 keyword 误触根因**：qr 的 keywords 含单字「码」，旧 `narrowCandidatesScored`（contains 反向）让「密码」「代码」「验证码」白拿 +3 分；新前缀匹配不以「码」开头即不命中。`narrowCandidatesScored` 不变，仍服务 stdin/prompt 路由（C-SCOPE-COMMAND-ONLY）。
+**内置插件行**（D1，C-BUILTIN-FUZZY-ROW，2026-08-30）：内置插件接入模糊混排——`BuiltinPlugin` 协议加 `pluginKeywords`（extension 默认 `[]`，未配置即不参与；当前仅 PastePlugin 配置 = 触发词闭集）。`BuiltinPluginRegistry.fuzzyMatchablePlugins()` 返回 enabled 且 keywords 非空的插件；`unifiedCandidates` 中**无具体候选**者跑统一 scorer（name=plugin.id、keywords=pluginKeywords），命中 >0 产聚合行 `id="builtin:<id>"`（title=plugin.id、subtitle=plugin.summary、icon/iconEmoji=nil 走 SF Symbol fallback、sourceRank=plugin.priority）——输入 `pas`/`剪` 也能发现剪贴板插件。已有具体候选则不产行（C-BUILTIN-NO-DUP，条目直显零重复）。分流：选中 `builtin:` 行 Enter/点击 → `.expandBuiltin(trigger)`（`bestTriggerWord` 取对 query 档位分最高的 keyword，同分取最短：pas→paste、剪→剪贴板）→ View 填触发词（非清空）→ 既有 debounce 管线刷出该插件具体候选；`builtin:` 行 Tab 忽略、前缀守卫优先于社区插件解析（防重名误分流/误锁定）。
 
-**两阶段交互**（选中 = 锁定 ≠ 执行，C-LOCK-NOT-EXECUTE / C-UNIQUE-AUTOLOCK / C-MULTI-SELECT-LOCK / C-LOCK-STICKY）：
-1. **命中**：`updateQuery` 调 `commandPrefixMatched`。
-   - 唯一命中 → 自动 `lockedCommand = 该项`，候选清空（C-UNIQUE-AUTOLOCK）。
-   - 多命中 → `lockedCommand = nil`，候选列出，默认选中 0；用户 ↑↓ + Enter/Tab/点击显式选中才锁定（C-MULTI-SELECT-LOCK，`selectCommandRouteCandidateForLock()`）。
-   - 无命中 → 候选清空。
-2. **锁定粘性**（C-LOCK-STICKY）：`lockedCommand` 非空时，`updateQuery` 先查 query 是否仍以 locked 的 keyword 开头（`commandPrefixMatched(query, [locked])` 非空）→ 保持锁定、候选清空、instant 隔离、return；否则解锁落正常匹配。即参数态继续输入参数不会被其他候选覆盖。
-3. **执行**（C-EXEC-ON-ENTER）：`LauncherInputView.submit()` 检测 `lockedCommand != nil` → `submitCommandDirect(lockedCommand, query)`，参数 = `stripKeywordPrefix` 结果。空参数（query 恰是 keyword）→ 插件兜底。
-4. **退出锁定**（C-ESC-EXIT）：esc 分层——`lockedCommand != nil` 时 esc 只清锁不 hide 面板（保留输入框供改输）；`lockedCommand == nil` 时维持 hide。清空输入框 / `.done` 执行完成 → 清 lockedCommand。
+**Tab 锁定**（D5，C-TAB-LOCK）：统一列表选中插件行 Tab/点击 → `lockPluginCandidate(manifest)` 进入参数输入态（不执行；「锁定 = 锁定 ≠ 执行」语义保留）；app/内置行 Tab 忽略。锁定粘性由 `lockedPrefixStillMatched(query:manifest:)`（原 commandPrefixMatched 的单 manifest 语义）判定；Esc / 清空输入 / 执行完成退出锁定（C-ESC-EXIT）。
 
-**command 短路执行入口**（`submitCommandDirect(_:query:) -> AsyncStream<AgentEvent>`，C11）：`guard case .command` → prologue（清 commandRouteCandidates + stage=.calling）→ detached: trust checkAndPrompt → `PluginDispatcher(stdinExecutor: stdinExecutorOverride ?? .shared).execute` → yield `.text`/`.image`/`.candidates`/`.done` → stage streaming→idle。**零 provider / 零 LLM**。对称 `submitWithCandidate`（command 回调入口）。**注**：`submit()` 顶层 command 短路已移除（曾用 `narrowCandidatesScored` contains 判断唯一/strong 命中直接执行，与新「唯一命中=自动锁定≠执行」语义矛盾）；command 执行统一经 `lockedCommand` + Enter。
+**Enter 分流**（D4，C-ENTER-EXEC，`LauncherManager.submitInstantSelection(query:)` 可测 seam）：派发顺序——锁定态 → `submitCommandDirect`；pluginCandidates 子候选态 → `submitWithCandidate`；instant 选中行 → pluginId 解析 manifest 按 mode 分发（command → `submitCommandDirect` 零 LLM 不经 provider 检查；stdin/prompt → `submitWithPlugin`）；非插件行 → `performSelectedInstantAction`；无选中 → AI 兜底路由。
 
-**渲染层**（`LauncherInputView`）：
-- `showCommandRouteCandidates` / `showInstantCandidates` 计算属性：stage ∈ {idle,narrowing,routing} && !hasOutput && **`lockedCommand == nil`**（参数态隐藏候选，C-PARAM-ISOLATE）
-- 分区顺序（自上而下）：command 路由区（`LauncherCandidateView`，onSelect = 选中锁定不执行）→ instant 区 → pluginCandidates 输出通道区
-- 多命中态两区同时渲染；锁定态（参数态）候选区整块消失，只剩输入框 + 锁定 chip（`LockedCommandChip`，sage 锁标 + 「已锁定: name」）
+**协议与 icon**（C-ICON-FIELD）：`PluginManifest.icon: String?`（emoji，decodeIfPresent 向后兼容）；CLI mirror `CLIPluginManifestCheck.icon`（internal）+ `buddy launcher inspect` 输出 icon key（nil 省略）；官方插件 monorepo 四插件加 icon（qr 🔗 / qzh 📡 / snip ✂️ / hello 👋）且 marketplace.json version 同步 bump（否则 syncFromRemote 判 noop 不更新）。行渲染优先级：icon(NSImage) → iconEmoji(Text) → SF Symbol fallback（app 行 app.dashed、插件行统一 puzzlepiece）。
 
-**导航**（C5 四态矩阵 + C-PARAM-ISOLATE）：↑↓ 按 `activeCandidateZone` 派发。**参数态（lockedCommand != nil）↑↓ 忽略**（候选区空）；pluginCandidates 通道非空（post-exec）→ 仅区内环形隔离；commandRoute + instant 并存 → 区内环形 + 边界跨区（commandRoute 末↓→instant 首，instant 首↑→commandRoute 末）；仅单区 → 区内环形（C10 回归）。
+**AI 流对齐**（D8，修 2026-07-01 已知限制）：① 单字 keyword 档位排除（UI 通道）；② `effectiveTriggerKeywords`（长度 ≥2）统一过滤——`synthesizeToolDescription` 触发词段 + `selectWithTools`/`aiSelect` 路由 system prompt 的 keywords 拼接两处共用（AI 流锚点通道），单字「码」不再进任何 LLM 上下文；③ `narrowCandidatesScored` 内核换统一量纲（debug route 分数与 UI 一致）；④ `stripKeywordPrefix` 不动。
 
-**Enter 优先级**（C4 + C-EXEC-ON-ENTER）：`submit()` 派发顺序——`lockedCommand != nil` → `submitCommandDirect` 执行（参数态 Enter）；`.commandRoute` 选中 → 选中锁定（不执行）；`.instant` → `performSelectedInstantAction`；空 → pluginCandidates 通道回调 → AI 路由。
-
-**Tab 键**（C-LOCK-NOT-EXECUTE）：候选态 `.commandRoute` Tab = 选中锁定（与 Enter 选中同义；Enter 在参数态才执行）。
-
-**面板高度**（`panelHeight` C6 四态公式，取代既有 max 互斥）：output 态 / 候选并存态（commandRouteExtra + instantExtra **叠加**）/ 仅单区态（C10 回归）/ 空态。
-
-**⚠️ 已知限制：AI 流误触未完全消除（2026-07-01 实测，留后续）**：上述前缀命中 + 两阶段只作用 **UI 层**（typing 候选 + `lockedCommand`）。但用户回车后若未命中 command 候选，落 AI 流（`LauncherManager.submit` → `narrowCandidatesScored` + `selectWithTools`）仍用 **contains** 匹配 + 把 command 插件作 LLM tool 执行（`:742 case .command`）。实测 `buddy launcher debug route "密码"` → `withPlugin:qr`（score:3，contains「码」命中），用户输「密码」回车仍会经 AI 流执行 qr 生成二维码。根因 = `narrowCandidatesScored` 未改 + command 仍走 AI 流执行。修复方向（未实施）：① command 不走 AI 流（selectWithTools 只含 stdin/prompt）；② AI 流 command 候选改前缀过滤；③ 优化 tool description 让 AI 区分「密码」vs「二维码」。**本次仅消除 UI typing 层的确定性误触（密码不再显示 qr 候选行 / 不再自动锁定 qr），AI 流路径的误触仍存在。**
+**debug CLI**（C-DEBUG-CLI）：`buddy launcher debug candidates <query>`（位置参数）输出统一混排列表，信封 `{status,data:{query,count,candidates[]}}`，元素含 `pluginId/title/subtitle/score/source`（source ∈ {app,builtin,builtin-plugin,plugin} 四值闭集：app-launcher 条目=app、其余内置条目=builtin、内置插件聚合行（`builtin:` id 前缀）=builtin-plugin、社区插件行（`plugin:` id 前缀）=plugin），全局 score 降序。
 
 
 

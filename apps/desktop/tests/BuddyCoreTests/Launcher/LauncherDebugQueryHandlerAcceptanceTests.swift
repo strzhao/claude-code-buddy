@@ -81,6 +81,17 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
         )
     }
 
+    /// 空 registry（避免 unifiedCandidates 走 BuiltinPluginRegistry.shared 扫真实环境）
+    private func makeEmptyRegistryForDebug() -> BuiltinPluginRegistry {
+        final class EmptyPlugin: BuiltinPlugin {
+            let id = "empty-debug-registry"
+            let priority = 0
+            let sectionTitle = "Empty"
+            func actions(for query: String) async -> [LauncherAction] { [] }
+        }
+        return BuiltinPluginRegistry(plugins: [EmptyPlugin()])
+    }
+
     // MARK: - 场景1：launcher_debug_registry 按 priority 降序
 
     /// 场景1：registry 返回 plugins[]，每元素含 id/priority/sectionTitle，且按 priority 降序。
@@ -124,10 +135,11 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
         XCTAssertNotNil(plugins[2]["sectionTitle"], "场景1: plugins[2] 必须含 sectionTitle")
     }
 
-    // MARK: - 场景2：launcher_debug_candidates 返回候选列表
+    // MARK: - 场景2：launcher_debug_candidates 返回统一混排候选列表
 
-    /// 场景2：candidates 返回 candidates[]，每元素含 pluginId/title/subtitle/score，count 正确。
-    /// 强断言：title 字面量断言（不仅 count > 0）。
+    /// 场景2（D9 统一混排）：candidates 返回单一数组，每元素含 pluginId/title/subtitle/score/source。
+    /// 注：debug candidates 改经 LauncherManager.unifiedCandidates（UI 与 CLI 共用），
+    /// 注入走 LauncherManager.shared 的 registryOverride seam（测试后恢复）。
     func test_scenario2_candidates_returnsCandidatesWithFields() async {
         let plugin = MockPlugin(id: "calc-debug", priority: 200, sectionTitle: "计算") { query in
             [
@@ -136,6 +148,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "= 42",
                     subtitle: "1+2*3+35",
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "calc-debug",
                     score: 1000,
                     perform: { }
@@ -145,6 +158,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "= 7",
                     subtitle: "1+2*3",
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "calc-debug",
                     score: 900,
                     perform: { }
@@ -152,6 +166,13 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
             ]
         }
         handler = makeHandler(registryPlugins: [plugin])
+        // D9：candidates 走 LauncherManager.shared.unifiedCandidates → 注入 registryOverride
+        LauncherManager.shared.registryOverride = BuiltinPluginRegistry(plugins: [plugin])
+        LauncherManager.shared.pluginsOverride = []
+        defer {
+            LauncherManager.shared.registryOverride = nil
+            LauncherManager.shared.pluginsOverride = nil
+        }
 
         let data = await handler.handle(query: [
             "action": "launcher_debug_candidates",
@@ -177,7 +198,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
         }
         XCTAssertEqual(candidates.count, 2, "场景2: candidates.count 必须为 2")
 
-        // 候选 0：四字段强断言 + title 字面量
+        // 候选 0：五字段强断言 + title 字面量
         let first = candidates[0]
         XCTAssertEqual(first["pluginId"] as? String, "calc-debug",
                        "场景2: candidates[0].pluginId 必须为来源插件 id")
@@ -187,6 +208,44 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                        "场景2: candidates[0].subtitle 必须为字面量")
         XCTAssertEqual(first["score"] as? Int, 1000,
                        "场景2: candidates[0].score 必须为 1000")
+        XCTAssertEqual(first["source"] as? String, "builtin",
+                       "场景2: candidates[0].source == \"builtin\"（C-DEBUG-CLI source 判定）")
+    }
+
+    // MARK: - 场景2b：插件候选 source=="plugin"（C-DEBUG-CLI）
+
+    /// 场景2b [det-machine]：插件行进统一列表时 debug candidates 输出 source=="plugin"，
+    /// 全局按 score 降序（场景12.P1/P2 数据层）。
+    func test_scenario2b_candidates_pluginSource_andScoreDesc() async {
+        // 插件：keyword 完全命中 1000
+        let qrJSON: [String: Any] = [
+            "name": "qrdbg", "version": "0.1.0", "description": "d",
+            "keywords": ["dbgkw"], "mode": "command", "cmd": "echo", "args": [] as [String]
+        ]
+        let qr = try! JSONDecoder().decode(PluginManifest.self, from: try JSONSerialization.data(withJSONObject: qrJSON))
+        LauncherManager.shared.pluginsOverride = [qr]
+        LauncherManager.shared.registryOverride = makeEmptyRegistryForDebug()
+        handler = makeHandler(registryPlugins: [])
+        defer {
+            LauncherManager.shared.registryOverride = nil
+            LauncherManager.shared.pluginsOverride = nil
+        }
+
+        let data = await handler.handle(query: [
+            "action": "launcher_debug_candidates",
+            "query": "dbgkw",
+        ])
+        let json = parseResponse(data)
+        guard let payload = json["data"] as? [String: Any],
+              let candidates = payload["candidates"] as? [[String: Any]], !candidates.isEmpty else {
+            XCTFail("场景2b: 响应必须含非空 candidates 数组，actual=\(json)")
+            return
+        }
+        XCTAssertEqual(candidates[0]["source"] as? String, "plugin",
+                       "场景2b: 首条 source==\"plugin\"（C-DEBUG-CLI）")
+        // score 降序不变量
+        let scores = candidates.compactMap { $0["score"] as? Int }
+        XCTAssertEqual(scores, scores.sorted(by: >), "场景12.P2: score 全局降序")
     }
 
     // MARK: - 场景5：candidates 对无候选 query 返回空数组（不崩）
@@ -197,6 +256,12 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
             [] // 永远无候选
         }
         handler = makeHandler(registryPlugins: [plugin])
+        LauncherManager.shared.registryOverride = BuiltinPluginRegistry(plugins: [plugin])
+        LauncherManager.shared.pluginsOverride = []
+        defer {
+            LauncherManager.shared.registryOverride = nil
+            LauncherManager.shared.pluginsOverride = nil
+        }
 
         let data = await handler.handle(query: [
             "action": "launcher_debug_candidates",
@@ -256,6 +321,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "= 42",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "calc-perform",
                     score: 1000,
                     perform: { [self] in
@@ -308,6 +374,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "候选零",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "idx-debug",
                     score: 1000,
                     perform: { [self] in
@@ -361,6 +428,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "唯一候选",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "oob-debug",
                     score: 1000,
                     perform: { performCalled = true }
@@ -411,6 +479,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "会失败",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "throw-debug",
                     score: 1000,
                     perform: {
@@ -448,6 +517,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "只读候选",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "ro-debug",
                     score: 1000,
                     perform: {
@@ -459,6 +529,12 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
             ]
         }
         handler = makeHandler(registryPlugins: [plugin])
+        LauncherManager.shared.registryOverride = BuiltinPluginRegistry(plugins: [plugin])
+        LauncherManager.shared.pluginsOverride = []
+        defer {
+            LauncherManager.shared.registryOverride = nil
+            LauncherManager.shared.pluginsOverride = nil
+        }
 
         _ = await handler.handle(query: [
             "action": "launcher_debug_candidates",
@@ -481,6 +557,7 @@ final class LauncherDebugQueryHandlerAcceptanceTests: XCTestCase {
                     title: "x",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: "ro-reg",
                     score: 1000,
                     perform: {

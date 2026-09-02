@@ -140,6 +140,7 @@ final class ScreenshotPlugin: BuiltinPlugin {
             title: "截屏",
             subtitle: "框选区域 · 回车复制 · Esc 取消",
             icon: NSImage(systemSymbolName: "crop", accessibilityDescription: "截屏"),
+            iconEmoji: nil,
             pluginId: self.id,
             score: bestScore,
             perform: {

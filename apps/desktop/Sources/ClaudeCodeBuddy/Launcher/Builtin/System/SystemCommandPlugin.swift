@@ -84,6 +84,7 @@ final class SystemCommandPlugin: BuiltinPlugin {
                 title: command.title,
                 subtitle: command.subtitle,
                 icon: command.icon,
+                iconEmoji: nil,
                 pluginId: self.id,
                 score: bestScore,
                 perform: {

@@ -45,6 +45,7 @@ final class BuiltinPluginToggleAcceptanceTests: XCTestCase {
                     title: "fake-\(id)",
                     subtitle: nil,
                     icon: nil,
+                    iconEmoji: nil,
                     pluginId: id,
                     score: 100,
                     perform: { /* no-op for test */ }

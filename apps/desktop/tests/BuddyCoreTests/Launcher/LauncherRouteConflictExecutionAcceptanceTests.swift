@@ -229,17 +229,15 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
                        "[场景2.P2] spy 不真执行子进程，返回固定 stdout（dispatch 被拦截）")
     }
 
-    // MARK: - 场景2.P3 [det-machine] 间接：command 默认选中 → instant app 不被打开（RecordingAppLauncher）
+    // MARK: - 场景2.P3 [det-machine] 间接：统一列表仅展示 → instant app 不被打开（RecordingAppLauncher）
     //
-    // 契约 [C4]：command 默认选中时 Enter shall not 触发 instant（app 打开）
-    // 单测可达层：注入 RecordingAppLauncher 到 AppLauncherPlugin，updateQuery 后断言 instant 候选存在但 launcher 未被调用
-    //   （command 默认选中 → performSelectedInstantAction 不被触发 → app 未打开的前提契约）。
-    // REAL_PROCESS_QA: 真实 Enter 按键 → submit 按 activeCandidateZone 派发 → app open==0 留真机 QA。
+    // 契约 [C-TAB-LOCK，D6 统一列表]：候选仅展示（typing 期）时 Enter 前不执行；
+    // 单测可达层：注入 RecordingAppLauncher 到 AppLauncherPlugin，updateQuery 后断言
+    // 统一列表含 Qzhddr 候选但 launcher 未被调用（候选仅展示，未执行的前提契约）。
 
-    func test_scenario2_P3_commandDefault_appLauncherNotInvokedWhenCommandZoneActive() async throws {
+    func test_scenario2_P3_typingPhase_appLauncherNotInvoked() async throws {
         let recordingLauncher = RecordingAppLauncher()
         LauncherManager.shared.registryOverride = makeAppLauncherRegistry(launcher: recordingLauncher)
-        // 多命中（2 个共享 keyword「qzh」），避免唯一命中自动锁定使候选清空 + instant 隔离。
         let qzh1 = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
         let qzh2 = try makeCommandManifest(name: "qzh2", keywords: ["qzh"])
         LauncherManager.shared.pluginsOverride = [qzh1, qzh2]
@@ -257,14 +255,14 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
         XCTAssertNotNil(LauncherManager.shared.registryOverride,
                         "[场景2.P3 诊断] registryOverride 注入必须保留")
         XCTAssertEqual(LauncherManager.shared.pluginsOverride?.count, 2,
-                       "[场景2.P3 诊断] pluginsOverride 必须含 2 个 manifest（多命中）")
+                       "[场景2.P3 诊断] pluginsOverride 必须含 2 个 manifest")
 
-        // 前提：instant 区含 Qzhddr 候选（否则空判无意义）
+        // 前提：统一列表含 Qzhddr 候选（否则空判无意义）
         XCTAssertFalse(LauncherManager.shared.instantActions.isEmpty,
-                       "[场景2.P3 前提] instant 区含 Qzhddr 候选。实际 instantActions: \(LauncherManager.shared.instantActions)")
-        // 前提：command 默认选中（activeCandidateZone=.commandRoute）
-        XCTAssertEqual(LauncherManager.shared.activeCandidateZone, .commandRoute,
-                       "[场景2.P3 前提] 默认 zone=commandRoute（command 优先）")
+                       "[场景2.P3 前提] 统一列表含 Qzhddr 候选。实际 instantActions: \(LauncherManager.shared.instantActions)")
+        // D3.5：typing 期活动区恒 .instant
+        XCTAssertEqual(LauncherManager.shared.activeCandidateZone, .instant,
+                       "[场景2.P3 前提] typing 期 zone=.instant（D3.5）")
 
         // 断言：typing 阶段 app launcher 未被调用（候选仅展示，未执行）
         XCTAssertEqual(
@@ -272,7 +270,6 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
             0,
             "[场景2.P3][C4] typing 阶段 app launcher 必须未被调用（launchedURLs==0，候选仅展示）。实际: \(recordingLauncher.launchedURLs)"
         )
-        // VISUAL_RESIDUE/REAL_PROCESS_QA: 真实 Enter 默认 command → app open==0 留真机 QA
     }
 
     // MARK: - 场景5.P2 [det-machine] 仅 command → dispatch≥1（C11 spy seam，dispatcher 层）
@@ -437,34 +434,36 @@ final class LauncherRouteConflictExecutionAcceptanceTests: XCTestCase {
     // 单测可达层：不调 submitCommandDirect（避免 PluginManager/TrustStore 阻塞），
     //   验「清空 commandRouteCandidates 后重新 updateQuery 能重新填充 + 选中在界内」（交互链不死的 det-machine 契约）。
     func test_scenario7_P3_reQueryRepoulates_afterClear() async throws {
-        // 多命中（2 个共享 keyword），避免唯一命中自动锁定使候选清空。
         let qzh1 = try makeCommandManifest(name: "qzh", keywords: ["qzh"])
         let qzh2 = try makeCommandManifest(name: "qzh2", keywords: ["qzh"])
         LauncherManager.shared.registryOverride = makeEmptyInstantRegistry()
         LauncherManager.shared.pluginsOverride = [qzh1, qzh2]
 
         LauncherManager.shared.show()
+        LauncherManager.shared.instantDebounceMsOverride = 0
         LauncherManager.shared.updateQuery("qzh")
-        await waitForQuerySettled()
-        XCTAssertFalse(LauncherManager.shared.commandRouteCandidates.isEmpty, "前提：多命中 command 候选列出")
+        for _ in 0..<200 where LauncherManager.shared.instantActions.isEmpty {
+            await Task.yield()
+        }
+        XCTAssertFalse(LauncherManager.shared.instantActions.isEmpty, "前提：统一列表填充")
 
-        // 模拟执行失败后的状态扰动（清空，镜像 B2 prologue 效果）
+        // 模拟执行失败后的状态扰动（清空）
         LauncherManager.shared.updateQuery("")
         await waitForQuerySettled()
-        XCTAssertTrue(LauncherManager.shared.commandRouteCandidates.isEmpty, "清空后 command 区空")
+        XCTAssertTrue(LauncherManager.shared.instantActions.isEmpty, "清空后列表空")
 
         // 7.P3：重新 updateQuery 能重新命中（交互链不死）
         LauncherManager.shared.updateQuery("qzh")
-        await waitForQuerySettled()
+        for _ in 0..<200 where LauncherManager.shared.instantActions.isEmpty {
+            await Task.yield()
+        }
         XCTAssertFalse(
-            LauncherManager.shared.commandRouteCandidates.isEmpty,
-            "[场景7.P3] 清空后重新 updateQuery 必须 command 候选正常重新填充（交互链不死）"
+            LauncherManager.shared.instantActions.isEmpty,
+            "[场景7.P3] 清空后重新 updateQuery 必须候选正常重新填充（交互链不死）"
         )
-        let navOk = LauncherManager.shared.commandRouteCandidates.indices.contains(
-            LauncherManager.shared.commandRouteSelectedIndex
+        XCTAssertTrue(
+            LauncherManager.shared.instantActions.indices.contains(LauncherManager.shared.instantSelectedIndex),
+            "[场景7.P3] 重新命中后选中索引必须在 indices 内（仍可交互，不进不可恢复态）"
         )
-        XCTAssertTrue(navOk,
-                      "[场景7.P3] 重新命中后选中索引必须在 candidates.indices 内（仍可交互，不进不可恢复态）")
-        // REAL_PROCESS_QA: 真实 submitCommandDirect 失败 → stage 复位 + 仍可交互留真机 QA
     }
 }

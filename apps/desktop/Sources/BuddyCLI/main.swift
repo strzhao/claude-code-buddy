@@ -1759,7 +1759,10 @@ private func cmdLauncherHotkeyClear() {
 //   请求 action ∈ {launcher_debug_candidates, launcher_debug_perform, launcher_debug_registry}
 //     - candidates/perform 请求字段：query:String（非空）；perform 另含 index:Int（默认 0）
 //   响应：
-//     - candidates → {status:"ok", data:{query, count, candidates[{pluginId,title,subtitle,score}]}}
+//     - candidates → {status:"ok", data:{query, count, candidates[{pluginId,title,subtitle,score,source}]}}
+//       （source ∈ {app, builtin, builtin-plugin, plugin} 四值闭集：app-launcher 条目=app；
+//        其余内置条目=builtin；内置插件聚合行（id 带 "builtin:" 前缀）=builtin-plugin；
+//        社区插件行（id 带 "plugin:" 前缀）=plugin）
 //     - perform    → {status:"ok", data:{pluginId, performed:true, copied?}}（copied 仅当 perform 后 pasteboard 非空）
 //     - registry   → {status:"ok", data:{plugins[{id,priority,sectionTitle}]}}（priority 降序）
 
@@ -2139,12 +2142,18 @@ private struct CLITrustFile: Codable {
     var records: [CLITrustRecord]
 }
 
-private struct CLIPluginManifestCheck: Codable {
+/// internal（非 private）：C-ICON-FIELD 双绑测试（场景6.P3）经 @testable import `buddy-cli`
+/// 直读此 mirror，断言 CLI decode 与 BuddyCore PluginManifest decode 的 icon 逐字一致。
+/// ⚠️ 仍 Foundation-only，不依赖 BuddyCore。
+struct CLIPluginManifestCheck: Codable {
     let name: String
     let version: String
     let description: String
     /// C1/C5 mirror：与 BuddyCore PluginManifest.summary 同构（可选，降级）。
     let summary: String?
+    /// C-ICON-FIELD mirror：与 BuddyCore PluginManifest.icon 同构（可选 emoji）。
+    /// Optional 属性由编译器合成 decodeIfPresent，缺字段不报错（向后兼容铁律一致）。
+    let icon: String?
     /// C1/C5：keywords 可选（向后兼容无 keywords 的旧 plugin.json，自动合成 decodeIfPresent 容错）
     let keywords: [String]?
     let mode: String?              // nil 默认 "stdin"
@@ -2498,6 +2507,8 @@ private func cmdLauncherInspect(_ name: String) {
         "trust_status": status,
         "install_path": dir.path
     ]
+    // C-ICON-FIELD：icon key 仅在 manifest 声明了 icon 时出现（nil 省略）
+    if let icon = m.icon { out["icon"] = icon }
     switch resolvedMode {
     case "stdin":
         if let cmd = m.cmd { out["cmd"] = cmd }

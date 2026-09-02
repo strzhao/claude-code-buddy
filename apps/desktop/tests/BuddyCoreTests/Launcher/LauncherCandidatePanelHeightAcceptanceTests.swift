@@ -71,8 +71,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             outputHeight: 0,
             hasFooter: false,
             instantCount: 0,
-            pluginCandidateCount: 8,
-            commandRouteCount: 0
+            pluginCandidateCount: 8
         )
         XCTAssertEqual(h, expectedHeightFor(8), accuracy: 0.5,
             "场景1.P1: 8 候选 panelHeight 必须 == \(expectedHeightFor(8))（8 行全展示），实际 \(h)；" +
@@ -92,8 +91,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             outputHeight: 0,
             hasFooter: false,
             instantCount: 0,
-            pluginCandidateCount: 12,
-            commandRouteCount: 0
+            pluginCandidateCount: 12
         )
         XCTAssertEqual(h, expectedHeightFor(8), accuracy: 0.5,
             "场景3.P1: 12 候选 panelHeight 必须封顶 == \(expectedHeightFor(8))（8 行），实际 \(h)")
@@ -109,8 +107,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             outputHeight: 0,
             hasFooter: false,
             instantCount: 0,
-            pluginCandidateCount: 5,
-            commandRouteCount: 0
+            pluginCandidateCount: 5
         )
         XCTAssertEqual(h, expectedHeightFor(5), accuracy: 0.5,
             "场景7.P1: 5 候选 panelHeight 必须 == \(expectedHeightFor(5))，实际 \(h)")
@@ -129,8 +126,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             outputHeight: 0,
             hasFooter: false,
             instantCount: 0,
-            pluginCandidateCount: 8,
-            commandRouteCount: 0
+            pluginCandidateCount: 8
         )
         XCTAssertEqual(h, expectedHeightFor(8), accuracy: 0.5,
             "场景7.P2: 8 候选（恰好阈值）panelHeight 必须 == \(expectedHeightFor(8))，实际 \(h)")
@@ -147,8 +143,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             outputHeight: 0,
             hasFooter: false,
             instantCount: 0,
-            pluginCandidateCount: 9,
-            commandRouteCount: 0
+            pluginCandidateCount: 9
         )
         XCTAssertEqual(h, expectedHeightFor(8), accuracy: 0.5,
             "场景7.P3: 9 候选 panelHeight 必须封顶 == \(expectedHeightFor(8))，实际 \(h)")
@@ -163,11 +158,11 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
     func test_scenario9P1_growFrom3To8_heightIncreases() {
         let at_3 = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 3, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 3
         )
         let at_8 = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 8, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 8
         )
         XCTAssertEqual(at_8, expectedHeightFor(8), accuracy: 0.5,
             "场景9.P1: at_8 必须 == \(expectedHeightFor(8))，实际 \(at_8)")
@@ -181,11 +176,11 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
     func test_scenario9P2_growFrom8To12_heightCapped() {
         let at_8 = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 8, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 8
         )
         let at_12 = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 12, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 12
         )
         XCTAssertEqual(at_12, expectedHeightFor(8), accuracy: 0.5,
             "场景9.P2: at_12 必须 == \(expectedHeightFor(8))（封顶），实际 \(at_12)")
@@ -202,7 +197,7 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
     func test_zeroCandidates_emptyState_inputHeightOnly() {
         let h = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 0, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 0
         )
         XCTAssertEqual(h, inputH, accuracy: 0.5,
             "空态: 0 候选 panelHeight 必须 == inputHeight(\(inputH))，实际 \(h)")
@@ -225,11 +220,11 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
         // pluginCandidateCount=3（< cap 8，放大 candidateCount 计入与否的差异）
         let withFewRoute = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 3, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 3
         )
         let withManyRoute = LauncherInputView.panelHeight(
             candidateCount: 100, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 3, commandRouteCount: 0
+            instantCount: 0, pluginCandidateCount: 3
         )
         XCTAssertEqual(withManyRoute, withFewRoute, accuracy: 0.5,
             "I3: candidateCount(lastRoute) 不应影响 panelHeight；" +
@@ -240,30 +235,33 @@ final class LauncherCandidatePanelHeightAcceptanceTests: XCTestCase {
             "I3: pluginCandidateCount=3 时 panelHeight 必须 == \(expectedHeightFor(3))，实际 \(withFewRoute)")
     }
 
-    // MARK: - C-GENERIC-SCOPE：commandRoute + instant 渲染区也 cap 8（跨数据流）
+    // MARK: - C-GENERIC-SCOPE：统一列表（instant）渲染区 cap 8（跨数据流）
 
-    /// 契约 C-GENERIC-SCOPE：commandRoute 与 instant 渲染区同样 cap candidateVisibleMax。
-    /// 注：设计文档 step 5 备注「commandRoute+instant 并存态两区各封顶 8，极端并存 16 行面板会高——保持既有 sum 语义」。
-    /// 本测试验证「单区 commandRoute 也 cap 8」+「单区 instant 也 cap 8」（非并存叠加）。
-    ///
-    /// CONTRACT_AMBIGUOUS: commandRoute 单区计高的精确分支条件（与 pluginCandidate 是否互斥）
-    ///   设计文档未给字节面量分支表，本测试假设「commandRouteCount>0 且 pluginCandidateCount==0」
-    ///   走 commandRoute 单区分支。若蓝队分支条件不同需同步。
-    func test_contract_CGenericScope_commandRouteCappedToEight() {
+    /// 契约 C-GENERIC-SCOPE（D6 统一混排后）：统一列表（instant）渲染区 cap candidateVisibleMax。
+    func test_contract_CGenericScope_unifiedListCappedToEight() {
         let h = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 0, pluginCandidateCount: 0, commandRouteCount: 12
+            instantCount: 12, pluginCandidateCount: 0
         )
-        // commandRoute 12 应封顶 8
         XCTAssertEqual(h, inputH + candidateExtra(8), accuracy: 0.5,
-            "C-GENERIC-SCOPE: commandRoute 12 应封顶 8 行，panelHeight == \(inputH + candidateExtra(8))，实际 \(h)")
+            "C-GENERIC-SCOPE: 统一列表 12 应封顶 8 行，panelHeight == \(inputH + candidateExtra(8))，实际 \(h)")
+    }
+
+    /// 统一列表与 pluginCandidates 通道并存：高度叠加（各行 cap 8）。
+    func test_contract_CGenericScope_unifiedPlusPluginCandidates_stack() {
+        let h = LauncherInputView.panelHeight(
+            candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
+            instantCount: 2, pluginCandidateCount: 3
+        )
+        XCTAssertEqual(h, inputH + candidateExtra(2) + candidateExtra(3), accuracy: 0.5,
+            "统一列表 2 行 + 子候选 3 行 → 叠加计高，实际 \(h)")
     }
 
     /// instant 单区同样 cap 8（场景 5 数据流覆盖的 panelHeight 切片）。
     func test_contract_CGenericScope_instantCappedToEight() {
         let h = LauncherInputView.panelHeight(
             candidateCount: 0, hasSelected: false, outputHeight: 0, hasFooter: false,
-            instantCount: 12, pluginCandidateCount: 0, commandRouteCount: 0
+            instantCount: 12, pluginCandidateCount: 0
         )
         XCTAssertEqual(h, inputH + candidateExtra(8), accuracy: 0.5,
             "C-GENERIC-SCOPE: instant 12 应封顶 8 行，panelHeight == \(inputH + candidateExtra(8))，实际 \(h)")

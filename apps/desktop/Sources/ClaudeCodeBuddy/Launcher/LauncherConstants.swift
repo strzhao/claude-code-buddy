@@ -65,9 +65,13 @@ enum LauncherConstants {
 
     // Router（task 005 追加）
     static let routerMaxCandidates: Int = 5
-    /// 路由短路阈值：score >= routerSkipScore 时跳过 AI 选择（直接命中）
-    /// 评分逻辑：name 完全匹配 5+5=10，达到阈值；keyword 精确命中 3+3=6，不触发
+    /// 路由短路阈值（旧 contains 加分制）：score >= routerSkipScore 时跳过 AI 选择（直接命中）。
+    /// 统一量纲（C-UNIFIED-SCORE）后 route(query:) 死代码短路条件改用 unifiedRouteSkipScore；
+    /// 本常量仅存留作历史引用兼容，生产路径不再读取。
     static let routerSkipScore: Int = 10
+    /// 统一量纲路由短路阈值（D8.3）：score >= 500（词首档及以上）才可跳过 AI 选择。
+    /// contains 档 150 < 500 不短路——「密码」类 contains 弱命中不再直接路由到插件。
+    static let unifiedRouteSkipScore: Int = 500
 
     // Prompt mode（task 002 追加）
     static let promptMaxSystemPromptBytes: Int = 8192

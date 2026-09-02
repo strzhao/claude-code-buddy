@@ -1,29 +1,10 @@
 import SwiftUI
 
-/// Inline watermark chip shown in the input field's top-right area when a plugin is active.
-/// Displays the plugin name in small grey monospaced text with a 1px border.
-struct PluginWatermarkChip: View {
-    let name: String
-
-    var body: some View {
-        Text(name)
-            .font(.system(size: 11, design: .monospaced))
-            .foregroundStyle(LauncherTheme.chipText)
-            .padding(.vertical, 2)
-            .padding(.horizontal, 7)
-            .background(Color.clear)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(LauncherTheme.chipBorder, lineWidth: 1)
-            )
-            .accessibilityIdentifier("plugin-watermark-chip")
-    }
-}
-
-/// 锁定 command chip（方案 B 两阶段，参数态视觉反馈）。
+/// 锁定插件 chip（D5，C-TAB-LOCK 参数态视觉反馈）。
 ///
-/// 参数输入态（`lockedCommand != nil`）下替代 watermark chip：sage 强调色 + 锁图标 +
+/// 参数输入态（`lockedCommand != nil`）下显示：sage 强调色 + 锁图标 +
 /// 「已锁定: name」文案，让用户清楚当前 Enter 会以 locked 插件执行（C-LOCK-STICKY 视觉锚）。
+/// AX id `locked-command-chip` 不变（契约冻结）。输入框右上角唯一 chip（watermark chip 已退役）。
 struct LockedCommandChip: View {
     let name: String
 

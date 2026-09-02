@@ -55,6 +55,7 @@ private func makeAction(
         title: title,
         subtitle: nil,
         icon: nil,
+        iconEmoji: nil,
         pluginId: pluginId,
         score: score,
         perform: { /* mock：不执行任何操作 */ }
@@ -305,6 +306,7 @@ final class BuiltinRegistryArbitrationAcceptanceTests: XCTestCase {
             title: "ThrowTest",
             subtitle: nil,
             icon: nil,
+            iconEmoji: nil,
             pluginId: "test",
             score: 0,
             perform: { performed = true }

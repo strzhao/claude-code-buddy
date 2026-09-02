@@ -30,30 +30,12 @@ struct LauncherInputView: View {
         !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil || !pluginCandidates.isEmpty
     }
 
-    /// 命中的 plugin 名字（chip 水印显示用）
-    /// 直接跟随 manager.lastRoutePluginName（updateQuery 同步算 narrow 维护，
-    /// 用户清空输入 → updateQuery 把它设 nil → chip 自动消失）
-    private var activePluginName: String? {
-        manager.lastRoutePluginName
-    }
-
-    /// 内置 App 候选（AppLauncher 用）是否显示：safe period 且无结果展示
-    /// 方案 B：外部 command 插件候选行恢复（分区渲染，C3）
-    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）隐藏，专注参数输入。
+    /// 统一混排候选区（D6：单列表，app + 内置 + 社区插件同一列表）是否显示：
+    /// safe period 且无结果展示；C-PARAM-ISOLATE：参数态（lockedCommand != nil）隐藏。
     private var showInstantCandidates: Bool {
         guard !hasOutput else { return false }
         guard manager.lockedCommand == nil else { return false }
         return manager.stage == .idle || manager.stage == .narrowing || manager.stage == .routing
-    }
-
-    /// command 路由候选区是否显示（方案 B，C3）：safe period 且无结果展示且 commandRouteCandidates 非空。
-    /// 与 showInstantCandidates 可同时为 true（两区并存渲染）。
-    /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）隐藏（候选区整块消失）。
-    private var showCommandRouteCandidates: Bool {
-        guard !hasOutput else { return false }
-        guard manager.lockedCommand == nil else { return false }
-        return (manager.stage == .idle || manager.stage == .narrowing || manager.stage == .routing)
-            && !manager.commandRouteCandidates.isEmpty
     }
 
     var body: some View {
@@ -80,52 +62,44 @@ struct LauncherInputView: View {
                             manager.updateQuery(new)
                         }
 
-                    // Plugin watermark chip — 显示命中的 plugin 名称；锁定态显示「已锁定」chip（参数态视觉反馈）
+                    // 锁定态显示「已锁定」chip（D5，C-TAB-LOCK 视觉反馈；watermark chip 已退役）
                     if let locked = manager.lockedCommand {
                         LockedCommandChip(name: locked.name)
-                            .padding(.trailing, 14)
-                    } else if let pluginName = activePluginName {
-                        PluginWatermarkChip(name: pluginName)
                             .padding(.trailing, 14)
                     }
                 }
             }
             .frame(height: LauncherConstants.inputHeight)
 
-            // command 路由候选区（方案 B C3/C7，最上层）：用户安装的 command 插件候选行。
-            // 点击行 → onSelect 设 lockedCommand（C-LOCK-NOT-EXECUTE：选中 = 锁定，不执行）。
-            if showCommandRouteCandidates {
-                LauncherCandidateView(
-                    candidates: manager.commandRouteCandidates,
-                    // 单选高亮 + 滚动：只有 activeCandidateZone == .commandRoute 时本区才高亮，
-                    // 非活动区 get 返回 -1（不亮、不 scroll）——保证任意时刻全屏只有一个高亮行（修真机两区同亮 bug）。
-                    // C-SCROLL-TO-SELECTION：selectedIndex 用 @Binding（B1 fallback），onChange 可靠触发 scrollTo。
-                    selectedIndex: Binding(
-                        get: { manager.activeCandidateZone == .commandRoute ? manager.commandRouteSelectedIndex : -1 },
-                        set: { manager.setCommandRouteSelectedIndex($0) }
-                    ),
-                    onSelect: { manifest in
-                        // C-LOCK-NOT-EXECUTE：点击 = 选中锁定，不执行（与 Enter/Tab 选中同义）
-                        if let idx = manager.commandRouteCandidates.firstIndex(where: { $0.name == manifest.name }) {
-                            manager.setCommandRouteSelectedIndex(idx)
-                            manager.setActiveCandidateZone(.commandRoute)
-                            manager.selectCommandRouteCandidateForLock()
-                            focused = true
-                        }
-                    }
-                )
-            }
-
-            // 内置 instant 候选区（AppLauncher/Calculator/SystemCommand 等，C3 之下）
+            // 统一混排候选区（D6：单列表承载 app/内置/社区插件全部候选）
             if showInstantCandidates && !manager.instantActions.isEmpty {
                 LauncherInstantCandidateView(
                     actions: manager.instantActions,
-                    // 单选高亮：只有 activeCandidateZone == .instant 时本区才高亮（非活动区 get 返回 -1）
+                    // 单选高亮 + 滚动（typing 期恒 .instant，直接读 instantSelectedIndex）
                     // C-SCROLL-TO-SELECTION：selectedIndex 用 @Binding（B1 fallback）。
                     selectedIndex: Binding(
-                        get: { manager.activeCandidateZone == .instant ? manager.instantSelectedIndex : -1 },
+                        get: { manager.instantSelectedIndex },
                         set: { manager.setInstantSelectedIndex($0) }
-                    )
+                    ),
+                    onRowTap: { action in
+                        // D5/D6：点击行分流——内置插件聚合行 = 展开填触发词（C-BUILTIN-EXPAND）；
+                        // 社区插件行 = 锁定（≠ 执行，C-TAB-LOCK）；app/内置行 = 执行
+                        guard let idx = manager.instantActions.firstIndex(where: { $0.id == action.id }) else { return }
+                        manager.setInstantSelectedIndex(idx)
+                        if action.id.hasPrefix("builtin:") {
+                            // 内置插件行：点击 = 与 Enter 同义（submit 走 .expandBuiltin 填触发词展开）
+                            Task { await submit() }
+                        } else if manager.resolvePluginCandidate(pluginId: action.pluginId) != nil {
+                            // 插件行：点击 = Tab 锁定语义
+                            if let manifest = manager.resolvePluginCandidate(pluginId: action.pluginId) {
+                                manager.lockPluginCandidate(manifest)
+                                focused = true
+                            }
+                        } else {
+                            // app/内置行：点击 = 执行（与 Enter 同义）
+                            Task { await submit() }
+                        }
+                    }
                 )
             }
 
@@ -228,8 +202,7 @@ struct LauncherInputView: View {
                 outputHeight: (hasOutput && pluginCandidates.isEmpty) ? LauncherConstants.outputMaxHeight : 0,
                 hasFooter: manager.stage == .error,
                 instantCount: showInstantCandidates ? manager.instantActions.count : 0,
-                pluginCandidateCount: pluginCandidates.count,
-                commandRouteCount: showCommandRouteCandidates ? manager.commandRouteCandidates.count : 0
+                pluginCandidateCount: pluginCandidates.count
             ),
             alignment: .top
         )
@@ -300,14 +273,12 @@ struct LauncherInputView: View {
         }
         .onDisappear {}
         .onExitCommand { handleEscape() }   // Esc：分层（C-ESC-EXIT）—— lockedCommand 非空只清锁，否则 hide
-        // 上下箭头键导航候选列表：instant 优先，否则原有 lastRoute 逻辑（C5 契约）
+        // 上下箭头键导航候选列表：instant（统一列表）优先，否则 lastRoute 兜底（C5 契约）
         .onKeyPress(.upArrow) { navigateUp() }
         .onKeyPress(.downArrow) { navigateDown() }
-        // 方案 B 两阶段（C-LOCK-NOT-EXECUTE）：候选态 Tab = 选中锁定（与 Enter 选中同义；Enter 在参数态才执行）。
+        // D5（C-TAB-LOCK）：统一列表选中行是插件 → Tab 锁定该插件（不执行）；app/内置行 Tab 忽略。
         .onKeyPress(.tab) {
-            if manager.activeCandidateZone == .commandRoute,
-               manager.commandRouteCandidates.indices.contains(manager.commandRouteSelectedIndex) {
-                manager.selectCommandRouteCandidateForLock()
+            if manager.handleTabLock() {
                 focused = true
                 return .handled
             }
@@ -349,41 +320,21 @@ struct LauncherInputView: View {
 
     // MARK: - 候选导航（箭头 / emacs Ctrl-N·P 共用）
 
-    /// 向上移动选中：C5 四态矩阵派发。
-    /// pluginCandidates 通道(post-exec) 隔离 → commandRoute → instant → aiRoute 兜底。
-    /// commandRoute+instant 并存：边界跨区（instant 首↑→commandRoute 末），区内环形。
+    /// 向上移动选中：D6 简化三态派发。
+    /// pluginCandidates 通道(post-exec) 隔离 → instant（统一列表，环形）→ aiRoute 兜底。
     /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）候选区空，↑↓ 无效（忽略，让光标在输入框正常编辑）。
     private func navigateUp() -> KeyPress.Result {
         if manager.lockedCommand != nil { return .ignored }
-        // C5：pluginCandidates 通道非空 → 仅区内环形，隔离其他三区（既有短路保留）
+        // C5：pluginCandidates 通道非空 → 仅区内环形，隔离其他区（既有短路保留）
         if !pluginCandidates.isEmpty {
             let count = pluginCandidates.count
             pluginCandidateIndex = (pluginCandidateIndex <= 0) ? count - 1 : pluginCandidateIndex - 1
             return .handled
         }
-        // C5：activeCandidateZone 派发（commandRoute + instant 并存跨区）
-        switch manager.activeCandidateZone {
-        case .commandRoute:
-            // commandRoute 首↑ → 跨区到 instant 末（instant 非空）或区内循环
-            if manager.commandRouteSelectedIndex <= 0 && !manager.instantActions.isEmpty {
-                manager.setActiveCandidateZone(.instant)
-                // instant 末项（symmetric moveInstantSelection 在首项↑会循环到末项）
-                manager.moveInstantSelection(up: true)
-                return .handled
-            }
-            manager.moveCommandRouteSelection(up: true)
-            return .handled
-        case .instant:
-            // instant 首↑ → 跨区到 commandRoute 末（commandRoute 非空）
-            if manager.instantSelectedIndex <= 0 && !manager.commandRouteCandidates.isEmpty {
-                manager.setActiveCandidateZone(.commandRoute)
-                manager.setCommandRouteSelectedIndex(manager.commandRouteCandidates.count - 1)
-                return .handled
-            }
+        // 统一列表：区内环形
+        if !manager.instantActions.isEmpty {
             manager.moveInstantSelection(up: true)
             return .handled
-        case .pluginCandidates, .aiRoute:
-            break
         }
         // aiRoute 兜底（lastRouteCandidates）
         let count = manager.lastRouteCandidates.count
@@ -393,7 +344,7 @@ struct LauncherInputView: View {
         return .handled
     }
 
-    /// 向下移动选中：C5 四态矩阵派发（对称 navigateUp）。
+    /// 向下移动选中：D6 简化三态派发（对称 navigateUp）。
     /// C-PARAM-ISOLATE：参数态（lockedCommand != nil）↑↓ 无效（忽略）。
     private func navigateDown() -> KeyPress.Result {
         if manager.lockedCommand != nil { return .ignored }
@@ -402,32 +353,10 @@ struct LauncherInputView: View {
             pluginCandidateIndex = (pluginCandidateIndex >= count - 1) ? 0 : pluginCandidateIndex + 1
             return .handled
         }
-        switch manager.activeCandidateZone {
-        case .commandRoute:
-            // commandRoute 末↓ → 跨区到 instant 首（instant 非空）
-            let cmdCount = manager.commandRouteCandidates.count
-            if cmdCount > 0 && manager.commandRouteSelectedIndex >= cmdCount - 1 && !manager.instantActions.isEmpty {
-                manager.setActiveCandidateZone(.instant)
-                // instant 首项（moveInstantSelection 在末项↓会循环回首项；这里我们直接确保落首项）
-                if manager.instantSelectedIndex < 0 {
-                    manager.moveInstantSelection(up: false)
-                }
-                return .handled
-            }
-            manager.moveCommandRouteSelection(up: false)
-            return .handled
-        case .instant:
-            // instant 末↓ → 跨区到 commandRoute 首（commandRoute 非空）
-            let instCount = manager.instantActions.count
-            if instCount > 0 && manager.instantSelectedIndex >= instCount - 1 && !manager.commandRouteCandidates.isEmpty {
-                manager.setActiveCandidateZone(.commandRoute)
-                manager.setCommandRouteSelectedIndex(0)
-                return .handled
-            }
+        // 统一列表：区内环形
+        if !manager.instantActions.isEmpty {
             manager.moveInstantSelection(up: false)
             return .handled
-        case .pluginCandidates, .aiRoute:
-            break
         }
         let count = manager.lastRouteCandidates.count
         guard count > 0 else { return .ignored }
@@ -492,11 +421,9 @@ struct LauncherInputView: View {
     }
 
     private func submit() async {
-        // 方案 B 两阶段（C-LOCK-NOT-EXECUTE / C-EXEC-ON-ENTER）：
-        // 候选态选中 command 行 = 设 lockedCommand（不执行）；参数态 Enter = 执行 lockedCommand。
+        // D4 分流顺序（C-ENTER-EXEC）：锁定态 → pluginCandidates 子候选 → instant 统一列表 → AI 兜底。
 
-        // C-EXEC-ON-ENTER：参数态（lockedCommand != nil）+ Enter → submitCommandDirect 执行。
-        // 必须在候选选中分支之前（参数态候选区已空，不会再命中候选选中分支）。
+        // 1. C-EXEC-ON-ENTER：参数态（lockedCommand != nil）+ Enter → submitCommandDirect 执行。
         if let locked = manager.lockedCommand {
             let q = query
             await MainActor.run {
@@ -509,28 +436,14 @@ struct LauncherInputView: View {
             }
             callbackQuery = q
             callbackManifest = locked
-            let stream = manager.submitCommandDirect(locked, query: q)
+            // C-ENTER-EXEC：锁定态 Enter 按 mode 分发（Tab 锁定已扩展到全插件，stdin/prompt 锁定态
+            // 走 submitWithPlugin，command 仍走零 LLM submitCommandDirect——统一经 executePluginCandidate）
+            let stream = manager.executePluginCandidate(locked, query: q)
             await consume(stream)
             return
         }
 
-        // C-LOCK-NOT-EXECUTE：候选态 .commandRoute 选中（Enter/Tab/点击）→ 设 lockedCommand，**不执行**。
-        // 回填策略：锁定后不回填 name，保持用户原文（唯一命中已输 keyword；多命中输的是共用 keyword）。
-        if manager.activeCandidateZone == .commandRoute,
-           manager.commandRouteCandidates.indices.contains(manager.commandRouteSelectedIndex) {
-            manager.selectCommandRouteCandidateForLock()
-            // 锁定后焦点回输入框（继续输参数），不执行
-            focused = true
-            return
-        }
-
-        // C4：instant 区 → performSelectedInstantAction（既有 task 011 C5 契约）
-        if manager.activeCandidateZone == .instant, manager.performSelectedInstantAction() {
-            await MainActor.run { query = "" }
-            return
-        }
-
-        // C5 候选回调重入：若上一轮 command 插件返回了候选列表且用户选中某项 →
+        // 2. C5 候选回调重入：post-exec 子候选态（pluginCandidates 非空）选中项 Enter →
         // 用 submitWithCandidate 重入同插件（带 selection），bypass LLM 执行选中动作（如 stop/start）。
         // 用首 Enter 保存的 callbackManifest，而非 lastRouteCandidates 按 lastRoutePluginName 查找——
         // 后者在 .done 清 query → updateQuery("") → lastRoutePluginName=nil 后查找失败 → 回调落 AI 流 → 执行失败。
@@ -555,7 +468,44 @@ struct LauncherInputView: View {
             return
         }
 
-        // 落回现有 AI 流（清空 instantActions，进入 AI 候选时序）
+        // 3. D4 C-ENTER-EXEC：instant 统一列表选中行分流。
+        //    插件行按 mode 分发（command → submitCommandDirect 零 LLM；stdin/prompt → submitWithPlugin）；
+        //    app/内置行 → performSelectedInstantAction（C5 既有契约）。
+        switch manager.submitInstantSelection(query: query) {
+        case .performed:
+            await MainActor.run { query = "" }
+            return
+        case .expandBuiltin(let trigger):
+            // D5/C-BUILTIN-EXPAND：内置插件行展开 = 填触发词（非清空——清空会 updateQuery("")
+            // 清掉列表）→ onChange 触发 updateQuery → 既有 debounce 管线刷出该插件具体候选。
+            // onChange 是 Equatable 变化才触发：query 已 == trigger 时不触发（如空剪贴板历史时
+            // 完整触发词仍出 builtin: 行，Enter 后赋同值）→ 手动直调 updateQuery 幂等驱动
+            // （内部 cancel 旧 debounce 重启），防空历史 Enter 无反馈死角（QA Important 1）。
+            await MainActor.run {
+                query = trigger
+                manager.updateQuery(trigger)
+            }
+            return
+        case .stream(let stream, let manifest):
+            let q = query
+            await MainActor.run {
+                outputBuffer = ""
+                actions = []
+                errorOutput = nil
+                resultImage = nil
+                resultImageData = nil
+                copied = false
+            }
+            // 记录原始 query + manifest（候选回调 C5 用：同 query 重入同插件）
+            callbackQuery = q
+            callbackManifest = manifest
+            await consume(stream)
+            return
+        case .notInstant:
+            break
+        }
+
+        // 4. fallback AI 兜底（无 UI 选中 → LLM 路由；现状不变）
         await MainActor.run {
             manager.clearInstantActions()
             outputBuffer = ""
@@ -565,7 +515,6 @@ struct LauncherInputView: View {
             copied = false
         }
 
-        // Enter 优先：若 selectedIndex >= 0 且有候选，直接用该候选执行（C5 契约，原有外部 CLI 分支）
         let selectedIdx = manager.lastRouteSelectedIndex
         let candidates = manager.lastRouteCandidates
         let q = query
@@ -639,41 +588,38 @@ struct LauncherInputView: View {
 // MARK: - panelHeight 纯函数（C3 / C7 契约）
 
 extension LauncherInputView {
-    /// 四态自适应面板高度公式（方案 B C6，取代既有 max 互斥）。
-    /// output 态 / 候选并存态(commandRoute+instant 叠加) / 仅单区态(C10 回归) / 空态。
+    /// 自适应面板高度公式（D6 统一混排简化版）。
+    /// output 态 / 统一候选列表态（instant 单区 + pluginCandidateExtra 叠加）/ 空态。
     static func panelHeight(
         candidateCount: Int,
         hasSelected: Bool,
         outputHeight: CGFloat,
         hasFooter: Bool = false,
         instantCount: Int = 0,
-        pluginCandidateCount: Int = 0,
-        commandRouteCount: Int = 0
+        pluginCandidateCount: Int = 0
     ) -> CGFloat {
         let footerExtra: CGFloat = hasFooter ? LauncherConstants.statusFooterHeight : 0
         let inputH = LauncherConstants.inputHeight   // 64
         // 插件候选列表（C1 通道）单独计高：与 output 互斥展示（候选选中后进入 output 态）
         // C-VIEWPORT-THRESHOLD / C-ROW-HEIGHT-CONST：cap candidateVisibleMax(8)，行高用 candidateRowHeight
         let pluginCandidateExtra: CGFloat = CGFloat(min(pluginCandidateCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
-        // C6 output 态：commandRoute/instant 被 hasOutput guard 隐藏不计
+        // output 态：instant 被 hasOutput guard 隐藏不计
         if outputHeight > 0 {
             return inputH + (hasSelected ? LauncherConstants.candidateRowHeight : 0) + min(outputHeight, LauncherConstants.outputMaxHeight) + pluginCandidateExtra + footerExtra
         }
-        // C6 候选并存态：commandRoute + instant 叠加（非 max）
-        let commandRouteExtra: CGFloat = CGFloat(min(commandRouteCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
-        let instantExtra: CGFloat = CGFloat(min(instantCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
-        let combinedExtra = commandRouteExtra + instantExtra
-        if combinedExtra > 0 {
-            return inputH + combinedExtra + pluginCandidateExtra + footerExtra
+        // 统一候选列表态：instant 单区（含插件/app/内置混排）
+        let instantExtra: CGFloat = CGFloat(min(max(instantCount, 0), LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight
+        if instantExtra > 0 {
+            return inputH + instantExtra + pluginCandidateExtra + footerExtra
         }
-        // C6 仅单区态（C10 回归）。
+        // 仅 pluginCandidates 通道态。
         // I3：lastRouteCandidates(candidateCount) 不渲染为可见列表，不从 panelHeight 分配高度
         // （否则 >8 时空白行）。仅 pluginCandidateCount 计高并 cap candidateVisibleMax。
         let effectiveCount = max(pluginCandidateCount, 0)
         if effectiveCount > 0 {
             return inputH + CGFloat(min(effectiveCount, LauncherConstants.candidateVisibleMax)) * LauncherConstants.candidateRowHeight + footerExtra
         }
-        // C6 空态
+        // 空态
         return inputH + footerExtra
     }
 }

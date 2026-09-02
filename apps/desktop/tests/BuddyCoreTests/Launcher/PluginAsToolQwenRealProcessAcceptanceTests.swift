@@ -344,6 +344,7 @@ final class PluginAsToolRealSynthDescAcceptanceTests: XCTestCase {
             version: "1.0.0",
             description: "把输入的文本或网址变成一张二维码图片，点击可复制到剪贴板。",
             summary: "二维码生成器：输入文本或网址生成可扫码图片",
+            icon: nil,
             keywords: ["qr", "二维码", "码"],
             timeout: 10,
             modeConfig: .command(CommandConfig(

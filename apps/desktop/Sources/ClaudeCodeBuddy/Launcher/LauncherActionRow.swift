@@ -18,15 +18,30 @@ struct LauncherActionRow: View {
             }
 
             HStack(spacing: 10) {
-                // App 图标 24x24
+                // 图标槽位 24x24（D1 渲染优先级：icon(NSImage) → iconEmoji(Text) → SF Symbol fallback）
                 if let nsImage = action.icon {
                     Image(nsImage: nsImage)
                         .resizable()
                         .interpolation(.high)
                         .frame(width: 24, height: 24)
                         .clipShape(RoundedRectangle(cornerRadius: 5))
-                } else {
+                } else if let emoji = action.iconEmoji {
+                    // 插件候选 emoji 图标（C-ICON-FIELD）：Text 渲染，居中于 24×24 槽位
+                    // 超长 icon 值防溢出：单行 + 自适应缩放
+                    Text(emoji)
+                        .font(.system(size: 17))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .frame(width: 24, height: 24)
+                } else if action.pluginId == "app-launcher" {
+                    // app 行 fallback（现状不变，C-NO-REGRESS①）
                     Image(systemName: "app.dashed")
+                        .font(.system(size: 20))
+                        .foregroundStyle(isSelected ? Color.white.opacity(0.85) : LauncherTheme.smoke)
+                        .frame(width: 24, height: 24)
+                } else {
+                    // 插件候选统一 SF Symbol fallback（D1：全插件一致 puzzlepiece，场景6.P1）
+                    Image(systemName: "puzzlepiece")
                         .font(.system(size: 20))
                         .foregroundStyle(isSelected ? Color.white.opacity(0.85) : LauncherTheme.smoke)
                         .frame(width: 24, height: 24)

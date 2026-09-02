@@ -69,12 +69,12 @@ final class MarketplaceManifestAcceptanceTests: XCTestCase {
         // AT02b: {"source": "git-subdir", url, path, ref}（无 sha）→ .gitSubdir(sha=nil) round-trip
         // C1.1：monorepo marketplace.json 的 gitSubdir 不填 sha，跟随 ref 最新
         let json = """
-        {"source":"git-subdir","url":"https://github.com/strzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}
+        {"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/hello","ref":"main"}
         """
         let decoded = try decode(PluginSourceConfig.self, from: json)
         XCTAssertEqual(
             decoded,
-            .gitSubdir(url: "https://github.com/strzhao/buddy-official-plugins", path: "plugins/hello", ref: "main", sha: nil)
+            .gitSubdir(url: "https://github.com/strzhao/claude-code-buddy", path: "plugins/hello", ref: "main", sha: nil)
         )
 
         let reEncoded = try encode(decoded)

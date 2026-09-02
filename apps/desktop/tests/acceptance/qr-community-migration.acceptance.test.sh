@@ -20,7 +20,9 @@ set -euo pipefail
 
 # ── 两 repo 根（变量集中声明） ────────────────────────────────────────────────
 APP_REPO="/Users/stringzhao/workspace/claude-code-buddy"
-MONO_REPO="/Users/stringzhao/workspace/buddy-official-plugins"
+# 2026-09-02 官方插件 subtree 收编进本仓 plugins/（拍平后无嵌套 plugins/plugins），
+# 变量名 MONO_REPO 保留以最小化本历史验收脚本的 diff。
+MONO_REPO="$APP_REPO/plugins"
 
 # 前置声明
 # 前置：brew install qrencode jq；monorepo 已 push 到 main
@@ -70,7 +72,7 @@ check_SC1() {
 # ─── SC2: monorepo qr/qr-gen.sh 存在，qr-gen binary 与 qr-gen.swift 不存在 ───
 # 谓词：~/workspace/buddy-official-plugins/plugins/qr/qr-gen.sh 存在 且 qr-gen/qr-gen.swift 不存在
 check_SC2() {
-    local qr_dir="$MONO_REPO/plugins/qr"
+    local qr_dir="$MONO_REPO/qr"
     if [ ! -d "$qr_dir" ]; then
         echo "SC2 FAIL: monorepo qr 目录不存在: $qr_dir" >&2; exit 1
     fi
@@ -89,7 +91,7 @@ check_SC2() {
 # ─── SC3: qr plugin.json cmd/deps/requiredPath 契约 ───────────────────────────
 # 谓词：qr plugin.json .cmd=="./qr-gen.sh" && .deps 含 qrencode+jq && .requiredPath==["qrencode","jq"]
 check_SC3() {
-    local pj="$MONO_REPO/plugins/qr/plugin.json"
+    local pj="$MONO_REPO/qr/plugin.json"
     if [ ! -f "$pj" ]; then
         echo "SC3 FAIL: plugin.json 不存在: $pj" >&2; exit 1
     fi
@@ -152,7 +154,7 @@ check_SC4() {
 # ─── SC5: 合法 query → exit 0 + PNG + 边长≥480px + stdout 空 ─────────────────
 # 谓词：echo '{"query":"https://x.com"}' | BUDDY_OUTPUT_IMAGE=/tmp/t.png qr-gen.sh → exit 0 + /tmp/t.png 是 PNG + sips -g pixelWidth ≥480
 check_SC5() {
-    local qr_sh="$MONO_REPO/plugins/qr/qr-gen.sh"
+    local qr_sh="$MONO_REPO/qr/qr-gen.sh"
     # 前置检测：qrencode 未装才允许 skip SC5/SC6（其余 SC 硬断言）
     if ! command -v qrencode >/dev/null 2>&1; then
         echo "  SC5 SKIP: qrencode 未装（前置缺失，仅 SC5/SC6 可 skip）"
@@ -209,7 +211,7 @@ check_SC5() {
 # ─── SC6: 空查询自检 exit≠0 ──────────────────────────────────────────────────
 # 谓词：echo '{"query":""}' | qr-gen.sh → exit≠0
 check_SC6() {
-    local qr_sh="$MONO_REPO/plugins/qr/qr-gen.sh"
+    local qr_sh="$MONO_REPO/qr/qr-gen.sh"
     if ! command -v qrencode >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
         echo "  SC6 SKIP: qrencode/jq 未装（前置缺失，仅 SC5/SC6 可 skip）"
         return 0
@@ -289,7 +291,7 @@ check_SC9() {
 check_SC10() {
     local mp="$APP_REPO/apps/desktop/Sources/ClaudeCodeBuddy/Marketplace/plugins"
     local target="$mp/qr/qr-gen.sh"
-    # 清空再跑 local fetch（D3: BUDDY_OFFICIAL_PLUGINS_URL=file:// 指本地 clone）
+    # 清空再跑 local fetch（2026-09-02 起与 fetch-plugins 等价：同仓拷贝）
     rm -rf "$mp" 2>/dev/null || true
     # target 必须在 Makefile 中存在（D3）
     if ! make -C "$APP_REPO/apps/desktop" -n fetch-plugins-local >/dev/null 2>&1; then
@@ -312,7 +314,7 @@ check_SC10() {
 # 谓词：monorepo marketplace.json 的 qr.description 与 plugins/qr/plugin.json summary 一致
 check_SC11() {
     local mkt="$MONO_REPO/marketplace.json"
-    local pj="$MONO_REPO/plugins/qr/plugin.json"
+    local pj="$MONO_REPO/qr/plugin.json"
     if [ ! -f "$mkt" ]; then
         echo "SC11 FAIL: marketplace.json 不存在: $mkt" >&2; exit 1
     fi

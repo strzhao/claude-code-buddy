@@ -33,9 +33,9 @@ final class PluginMarketplaceGitSchemaAcceptanceTests: XCTestCase {
           "description": "Claude Code Buddy 官方插件目录",
           "owner": {"name": "stringzhao", "homepage": "https://github.com/stringzhao"},
           "plugins": [
-            {"name":"hello","version":"0.1.0","description":"演示插件协议的入门示例","category":"example","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}},
-            {"name":"qr","version":"0.1.0","description":"生成二维码图片并复制到剪贴板","category":"utility","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/qr","ref":"main"}},
-            {"name":"qzh","version":"0.1.0","description":"查询并开关 QzhddrSrv 监控服务","category":"utility","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/qzh","ref":"main"}}
+            {"name":"hello","version":"0.1.0","description":"演示插件协议的入门示例","category":"example","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/hello","ref":"main"}},
+            {"name":"qr","version":"0.1.0","description":"生成二维码图片并复制到剪贴板","category":"utility","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/qr","ref":"main"}},
+            {"name":"qzh","version":"0.1.0","description":"查询并开关 QzhddrSrv 监控服务","category":"utility","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/qzh","ref":"main"}}
           ]
         }
         """
@@ -59,8 +59,8 @@ final class PluginMarketplaceGitSchemaAcceptanceTests: XCTestCase {
             guard case .gitSubdir(let url, let path, let ref, let sha) = plugin.source else {
                 return XCTFail("\(plugin.name) source 必须为 gitSubdir（C1 monorepo）")
             }
-            XCTAssertTrue(url.contains("buddy-official-plugins"),
-                          "\(plugin.name) url 必须指向 monorepo")
+            XCTAssertTrue(url.hasSuffix("/claude-code-buddy"),
+                          "\(plugin.name) url 必须指向本仓（2026-09-02 插件收编）")
             XCTAssertTrue(path.hasPrefix("plugins/"),
                           "\(plugin.name) path 必须为 plugins/<name>")
             XCTAssertEqual(ref, "main", "\(plugin.name) ref 必须为 main")
@@ -243,7 +243,7 @@ final class PluginMarketplaceGitSchemaAcceptanceTests: XCTestCase {
             category: nil,
             author: MarketplaceAuthor(name: "tester", email: nil),
             source: .gitSubdir(
-                url: "https://github.com/stringzhao/buddy-official-plugins",
+                url: "https://github.com/strzhao/claude-code-buddy",
                 path: "plugins/hello",
                 ref: "main",
                 sha: nil

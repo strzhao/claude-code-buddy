@@ -184,7 +184,7 @@ final class CommandPrefixMatchAcceptanceTests: XCTestCase {
 
     // MARK: - 辅助：构造 manifest（command mode 必须用 JSON 解码，禁便利 init）
 
-    /// qr 插件 mock：keywords 含 ["qr", "二维码", "码"]（镜像 buddy-official-plugins/plugins/qr/plugin.json:6 schema）
+    /// qr 插件 mock：keywords 含 ["qr", "二维码", "码"]（镜像本仓 plugins/qr/plugin.json:6 schema，2026-09-02 收编）
     private func makeQrCommandManifest() -> PluginManifest {
         decodeManifest(name: "qr", keywords: ["qr", "二维码", "码"], mode: "command", cmd: "echo")
     }

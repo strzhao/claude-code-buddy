@@ -222,7 +222,7 @@ CLI 通过 socket 让 app 进程调 KeyboardShortcuts 库 API，即时重注册 
 
 **新能力默认走社区插件，内置保留边界**（2026-06-28 确立）：
 
-- **社区优先**：新功能（二维码、监控控制、文件操作等「确定性子进程产物」或「LLM 工具」）默认实现为**社区插件**，放进独立 monorepo [`strzhao/buddy-official-plugins`](https://github.com/strzhao/buddy-official-plugins)，不编进 app。
+- **社区优先**：新功能（二维码、监控控制、文件操作等「确定性子进程产物」或「LLM 工具」）默认实现为**社区插件**，放进**本仓** `plugins/`（2026-09-02 自 strzhao/buddy-official-plugins subtree 收编，物理同仓、机制不变：插件不编进 app，运行时经 marketplace fetch），不编进 app。
   - 优势：热更新（改 monorepo → 用户 `buddy launcher update` 即生效，不重发 app）、可审计（shell 脚本可读）、零编译（声明 deps 由 app 首次执行时自动安装）。
   - 例外：需要常驻内存 / 系统 API / 高频路径的能力才进内置（见下方边界）。
 - **内置保留边界**（仅以下四类留内置，其他迁社区）：
@@ -236,19 +236,18 @@ CLI 通过 socket 让 app 进程调 KeyboardShortcuts 库 API，即时重注册 
   - **prompt mode**（LLM 单轮）：适合翻译、问答、改写。
   - 外部依赖走 `deps` 声明（`{check, brew, label}`），app 首次执行时弹信任框 + 自动 `brew install`（见 DependencyInstaller/TrustPrompt）。
 
-**官方插件 monorepo**：`~/workspace/buddy-official-plugins`（与 app repo 同级的 workspace clone），结构 `plugins/<name>/{plugin.json, 主脚本, README.md}` + 根 `marketplace.json`。
+**官方插件源**：本仓仓库根 `plugins/`（2026-09-02 自 strzhao/buddy-official-plugins（已 archive）subtree 收编，历史完整），结构 `<name>/{plugin.json, 主脚本, README.md}` + `marketplace.json`。
 
-**本地开发循环**（改 monorepo → 立即在 app 生效，免 git push）：
+**本地开发循环**（改 `plugins/` → 立即在 app 生效，无需任何 fetch/push 往返）：
 
 ```bash
 # 在 apps/desktop 下：
-make fetch-plugins-local                    # 从本地 clone 拉（默认 ~/workspace/buddy-official-plugins）
-make fetch-plugins-local BUDDY_LOCAL_PLUGINS_DIR=/path/to/clone   # override clone 路径
-make fetch-plugins                          # 从 GitHub main 拉（验证发版链路）
+make fetch-plugins                          # 从本仓 plugins/ 拷贝进 Marketplace/（同仓零网络）
+make fetch-plugins-local                    # 等价别名（保留兼容旧习惯）
 SKIP_FETCH_PLUGINS=1 make build             # 跳过 fetch（离线调试，需已有 plugins/ 内容）
 ```
 
-build-time fetch 机制：Makefile `fetch-plugins` → `Scripts/fetch-plugins.sh` 从 monorepo git clone 拉取 `plugins/` 源 + 生成 bundle `marketplace.json`，填进 `Sources/ClaudeCodeBuddy/Marketplace/plugins/`（构建产物，.gitignore 忽略）。`BUDDY_OFFICIAL_PLUGINS_URL=file:///path` 可指向任意本地/远程 monorepo。
+build-time fetch 机制：Makefile `fetch-plugins` → `Scripts/fetch-plugins.sh` 从仓内 `plugins/` rsync 插件源 + 生成 bundle `marketplace.json`（gitSubdir → localSubdir 改写），填进 `Sources/ClaudeCodeBuddy/Marketplace/plugins/`（构建产物，.gitignore 忽略）。`BUDDY_LOCAL_PLUGINS_DIR` 可 override 插件源目录（实验用）。
 
 **release 链路**（C1）：`.github/workflows/release.yml` 在 `Build arm64` 前有 `make -C apps/desktop fetch-plugins` step，保证发版带插件（fetch 失败令 CI 失败，非静默）。
 

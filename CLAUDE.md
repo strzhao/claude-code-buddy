@@ -69,10 +69,10 @@ buddy launcher remove <name>            # 卸载
 
 ### 社区插件优先约定
 
-Launcher 新能力**默认走社区插件**（独立 monorepo [`strzhao/buddy-official-plugins`](https://github.com/strzhao/buddy-official-plugins)，本地 clone 在 `~/workspace/buddy-official-plugins`），不编进 app。仅以下四类保留内置（Calculator/Paste/AppLauncher/SystemCommand + 需系统框架/常驻/核心路由的能力）。详见 [apps/desktop/CLAUDE.md#插件开发约定社区优先](apps/desktop/CLAUDE.md#插件开发约定社区优先)。
+Launcher 新能力**默认走社区插件**（源在**本仓** `plugins/`——2026-09-02 自 strzhao/buddy-official-plugins（已 archive）subtree 收编，物理同仓但插件**不编进 app**），仅以下四类保留内置（Calculator/Paste/AppLauncher/SystemCommand + 需系统框架/常驻/核心路由的能力）。详见 [apps/desktop/CLAUDE.md#插件开发约定社区优先](apps/desktop/CLAUDE.md#插件开发约定社区优先)。
 
-- 官方插件 monorepo build-time fetch：app 打包时 `make fetch-plugins` 从 GitHub main 拉取 `plugins/` 源打进 bundle（release.yml 在 swift build 前执行此 step）。
-- 本地开发循环：`make -C apps/desktop fetch-plugins-local`（从本地 clone 拉，免 git push，`BUDDY_LOCAL_PLUGINS_DIR` 可 override）。
+- build-time fetch：app 打包时 `make fetch-plugins` 从仓内 `plugins/` 拷贝源 + 生成 bundle marketplace.json 打进 bundle（release.yml 在 swift build 前执行此 step；同仓拷贝零网络）。
+- 运行时 sync：`buddy launcher update` 经 GitHub Raw 读本仓 `plugins/marketplace.json`（旧装 app 仍读已 archive 的旧仓，冻结可用）。
 - 例外：lock（锁屏，需 `login.framework`）、ClipboardHistoryService（常驻 Timer）等留内置。
 
 ## 子项目快速入口

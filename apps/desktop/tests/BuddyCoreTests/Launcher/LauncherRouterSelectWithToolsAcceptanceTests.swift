@@ -350,7 +350,7 @@ final class SelectWithToolsExtractedQueryAcceptanceTests: XCTestCase {
     func test_scenario9_P2_extractedQueryMatchesToolCallInput() async throws {
         let provider = MockSelectWithToolsProvider()
         let qr = makeManifest(name: "qr", description: "生成二维码", keywords: ["qr"])
-        let extractedURL = "https://github.com/strzhao/buddy-official-plugins"
+        let extractedURL = "https://github.com/strzhao/claude-code-buddy"
         provider.responses = [
             .success(makeToolUseResponse(
                 toolName: "qr",

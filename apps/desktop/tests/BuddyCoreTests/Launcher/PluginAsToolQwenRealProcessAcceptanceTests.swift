@@ -251,7 +251,7 @@ final class PluginAsToolQwenQrExecutionAcceptanceTests: XCTestCase {
         try XCTSkipUnless(reachable, "qwen 不可达，跳过 real-process 测试")
 
         let json = try await callQwenReal(
-            userQuery: "生成二维码 https://github.com/strzhao/buddy-official-plugins",
+            userQuery: "生成二维码 https://github.com/strzhao/claude-code-buddy",
             tools: [qrTool()]
         )
         let (name, args, _) = extractFirstToolCall(json)
@@ -260,10 +260,10 @@ final class PluginAsToolQwenQrExecutionAcceptanceTests: XCTestCase {
                        "场景1.P2[real]: '生成二维码 + URL' 必须选 qr，实际: \(name ?? "nil")")
 
         let queryArg = args?["query"] as? String
-        XCTAssertEqual(queryArg, "https://github.com/strzhao/buddy-official-plugins",
+        XCTAssertEqual(queryArg, "https://github.com/strzhao/claude-code-buddy",
                        "场景1.P2[real]: qr.query 必须是完整 URL（产图前置），实际: \(queryArg ?? "nil")")
         // negate：参数不能是原始整句（LLM 必须做参数提取，不是整句透传）
-        XCTAssertNotEqual(queryArg, "生成二维码 https://github.com/strzhao/buddy-official-plugins",
+        XCTAssertNotEqual(queryArg, "生成二维码 https://github.com/strzhao/claude-code-buddy",
                           "场景1.P2[real] negate: query 不能是原始整句（必须提取出 URL）")
     }
 }

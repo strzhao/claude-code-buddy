@@ -205,9 +205,9 @@ buddy launcher enable <name>         # 移除标记
 
 ## 8. 合入社区
 
-官方插件市场是仓库根的 \`marketplace/marketplace.json\`。把自己的插件加进去：
+官方插件市场在主仓 [\`strzhao/claude-code-buddy\`](https://github.com/strzhao/claude-code-buddy) 的 \`plugins/marketplace.json\`（官方插件源也在 \`plugins/<name>/\`，2026-09 起收编同仓）。把自己的插件加进去：
 
-1. 插件源码放 \`Marketplace/plugins/<name>/\`（local-subdir）或独立 git 仓库（git-url）；
+1. 插件源码放 \`plugins/<name>/\`（同仓推荐）或独立 git 仓库（git-url / git-subdir）；
 2. 在 \`marketplace.json\` 的 \`plugins\` 数组加一条：
    \`\`\`json
    {

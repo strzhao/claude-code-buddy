@@ -19,16 +19,26 @@ final class SnipScriptFunctionTests: XCTestCase {
 
     private var tmpDir: URL!
     private var snippetsFile: URL!
+    // #file = .../apps/desktop/Tests/BuddyCoreTests/Launcher/SnipScriptFunctionTests.swift，
+    // delete 1 去文件名 → Launcher/，共 4 次 delete → apps/desktop/。
+    // （历史注：原实现 3 次 → Tests/Sources 是坏路径，文件移入 Launcher/ 子目录后 off-by-one，
+    // 长期被本地 clone fallback 掩盖——2026-09-02 插件收编时修正）
     private let snippetsShPath = URL(fileURLWithPath: #file)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()  // Launcher/
+        .deletingLastPathComponent()  // 去文件名 → Launcher/
         .deletingLastPathComponent()  // BuddyCoreTests/
-        .deletingLastPathComponent()  // tests/
+        .deletingLastPathComponent()  // Tests/
+        .deletingLastPathComponent()  // apps/desktop/
         .appendingPathComponent("Sources/ClaudeCodeBuddy/Marketplace/plugins/snip/lib/snippets.sh")
 
-    // 社区插件 monorepo 路径（开发期从本地 clone 拉）
-    private let monorepoSnippetsSh = URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent("workspace/buddy-official-plugins/plugins/snip/lib/snippets.sh")
+    // 仓内插件源路径（2026-09-02 插件收编进本仓 plugins/，随 git 检出始终存在，fetch 前即可读）
+    private let monorepoSnippetsSh = URL(fileURLWithPath: #file)
+        .deletingLastPathComponent()  // 去文件名 → Launcher/
+        .deletingLastPathComponent()  // BuddyCoreTests/
+        .deletingLastPathComponent()  // Tests/
+        .deletingLastPathComponent()  // apps/desktop/
+        .deletingLastPathComponent()  // apps/
+        .deletingLastPathComponent()  // 仓库根
+        .appendingPathComponent("plugins/snip/lib/snippets.sh")
 
     override func setUp() {
         super.setUp()

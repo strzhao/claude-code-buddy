@@ -63,14 +63,14 @@ final class GitMonorepoPluginAcceptanceTests: XCTestCase {
     /// Mutation-Survival：若实现把 sha 改回 String（非可选），本测试 keyNotFound 即挂。
     func test_C1_1_gitSubdir_withoutSha_decodesWithoutKeyNotFound() throws {
         let json = """
-        {"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}
+        {"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/hello","ref":"main"}
         """
         let decoded = try decode(PluginSourceConfig.self, from: json)
 
         guard case .gitSubdir(let url, let path, let ref, let sha) = decoded else {
             return XCTFail("期望 .gitSubdir，实际: \(decoded)")
         }
-        XCTAssertEqual(url, "https://github.com/stringzhao/buddy-official-plugins")
+        XCTAssertEqual(url, "https://github.com/strzhao/claude-code-buddy")
         XCTAssertEqual(path, "plugins/hello")
         XCTAssertEqual(ref, "main")
         XCTAssertNil(sha, "缺 sha 字段时关联值必须为 nil（C1.1：sha 改 String?）")
@@ -98,7 +98,7 @@ final class GitMonorepoPluginAcceptanceTests: XCTestCase {
     /// round-trip 后再 decode 仍得 nil。
     func test_C1_1_gitSubdir_nilSha_encodesWithoutShaKey() throws {
         let value = PluginSourceConfig.gitSubdir(
-            url: "https://github.com/stringzhao/buddy-official-plugins",
+            url: "https://github.com/strzhao/claude-code-buddy",
             path: "plugins/qr",
             ref: "main",
             sha: nil
@@ -136,13 +136,13 @@ final class GitMonorepoPluginAcceptanceTests: XCTestCase {
 
         // 远程形态（gitSubdir，不填 sha）
         let remoteJSON = """
-        {"name":"hello","version":"0.1.0","description":"演示插件","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}}
+        {"name":"hello","version":"0.1.0","description":"演示插件","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/hello","ref":"main"}}
         """
         let remotePlugin = try decode(MarketplacePlugin.self, from: remoteJSON)
         guard case .gitSubdir(let url, let path, let ref, let sha) = remotePlugin.source else {
             return XCTFail("远程 source 必须为 gitSubdir（C3），实际: \(remotePlugin.source)")
         }
-        XCTAssertEqual(url, "https://github.com/stringzhao/buddy-official-plugins")
+        XCTAssertEqual(url, "https://github.com/strzhao/claude-code-buddy")
         XCTAssertEqual(path, "plugins/hello")
         XCTAssertEqual(ref, "main")
         XCTAssertNil(sha, "远程 gitSubdir source 不填 sha（C1/C1.1）")
@@ -159,7 +159,7 @@ final class GitMonorepoPluginAcceptanceTests: XCTestCase {
         let names = ["hello", "qr", "qzh"]
         for name in names {
             let remoteJSON = """
-            {"name":"\(name)","version":"0.1.0","description":"d","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/\(name)","ref":"main"}}
+            {"name":"\(name)","version":"0.1.0","description":"d","author":{"name":"stringzhao"},"source":{"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/\(name)","ref":"main"}}
             """
             let remote = try decode(MarketplacePlugin.self, from: remoteJSON)
             guard case .gitSubdir(_, let path, _, _) = remote.source else {
@@ -281,45 +281,43 @@ final class GitMonorepoPluginAcceptanceTests: XCTestCase {
 
     // MARK: - C10: MarketplaceManager 默认 remoteURL 指向 monorepo（非旧 claude-code-buddy 仓库）
 
-    /// 契约 C10：`MarketplaceManager.productionRemoteURLString` 改指 monorepo raw URL
-    /// `https://raw.githubusercontent.com/stringzhao/buddy-official-plugins/main/marketplace.json`。
+    /// 契约 C10（2026-09-02 反转）：`MarketplaceManager.productionRemoteURLString` 指向本仓
+    /// `https://raw.githubusercontent.com/strzhao/claude-code-buddy/main/plugins/marketplace.json`。
+    /// 历史：marketplace 曾在本仓 → 拆仓至 buddy-official-plugins（2026-06-28）→
+    /// subtree 收编回本仓 plugins/（2026-09-02，物理同仓、运行时 fetch 机制不变）。
     ///
     /// 对应 P#：C10 B2 修复的核心断言（det-machine）。
-    /// Mutation-Survival：若实现忘改 productionRemoteURLString（仍指旧仓库），本测试挂。
-    ///
-    /// CONTRACT_AMBIGUOUS: productionRemoteURLString 当前是 private static（见现有源）。
-    /// 契约 C10 要求改其**值**但未明确改**可见性**。本测试假设蓝队将其改为 internal
-    /// （或提供 internal getter）以支持测试验证。若蓝队保持 private，此测试编译失败——
-    /// 此时蓝队需将 productionRemoteURLString 改 internal（@testable import 可访问），
-    /// 或提供一个 internal static computed property 暴露默认 URL。
-    func test_C10_defaultRemoteURL_pointsToMonorepo_notLegacyRepo() {
+    /// Mutation-Survival：若实现忘改 productionRemoteURLString（仍指已 archive 旧仓），本测试挂。
+    func test_C10_defaultRemoteURL_pointsToInRepoPlugins_notArchivedRepo() {
         let defaultURL = MarketplaceManager.productionRemoteURLString
 
-        XCTAssertTrue(defaultURL.contains("buddy-official-plugins"),
-                      "默认 remoteURL 必须指向 buddy-official-plugins monorepo（C10），实际: \(defaultURL)")
+        XCTAssertTrue(defaultURL.contains("/claude-code-buddy/"),
+                      "默认 remoteURL 必须指向本仓 claude-code-buddy（C10 收编反转），实际: \(defaultURL)")
         XCTAssertTrue(defaultURL.contains("raw.githubusercontent.com"),
                       "默认 remoteURL 必须是 GitHub Raw URL（C10），实际: \(defaultURL)")
-        XCTAssertTrue(defaultURL.hasSuffix("/marketplace.json"),
-                      "默认 remoteURL 必须指向 marketplace.json（C10），实际: \(defaultURL)")
+        XCTAssertTrue(defaultURL.hasSuffix("/plugins/marketplace.json"),
+                      "默认 remoteURL 必须指向 plugins/ 下 marketplace.json（C10），实际: \(defaultURL)")
 
-        // 反向断言：不得含旧仓库路径
-        XCTAssertFalse(defaultURL.contains("/claude-code-buddy/"),
-                       "默认 remoteURL 不得指向旧 claude-code-buddy 仓库（C10 B2 迁移），实际: \(defaultURL)")
+        // 反向断言：不得再指已 archive 的旧拆仓（buddy-official-plugins）
+        XCTAssertFalse(defaultURL.contains("buddy-official-plugins"),
+                       "默认 remoteURL 不得指向已 archive 的 buddy-official-plugins（C10 收编反转），实际: \(defaultURL)")
     }
 
-    // MARK: - C1: officialPluginsRepoURL 常量含 monorepo 标识
+    // MARK: - C1: officialPluginsRepoURL 常量含本仓标识
 
-    /// 契约 C1：`LauncherConstants.officialPluginsRepoURL` + `officialMarketplaceRawURL`
-    /// 为硬编码常量，指向 buddy-official-plugins monorepo。
+    /// 契约 C1（2026-09-02 反转）：`LauncherConstants.officialPluginsRepoURL` + `officialMarketplaceRawURL`
+    /// 为硬编码常量，指向本仓 claude-code-buddy（插件源在 plugins/）。
     /// 本测试验证两个常量都存在且指向正确仓库。
-    func test_C1_officialRepoConstants_pointToMonorepo() {
+    func test_C1_officialRepoConstants_pointToInRepo() {
         let repoURL = LauncherConstants.officialPluginsRepoURL
         let rawURL = LauncherConstants.officialMarketplaceRawURL
 
-        XCTAssertTrue(repoURL.contains("buddy-official-plugins"),
-                      "officialPluginsRepoURL 必须含 buddy-official-plugins（C1），实际: \(repoURL)")
-        XCTAssertTrue(rawURL.contains("buddy-official-plugins"),
-                      "officialMarketplaceRawURL 必须含 buddy-official-plugins（C1），实际: \(rawURL)")
+        XCTAssertTrue(repoURL.hasSuffix("/claude-code-buddy"),
+                      "officialPluginsRepoURL 必须指向本仓 claude-code-buddy（C1），实际: \(repoURL)")
+        XCTAssertFalse(repoURL.contains("buddy-official-plugins"),
+                       "officialPluginsRepoURL 不得指向已 archive 的旧拆仓（C1），实际: \(repoURL)")
+        XCTAssertTrue(rawURL.contains("/claude-code-buddy/main/plugins/marketplace.json"),
+                      "officialMarketplaceRawURL 必须指本仓 plugins/marketplace.json（C1），实际: \(rawURL)")
         XCTAssertTrue(rawURL.contains("raw.githubusercontent.com"),
                       "officialMarketplaceRawURL 必须是 raw URL（C1），实际: \(rawURL)")
     }

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - SnippetItem
 //
-// 片段库数据模型（snip GUI 化用，对齐 buddy-official-plugins/plugins/snip/lib/snippets.sh C9）。
+// 片段库数据模型（snip GUI 化用，对齐本仓 plugins/snip/lib/snippets.sh C9（2026-09-02 收编））。
 //
 // 契约 C2（state.md ## 契约规约）：
 //   - 顶级 JSON 是 `[SnippetItem]` 数组（非 `{items:[]}` 包装，对齐 snippets.sh）

@@ -243,7 +243,7 @@ final class OfficialPluginGitRealScenarioTests: XCTestCase {
         // 单测守护：两种 source 形态可正确 decode 且不相等
         let bundleSource = try decode(PluginSourceConfig.self, from: "\"./plugins/hello\"")
         let remoteSource = try decode(PluginSourceConfig.self, from: """
-        {"source":"git-subdir","url":"https://github.com/stringzhao/buddy-official-plugins","path":"plugins/hello","ref":"main"}
+        {"source":"git-subdir","url":"https://github.com/strzhao/claude-code-buddy","path":"plugins/hello","ref":"main"}
         """)
 
         XCTAssertNotEqual(bundleSource, remoteSource,

@@ -140,7 +140,9 @@ final class QueryHandlerTests: XCTestCase {
         XCTAssertNotNil(socket["path"])
 
         let sessions = dataDict["sessions"] as! [String: Any]
-        XCTAssertEqual(sessions["max"] as? Int, 8)
+        // C-NO-CAP：旧硬编码 "max": 8 已删除，仅报活跃数
+        XCTAssertNotNil(sessions["active"])
+        XCTAssertNil(sessions["max"], "猫上限已删，health 不再携带 max 字段")
     }
 
     // MARK: - Error Handling

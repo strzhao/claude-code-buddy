@@ -101,6 +101,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   let info = self.sessionManager?.sessionInfo(for: sessionId) else { return }
             self.scene?.acknowledgePermission(for: sessionId)
             self.scene?.removePersistentBadge(for: sessionId)
+            // C-HEADLESS-NO-TERMINAL：headless 会话点击链路 no-op（无终端可跳）
+            if info.isHeadless { return }
             for adapter in self.terminalAdapters where adapter.activateTab(for: info) { break }
         }
 
@@ -179,6 +181,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 // 此处只需要处理终端激活
                 if sessionId != SystemCatManager.systemCatSessionId,
                    let info = self.sessionManager?.sessionInfo(for: sessionId) {
+                    // C-HEADLESS-NO-TERMINAL：headless 会话点击链路 no-op（猫不存在故不可达，guard 防御）
+                    if info.isHeadless {
+                        clickLog("skip activateTab for headless session: \(sessionId)")
+                        return
+                    }
                     clickLog("SessionInfo — label: \(info.label), terminalId: \(info.terminalId ?? "NIL"), cwd: \(info.cwd ?? "NIL")")
                     var activated = false
                     for adapter in self.terminalAdapters {
@@ -306,6 +313,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         popoverController.onSessionClicked = { [weak self] session in
+            // C-HEADLESS-NO-TERMINAL：后台任务行点击不跳转（双保险：SessionRowView 对
+            // headless 行不挂点击手势、onClick 传 nil）
+            guard !session.isHeadless else { return }
             self?.popover.performClose(nil)
             guard let adapters = self?.terminalAdapters else { return }
             for adapter in adapters where adapter.activateTab(for: session) { break }
@@ -365,6 +375,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
         }
         manager.onSessionNeedsTabTitle = { [weak self] session in
+            // S4-P1/S5-P4 观测通道：tab title 写入链路日志埋点。
+            // headless 会话在 SessionManager 侧已双堵，不进入本回调。
+            BuddyLogger.shared.info("tab title sync requested", subsystem: "session", meta: [
+                "session_id": session.sessionId,
+                "terminal_id": session.terminalId ?? "",
+                "label": session.label,
+            ])
             guard let adapters = self?.terminalAdapters else { return }
             DispatchQueue.global(qos: .utility).async {
                 for adapter in adapters where adapter.setTabTitle(for: session) { break }

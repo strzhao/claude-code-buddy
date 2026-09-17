@@ -12,11 +12,14 @@ final class SessionIntegrationTests: XCTestCase {
     override func setUp() {
         super.setUp()
         scene = MockScene()
-        manager = SessionManager(scene: scene)
+        // FailFast resolver：单测内检测立即 fail-open（零等待；断言面只涉 sessions/color 文件）
+        manager = SessionManager(scene: scene, headlessResolver: FailFastHeadlessResolver())
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
     }
 
     override func tearDown() {
+        // 落定在飞检测，防迟到落定污染下一测试的共享 color 文件
+        TestHelpers.settleHeadlessDetection(manager)
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
         super.tearDown()
     }

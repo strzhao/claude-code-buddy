@@ -152,6 +152,9 @@ final class QueryHandler {
                 "state": info.state.rawValue,
                 "label": info.label,
                 "color": "\(info.color)",
+                // C-INSPECT-FIELD：inspect-all 与 per-session inspect 同构字段
+                "is_headless": info.isHeadless,
+                "onscreen": isOnscreen(info),
             ]
         }
 
@@ -222,7 +225,7 @@ final class QueryHandler {
             ],
             "sessions": [
                 "active": sessionManager.sessions.count,
-                "max": 8,
+                // C-NO-CAP：旧硬编码 "max": 8 已随猫上限一起删除
             ],
             "event_store": [
                 "events_stored": eventStore.totalRecordedCount,
@@ -818,6 +821,14 @@ final class QueryHandler {
         if let desc = info.toolDescription { dict["tool_description"] = desc }
         if let model = info.model { dict["model"] = model }
         if let startedAt = info.startedAt { dict["started_at"] = ISO8601DateFormatter().string(from: startedAt) }
+        // C-INSPECT-FIELD：后台任务归类 + 是否已上屏猫（S1-P2 registered/onscreen 差集断言用）
+        dict["is_headless"] = info.isHeadless
+        dict["onscreen"] = isOnscreen(info)
         return dict
+    }
+
+    /// 会话当前是否已上屏猫（headless 恒 false；pending 期间为 false）
+    private func isOnscreen(_ info: SessionInfo) -> Bool {
+        scene.catSnapshot(for: info.sessionId) != nil
     }
 }

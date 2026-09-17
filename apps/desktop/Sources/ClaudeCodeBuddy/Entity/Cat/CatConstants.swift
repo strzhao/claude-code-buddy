@@ -306,8 +306,7 @@ enum CatConstants {
         static let gravity: Double = -9.8
         /// Friction for the ground physics body
         static let groundFriction: CGFloat = 0.5
-        /// Maximum number of cats on screen at once
-        static let maxCats: Int = 8
+        // C-NO-CAP：旧 maxCats（8）常量已删除，猫数量无上限
     }
 
     // MARK: - TaskComplete

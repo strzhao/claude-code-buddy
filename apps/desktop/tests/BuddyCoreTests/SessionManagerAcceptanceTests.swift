@@ -24,11 +24,14 @@ final class SessionManagerAcceptanceTests: XCTestCase {
     override func setUp() {
         super.setUp()
         scene = MockScene()
-        manager = SessionManager(scene: scene)
+        // FailFast resolver：单测内检测立即 fail-open，settle 零等待（红队验收用默认构造）
+        manager = SessionManager(scene: scene, headlessResolver: FailFastHeadlessResolver())
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
     }
 
     override func tearDown() {
+        // 落定在飞检测，防迟到落定污染下一测试的共享 color 文件
+        TestHelpers.settleHeadlessDetection(manager)
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
         super.tearDown()
     }
@@ -48,6 +51,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: sid, event: "session_start", cwd: "/projects/myapp"
         ))
+        TestHelpers.settleHeadlessDetection(manager)
         XCTAssertNotNil(manager.sessions[sid], "Session should exist after session_start")
         let color = manager.sessions[sid]!.color
         XCTAssertTrue(manager.usedColors.contains(color), "Color should be marked used after session_start")
@@ -188,6 +192,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         let sixMinutesAgo = Date(timeIntervalSinceNow: -(6 * 60))
         manager.sessions[sid]?.lastActivity = sixMinutesAgo
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         XCTAssertNotNil(manager.sessions[sid], "Session should still exist at 6 minutes")
@@ -249,11 +254,10 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         XCTAssertEqual(labelUpdate?.label, customLabel)
     }
 
-    // MARK: - 6. Cat Cap Enforcement (max 8 cats)
+    // MARK: - 6. Cat Cap Removed (C-NO-CAP)
 
-    /// Creating 9 sessions should result in only 8 addCat calls to the scene.
-    /// The 9th session must still be tracked in sessions dict.
-    func testCatCapEnforcement() {
+    /// 上限已删（C-NO-CAP）：9 个会话登记后全部上屏（addCat == 9）。
+    func testCatCapRemovedAllNineSessionsOnScreen() {
         for i in 1...9 {
             manager.handle(message: TestHelpers.makeMessage(
                 sessionId: "cap-session-\(i)",
@@ -262,10 +266,11 @@ final class SessionManagerAcceptanceTests: XCTestCase {
             ))
         }
 
-        XCTAssertEqual(scene.addCatCalls.count, 8,
-                       "addCat should be called at most 8 times (cat cap)")
+        TestHelpers.settleHeadlessDetection(manager)
+        XCTAssertEqual(scene.addCatCalls.count, 9,
+                       "addCat should be called for every session (no cap)")
         XCTAssertNotNil(manager.sessions["cap-session-9"],
-                        "9th session should still be tracked in sessions dict even without a cat")
+                        "9th session should be tracked in sessions dict")
         XCTAssertEqual(manager.sessions.count, 9,
                        "All 9 sessions should be in the sessions dictionary")
     }
@@ -283,6 +288,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: "cb-session-1", event: "session_start", cwd: "/projects/a"
         ))
+        TestHelpers.settleHeadlessDetection(manager)
 
         XCTAssertFalse(countChanges.isEmpty, "onSessionCountChanged should have fired")
         XCTAssertEqual(countChanges.last, 1,
@@ -297,6 +303,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: "cb-session-2", event: "session_start", cwd: "/projects/b"
         ))
+        TestHelpers.settleHeadlessDetection(manager)
         XCTAssertEqual(countChanges.last, 2)
         XCTAssertEqual(sessionsChanges.last?.count, 2)
 
@@ -390,6 +397,7 @@ final class SessionManagerAcceptanceTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: sid, event: "session_start", cwd: "/projects/dup"
         ))
+        TestHelpers.settleHeadlessDetection(manager)
 
         XCTAssertEqual(manager.sessions.filter { $0.key == sid }.count, 1,
                        "Duplicate session_start should not create two sessions")

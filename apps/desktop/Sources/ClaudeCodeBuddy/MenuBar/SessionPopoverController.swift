@@ -9,6 +9,7 @@ class SessionPopoverController: NSViewController {
     private static let chromeHeight: CGFloat = 93      // header + footer with safety margin
     private static let emptyStateHeight: CGFloat = 130
     private static let maxVisibleSessions = 6
+    private static let sectionHeaderHeight: CGFloat = 24   // 「后台任务 (N)」分组 header
 
     private func idealHeight(for count: Int) -> CGFloat {
         guard count > 0 else { return Self.emptyStateHeight }
@@ -133,6 +134,8 @@ class SessionPopoverController: NSViewController {
         preferredContentSize = NSSize(width: Self.popoverWidth, height: Self.emptyStateHeight)
     }
 
+    /// C-POPOVER-GROUP：固定顺序 = 交互组（lastActivity 降序）在前 + headless 组在后；
+    /// 组间 header「后台任务 (N)」，N=0 不渲染；headless 行 ⚙ 且点击不触发 onSessionClicked。
     func updateSessions(_ sessions: [SessionInfo]) {
         self.sessions = sessions
         countLabel.stringValue = "\(sessions.count) sessions"
@@ -144,29 +147,63 @@ class SessionPopoverController: NSViewController {
         // Clear old rows
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        // Add session rows with separators
-        for (index, session) in sessions.enumerated() {
-            let row = SessionRowView(session: session)
-            row.alphaValue = 1.0
+        let interactive = sessions
+            .filter { !$0.isHeadless }
+            .sorted { $0.lastActivity > $1.lastActivity }
+        let headless = sessions
+            .filter { $0.isHeadless }
+            .sorted { $0.lastActivity > $1.lastActivity }
+
+        var visibleRows = 0
+        for session in interactive {
+            appendRow(session, clickable: true)
+            visibleRows += 1
+        }
+
+        if !headless.isEmpty {
+            stackView.addArrangedSubview(makeHeadlessSectionHeader(count: headless.count))
+            for session in headless {
+                appendRow(session, clickable: false)
+                visibleRows += 1
+            }
+        }
+
+        let headerExtra: CGFloat = headless.isEmpty ? 0 : Self.sectionHeaderHeight
+        preferredContentSize = NSSize(
+            width: Self.popoverWidth,
+            height: idealHeight(for: visibleRows) + headerExtra)
+    }
+
+    private func appendRow(_ session: SessionInfo, clickable: Bool) {
+        let row = SessionRowView(session: session)
+        row.alphaValue = 1.0
+        if clickable {
             row.onClick = { [weak self] in
                 self?.onSessionClicked?(session)
             }
-            stackView.addArrangedSubview(row)
-            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
-
-            // Add separator between rows (not after last)
-            if index < sessions.count - 1 {
-                let separator = NSBox()
-                separator.boxType = .separator
-                separator.translatesAutoresizingMaskIntoConstraints = false
-                stackView.addArrangedSubview(separator)
-                NSLayoutConstraint.activate([
-                    separator.leadingAnchor.constraint(equalTo: stackView.leadingAnchor, constant: 36),
-                    separator.trailingAnchor.constraint(equalTo: stackView.trailingAnchor, constant: -16),
-                ])
-            }
+        } else {
+            row.onClick = nil   // C-HEADLESS-NO-TERMINAL：后台行点击不跳转（行内也无点击手势）
         }
-        preferredContentSize = NSSize(width: Self.popoverWidth, height: idealHeight(for: sessions.count))
+        stackView.addArrangedSubview(row)
+        row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+    }
+
+    /// 「后台任务 (N)」section header（AX id 供 in-process 断言绑定）
+    private func makeHeadlessSectionHeader(count: Int) -> NSView {
+        let container = NSView()
+        let label = NSTextField(labelWithString: "后台任务 (\(count))")
+        label.font = .boldSystemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        label.setAccessibilityIdentifier("popover-section-headless")
+        label.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(label)
+        container.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            container.heightAnchor.constraint(equalToConstant: Self.sectionHeaderHeight),
+        ])
+        return container
     }
 
     @objc private func quitClicked() {

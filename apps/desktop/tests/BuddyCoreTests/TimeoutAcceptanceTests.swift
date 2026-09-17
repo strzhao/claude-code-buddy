@@ -18,11 +18,14 @@ final class TimeoutAcceptanceTests: XCTestCase {
     override func setUp() {
         super.setUp()
         scene = MockScene()
-        manager = SessionManager(scene: scene)
+        // FailFast resolver：单测内检测立即 fail-open，settle 零等待
+        manager = SessionManager(scene: scene, headlessResolver: FailFastHeadlessResolver())
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
     }
 
     override func tearDown() {
+        // 落定在飞检测，防迟到落定污染下一测试的共享 color 文件
+        TestHelpers.settleHeadlessDetection(manager)
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
         super.tearDown()
     }
@@ -73,6 +76,7 @@ final class TimeoutAcceptanceTests: XCTestCase {
         // 将 lastActivity 设为 31 分钟前（超过 30 分钟 removeTimeout）
         manager.sessions[sid]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         // 进程已死 → 会话应被删除
@@ -102,6 +106,7 @@ final class TimeoutAcceptanceTests: XCTestCase {
         // 将 lastActivity 设为 31 分钟前（超过 30 分钟 removeTimeout）
         manager.sessions[sid]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         // 无 PID → 视同进程不存在，应删除
@@ -193,6 +198,7 @@ final class TimeoutAcceptanceTests: XCTestCase {
         manager.sessions[sidA]?.lastActivity = staleTime
         manager.sessions[sidB]?.lastActivity = staleTime
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         // A（存活）应保留

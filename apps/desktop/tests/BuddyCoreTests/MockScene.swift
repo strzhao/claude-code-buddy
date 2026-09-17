@@ -22,11 +22,13 @@ final class MockScene: SceneControlling {
 
     func addCat(info: SessionInfo) {
         addCatCalls.append(info)
+        onScreenSessionIds.insert(info.sessionId)
         stubbedActiveCatCount += 1
     }
 
     func removeCat(sessionId: String) {
         removeCatCalls.append(sessionId)
+        onScreenSessionIds.remove(sessionId)
         if stubbedActiveCatCount > 0 { stubbedActiveCatCount -= 1 }
     }
 
@@ -71,8 +73,19 @@ final class MockScene: SceneControlling {
     var stubbedAllCatSnapshots: [CatSnapshot] = []
     var stubbedSceneSnapshot = SceneSnapshot(visible: true, catsRendered: 0, boundsMin: 48, boundsMax: 752)
 
+    /// 与生产 BuddyScene 对齐的「是否在屏」跟踪：addCat/removeCat 维护，
+    /// 使 `catSnapshot(for:)` 在未显式 stub 时也反映真实在屏状态
+    /// （QueryHandler `onscreen` 字段与红队 S9-P1/S9-P3 断言依赖此语义）。
+    private var onScreenSessionIds: Set<String> = []
+
     func catSnapshot(for sessionId: String) -> CatSnapshot? {
-        return stubbedCatSnapshots[sessionId]
+        if let stubbed = stubbedCatSnapshots[sessionId] { return stubbed }
+        guard onScreenSessionIds.contains(sessionId) else { return nil }
+        return CatSnapshot(
+            sessionId: sessionId, x: 0, y: 24, state: "idle", facingRight: true,
+            isDebug: sessionId.hasPrefix("debug-"), activityBoundsMin: 48, activityBoundsMax: 752,
+            labelText: sessionId, tabName: nil, hasAlertOverlay: false,
+            hasPersistentBadge: false, hasUpdateBadge: false, permissionAcknowledged: false)
     }
 
     func allCatSnapshots() -> [CatSnapshot] {

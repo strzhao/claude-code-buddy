@@ -22,6 +22,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] event in
                 guard let self, self.isEnabled else { return }
+                // C-NO-NOTIFY：后台任务完成/出错/请求权限不产生任何主动提醒——
+                // 后台任务状态仅在菜单栏 popover 内可见。
+                guard !event.isHeadless else { return }
                 switch event.newState {
                 case .permissionRequest:
                     self.showPermissionNotification(

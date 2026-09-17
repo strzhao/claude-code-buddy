@@ -106,6 +106,13 @@ class GhosttyAdapter: TerminalAdapter {
 
     func setTabTitle(for session: SessionInfo) -> Bool {
         let title = "●\(session.label)"
+        // S4-P1/S5-P4 观测通道：tab title 实际写入入口日志
+        // （subsystem=terminal，已登记于 apps/desktop/CLAUDE.md 子系统表）
+        BuddyLogger.shared.info("setTabTitle", subsystem: "terminal", meta: [
+            "session_id": session.sessionId,
+            "terminal_id": session.terminalId ?? "",
+            "label": session.label,
+        ])
 
         if let terminalId = session.terminalId {
             let script = """

@@ -18,7 +18,7 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
 
     private var groundNode: SKNode!
     private var cats: [String: CatSprite] = [:]
-    private let maxCats = CatConstants.Scene.maxCats
+    // C-NO-CAP：猫数量无上限——旧 maxCats/满员驱逐/evictIdleCat 已删除
 
     /// 系统猫（更新提示专用），不进入 cats 字典，不被 SessionManager 管理。
     var systemCat: CatSprite?
@@ -212,11 +212,6 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         let sessionId = info.sessionId
         guard cats[sessionId] == nil else { return }
 
-        // Enforce max-cat rule: evict earliest idle cat
-        if cats.count >= maxCats {
-            evictIdleCat()
-        }
-
         let cat = CatSprite(sessionId: sessionId)
         cat.configure(color: info.color, labelText: info.label)
 
@@ -386,16 +381,6 @@ class BuddyScene: SKScene, SKPhysicsContactDelegate {
         }
         foodManager.activityBounds = activityBounds
         updateBoundaryPositions()
-    }
-
-    private func evictIdleCat() {
-        // Find first idle cat and evict it
-        if let (id, _) = cats.first(where: { $0.value.currentState == .idle }) {
-            removeCat(sessionId: id)
-        } else if let (id, _) = cats.first {
-            // No idle cat — remove oldest (first in dict)
-            removeCat(sessionId: id)
-        }
     }
 
     // MARK: - Tooltip

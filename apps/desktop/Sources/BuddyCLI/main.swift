@@ -648,7 +648,9 @@ private func cmdStatus() {
         if let details = info as? [String: Any] {
             let color = details["color"] as? String ?? "?"
             let label = details["label"] as? String ?? sessionId
-            print("  \(sessionId)  color=\(color)  label=\(label)")
+            // C-INSPECT-FIELD：headless 标记（旧 color 文件无该键 → 不追加，向后兼容）
+            let headlessMarker = (details["headless"] as? String) == "yes" ? "  headless=yes" : ""
+            print("  \(sessionId)  color=\(color)  label=\(label)\(headlessMarker)")
         }
     }
 }

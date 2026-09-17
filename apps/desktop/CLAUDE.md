@@ -531,6 +531,7 @@ API（契约 C3）：
 | `plugin` | PluginManager / MarketplaceManager / 安装/迁移 |
 | `socket` | SocketServer / IPC 收发 |
 | `session` | SessionManager / 会话生命周期 |
+| `terminal` | GhosttyAdapter / 终端 tab title 写入（S4-P1/S5-P4 观测通道） |
 | `skin` | SkinPackManager |
 | `settings` | 设置窗口 / 开关 / 热键录制 |
 | `builtin` | 内置插件候选生成/执行（Calculator/System/AppLauncher/Paste） |

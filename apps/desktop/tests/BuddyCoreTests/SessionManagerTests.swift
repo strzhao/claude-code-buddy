@@ -14,11 +14,14 @@ final class SessionManagerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         scene = MockScene()
-        manager = SessionManager(scene: scene)
+        // FailFast resolver：检测立即 fail-open interactive，settle 零等待
+        manager = SessionManager(scene: scene, headlessResolver: FailFastHeadlessResolver())
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
     }
 
     override func tearDown() {
+        // 落定在飞检测，防迟到落定污染下一测试的共享 color 文件
+        TestHelpers.settleHeadlessDetection(manager)
         try? FileManager.default.removeItem(atPath: SessionManager.colorFilePath)
         super.tearDown()
     }
@@ -167,21 +170,23 @@ final class SessionManagerTests: XCTestCase {
         XCTAssertEqual(manager.sessions["s3"]?.label, "app②")
     }
 
-    // MARK: - Cat Cap
+    // MARK: - Cat Cap Removal（C-NO-CAP）
 
-    func testAfterRemovalNewSessionGetsAddCat() {
+    func testNineSessionsAllGetAddCat() {
         for i in 1...8 {
             manager.handle(message: TestHelpers.makeMessage(
                 sessionId: "s\(i)", event: "thinking", cwd: "/p\(i)"
             ))
         }
+        TestHelpers.settleHeadlessDetection(manager)
         XCTAssertEqual(scene.addCatCalls.count, 8)
 
         manager.handle(message: TestHelpers.makeMessage(sessionId: "s1", event: "session_end"))
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: "s9", event: "thinking", cwd: "/p9"
         ))
-        // After removal, activeCatCount dropped to 7, so s9 gets addCat
+        TestHelpers.settleHeadlessDetection(manager)
+        // C-NO-CAP：上限已删，第 9 个会话照常上屏
         XCTAssertEqual(scene.addCatCalls.count, 9)
     }
 
@@ -233,6 +238,8 @@ final class SessionManagerTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(sessionId: "dead", event: "thinking", cwd: "/c"))
         manager.sessions["dead"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
+        // 检测链落定（fail-open interactive 上屏）后再断言 removeCat 副作用
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         XCTAssertEqual(manager.sessions["fresh"]?.state, .thinking, "Fresh session unchanged")
@@ -278,6 +285,7 @@ final class SessionManagerTests: XCTestCase {
         manager.sessions["dead"]?.pid = 99999  // very likely not running
         manager.sessions["dead"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         XCTAssertNil(manager.sessions["dead"], "Session with dead process should be removed")
@@ -289,6 +297,7 @@ final class SessionManagerTests: XCTestCase {
         manager.sessions["nopid"]?.pid = nil
         manager.sessions["nopid"]?.lastActivity = Date(timeIntervalSinceNow: -(31 * 60))
 
+        TestHelpers.settleHeadlessDetection(manager)
         manager.checkTimeouts()
 
         XCTAssertNil(manager.sessions["nopid"], "Session with no PID should be removed after timeout")
@@ -339,6 +348,8 @@ final class SessionManagerTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: "s1", event: "idle", terminalId: "UUID-XYZ"
         ))
+        // C-HEADLESS-NO-TERMINAL：terminal_id 判型 interactive 后才存储并触发回调
+        TestHelpers.settleHeadlessDetection(manager)
         XCTAssertNotNil(callbackSession)
         XCTAssertEqual(callbackSession?.terminalId, "UUID-XYZ")
     }
@@ -350,6 +361,8 @@ final class SessionManagerTests: XCTestCase {
         manager.handle(message: TestHelpers.makeMessage(
             sessionId: "s1", event: "thinking", terminalId: "T1"
         ))
+        // 创建分支暂存 terminal_id，判型 interactive 落定后应用并触发回调
+        TestHelpers.settleHeadlessDetection(manager)
         XCTAssertTrue(called)
     }
 
@@ -387,14 +400,14 @@ final class SessionManagerTests: XCTestCase {
         var receivedCount: Int?
         manager.onSessionCountChanged = { receivedCount = $0 }
 
-        // Create 9 sessions (only 8 cats)
+        // C-NO-CAP：9 个会话全部上屏（旧 8 只上限已删）
         for i in 1...9 {
             manager.handle(message: TestHelpers.makeMessage(
                 sessionId: "s\(i)", event: "thinking", cwd: "/p\(i)"
             ))
         }
-        // activeCatCount is 8 (MockScene tracks this), not sessions.count (9)
-        XCTAssertEqual(receivedCount, 8)
+        TestHelpers.settleHeadlessDetection(manager)
+        XCTAssertEqual(receivedCount, 9)
     }
 
     // MARK: - Tool Call Count

@@ -4,9 +4,15 @@ class SessionRowView: NSView {
 
     var onClick: (() -> Void)?
 
+    /// C-POPOVER-GROUP：后台任务行标记（测试断言用）
+    let isHeadlessRow: Bool
+
     private let hoverBackground = NSView()
 
     init(session: SessionInfo) {
+        let isHeadless = session.isHeadless
+        self.isHeadlessRow = isHeadless
+
         super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 76))
 
         translatesAutoresizingMaskIntoConstraints = false
@@ -20,17 +26,30 @@ class SessionRowView: NSView {
         hoverBackground.isHidden = true
         addSubview(hoverBackground)
 
-        // Color dot with glow
-        let dot = NSView(frame: .zero)
-        dot.wantsLayer = true  // Must be set before accessing layer properties
-        dot.layer?.backgroundColor = session.color.nsColor.cgColor
-        dot.layer?.cornerRadius = 5
-        dot.layer?.shadowColor = session.color.nsColor.cgColor
-        dot.layer?.shadowRadius = 3
-        dot.layer?.shadowOpacity = 0.4
-        dot.layer?.shadowOffset = .zero
-        dot.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(dot)
+        // 行首图标：交互行 = 颜色圆点（glow）；后台行 = 灰色 ⚙（C-POPOVER-GROUP）
+        let iconWidth: CGFloat = isHeadless ? 14 : 10
+        let iconHeight: CGFloat = isHeadless ? 14 : 10
+        let leadingIcon: NSView
+        if isHeadless {
+            let gear = NSTextField(labelWithString: "⚙")
+            gear.font = .systemFont(ofSize: 12)
+            gear.textColor = .systemGray
+            gear.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(gear)
+            leadingIcon = gear
+        } else {
+            let dot = NSView(frame: .zero)
+            dot.wantsLayer = true  // Must be set before accessing layer properties
+            dot.layer?.backgroundColor = session.color.nsColor.cgColor
+            dot.layer?.cornerRadius = 5
+            dot.layer?.shadowColor = session.color.nsColor.cgColor
+            dot.layer?.shadowRadius = 3
+            dot.layer?.shadowOpacity = 0.4
+            dot.layer?.shadowOffset = .zero
+            dot.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(dot)
+            leadingIcon = dot
+        }
 
         // Label
         let label = NSTextField(labelWithString: session.label)
@@ -92,14 +111,14 @@ class SessionRowView: NSView {
             hoverBackground.topAnchor.constraint(equalTo: topAnchor, constant: 1),
             hoverBackground.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
 
-            // Color dot
-            dot.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            dot.centerYAnchor.constraint(equalTo: centerYAnchor),
-            dot.widthAnchor.constraint(equalToConstant: 10),
-            dot.heightAnchor.constraint(equalToConstant: 10),
+            // Leading icon (color dot / headless gear)
+            leadingIcon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            leadingIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
+            leadingIcon.widthAnchor.constraint(equalToConstant: iconWidth),
+            leadingIcon.heightAnchor.constraint(equalToConstant: iconHeight),
 
             // Label (first line, left)
-            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 10),
+            label.leadingAnchor.constraint(equalTo: leadingIcon.trailingAnchor, constant: 10),
             label.topAnchor.constraint(equalTo: topAnchor, constant: 10),
             label.trailingAnchor.constraint(lessThanOrEqualTo: state.leadingAnchor, constant: -8),
 
@@ -118,12 +137,19 @@ class SessionRowView: NSView {
             stats.topAnchor.constraint(equalTo: cwd.bottomAnchor, constant: 2),
         ])
 
-        // Click gesture
-        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick))
-        addGestureRecognizer(click)
+        // Click gesture（C-HEADLESS-NO-TERMINAL：后台行无终端可跳，不挂点击手势）
+        if !isHeadless {
+            let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick))
+            addGestureRecognizer(click)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// 测试 hook：直接走点击处理链路（NSClickGestureRecognizer 无法编程触发）
+    func testHook_handleClick() {
+        handleClick()
+    }
 
     private static func buildStatsText(session: SessionInfo) -> String {
         var parts: [String] = []

@@ -338,7 +338,7 @@ class SessionManager {
 
                 scene.updateCatState(sessionId: sessionId, state: catState(from: entityState), toolDescription: desc)
                 // Publish to EventBus for future subscribers
-                // isHeadless 供 NotificationManager 过滤（C-NO-NOTIFY：后台任务不产生系统通知）
+                // isHeadless 供 NotificationManager/SoundManager 过滤（C-NO-NOTIFY：后台任务不产生主动提醒）
                 EventBus.shared.stateChanged.send(StateChangeEvent(
                     sessionId: sessionId, newState: entityState, toolDescription: desc,
                     label: sessions[sessionId]?.label,

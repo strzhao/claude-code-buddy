@@ -22,6 +22,9 @@ final class SoundManager: NSObject, AVAudioPlayerDelegate {
         EventBus.shared.stateChanged
             .receive(on: RunLoop.main)
             .sink { [weak self] event in
+                // C-NO-NOTIFY：后台任务完成/请求权限不出声——
+                // 与 NotificationManager 同一过滤依据（event.isHeadless），口径一致。
+                guard !event.isHeadless else { return }
                 switch event.newState {
                 case .taskComplete:
                     self?.playSound(for: \.taskComplete)

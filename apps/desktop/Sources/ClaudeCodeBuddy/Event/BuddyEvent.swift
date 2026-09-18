@@ -11,7 +11,7 @@ struct StateChangeEvent {
     let newState: EntityState
     let toolDescription: String?
     let label: String?
-    /// C-NO-NOTIFY：后台任务不产生系统通知（NotificationManager 过滤依据）
+    /// C-NO-NOTIFY：后台任务不产生主动提醒（NotificationManager/SoundManager 过滤依据）
     var isHeadless: Bool = false
 }
 

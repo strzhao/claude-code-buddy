@@ -66,6 +66,21 @@
         "path": "plugins/snip",
         "ref": "main"
       }
+    },
+    {
+      "name": "quota",
+      "version": "0.1.0",
+      "description": "套餐限额查询：查看 cc-switch 里 kimi/GLM 套餐的剩余额度和重置时间",
+      "category": "utility",
+      "author": {
+        "name": "stringzhao"
+      },
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/strzhao/claude-code-buddy",
+        "path": "plugins/quota",
+        "ref": "main"
+      }
     }
   ]
 }

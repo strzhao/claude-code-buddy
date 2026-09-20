@@ -1,0 +1,26 @@
+{
+  "code": 200,
+  "msg": "ok",
+  "success": true,
+  "data": {
+    "limits": [
+      {
+        "type": "TOKENS_LIMIT",
+        "percentage": "12.4",
+        "nextResetTime": 1789990380000,
+        "label": "5h"
+      },
+      {
+        "type": "TOKENS_LIMIT",
+        "percentage": "66",
+        "nextResetTime": 1790510400000,
+        "label": "week"
+      },
+      {
+        "type": "CREDIT_LIMIT",
+        "percentage": 8.25,
+        "nextResetTime": 1790683200000
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "limits": [
+    {
+      "window": { "duration": 300, "timeUnit": "MINUTE" },
+      "detail": { "used": "abc", "limit": "100", "resetTime": "2026-09-20T18:13:00.000Z" }
+    },
+    {
+      "window": { "duration": 300, "timeUnit": "MINUTE" },
+      "detail": { "used": "10", "limit": "100" }
+    },
+    {
+      "window": { "duration": 300, "timeUnit": "MINUTE" }
+    },
+    "not-an-object",
+    {
+      "window": { "duration": 300, "timeUnit": "SECOND" },
+      "detail": { "used": "1", "limit": "10", "resetTime": "2026-09-20T18:13:00.000Z" }
+    }
+  ]
+}

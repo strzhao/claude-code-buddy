@@ -1,0 +1,11 @@
+{
+  "data": {
+    "limits": [
+      { "type": "PROMPT_LIMIT", "percentage": 50, "nextResetTime": 1789990380000 },
+      { "type": "TOKENS_LIMIT", "percentage": "n/a", "nextResetTime": 1789990380000 },
+      { "type": "TOKENS_LIMIT", "percentage": 33, "nextResetTime": "not-a-number" },
+      { "type": "TOKENS_LIMIT", "percentage": null, "nextResetTime": 1789990380000 },
+      42
+    ]
+  }
+}

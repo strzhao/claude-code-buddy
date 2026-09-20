@@ -14,6 +14,8 @@ app 编译时通过 `apps/desktop/Scripts/fetch-plugins.sh` 从**本仓** `plugi
 | hello | `plugins/hello` | stdin mode 入门示例，回显问候 |
 | qr | `plugins/qr` | command mode 二维码生成器（`qr-gen.swift` 源，app 编译期产出 universal binary） |
 | qzh | `plugins/qzh` | command mode QzhddrSrv 监控服务开关（候选回调重入） |
+| snip | `plugins/snip` | command mode 文本片段速取（`snip <关键词>` 秒回复制） |
+| quota | `plugins/quota` | command mode cc-switch 套餐限额查询（kimi/GLM 双窗用量 + 重置时间；何时用：Launcher 输入 `quota`/`限额`；python3.9 stdlib-only，unittest 见 `plugins/quota/tests/`） |
 
 ## marketplace.json
 

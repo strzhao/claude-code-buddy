@@ -1,0 +1,30 @@
+{
+  "code": 0,
+  "data": null,
+  "limits": [
+    {
+      "window": { "duration": 300, "timeUnit": "MINUTE" },
+      "detail": {
+        "used": "34.5",
+        "limit": "120",
+        "remaining": "85.5",
+        "resetTime": "2026-09-20T18:13:00.000Z"
+      }
+    },
+    {
+      "window": { "duration": 10080, "timeUnit": "MINUTE" },
+      "detail": {
+        "used": "400",
+        "limit": "1200",
+        "remaining": "800",
+        "resetTime": "2026-09-27T00:00:00.000Z"
+      }
+    }
+  ],
+  "usage": {
+    "used": "940.25",
+    "limit": "2400",
+    "remaining": "1459.75",
+    "resetTime": "2026-09-28T00:00:00.000Z"
+  }
+}

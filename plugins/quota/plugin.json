@@ -1,0 +1,15 @@
+{
+  "name": "quota",
+  "version": "0.1.0",
+  "summary": "套餐限额查询：查看 cc-switch 里 kimi/GLM 套餐的剩余额度和重置时间",
+  "description": "读取 cc-switch 中支持的服务商条目（kimi 与智谱 GLM），查询每个套餐 5 小时滚动窗口和周窗口的用量百分比，以及距离额度重置还剩多久。其他服务商条目自动跳过；只读本地 cc-switch 数据库，不修改任何配置，令牌只用于查询额度接口。",
+  "keywords": ["quota", "limit", "限额", "套餐", "用量"],
+  "mode": "command",
+  "cmd": "./quota.py",
+  "args": [],
+  "env": null,
+  "timeout": 15,
+  "requiredPath": ["python3"],
+  "deps": null,
+  "icon": "📶"
+}

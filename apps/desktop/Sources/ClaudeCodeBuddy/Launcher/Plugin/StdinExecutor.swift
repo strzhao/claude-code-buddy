@@ -41,10 +41,16 @@ class StdinExecutor {
         // stdin + command 共享；候选可选，损坏/超限/symlink/缺失 → nil（非 error）。
         let outputCandidatesPath = "/tmp/buddy-plugin-\(UUID().uuidString).json"
         env["BUDDY_OUTPUT_CANDIDATES"] = outputCandidatesPath
+        // 通用卡片通道（W3，2026-09-21）：注入 BUDDY_OUTPUT_CARD，子进程写卡片 JSON，框架读文件解码。
+        // 完全对称 image/candidates 通道（同 UUID 生命周期、defer 删、安全校验、降级 nil）。
+        // stdin + command 共享；卡片可选，超限/畸形/symlink/缺失 → nil（stdout 文本恒有兜底）。
+        let outputCardPath = "/tmp/buddy-plugin-\(UUID().uuidString).card.json"
+        env["BUDDY_OUTPUT_CARD"] = outputCardPath
         // finally 删临时文件（覆盖所有 return/throw 路径，场景9 资源清理）
         defer {
             try? FileManager.default.removeItem(atPath: outputImagePath)
             try? FileManager.default.removeItem(atPath: outputCandidatesPath)
+            try? FileManager.default.removeItem(atPath: outputCardPath)
         }
         process.environment = env
 
@@ -170,6 +176,9 @@ class StdinExecutor {
         // 读候选通道（C1）：exit 0 后读 BUDDY_OUTPUT_CANDIDATES → [LauncherCandidate] → PluginResult.candidates。
         // 完全对称 image 通道；失败降级 nil（候选可选，非 error）。
         let candidatesData = readCandidatesOutputSafely(at: outputCandidatesPath)
+        // 读卡片通道（W3）：exit 0 后读 BUDDY_OUTPUT_CARD → PluginCard → PluginResult.card。
+        // 完全对称 image/candidates 通道；失败降级 nil（卡片可选，stdout 文本恒有兜底）。
+        let card = readCardOutputSafely(at: outputCardPath)
 
         BuddyLogger.shared.info("stdin executor: process succeeded", subsystem: "plugin", meta: ["exitCode": Int(process.terminationStatus), "durationMs": durationMs, "plugin": plugin.name])
         return PluginResult(
@@ -179,7 +188,8 @@ class StdinExecutor {
             durationMs: durationMs,
             stdoutTruncated: stdoutTruncated,
             image: imageData,
-            candidates: candidatesData
+            candidates: candidatesData,
+            card: card
         )
     }
 
@@ -256,6 +266,43 @@ class StdinExecutor {
             return nil
         }
         return candidates
+    }
+
+    /// 安全读取卡片输出（W3 通用卡片通道，完全对称 image/candidates 通道）。
+    ///
+    /// 契约（state.md ## 契约规约）：
+    /// - exit==0 后调用；读前校验 `resolvedPath == expectedPath`（防 symlink，/tmp 防御）
+    /// - `count > LauncherConstants.cardMaxBytes`（262_144）→ 返回 nil（丢弃，stdout 文本兜底）
+    /// - JSON 解码 PluginCard 失败（畸形/必填字段缺失）→ 返回 nil
+    /// - 文件不存在/读失败 → 返回 nil
+    ///
+    /// 不抛错：卡片是可选产物，任何失败静默降级 card=nil（stdout 恒有兜底文本，不出 pluginCrash）。
+    private func readCardOutputSafely(at expectedPath: String) -> PluginCard? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: expectedPath) else { return nil }
+        // 防 symlink：resolvedPath 必须等于注入的 outputCardPath（绝对规范路径）
+        guard let resolved = try? (URL(fileURLWithPath: expectedPath)
+                                    .resolvingSymlinksInPath().path) as String?,
+              resolved == expectedPath else {
+            BuddyLogger.shared.warn("stdin executor: card output symlink mismatch", subsystem: "plugin")
+            return nil
+        }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: expectedPath)) else {
+            BuddyLogger.shared.warn("stdin executor: card output read failed", subsystem: "plugin")
+            return nil
+        }
+        guard data.count <= LauncherConstants.cardMaxBytes else {
+            // 超限丢弃（边界值反例：card 文件 262_145 bytes → card=nil）
+            BuddyLogger.shared.warn("stdin executor: card output too large", subsystem: "plugin", meta: ["bytes": data.count])
+            return nil
+        }
+        // JSON 完整性校验（对称 candidates 通道）：畸形 JSON / 必填字段缺失 → nil（降级不渲染）。
+        // 解码侧防御（PluginCard init(from:)）：percent clamp [0,100] + entries>32 截断保留前 32。
+        guard let card = try? JSONDecoder().decode(PluginCard.self, from: data) else {
+            BuddyLogger.shared.warn("stdin executor: card output JSON decode failed", subsystem: "plugin")
+            return nil
+        }
+        return card
     }
 
     /// 构造扩展 PATH：pluginPathPrefixes 在前 + 当前 PATH 在后

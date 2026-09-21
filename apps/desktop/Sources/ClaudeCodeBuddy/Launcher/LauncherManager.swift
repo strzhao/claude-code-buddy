@@ -1294,7 +1294,13 @@ final class LauncherManager: ObservableObject {
                 let dispatcher = PluginDispatcher(stdinExecutor: executorOverride ?? .shared)
                 do {
                     let result = try await dispatcher.execute(manifest, pluginDir: dir, input: pluginInput)
-                    if !result.stdout.isEmpty {
+                    if let card = result.card {
+                        // W3 卡片通道：card 存在时 yield .card **替代** .text（错误契约：card 存在时
+                        // 不 yield 文本，防同内容双份展示）。stdout 保留为降级兜底——旧版 app 不认识
+                        // BUDDY_OUTPUT_CARD env，读不到 card 文件自然走 .text，天然向后兼容。
+                        // autoCopy 挂在文本路径（无 card 才走），card 场景不代写剪贴板。
+                        continuation.yield(.card(card))
+                    } else if !result.stdout.isEmpty {
                         continuation.yield(.text(result.stdout))
                         // T0 扩展 A（command autoCopy）：command mode + autoCopyToClipboard + stdout 非空
                         // + 无候选产物 → 框架代写系统剪贴板（对称 prompt mode 的 autoCopy）。
@@ -1317,9 +1323,10 @@ final class LauncherManager: ObservableObject {
                     if let candidates = result.candidates {
                         continuation.yield(.candidates(candidates))
                     }
-                    // exitCode != 0 且无任何产物 → stderr 作为用户可见文本（对称静态短路）
+                    // exitCode != 0 且无任何产物 → stderr 作为用户可见文本（对称静态短路）。
+                    // W3 收口：card 存在即视为有产出（补 && card == nil，card 与兜底分支组合语义钉死）。
                     if result.exitCode != 0 && result.stdout.isEmpty
-                        && result.image == nil && result.candidates == nil {
+                        && result.image == nil && result.candidates == nil && result.card == nil {
                         continuation.yield(.text(result.stderr.isEmpty ? "执行失败" : result.stderr))
                     }
                     continuation.yield(.done(reason: "end_turn"))
@@ -1351,6 +1358,11 @@ final class LauncherManager: ObservableObject {
     /// Strip 命中 plugin 的 keyword 前缀（含 manifest.name），让 LLM 只看到真实查询内容。
     /// 示例：query="tr buddy", manifest.keywords=["tr","translate","翻译"] → 返回 "buddy"
     /// 长前缀优先匹配（避免 "translator" 被 "tr" 错切）。无前缀命中时返回原 query。
+    ///
+    /// W2 新增（2026-09-21）：query 是任一 keyword 的**非空真前缀**（如 "gc" ⊂ "gcli"、
+    /// "限" ⊂ "限额"）→ 返回 ""。根因：搜索层给「query 是 name 前缀」800 分保证可发现，
+    /// 但半截触发词若原样下发会被插件当条目名过滤词 → 误报「没有名称匹配」。
+    /// 优先级（契约规约）：1) 既有「完整前缀 + 严格分隔 → 剥离剩余」；2) 新「半截触发词前缀 → ""」；3) 原样。
     nonisolated static func stripKeywordPrefix(_ query: String, manifest: PluginManifest) -> String {
         let candidates = ([manifest.name] + manifest.keywords)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -1368,6 +1380,13 @@ final class LauncherManager: ObservableObject {
             let nextChar = query[after]
             if nextChar.isWhitespace || nextChar.isPunctuation {
                 return String(query[after...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        // 新分支：query 是某 keyword 的非空真前缀 → 用户只输入了半截触发词，无参数。
+        // 放在既有剥离分支之后（优先级 2）；空 query 不命中（hasPrefix("") 恒真，需 !isEmpty 守卫）。
+        if !queryLower.isEmpty {
+            for prefix in candidates where prefix.lowercased().hasPrefix(queryLower) {
+                return ""
             }
         }
         return query

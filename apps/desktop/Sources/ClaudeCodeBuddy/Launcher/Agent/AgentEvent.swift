@@ -8,6 +8,7 @@ enum AgentEvent: Equatable {
     case action(LauncherActionButton)                       // render-only 按钮声明（prompt mode meta tool）
     case image(Data)                                        // 图片输出通道（command/stdin mode 子进程产 PNG）
     case candidates([LauncherCandidate])                    // 候选输出通道（command/stdin mode 子进程产候选列表）
+    case card(PluginCard)                                   // 卡片输出通道（W3：command/stdin mode 子进程产结构化卡片）
     case done(reason: String)                              // "end_turn" / "max_tokens" / "max_iterations"
     case error(LauncherError)
 
@@ -28,6 +29,9 @@ enum AgentEvent: Equatable {
         case (.candidates(let a), .candidates(let b)):
             // C3：新增 case 必须同步加 == 分支。穷尽 switch + default:false，
             // 漏加会导致两相等流被判不等（假阴性），历史 .toolCall == 漏比已被抓过。
+            return a == b
+        case (.card(let a), .card(let b)):
+            // C3 同款纪律：card case 的 == 分支（结构化 Equatable 已合成）
             return a == b
         case (.done(let a), .done(let b)):
             return a == b

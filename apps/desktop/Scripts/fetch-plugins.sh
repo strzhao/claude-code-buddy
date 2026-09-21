@@ -38,7 +38,7 @@ err() { echo "[fetch-plugins] ERROR: $*" >&2; }
 # 参数：$1 = 仓内 marketplace.json 源路径
 generate_bundle_marketplace() {
     local src="$1"
-    # 用 python3 改写：保留顶层字段，遍历 plugins[]，把对象型 source 改成 "./plugins/<name>" 字符串
+    # 用 python3 改写：保留顶层字段，遍历 plugins[]，把对象型 source 改成 "./plugins/<basename>" 字符串
     /usr/bin/python3 - "$src" "$MARKETPLACE_JSON" <<'PYEOF'
 import json, sys
 
@@ -48,8 +48,17 @@ with open(src_path) as f:
 
 for plugin in manifest.get("plugins", []):
     name = plugin.get("name", "")
+    src = plugin.get("source", "")
+    # localSubdir 指向 bundle 内**实际目录名**（rsync 保留源目录名）。marketplace name 与
+    # 目录名可以不同（如 gcli 插件目录仍叫 plugins/quota，2026-09-21 改名保留目录），
+    # 故 gitSubdir 以 path 的 basename 为准；其余形态回退 name。
+    dirname = name
+    if isinstance(src, dict) and src.get("source") == "git-subdir":
+        subdir = str(src.get("path", "")).strip().rstrip("/")
+        if subdir:
+            dirname = subdir.split("/")[-1]
     # gitSubdir/gitURL/file 统一改写为 localSubdir（bundle 内文件已 rsync 就位）
-    plugin["source"] = "./plugins/" + name
+    plugin["source"] = "./plugins/" + dirname
 
 with open(dst_path, "w") as f:
     json.dump(manifest, f, ensure_ascii=False, indent=2)

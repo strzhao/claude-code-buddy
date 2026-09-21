@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""quota — cc-switch 套餐限额查询（buddy Launcher command mode 插件）。
+"""gcli（原 quota）— cc-switch 套餐限额查询（buddy Launcher command mode 插件）。
 
 数据流：stdin PluginInput JSON → 读 ~/.cc-switch/cc-switch.db（read-only）
 → 域名分类（kimi / GLM）→ (kind, token) 去重 → 并发 fetch 各家 quota 端点
@@ -33,7 +33,7 @@ QUOTA_HIGH = 85
 QUOTA_MID = 60
 
 # 触发词（与 plugin.json keywords 同源）；query 剥词后非空才按名称过滤
-TRIGGER_WORDS = ("quota", "limit", "限额", "套餐", "用量")
+TRIGGER_WORDS = ("gcli", "限额", "套餐", "用量")
 
 REQUEST_TIMEOUT_S = 3.0   # per-request 超时（plugin timeout 15s 的内部自限）
 MAX_WORKERS = 4           # 本机典型条目数 ≤4
@@ -387,7 +387,7 @@ def format_segment(label, win, now_ms):
 
 def render_report(results, now_ms):
     """渲染最终文本（纯文本 + emoji，无 ANSI，plain text 下同样可读）。"""
-    lines = ["📶 cc-switch 套餐限额（%d 个）" % len(results), ""]
+    lines = ["📶 gcli 套餐限额（%d 个）" % len(results), ""]
     for r in results:
         title = r.get("display_name", "")
         if r.get("is_current"):
@@ -412,6 +412,55 @@ def render_report(results, now_ms):
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def card_level(pcts):
+    """双窗最大 pct → level 字符串（阈值沿用 level_dot：<60 ok / 60-85 warn / ≥85 danger；
+    无数据 warn，与 🟡「未知」同语义）。"""
+    if not pcts:
+        return "warn"
+    m = max(pcts)
+    if m >= QUOTA_HIGH:
+        return "danger"
+    if m >= QUOTA_MID:
+        return "warn"
+    return "ok"
+
+
+def render_card(report, now_ms=None):
+    """渲染 card JSON dict（BUDDY_OUTPUT_CARD 通道，结构见 state.md ## 契约规约）。
+
+    - now_ms 可选：单参形态 render_card(report) 即契约签名；测试可注入锚点固定 reset 相对时长
+    - percent 产出前 clamp 到 [0,100]（双侧防御的插件侧；Swift 解码侧再 clamp）
+    - title 含「gcli」字样（验收谓词 s1p3「stdout 或卡片 title 含 gcli」依赖此字样）
+    - badge：is_current → 「使用中」，否则空串（字段恒序列化存在，可空）
+    - 缺窗口条目不渲染该行（stdout 文本仍有 ⚠️ 兜底）
+    - 字段语义通用（无 quota 专有名词），未来插件可复用
+    """
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    entries = []
+    for r in report:
+        wins = r.get("windows") or {}
+        pcts = [w[0] for w in (wins.get("short"), wins.get("weekly"))
+                if w is not None]
+        windows = []
+        for label, key in (("5h", "short"), ("周窗", "weekly")):
+            win = wins.get(key)
+            if win is None:
+                continue
+            windows.append({
+                "label": label,
+                "percent": int(max(0, min(100, win[0]))),
+                "reset": format_reset(win[1], now_ms) or "",
+            })
+        entries.append({
+            "name": r.get("display_name", ""),
+            "level": "warn" if r.get("error") else card_level(pcts),
+            "badge": "使用中" if r.get("is_current") else "",
+            "windows": windows,
+        })
+    return {"title": "gcli 套餐限额 · %d 个" % len(report), "entries": entries}
+
+
 # ---------------------------------------------------------------------------
 # stdin 侧容错
 # ---------------------------------------------------------------------------
@@ -431,7 +480,12 @@ def parse_stdin(raw):
 
 
 def strip_trigger(query):
-    """剥掉 query 开头的触发词（大小写不敏感）；非空剩余部分作为过滤词。"""
+    """剥掉 query 开头的触发词（大小写不敏感）；非空剩余部分作为过滤词。
+
+    W2 新增：query 是任一触发词的非空真前缀（如 "gc" ⊂ "gcli"）→ 返回 ""
+    （半截触发词 = 用户只输了触发词无参数，纵深防御：覆盖 AI 路由 extractedQuery
+    旁支与直调场景，对齐 Swift stripKeywordPrefix 同款分支）。
+    """
     if not isinstance(query, str):
         return ""
     q = query.strip()
@@ -442,6 +496,11 @@ def strip_trigger(query):
             return ""
         if low.startswith(w + " "):
             return q[len(w):].strip()
+    # 半截触发词前缀分支（空 query 不命中：startswith("") 恒真，需显式守卫）
+    if low:
+        for word in TRIGGER_WORDS:
+            if word.lower().startswith(low):
+                return ""
     return q
 
 
@@ -450,6 +509,8 @@ def strip_trigger(query):
 # ---------------------------------------------------------------------------
 
 def run(raw_input):
+    """主流程。返回 (stdout 文本, card dict | None)——card 仅在成功渲染报告时产出；
+    无匹配/DB 缺失等降级路径 card=None（让 stdout 文本走文本通道，不被卡片吞掉无匹配提示）。"""
     now_ms = int(time.time() * 1000)
     query = strip_trigger(parse_stdin(raw_input).get("query"))
 
@@ -457,22 +518,22 @@ def run(raw_input):
     db_path = os.path.join(home, ".cc-switch", "cc-switch.db") if home else ""
     if not db_path or not os.path.isfile(db_path):
         return ("📶 套餐限额：未找到 cc-switch 数据库（~/.cc-switch/cc-switch.db）\n"
-                "装好并使用过 cc-switch（配置过任一 kimi / GLM 条目）后再来查询。\n")
+                "装好并使用过 cc-switch（配置过任一 kimi / GLM 条目）后再来查询。\n", None)
     try:
         rows = read_provider_rows(db_path)
     except Exception:
         return ("📶 套餐限额：cc-switch 数据库暂时读不了（可能正被占用）\n"
-                "稍后再试。\n")
+                "稍后再试。\n", None)
 
     targets = collect_targets(rows)
     if not targets:
         return ("📶 套餐限额：cc-switch 里没有可查询的 kimi / GLM 套餐条目\n"
                 "目前仅支持 kimi（kimi.com / moonshot）与智谱 GLM"
-                "（bigmodel / z.ai）。\n")
+                "（bigmodel / z.ai）。\n", None)
 
     targets = filter_targets(targets, query)
     if not targets:
-        return "📶 套餐限额：没有名称匹配「%s」的条目\n" % query
+        return "📶 套餐限额：没有名称匹配「%s」的条目\n" % query, None
 
     results = []
     for target, outcome in zip(targets, fetch_all(targets)):
@@ -484,7 +545,7 @@ def run(raw_input):
             "windows": outcome["windows"],
             "error": outcome["error"],
         })
-    return render_report(results, now_ms)
+    return render_report(results, now_ms), render_card(results, now_ms)
 
 
 def main():
@@ -492,11 +553,22 @@ def main():
         raw = "" if sys.stdin.isatty() else sys.stdin.read()
     except Exception:
         raw = ""
+    card = None
     try:
-        output = run(raw)
+        output, card = run(raw)
     except Exception:
         # 灾难兜底：恒 exit 0（exit≠0 走 pluginCrash 展示 stderr，不可控）
         output = DEGRADE_TEXT
+        card = None
+    # 卡片通道（W3）：BUDDY_OUTPUT_CARD env 存在且 run 产出卡片时写 JSON 文件；
+    # 写失败静默忽略（框架侧 readCardOutputSafely 读不到文件 → card=nil → stdout 兜底照常）。
+    card_path = os.environ.get("BUDDY_OUTPUT_CARD")
+    if card is not None and card_path:
+        try:
+            with open(card_path, "w", encoding="utf-8") as f:
+                json.dump(card, f, ensure_ascii=False)
+        except Exception:
+            pass
     sys.stdout.write(output)
     return 0
 

@@ -68,8 +68,8 @@
       }
     },
     {
-      "name": "quota",
-      "version": "0.1.0",
+      "name": "gcli",
+      "version": "0.2.0",
       "description": "套餐限额查询：查看 cc-switch 里 kimi/GLM 套餐的剩余额度和重置时间",
       "category": "utility",
       "author": {

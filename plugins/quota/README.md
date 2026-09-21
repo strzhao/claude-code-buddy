@@ -1,6 +1,6 @@
-# quota 插件
+# gcli 插件（目录 `plugins/quota/`）
 
-cc-switch 套餐限额查询（command mode 插件）。在 Launcher 输入 `quota` / `限额` / `套餐`，
+cc-switch 套餐限额查询（command mode 插件）。在 Launcher 输入 `gcli` / `限额` / `套餐`，
 即可看到 cc-switch 里 kimi 与智谱 GLM 各套餐的双窗用量（5h 滚动窗口 + 周窗口）
 与距离额度重置的剩余时间。
 
@@ -14,7 +14,7 @@ printf '{"query":"","sessionId":"qa","cwd":"/tmp"}' | ./quota.py
 输出示例：
 
 ```
-📶 cc-switch 套餐限额（3 个）
+📶 gcli 套餐限额（3 个）
 
 🟢 glm flash lastest（等 2 个条目）
 　 5h 12% ↻3h20m ｜ 周窗 45% ↻2d2h
@@ -28,12 +28,12 @@ printf '{"query":"","sessionId":"qa","cwd":"/tmp"}' | ./quota.py
 
 - 状态点按该条目双窗最大用量：≥85 🔴 / ≥60 🟡 / 其余 🟢（对齐 statusline-sage 阈值）
 - `is_current` 的条目附「· 当前使用中」；同 token 的多条目合并为一行（附「等 N 个条目」）
-- 触发词后带名称（如 `quota kimi`）按条目名子串过滤（大小写不敏感）
+- 触发词后带名称（如 `gcli kimi`）按条目名子串过滤（大小写不敏感）
 - 单条目失败/解析失败 → 该条目显示「⚠️ 暂时无法获取」，不影响其他条目
 
 ## 触发词
 
-`quota` / `limit` / `限额` / `套餐` / `用量`
+`gcli` / `限额` / `套餐` / `用量`
 
 ## 数据来源
 

@@ -5,7 +5,7 @@
 # 运行方式（独立脚本，不经 run-all.sh 发现）：
 #   bash tests/acceptance/quota_plugin.acceptance.test.sh
 #
-# 覆盖谓词（SSOT: .autopilot/runtime/requirements/20260920-开始实现/state.md ## 验收场景）：
+# 覆盖谓词（SSOT: .autopilot/runtime/requirements/20260921-开始实现/state.md ## 验收场景）：
 #   P1  [det-machine] 面板渲染：空 query 驱动 → exit=0 ∧ stdout 含「套餐限额」
 #   P2  [det-machine] 双窗数据：stdout 含「5h」∧「周窗」∧ 本机 DB 实有的 kimi|glm 条目名子串
 #                     （双窗字面量依赖上游 API；全部端点不可达时 SKIP 并显式标记，条目名断言恒硬）
@@ -14,8 +14,11 @@
 #   P4  [det-machine] 单测全绿：cd plugins/quota && python3 -m unittest discover → exit=0
 #   P5  [det-machine] 畸形输入容错：not-json 与空 stdin 两种驱动均 exit=0 ∧ 无 Traceback
 #   P6  [det-machine] DB 缺失降级：HOME=/tmp/qa-empty-home → exit=0 ∧ 降级提示 ∧ 无 Traceback
+#   P7  [det-machine] W1 改名 + W3 卡片通道：BUDDY_OUTPUT_CARD 驱动 → card 文件可 JSON 解析 ∧
+#                     title 含「gcli」∧ level ∈ {ok,warn,danger} ∧ percent ∈ [0,100] ∧ 无 token；
+#                     plugin.json name==gcli ∧ keywords 含 gcli 无 quota/limit（旧词移除）
 #   S0  [det-machine] manifest 契约（state.md ## 契约规约 钉死字面量）：plugin.json 字段闭集 +
-#                     quota 条目 marketplace 登记 + shebang /usr/bin/python3
+#                     gcli 条目 marketplace 登记（目录仍 plugins/quota）+ shebang /usr/bin/python3
 #
 # 红队红线：全部 det-machine 硬断言；驱动真实脚本产物（模拟 StdinExecutor stdin 契约），
 # 不走 buddy CLI 全链路（TOFU 弹框不可自动化）。目标产物缺失时输出「目标缺失」失败而非 crash。
@@ -147,7 +150,8 @@ try:
 except Exception as e:
     print("S0-FAIL [plugin.json 可解析]: %s" % e); sys.exit(1)
 
-check("name==quota", m.get("name") == "quota", "实际 %r" % m.get("name"))
+check("name==gcli", m.get("name") == "gcli", "实际 %r（W1 改名：显示名 gcli，目录保持 quota）" % m.get("name"))
+check("version==0.2.0", m.get("version") == "0.2.0", "实际 %r（改名+功能变更 bump 0.2.0）" % m.get("version"))
 check("mode==command", m.get("mode") == "command", "实际 %r（设计关键决策 1）" % m.get("mode"))
 check("cmd==./quota.py", m.get("cmd") == "./quota.py", "实际 %r（契约表：cmd 用 ./quota.py）" % m.get("cmd"))
 check("timeout==15", m.get("timeout") == 15, "实际 %r（契约表：timeout: 15）" % m.get("timeout"))
@@ -162,6 +166,10 @@ for f in ("version", "summary", "description", "keywords", "args", "env"):
 check("keywords非空且全>=2字符", isinstance(m.get("keywords"), list) and len(m["keywords"]) > 0
       and all(isinstance(k, str) and len(k) >= 2 for k in m["keywords"]),
       "实际 %r（历史知识：单字 keyword 只参与完全档，全 >=2 规避）" % m.get("keywords"))
+check("keywords含gcli且无quota/limit", isinstance(m.get("keywords"), list)
+      and "gcli" in m["keywords"]
+      and "quota" not in m["keywords"] and "limit" not in m["keywords"],
+      "实际 %r（W1 改名：gcli 入列，旧词 quota/limit 必须移除）" % m.get("keywords"))
 check("summary非黑话人话", isinstance(m.get("summary"), str) and len(m.get("summary", "").strip()) > 0,
       "summary 为空")
 
@@ -169,8 +177,8 @@ try:
     mk = json.load(io.open(marketplace_path, encoding="utf-8"))
 except Exception as e:
     print("S0-FAIL [marketplace.json 可解析]: %s" % e); sys.exit(1)
-entries = [p for p in mk.get("plugins", []) if p.get("name") == "quota"]
-check("marketplace含quota条目", len(entries) == 1, "命中 %d 条" % len(entries))
+entries = [p for p in mk.get("plugins", []) if p.get("name") == "gcli"]
+check("marketplace含gcli条目", len(entries) == 1, "命中 %d 条" % len(entries))
 if entries:
     e = entries[0]
     check("marketplace.version存在", bool(e.get("version")), "缺 version（syncFromRemote noop 教训）")
@@ -376,6 +384,79 @@ test_P6_db_missing_degrade() {
     pass "P6"
 }
 
+# ── P7: W1 改名 + W3 BUDDY_OUTPUT_CARD 卡片通道 ─────────────────────────────
+test_P7_card_channel() {
+    echo "P7: BUDDY_OUTPUT_CARD 驱动 → card 文件可解析 ∧ title 含 gcli ∧ level/percent 合法 ∧ 无 token"
+    local out_f="$TMPDIR_QA/p7.out" err_f="$TMPDIR_QA/p7.err" card_f="$TMPDIR_QA/p7.card.json" rc
+    rm -f "$card_f"
+    export BUDDY_OUTPUT_CARD="$card_f"
+    drive_quota "$DRIVE_IN" "$out_f" "$err_f"; rc=$?
+    unset BUDDY_OUTPUT_CARD
+    mask_tokens "$out_f" "$err_f"
+    if [ "$rc" -ne 0 ]; then
+        fail "P7" "exit 期望 0，实际 ${rc}；stderr: $(head -c 200 "$err_f")"
+        return
+    fi
+    # stdout 恒有兜底文本（错误契约：card 写失败/读不到 → stdout 文本照常渲染）
+    if ! grep -q '套餐限额' "$out_f"; then
+        fail "P7" "stdout 无兜底文本（缺「套餐限额」）；实际: $(head -c 200 "$out_f")"
+        return
+    fi
+    if [ ! -f "$card_f" ]; then
+        if [ ! -f "$DB_PATH" ]; then
+            skip "P7" "本机无 cc-switch.db → 插件走 DB 缺失降级早退，不产出 card（允许跳过）"
+        else
+            fail "P7" "BUDDY_OUTPUT_CARD 已注入且 DB 存在，但 card 文件未产出: $card_f"
+        fi
+        return
+    fi
+    local out
+    out=$("$PY" - "$card_f" "$TOKENS" <<'PYEOF'
+import io, json, sys
+
+card_path, tokens_blob = sys.argv[1], sys.argv[2]
+fails = []
+def check(name, cond, detail=""):
+    if not cond:
+        fails.append("P7-FAIL [%s]: %s" % (name, detail))
+
+try:
+    with io.open(card_path, encoding="utf-8") as f:
+        raw = f.read()
+    card = json.loads(raw)
+except Exception as e:
+    print("P7-FAIL [card 可解析]: %s" % e); sys.exit(1)
+
+check("title含gcli", isinstance(card.get("title"), str) and "gcli" in card["title"],
+      "实际 %r" % card.get("title"))
+entries = card.get("entries", [])
+check("entries>=1", len(entries) >= 1, "entries %d 条" % len(entries))
+LEVELS = {"ok", "warn", "danger"}
+for e in entries:
+    for key in ("name", "level", "badge", "windows"):
+        check("条目字段:%s" % key, key in e, "缺 %s" % key)
+    check("level合法", e.get("level") in LEVELS, "实际 %r" % e.get("level"))
+    for w in e.get("windows", []):
+        check("窗口字段", "label" in w and "percent" in w, "实际 %r" % w)
+        check("percent∈[0,100]", isinstance(w.get("percent"), int)
+              and 0 <= w["percent"] <= 100, "实际 %r" % w.get("percent"))
+# 红线：card 文件全文不含真实 token / Bearer 字样（token 只进 Authorization 头）
+for tok in (t for t in tokens_blob.split("\n") if len(t) >= 8):
+    check("无token泄露", tok not in raw, "（token 值已掩码不回显）")
+check("无Bearer字样", "Bearer" not in raw)
+
+for line in fails:
+    print(line)
+sys.exit(1 if fails else 0)
+PYEOF
+    )
+    if [ $? -ne 0 ]; then
+        fail "P7" "$(echo "$out" | head -5 | tr '\n' '; ')"
+        return
+    fi
+    pass "P7"
+}
+
 # ── artifact 落盘（谓词登记路径 /tmp/qa-quota-p*.txt）────────────────────────
 write_artifacts() {
     cp "$TMPDIR_QA/p1.out" /tmp/qa-quota-p1.txt 2>/dev/null
@@ -385,8 +466,10 @@ write_artifacts() {
     { echo "--- not-json ---"; cat "$TMPDIR_QA/p5-not-json.out" 2>/dev/null; cat "$TMPDIR_QA/p5-not-json.err" 2>/dev/null
       echo "--- empty ---"; cat "$TMPDIR_QA/p5-empty.out" 2>/dev/null; cat "$TMPDIR_QA/p5-empty.err" 2>/dev/null; } > /tmp/qa-quota-p5.txt 2>/dev/null
     cp "$TMPDIR_QA/p6.out" /tmp/qa-quota-p6.txt 2>/dev/null
+    { cat "$TMPDIR_QA/p7.card.json" 2>/dev/null; echo "--- stdout ---"; cat "$TMPDIR_QA/p7.out" 2>/dev/null; } > /tmp/qa-quota-p7.txt 2>/dev/null
     mask_tokens /tmp/qa-quota-p1.txt /tmp/qa-quota-p2.txt /tmp/qa-quota-p3.txt \
-                /tmp/qa-quota-p4.txt /tmp/qa-quota-p5.txt /tmp/qa-quota-p6.txt 2>/dev/null
+                /tmp/qa-quota-p4.txt /tmp/qa-quota-p5.txt /tmp/qa-quota-p6.txt \
+                /tmp/qa-quota-p7.txt 2>/dev/null
 }
 
 echo "=== quota plugin acceptance tests ==="
@@ -400,12 +483,13 @@ test_P3_no_token_leak
 test_P4_unit_tests_green
 test_P5_malformed_input
 test_P6_db_missing_degrade
+test_P7_card_channel
 
 write_artifacts
 
 echo
 echo "=== summary: $PASS passed, $FAIL failed, $SKIP skipped ==="
-echo "artifacts: /tmp/qa-quota-p{1,2,3,4,5,6}.txt（已掩码）"
+echo "artifacts: /tmp/qa-quota-p{1,2,3,4,5,6,7}.txt（已掩码）"
 if [ "$FAIL" -gt 0 ]; then
     for m in "${FAILMSGS[@]}"; do echo "$m"; done
     rm -rf "$TMPDIR_QA"

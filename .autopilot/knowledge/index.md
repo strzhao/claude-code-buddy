@@ -1,7 +1,8 @@
 # Knowledge Index
 
-## Decisions (20)
+## Decisions (21)
 
+- [2026-09-21] BUDDY_OUTPUT_CARD 第三结构化输出通道（对称 image/candidates 先例）：clamp 双侧防御（Python 产出前 + Swift 解码侧再 clamp）/entries>32 截断保留前 32/card 存在不 yield .text 防重复/pluginCrash 兜底补 card==nil/插件降级路径 card=None 防吞无匹配提示；schema 通用化（title/entries/windows 无 quota 专名）未来插件可复用 | tags: launcher, card-channel, buddy-output-card, command-mode, plugin, stdin-executor, clamp, defense-in-depth, plugin-card, agent-event | → decisions/2026-09-21-buddy-output-card-third-channel-clamp-dual-side.md
 - [2026-09-20] cc-switch 套餐 limit 插件：command mode 社区插件 + python3 stdlib 单文件（零 brew dep、token 不经 ps）+ SQLite ro 读 cc-switch.db providers.settings_config + (kind,token) 去重 + 恒 exit 0 降级纪律 + kimi/GLM quota 协议移植自 gcli（kimi 字符串数值/GLM epoch-ms 重置/Bearer 差异） | tags: launcher, community-plugin, quota, cc-switch, command-mode, python3, stdlib-only, sqlite-readonly, token-safety, gcli-protocol, dedupe, marketplace, plugins | → decisions/2026-09-20-cc-switch-quota-plugin-command-mode-python3.md
 - [2026-08-30] 内置插件接入统一混排：pluginKeywords 协议扩展（extension 默认 []，仅 PastePlugin 配置）+ scorer 内核唯一入口（manifest 版逐字委托 C-SCORER-DELEGATION）+ builtin: 前缀聚合行（无具体候选才产行防重复）+ 展开=填触发词（bestTriggerWord 同分取最短，否决直接替换列表：状态不一致+onChange 清列表）+ 前缀守卫优先分流/Tab（防社区插件重名误分流）+ CLI source 四值闭集（builtin-plugin）；QA 真机 defaults 翻转开关必须带 bundle domain（缺 domain 静默写错，plan-reviewer 实测抓出） | tags: launcher, builtin-plugin, unified-score, fuzzy-row, pluginkeywords, expand-builtin, tab-nolock, cli-source-quad, prefix-guard, dedup | → decisions/2026-08-30-builtin-fuzzy-row-pluginkeywords-unified-score.md
 - [2026-08-29] 插件候选一等公民统一混排：统一分数档位纯函数 scorer（完全1000/双向前缀800/词首500/contains150+name30+单字<2仅完全档）三处同源消费（typing/AI流内核/短路阈值500）+ 插件桥接通用 Action 模型（iconEmoji）进 app/内置单列表同行渲染器 + Enter 直接执行（参数剥触发词）+ Tab 锁定保留 + 自动锁定/watermark chip/commandRoute 分区/跨区导航四块退役净删码；否决桥接归一层（双分数体系并存）与 CandidateProvider 流式（无流式需求 YAGNI） | tags: launcher, unified-score, single-list, candidate, plugin, app-search, tab-lock, enter-exec, c-unified-score | → decisions/2026-08-29-unified-candidate-mix-single-list-unified-score.md
@@ -26,7 +27,9 @@
 
 - [2026-06-28] Launcher 日志注入全覆盖 + debug route CLI：5 条 BuddyLogger 注入原则 + 50+ 注入点零逻辑修改 + QueryHandler 自建链路绕过 isSubmitting 卫兵实现端到端 AI 路由调试 | tags: launcher, logging, buddylogger, instrumentation, subsystem, debug-route, cli | → patterns/2026-06-28-launcher-log-instrumentation-blitz.md
 
-## Patterns (120)
+## Patterns (121)
+
+- [2026-09-21] 验收 e2e 三假源：build 检查只验存在性吃到陈旧 bundle（重打 + mtime 验新鲜）/ `buddy launcher run --input` 是裸 query 而 JSON 提取契约属 `buddy run`（混用→整串当 filter 词，报错带原始 JSON 即诊断线索）/ bash 全角紧邻 `$VAR` 第三次实战（`)` 与 `，` 两处，`${VAR}` 防御） | tags: e2e, stale-bundle, buddy-cli, input-contract, bash-fullwidth, qa | → patterns/2026-09-21-e2e-stale-bundle-buddy-run-input-contract-fullwidth-var.md
 
 - [2026-09-18] Claude Code hook input 无 pid 字段：会话进程信息须经 `~/.claude/sessions/<pid>.json` 注册表按 sessionId 反查（重试 0.5s×4+fail-open），headless 判型唯一可靠依据 = `ps -o args=` argv 精确 token（`kind`/`entrypoint` 实证 10/10 全 interactive 不可用）；pid 复用误报用注册表 procStart 比对 `ps lstart` 防御；对外部系统输入 schema 的假设必须先实证——静默空转最难发现（plan-reviewer 三重实证抓出） | tags: claude-code, hook, pid, session-registry, headless, argv, reverse-lookup, verify-before-assume | → patterns/2026-09-18-hook-input-no-pid-session-registry-reverse-lookup.md
 - [2026-09-18] async XCTest 内同步自旋泵等待饿死主 actor：协作式调度不可抢占，被等的 Task{@MainActor} 永远排不上→超时假红（单独跑也红，易误判实现 bug）；async 上下文必须 Task.sleep 挂起式等待，sync 方法泵式照旧；async 改造 sync 测试时等待原语必须同步换 | tags: xctest, async, mainactor, spin-wait, task-sleep, cooperative-scheduling, false-red | → patterns/2026-09-18-async-xctest-sync-spin-starves-main-actor.md

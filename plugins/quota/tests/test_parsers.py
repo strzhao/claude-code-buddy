@@ -9,11 +9,15 @@
 约定：畸形输入一律降级不抛错（缺窗口 ≠ crash）。
 """
 
+import io
 import json
 import os
+import sqlite3
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_DIR = os.path.dirname(HERE)
@@ -412,14 +416,34 @@ class TestStdinSide(unittest.TestCase):
             self.assertEqual(quota.parse_stdin(raw), {"query": ""})
 
     def test_strip_trigger(self):
-        self.assertEqual(quota.strip_trigger("quota"), "")
-        self.assertEqual(quota.strip_trigger("quota kimi"), "kimi")
+        self.assertEqual(quota.strip_trigger("gcli"), "")
+        self.assertEqual(quota.strip_trigger("gcli kimi"), "kimi")
         self.assertEqual(quota.strip_trigger("限额"), "")
         self.assertEqual(quota.strip_trigger("套餐 glm"), "glm")
-        self.assertEqual(quota.strip_trigger("limit kimi"), "kimi")
-        self.assertEqual(quota.strip_trigger("QUOTA Kimi"), "Kimi")
+        self.assertEqual(quota.strip_trigger("用量 kimi"), "kimi")
+        self.assertEqual(quota.strip_trigger("GCLI Kimi"), "Kimi")
         self.assertEqual(quota.strip_trigger("kimi"), "kimi")
+        self.assertEqual(quota.strip_trigger("quota"), "quota")
+        self.assertEqual(quota.strip_trigger("limit kimi"), "limit kimi")
         self.assertEqual(quota.strip_trigger(None), "")
+
+    def test_strip_trigger_prefix_branch(self):
+        """W2 半截触发词前缀分支（s2p6 六例 1:1，对齐 Swift stripKeywordPrefix）。"""
+        # 正例："gc" 是 "gcli" 的非空真前缀
+        self.assertEqual(quota.strip_trigger("gc"), "")
+        # 边界：完整词（既有完全剥离）
+        self.assertEqual(quota.strip_trigger("gcli"), "")
+        # 边界：剥离剩余（既有分支优先级更高）
+        self.assertEqual(quota.strip_trigger("gcli kimi"), "kimi")
+        # 边界：中文 keyword 前缀
+        self.assertEqual(quota.strip_trigger("限"), "")
+        self.assertEqual(quota.strip_trigger("套"), "")
+        # 反例：非任何触发词前缀 → 原样（作过滤词）
+        self.assertEqual(quota.strip_trigger("kim"), "kim")
+        # 反例：空串早返
+        self.assertEqual(quota.strip_trigger(""), "")
+        # 反例：比触发词长且非完整命中 → 原样
+        self.assertEqual(quota.strip_trigger("gclix"), "gclix")
 
     def test_filter_targets_case_insensitive_any_name(self):
         rows = [("kimi", "https://api.kimi.com/coding/", "sk", False)]
@@ -431,6 +455,195 @@ class TestStdinSide(unittest.TestCase):
         self.assertEqual(len(quota.filter_targets(merged, "glm")), 2)
         self.assertEqual(len(quota.filter_targets(merged, "glm lastest")), 1)
         self.assertEqual(len(quota.filter_targets(merged, "")), 3)
+
+
+# ---------------------------------------------------------------------------
+# render_card — W3 卡片通道（BUDDY_OUTPUT_CARD，契约规约 card JSON schema）
+# ---------------------------------------------------------------------------
+
+class TestRenderCard(unittest.TestCase):
+    def test_schema_fields_and_title_contains_gcli(self):
+        """s1p3/s3p1 谓词：title 含「gcli」字样；条目含 name/level/badge + windows[label/percent/reset]。"""
+        results = [
+            make_result(["kimi"], is_current=True,
+                        windows={"short": (12, iso_at(200)),
+                                 "weekly": (45, iso_at(3000))}),
+            make_result(["glm-4.6"],
+                        windows={"short": (91, iso_at(65))}),
+        ]
+        card = quota.render_card(results, NOW_MS)
+        self.assertIn("gcli", card["title"])
+        self.assertIn("2 个", card["title"])
+        self.assertEqual(len(card["entries"]), 2)
+        e0 = card["entries"][0]
+        self.assertEqual(e0["name"], "kimi")
+        self.assertEqual(e0["badge"], "使用中")
+        self.assertIn("badge", e0)                       # badge 字段恒序列化（可空）
+        self.assertEqual(e0["level"], "ok")
+        self.assertEqual(e0["windows"][0],
+                         {"label": "5h", "percent": 12, "reset": "3h20m"})
+        self.assertEqual(e0["windows"][1]["label"], "周窗")
+        # badge 空串（非 current）仍存在
+        self.assertIn("badge", card["entries"][1])
+        self.assertEqual(card["entries"][1]["badge"], "")
+
+    def test_clamp_both_directions(self):
+        """s7p2 谓词：percent=120 → 100 / percent=-5 → 0（产出前 clamp，双侧防御插件侧）。"""
+        card = quota.render_card([
+            make_result(["a"], windows={"short": (120, iso_at(133))}),
+            make_result(["b"], windows={"short": (-5, iso_at(133))}),
+        ], NOW_MS)
+        self.assertEqual(card["entries"][0]["windows"][0]["percent"], 100)
+        self.assertEqual(card["entries"][1]["windows"][0]["percent"], 0)
+
+    def test_level_thresholds_match_level_dot(self):
+        """阈值沿用 level_dot：<60 ok / 60-85 warn / ≥85 danger / 无数据 warn。"""
+        def level_for(windows):
+            card = quota.render_card([make_result(["x"], windows=windows)], NOW_MS)
+            return card["entries"][0]["level"]
+
+        self.assertEqual(level_for({"short": (85, iso_at(30))}), "danger")
+        self.assertEqual(level_for({"short": (84, iso_at(30))}), "warn")
+        self.assertEqual(level_for({"short": (60, iso_at(30))}), "warn")
+        self.assertEqual(level_for({"short": (59, iso_at(30))}), "ok")
+        self.assertEqual(level_for({}), "warn")
+
+    def test_failed_entry_warn_with_empty_windows(self):
+        card = quota.render_card([make_result(["kimi"], error=True)], NOW_MS)
+        self.assertEqual(card["entries"][0]["level"], "warn")
+        self.assertEqual(card["entries"][0]["windows"], [])
+
+    def test_missing_window_row_omitted(self):
+        card = quota.render_card([
+            make_result(["a"], windows={"short": (42, iso_at(133))}),
+        ], NOW_MS)
+        self.assertEqual(len(card["entries"][0]["windows"]), 1)
+        self.assertEqual(card["entries"][0]["windows"][0]["label"], "5h")
+
+    def test_no_token_in_card(self):
+        """s3p1 红线：token 值 / 「Bearer」字样不落 card JSON。"""
+        rows = [("kimi", "https://api.kimi.com/coding/", "SUPER-SECRET-TOKEN", True)]
+        targets = quota.collect_targets(rows)
+        results = [{
+            "display_name": quota.display_name(t),
+            "names": t["names"],
+            "is_current": t["is_current"],
+            "kind": t["kind"],
+            "windows": {"short": (12, iso_at(200))},
+            "error": False,
+        } for t in targets]
+        card = quota.render_card(results, NOW_MS)
+        text = json.dumps(card, ensure_ascii=False)
+        self.assertNotIn("SUPER-SECRET-TOKEN", text)
+        self.assertNotIn("Bearer", text)
+
+
+# ---------------------------------------------------------------------------
+# main 写 BUDDY_OUTPUT_CARD 文件 — W3 通道（env 缺失/写失败静默，stdout 恒兜底）
+# ---------------------------------------------------------------------------
+
+class _FakeStdin:
+    def isatty(self):
+        return False
+
+    def read(self):
+        return '{"query":"","sessionId":"t","cwd":"/tmp"}'
+
+
+class TestMainCardChannel(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="quota-card-test-")
+        cc_dir = os.path.join(self.tmp, ".cc-switch")
+        os.makedirs(cc_dir)
+        self.db_path = os.path.join(cc_dir, "cc-switch.db")
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "CREATE TABLE providers "
+            "(name TEXT, settings_config TEXT, is_current INTEGER, app_type TEXT)")
+        conn.execute(
+            "INSERT INTO providers VALUES ('kimi', ?, 1, 'claude')",
+            (json.dumps({"env": {
+                "ANTHROPIC_BASE_URL": "https://api.kimi.com/coding/",
+                "ANTHROPIC_AUTH_TOKEN": "UNITTEST-TOKEN-VALUE"}}),))
+        conn.commit()
+        conn.close()
+
+    def tearDown(self):
+        for root, _, files in os.walk(self.tmp, topdown=False):
+            for f in files:
+                os.remove(os.path.join(root, f))
+            os.rmdir(root)
+
+    def _run_main(self, card_path):
+        """进程内跑 quota.main()：fixture 假 DB + mock fetch（hermetic，零网络）。返回 (rc, stdout)。"""
+        env = dict(os.environ)
+        env["HOME"] = self.tmp
+        env.pop("BUDDY_OUTPUT_CARD", None)
+        if card_path:
+            env["BUDDY_OUTPUT_CARD"] = card_path
+        fake_out = io.StringIO()
+        with mock.patch.object(quota, "fetch_quota_body",
+                               return_value=load_fixture("kimi_usages.json")), \
+             mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.object(sys, "stdin", _FakeStdin()), \
+             mock.patch.object(sys, "stdout", fake_out):
+            rc = quota.main()
+        return rc, fake_out.getvalue()
+
+    def test_main_writes_card_file_when_env_set(self):
+        card_path = os.path.join(self.tmp, "out.card.json")
+        rc, stdout = self._run_main(card_path)
+        self.assertEqual(rc, 0)
+        with io.open(card_path, encoding="utf-8") as f:
+            card = json.load(f)
+        self.assertIn("gcli", card["title"])
+        self.assertGreaterEqual(len(card["entries"]), 1)
+        e = card["entries"][0]
+        for key in ("name", "level", "badge", "windows"):
+            self.assertIn(key, e)
+        self.assertGreaterEqual(len(e["windows"]), 1)
+        for w in e["windows"]:
+            self.assertIn("label", w)
+            self.assertIn("percent", w)
+            self.assertIn("reset", w)
+        # 红线：card 文件全文不含 token 字样
+        with io.open(card_path, encoding="utf-8") as f:
+            raw = f.read()
+        self.assertNotIn("UNITTEST-TOKEN-VALUE", raw)
+        self.assertNotIn("Bearer", raw)
+        # stdout 恒有兜底文本（人类可读报告）
+        self.assertIn("套餐限额", stdout)
+
+    def test_main_no_env_no_file_written(self):
+        rc, stdout = self._run_main(None)
+        self.assertEqual(rc, 0)
+        self.assertIn("套餐限额", stdout)
+        leftovers = [f for f in os.listdir(self.tmp) if f.endswith(".card.json")]
+        self.assertEqual(leftovers, [], "env 缺失时不写任何 card 文件")
+
+    def test_main_write_failure_silent_exit0_stdout_fallback(self):
+        # 指向不存在目录 → 写失败静默忽略；stdout 恒有兜底文本；恒 exit 0
+        card_path = os.path.join(self.tmp, "no-such-dir", "out.card.json")
+        rc, stdout = self._run_main(card_path)
+        self.assertEqual(rc, 0)
+        self.assertIn("套餐限额", stdout)
+
+    def test_main_db_missing_no_card_written(self):
+        # DB 缺失 → run 早退无 card → 不写文件；stdout 降级文案
+        env_home = os.path.join(self.tmp, "empty-home")
+        os.makedirs(env_home)
+        card_path = os.path.join(self.tmp, "should-not-exist.card.json")
+        env = dict(os.environ)
+        env["HOME"] = env_home
+        env["BUDDY_OUTPUT_CARD"] = card_path
+        fake_out = io.StringIO()
+        with mock.patch.object(sys, "stdin", _FakeStdin()), \
+             mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.object(sys, "stdout", fake_out):
+            rc = quota.main()
+        self.assertEqual(rc, 0)
+        self.assertFalse(os.path.exists(card_path), "DB 缺失路径不得写 card")
+        self.assertIn("套餐限额", fake_out.getvalue())
 
 
 if __name__ == "__main__":

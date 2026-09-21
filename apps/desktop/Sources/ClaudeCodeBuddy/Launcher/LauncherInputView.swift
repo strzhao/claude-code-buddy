@@ -8,6 +8,9 @@ struct LauncherInputView: View {
     @State private var errorOutput: AttributedString?       // 仅用于 .error 路径
     @State private var resultImage: NSImage?                // 图片通道：渲染用（PNG → NSImage）
     @State private var resultImageData: Data?               // 原始 PNG 字节（场景3.P2：点击复制保持字节一致，不经 NSImage 重编码）
+    /// 卡片输出通道（W3，BUDDY_OUTPUT_CARD）：command/stdin 插件产的结构化卡片，nil = 无卡片。
+    /// card 存在时不收 .text（防同内容双份展示，submitCommandDirect 契约）。
+    @State private var card: PluginCard?
     @State private var copied: Bool = false                 // 图片点击复制反馈（✓，1.2s 复位）
     @State private var copiedResetTask: Task<Void, Never>?  // 复位 copied 的 Task（取消旧的重置）
     @State private var visible: Bool = false                // 入场动画状态（C6 契约）
@@ -25,9 +28,9 @@ struct LauncherInputView: View {
         manager.stage != .idle && manager.stage != .error
     }
 
-    /// 是否有可见输出（正文非空 or 有错误输出 or 有图片 or 有插件候选）
+    /// 是否有可见输出（正文非空 or 有错误输出 or 有图片 or 有卡片 or 有插件候选）
     private var hasOutput: Bool {
-        !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil || !pluginCandidates.isEmpty
+        !outputBuffer.isEmpty || errorOutput != nil || resultImage != nil || card != nil || !pluginCandidates.isEmpty
     }
 
     /// 统一混排候选区（D6：单列表，app + 内置 + 社区插件同一列表）是否显示：
@@ -157,7 +160,12 @@ struct LauncherInputView: View {
                     } else {
                         // 正常路径：正文走干净 markdown 连续渲染（按钮收在底部工具条）
                         // 图片通道（T6）：command/stdin mode 子进程产 PNG → 居中白底卡片展示，点击复制
+                        // 卡片通道（W3）：BUDDY_OUTPUT_CARD → 原生限额卡片（card 存在时无 .text，无双份）
                         VStack(spacing: 12) {
+                            if let card {
+                                LauncherCardView(card: card)
+                                    .padding(.horizontal, LauncherConstants.inputPaddingH)
+                            }
                             if let img = resultImage {
                                 resultImageCard(image: img)
                             }
@@ -172,9 +180,9 @@ struct LauncherInputView: View {
                             }
                         }
                         .padding(.vertical, 12)
-                        // 无图片且无文本时显示占位（降级，场景4.P2 错误占位 / 空输出）
+                        // 无图片且无文本且无卡片时显示占位（降级，场景4.P2 错误占位 / 空输出）
                         .overlay {
-                            if resultImage == nil && outputBuffer.isEmpty {
+                            if resultImage == nil && outputBuffer.isEmpty && card == nil {
                                 Text("未生成图片")
                                     .font(LauncherTheme.outputBody)
                                     .foregroundStyle(LauncherTheme.smoke)
@@ -199,7 +207,8 @@ struct LauncherInputView: View {
             height: LauncherInputView.panelHeight(
                 candidateCount: manager.lastRouteCandidates.count,
                 hasSelected: false,
-                outputHeight: (hasOutput && pluginCandidates.isEmpty) ? LauncherConstants.outputMaxHeight : 0,
+                // W3：输出高度按内容实际估算（修「有输出固定撑满 400pt」），仍 clamp outputMaxHeight
+                outputHeight: (hasOutput && pluginCandidates.isEmpty) ? estimatedOutputHeight : 0,
                 hasFooter: manager.stage == .error,
                 instantCount: showInstantCandidates ? manager.instantActions.count : 0,
                 pluginCandidateCount: pluginCandidates.count
@@ -248,6 +257,7 @@ struct LauncherInputView: View {
             resultImage = nil
             resultImageData = nil
             copied = false
+            card = nil
             pluginCandidates = []
             pluginCandidateIndex = -1
             callbackQuery = ""
@@ -264,6 +274,7 @@ struct LauncherInputView: View {
                 resultImage = nil
                 resultImageData = nil
                 copied = false
+                card = nil
                 pluginCandidates = []
                 pluginCandidateIndex = -1
                 callbackQuery = ""
@@ -433,6 +444,7 @@ struct LauncherInputView: View {
                 resultImage = nil
                 resultImageData = nil
                 copied = false
+                card = nil
             }
             callbackQuery = q
             callbackManifest = locked
@@ -495,6 +507,7 @@ struct LauncherInputView: View {
                 resultImage = nil
                 resultImageData = nil
                 copied = false
+                card = nil
             }
             // 记录原始 query + manifest（候选回调 C5 用：同 query 重入同插件）
             callbackQuery = q
@@ -513,6 +526,7 @@ struct LauncherInputView: View {
             errorOutput = nil
             resultImage = nil
             copied = false
+            card = nil
         }
 
         let selectedIdx = manager.lastRouteSelectedIndex
@@ -533,6 +547,21 @@ struct LauncherInputView: View {
             callbackManifest = candidates.isEmpty ? nil : candidates[selectedIdx >= 0 ? selectedIdx : 0]
         }
         await consume(stream)
+    }
+
+    // MARK: - 输出高度估算（W3 面板高度收缩）
+
+    /// 当前输出的估算高度（headless 可测的纯函数组合；渲染态 → 高度）。
+    /// 错误路径独占（body 中 if/else 互斥）；正常路径各产物高度累加，clamp outputMaxHeight。
+    private var estimatedOutputHeight: CGFloat {
+        if let err = errorOutput {
+            return min(Self.estimatedTextHeight(String(err.characters)), LauncherConstants.outputMaxHeight)
+        }
+        var h: CGFloat = 0
+        if let card { h += Self.cardHeight(card) }
+        if !outputBuffer.isEmpty { h += Self.estimatedTextHeight(outputBuffer) + 12 }
+        if resultImage != nil { h += 248 }   // 200pt 图片卡 + 12pt 卡片内边距 ×2 + 12pt 区间距
+        return min(h, LauncherConstants.outputMaxHeight)
     }
 
     /// 消费 AgentEvent 流并更新 UI state（submit / submitWithCandidate 共用）。
@@ -568,6 +597,10 @@ struct LauncherInputView: View {
                     pluginCandidates = items            // 候选输出通道：收集候选列表（C1）
                     pluginCandidateIndex = items.isEmpty ? -1 : 0  // 默认选中首个（↑↓ + Enter）
                 }
+            case .card(let cardValue):
+                await MainActor.run {
+                    card = cardValue                    // 卡片输出通道（W3）：收卡片渲染（card 存在时不收 .text）
+                }
             case .done:
                 await MainActor.run {
                     query = ""
@@ -588,6 +621,32 @@ struct LauncherInputView: View {
 // MARK: - panelHeight 纯函数（C3 / C7 契约）
 
 extension LauncherInputView {
+
+    // MARK: 输出内容高度估算（W3 面板高度收缩，headless 可测纯函数）
+
+    /// 卡片输出高度估算：标题行 + Σ 条目卡片（头行 + 每窗行）+ 外层垂直留白。
+    /// 与 LauncherCardView 布局常数 1:1 对应（title 16+8 间距 / 卡片纵向 padding 10×2 /
+    /// 头行 20 + 间距 8 / 每窗行 18 + 行距 6 / 卡片间距 8 / 输出区 .padding(.vertical, 12)×2）。
+    static func cardHeight(_ card: PluginCard) -> CGFloat {
+        var h: CGFloat = 24   // 标题行高 + 底部间距（无标题时充当输出区上留白，防 0 高塌缩）
+        for entry in card.entries {
+            var cardH: CGFloat = 10 + 20 + 8 + 10   // 卡片上下 padding + 头行 + 头行间距
+            let windows = entry.windows.count
+            if windows > 0 {
+                cardH += CGFloat(windows) * 18 + CGFloat(windows - 1) * 6
+            }
+            h += cardH + 8   // 卡片间距
+        }
+        return h + 24   // 输出区 .padding(.vertical, 12) × 2
+    }
+
+    /// 文本输出高度估算：行数 × 行高（outputBody 18pt ≈ 24pt 行高）+ 输出区垂直留白。
+    /// markdown 渲染放大字号/换行折行的偏差可接受（估算偏保守，超出部分走 ScrollView 滚动）。
+    static func estimatedTextHeight(_ text: String) -> CGFloat {
+        guard !text.isEmpty else { return 0 }
+        let lineCount = text.components(separatedBy: .newlines).count
+        return CGFloat(lineCount) * 24 + 24
+    }
     /// 自适应面板高度公式（D6 统一混排简化版）。
     /// output 态 / 统一候选列表态（instant 单区 + pluginCandidateExtra 叠加）/ 空态。
     static func panelHeight(

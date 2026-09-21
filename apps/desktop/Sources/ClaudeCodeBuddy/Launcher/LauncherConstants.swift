@@ -54,6 +54,9 @@ enum LauncherConstants {
     /// 候选输出通道（BUDDY_OUTPUT_CANDIDATES）最大字节数，超限丢弃为 nil（降级不报错）。
     /// 候选 JSON 远小于图片，64 KiB 足够且防御放大攻击（对称 image 通道的 5 MiB 上限）。
     static let pluginMaxCandidatesBytes: Int = 64 * 1024        // 64 KiB
+    /// 卡片输出通道（BUDDY_OUTPUT_CARD）最大字节数，超限丢弃为 nil（降级不报错）。
+    /// 限额卡片 JSON 体量极小，256 KiB（262_144）上限纯防御放大（对称 candidates 通道）。
+    static let cardMaxBytes: Int = 262_144                      // 256 KiB
     static let pluginSigkillGraceSec: Int = 5                   // SIGTERM 后等待秒数
     static let pluginRequiredPathMaxCount: Int = 10
     /// PATH 注入前缀（覆盖在 ProcessInfo.processInfo.environment["PATH"] 之前）
